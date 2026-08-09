@@ -15,10 +15,10 @@
   ],
   "rewrites": [
     { "source": "/gennetex/admin", "destination": "/gennetex/admin/index.html" },
-    { "source": "/about", "destination": "/index.html" },
-    { "source": "/services", "destination": "/index.html" },
-    { "source": "/projects", "destination": "/index.html" },
-    { "source": "/contact", "destination": "/index.html" },
-    { "source": "/careers", "destination": "/index.html" }
+    { "source": "/about", "destination": "/" },
+    { "source": "/services", "destination": "/" },
+    { "source": "/projects", "destination": "/" },
+    { "source": "/contact", "destination": "/" },
+    { "source": "/careers", "destination": "/" }
   ]
 }
