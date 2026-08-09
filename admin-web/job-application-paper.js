@@ -10,8 +10,18 @@
       .replace(/"/g, '&quot;');
   }
 
+  function safeSignatureSvg(value) {
+    var svg = String(value || '').trim();
+    if (!/^<svg(?:\s|>)/i.test(svg)) return '';
+    return svg
+      .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
+      .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, '')
+      .replace(/\son\w+\s*=\s*(["'])[\s\S]*?\1/gi, '')
+      .replace(/javascript:/gi, '');
+  }
+
   var PAPER_CSS =
-    "@page { size: A4; margin: 12mm; } * { box-sizing: border-box; } body { font-family: 'Times New Roman', Times, serif; color: #111; font-size: 11px; line-height: 1.35; margin: 0; padding: 0; background: #fff; } .paper { max-width: 210mm; margin: 0 auto; padding: 8px; } .paper-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; border-bottom: 2px solid #111; padding-bottom: 8px; } .paper-head-center { flex: 1; text-align: center; } .paper-logo { height: 52px; object-fit: contain; margin-bottom: 4px; } .paper-company { font-size: 14px; font-weight: 700; margin: 0; text-transform: uppercase; } .paper-title { font-size: 13px; font-weight: 700; margin: 4px 0 0; } .paper-photo { width: 99px; height: 132px; flex: 0 0 99px; background: #fff; border: 1.5px solid #111; padding: 3px; display: flex; align-items: center; justify-content: center; overflow: hidden; } .paper-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; background: #fff; display: block; } .paper-photo-empty { font-size: 9px; color: #666; text-align: center; line-height: 1.3; background: #fff; } h3.section { font-size: 11px; font-weight: 700; margin: 12px 0 4px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 2px; } table.form { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; } table.form td, table.form th { border: 1px solid #333; padding: 4px 6px; vertical-align: top; word-wrap: break-word; } table.form .lbl { width: 28%; font-weight: 600; background: #f5f5f5; } table.data th { background: #eee; font-weight: 700; font-size: 10px; text-align: center; } .sig-box { margin-top: 8px; border: 1px solid #333; min-height: 70px; padding: 6px; background: #fff; } .sig-box svg, .sig-box img { max-width: 220px; max-height: 64px; } .meta { font-size: 10px; color: #444; margin-top: 4px; }";
+    "@page { size: A4; margin: 12mm; } * { box-sizing: border-box; } body { font-family: 'Times New Roman', Times, serif; color: #111; font-size: 11px; line-height: 1.35; margin: 0; padding: 0; background: #fff; } .paper { max-width: 210mm; margin: 0 auto; padding: 8px; } .paper-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; border-bottom: 2px solid #111; padding-bottom: 8px; } .paper-head-center { flex: 1; text-align: center; } .paper-logo { height: 52px; object-fit: contain; margin-bottom: 4px; } .paper-company { font-size: 14px; font-weight: 700; margin: 0; text-transform: uppercase; } .paper-title { font-size: 13px; font-weight: 700; margin: 4px 0 0; } .paper-photo { width: 99px; height: 132px; flex: 0 0 99px; background: #fff; border: 1.5px solid #111; padding: 3px; display: flex; align-items: center; justify-content: center; overflow: hidden; } .paper-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; background: #fff; display: block; } .paper-photo-empty { font-size: 9px; color: #666; text-align: center; line-height: 1.3; background: #fff; } h3.section { font-size: 11px; font-weight: 700; margin: 12px 0 4px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 2px; } table.form { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; } table.form td, table.form th { border: 1px solid #333; padding: 4px 6px; vertical-align: top; word-wrap: break-word; } table.form .lbl { width: 28%; font-weight: 600; background: #f5f5f5; } table.data th { background: #eee; font-weight: 700; font-size: 10px; text-align: center; } .meta { font-size: 10px; color: #444; margin-top: 4px; } .signature-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; break-inside:avoid; } .signature-card { position:relative; min-height:132px; border:1px solid #333; padding:8px; overflow:hidden; background:#fff; } .signature-title { font-weight:700; margin-bottom:4px; } .signature-layer { position:relative; z-index:2; height:72px; display:flex; align-items:center; justify-content:center; } .signature-layer svg, .signature-layer img { max-width:230px; max-height:70px; } .stamp-img { position:absolute; right:8px; top:24px; width:82px; height:82px; object-fit:contain; opacity:.72; z-index:1; }";
 
   function cell(label, value) {
     return '<tr><td class="lbl">' + esc(label) + '</td><td>' + esc(value || '—') + '</td></tr>';
@@ -38,7 +48,8 @@
     var langs = (fd.languages || []).filter(function (l) { return (l.language || '').trim(); });
     var emerg = (fd.emergencyContacts || []).filter(function (e) { return (e.name || '').trim(); });
     var signed = opts.signedAt || fd.signedAt;
-    var sig = opts.signatureSvg || fd.signatureSvg || '';
+    var sig = safeSignatureSvg(opts.signatureSvg || fd.signatureSvg);
+    var adminSig = safeSignatureSvg(opts.adminSignatureSvg);
 
     return (
       '<!DOCTYPE html><html lang="mn"><head><meta charset="utf-8"/><title>' +
@@ -63,7 +74,7 @@
       cell('Эцэг (эх)-ийн нэр', g.fatherName) +
       cell('Өөрийн нэр', g.firstName) +
       cell('Төрсөн огноо', [g.birthYear, g.birthMonth, g.birthDay].filter(Boolean).join('.')) +
-      cell('Төрсөн газар', [g.birthProvince, g.birthDistrict].filter(Boolean).join(', ')) +
+      cell('Төрсөн газар', [g.birthProvince, g.birthDistrict, g.birthSubdistrict].filter(Boolean).join(', ')) +
       cell('Яс үндэс', g.ethnicity) +
       cell('Хүйс', g.gender) +
       cell('Регистрийн дугаар', g.registrationNo) +
@@ -181,11 +192,15 @@
         })
         .join('') || '<tr><td colspan="3">—</td></tr>') +
       '</tbody></table>' +
-      '<h3 class="section">9. Гарын үсэг</h3><div class="sig-box">' +
-      (sig || '—') +
-      '</div><p class="meta">Огноо: ' +
-      esc(signed ? new Date(signed).toLocaleString('mn-MN') : '—') +
-      '</p></div></body></html>'
+      '<h3 class="section">9. Гарын үсэг ба баталгаа</h3><div class="signature-grid">' +
+      '<div class="signature-card"><div class="signature-title">Ажил горилогч</div><div class="signature-layer">' +
+      (sig || '—') + '</div><div class="meta">' + esc([g.fatherName,g.firstName].filter(Boolean).join(' ') || '—') + ' · ' +
+      esc(signed ? new Date(signed).toLocaleString('mn-MN') : '—') + '</div></div>' +
+      '<div class="signature-card"><div class="signature-title">Баталсан</div>' +
+      (opts.stampUrl ? '<img class="stamp-img" src="' + esc(opts.stampUrl) + '" alt="Компанийн тамга"/>' : '') +
+      '<div class="signature-layer">' + (adminSig || 'Гарын үсэг хүлээгдэж байна') + '</div>' +
+      '<div class="meta">' + esc(opts.adminName || '—') + ' · ' + esc(opts.adminSignedAt ? new Date(opts.adminSignedAt).toLocaleString('mn-MN') : '—') +
+      '</div></div></div></div></body></html>'
     );
   }
 

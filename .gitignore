@@ -4,6 +4,7 @@ dist/
 dist-web/
 web-build/
 npm-debug.*
+*.log
 *.jks
 *.p8
 *.p12
@@ -20,3 +21,14 @@ public-web/dist/
 .aider*
 .vercel
 .env*
+android/
+ios/
+eas-cli
+expo-tunnel*.log
+fix-frontend/
+fix-public-site/
+sitecontent-fallback/
+temp-redeploy-main/
+test/
+google-services.json
+GoogleService-Info.plist

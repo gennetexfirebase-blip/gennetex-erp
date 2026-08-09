@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#fafafa"/>
+  <circle cx="40" cy="34" r="6" fill="#fff" stroke="#616161" stroke-width="2"/><line x1="40" y1="40" x2="40" y2="56" stroke="#616161" stroke-width="3"/><line x1="32" y1="50" x2="48" y2="50" stroke="#616161" stroke-width="2"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#616161">ANC</text>
+</svg>

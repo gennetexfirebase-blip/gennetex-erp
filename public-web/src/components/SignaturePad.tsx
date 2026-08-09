@@ -18,7 +18,8 @@ export default function SignaturePad({ onChange, disabled = false }: Props) {
     if (!c) return null;
     const ctx = c.getContext('2d');
     if (!ctx) return null;
-    ctx.strokeStyle = '#fafafa';
+    // Цагаан цаасан PDF дээр заавал харагдахын тулд dark ink хадгална.
+    ctx.strokeStyle = '#16396f';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -104,7 +105,7 @@ export default function SignaturePad({ onChange, disabled = false }: Props) {
         width={W}
         height={H}
         aria-disabled={disabled}
-        className={`w-full rounded-lg border border-graphite-700 bg-graphite-900 touch-none ${
+        className={`w-full rounded-lg border border-graphite-600 bg-white touch-none ${
           disabled ? 'cursor-not-allowed' : 'cursor-crosshair'
         }`}
         onMouseDown={start}

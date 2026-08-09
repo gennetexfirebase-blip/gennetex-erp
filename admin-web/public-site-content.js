@@ -103,6 +103,10 @@
       pageIntro: 'ЖЕННЕТЕКС ХХК-ийн албан ёсны анкетыг бөглөнө үү. Бүх талбарыг үнэн зөв бөглөнө.',
       perksTitle: 'Мэдээлэл',
       perks: ['Инженерийн мэргэжлийн баг', 'Тогтвортой ажлын байр', 'Нийгмийн даатгал'],
+      jobOptions: [
+        { title: 'Шончин', salary: '' },
+        { title: 'Installer', salary: '' },
+      ],
       sidebarNote:
         'Анкет илгээсний дараа HR баг хянаж, утсаар холбогдоно. Хувийн мэдээллийг зөвхөн ажилд авах зорилгоор ашиглана.',
       footer: '© {year} ЖЕННЕТЕКС ХХК',
@@ -246,6 +250,9 @@
     var cr = c.careers || {};
     var ft = c.footer || {};
     var nb = c.navbar || {};
+    var jobOptionsText = (cr.jobOptions || []).map(function (job) {
+      return String(job.title || '').trim() + ' | ' + String(job.salary || '').trim();
+    }).filter(Boolean).join('\n');
     var updated = updatedAt ? new Date(updatedAt).toLocaleString('mn-MN') : 'Хэзээ ч хадгалаагүй';
 
     var aboutItems = (ab.items || []).map(function (it, i) {
@@ -432,6 +439,17 @@
       ) +
       block('Хажуугийн мэдээлэл', '<div class="psc-grid">' + field('Гарчиг', 'careers_perksTitle', cr.perksTitle) + perks + field('Тэмдэглэл', 'careers_sidebarNote', cr.sidebarNote, { area: true, rows: 4, wide: true }) + '</div>') +
       block(
+        'Нээлттэй ажлын байр ба цалин',
+        '<div class="psc-grid">' +
+          field('Албан тушаал | Цалин', 'careers_jobOptions', jobOptionsText, {
+            area: true,
+            rows: 6,
+            wide: true,
+            hint: 'Мөр бүр: Шончин | 2,000,000₮',
+          }) +
+          '</div>',
+      ) +
+      block(
         'Бусад',
         '<div class="psc-grid">' +
           field('Footer мөр', 'careers_footer', cr.footer, { hint: '{year} → одоогийн он' }) +
@@ -525,6 +543,10 @@
     var perks = (base.careers.perks || []).map(function (_, i) {
       return val('career_perk_' + i);
     });
+    var jobOptions = val('careers_jobOptions').split(/\r?\n/).map(function (line) {
+      var parts = line.split('|');
+      return { title: String(parts.shift() || '').trim(), salary: String(parts.join('|') || '').trim() };
+    }).filter(function (job) { return job.title; });
     var phone = val('contact_phone');
     var email = val('contact_email');
 
@@ -594,6 +616,7 @@
         pageIntro: val('careers_pageIntro'),
         perksTitle: val('careers_perksTitle'),
         perks: perks,
+        jobOptions: jobOptions,
         sidebarNote: val('careers_sidebarNote'),
         footer: val('careers_footer'),
         backHome: val('careers_backHome'),

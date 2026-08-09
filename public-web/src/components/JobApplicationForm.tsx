@@ -1,7 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Send, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus, Send, Trash2 } from 'lucide-react';
 import SignaturePad from './SignaturePad';
 import { submitJobApplication } from '../lib/submitApplication';
+import { getDistrictOptions, getSubdistrictOptions, isCapital, PROVINCE_OPTIONS } from '../lib/mongoliaLocations';
+import { useSiteContent } from '../context/SiteContentContext';
 import {
   JOB_APPLICATION_RULES,
   JOB_APPLICATION_RULES_TITLE,
@@ -19,6 +21,14 @@ const STEPS = [
 const inputCls = 'job-input';
 const labelCls = 'job-label';
 const sectionCls = 'job-section';
+const REGISTER_LETTERS = 'АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯ'.split('');
+const DEFAULT_JOB_OPTIONS = [
+  { title: 'Шончин', salary: '' },
+  { title: 'Installer', salary: '' },
+];
+
+const onlyDigits = (value: string, maxLength?: number) =>
+  value.replace(/\D/g, '').slice(0, maxLength || value.length);
 
 function Field({
   children,
@@ -124,6 +134,7 @@ function AddBtn({ onClick, children }: { onClick: () => void; children: React.Re
 }
 
 export default function JobApplicationForm({ embedded = false }: { embedded?: boolean }) {
+  const { careers } = useSiteContent();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<JobApplicationFormData>(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -154,6 +165,34 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
   const setGeneral = (patch: Partial<JobApplicationFormData['general']>) =>
     setForm((f) => ({ ...f, general: { ...f.general, ...patch } }));
 
+  const districtOptions = useMemo(
+    () => getDistrictOptions(form.general.birthProvince),
+    [form.general.birthProvince],
+  );
+  const subdistrictOptions = useMemo(
+    () => getSubdistrictOptions(form.general.birthProvince, form.general.birthDistrict),
+    [form.general.birthProvince, form.general.birthDistrict],
+  );
+  const configuredJobs = Array.isArray(careers?.jobOptions) && careers.jobOptions.length
+    ? careers.jobOptions
+    : DEFAULT_JOB_OPTIONS;
+  const registrationLetters = form.general.registrationNo.slice(0, 2).split('');
+  const registrationDigits = onlyDigits(form.general.registrationNo.slice(2), 8);
+  const birthDate = [form.general.birthYear, form.general.birthMonth, form.general.birthDay].every(Boolean)
+    ? `${form.general.birthYear}-${form.general.birthMonth.padStart(2, '0')}-${form.general.birthDay.padStart(2, '0')}`
+    : '';
+
+  const setRegistrationLetter = (index: number, letter: string) => {
+    const next = [registrationLetters[0] || '', registrationLetters[1] || ''];
+    next[index] = letter;
+    setGeneral({ registrationNo: `${next.join('')}${registrationDigits}` });
+  };
+
+  const setBirthDate = (value: string) => {
+    const [birthYear = '', birthMonth = '', birthDay = ''] = value.split('-');
+    setGeneral({ birthYear, birthMonth, birthDay });
+  };
+
   const progress = ((step + 1) / STEPS.length) * 100;
 
   const validateStep = (): string | null => {
@@ -163,6 +202,8 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
       if (!g.fatherName.trim()) return 'Эцэг (эх)-ийн нэрийг оруулна уу.';
       if (!g.phoneMobile.trim()) return 'Утасны дугаараа оруулна уу.';
       if (!g.registrationNo.trim()) return 'Регистрийн дугаараа оруулна уу.';
+      if (!/^[А-ЯӨҮ]{2}\d{8}$/.test(g.registrationNo)) return 'Регистрийн дугаар 2 үсэг, 8 цифртэй байна.';
+      if (!/^\d{8}$/.test(g.phoneMobile)) return 'Гар утасны дугаар 8 оронтой байна.';
     }
     if (step === 3) {
       if (!rulesRead) return 'Журмыг доош гүйлгэж бүрэн уншина уу.';
@@ -330,35 +371,70 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
                 <input className={inputCls} value={form.general.firstName} onChange={(e) => setGeneral({ firstName: e.target.value })} />
               </Field>
               <Field title="Регистрийн дугаар" required>
-                <input className={inputCls} value={form.general.registrationNo} onChange={(e) => setGeneral({ registrationNo: e.target.value })} />
+                <div className="job-register-grid">
+                  {[0, 1].map((index) => (
+                    <select
+                      key={index}
+                      className={`${inputCls} job-register-letter`}
+                      aria-label={`Регистрийн ${index + 1}-р үсэг`}
+                      value={registrationLetters[index] || ''}
+                      onChange={(e) => setRegistrationLetter(index, e.target.value)}
+                    >
+                      <option value="">Үсэг</option>
+                      {REGISTER_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
+                    </select>
+                  ))}
+                  <input
+                    className={inputCls}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={8}
+                    placeholder="8 оронтой тоо"
+                    value={registrationDigits}
+                    onChange={(e) => setGeneral({ registrationNo: `${registrationLetters.join('')}${onlyDigits(e.target.value, 8)}` })}
+                  />
+                </div>
               </Field>
               <Field title="Утас (гар)" required>
-                <input className={inputCls} type="tel" value={form.general.phoneMobile} onChange={(e) => setGeneral({ phoneMobile: e.target.value })} />
+                <input className={inputCls} type="tel" inputMode="numeric" maxLength={8} placeholder="8 оронтой дугаар" value={form.general.phoneMobile} onChange={(e) => setGeneral({ phoneMobile: onlyDigits(e.target.value, 8) })} />
               </Field>
               <Field title="И-мэйл">
                 <input className={inputCls} type="email" value={form.general.email} onChange={(e) => setGeneral({ email: e.target.value })} />
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field title="Төрсөн он">
-                <input className={inputCls} inputMode="numeric" value={form.general.birthYear} onChange={(e) => setGeneral({ birthYear: e.target.value })} />
-              </Field>
-              <Field title="Сар">
-                <input className={inputCls} inputMode="numeric" value={form.general.birthMonth} onChange={(e) => setGeneral({ birthMonth: e.target.value })} />
-              </Field>
-              <Field title="Өдөр">
-                <input className={inputCls} inputMode="numeric" value={form.general.birthDay} onChange={(e) => setGeneral({ birthDay: e.target.value })} />
+            <div className="job-subsection">
+              <div className="job-subsection-title"><CalendarDays size={17} /> Төрсөн огноо</div>
+              <Field title="Он, сар, өдөр">
+                <input className={inputCls} type="date" max={new Date().toISOString().slice(0, 10)} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field title="Төрсөн аймаг/хот">
-                <input className={inputCls} value={form.general.birthProvince} onChange={(e) => setGeneral({ birthProvince: e.target.value })} />
+            <div className="job-subsection">
+              <div className="job-subsection-title"><MapPin size={17} /> Төрсөн газар</div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field title="Аймаг/хот">
+                <select className={inputCls} value={form.general.birthProvince} onChange={(e) => setGeneral({ birthProvince: e.target.value, birthDistrict: '', birthSubdistrict: '' })}>
+                  <option value="">Сонгох</option>
+                  {PROVINCE_OPTIONS.map((option) => <option key={option.code} value={option.name}>{option.name}</option>)}
+                </select>
               </Field>
-              <Field title="Сум/дүүрэг">
-                <input className={inputCls} value={form.general.birthDistrict} onChange={(e) => setGeneral({ birthDistrict: e.target.value })} />
+              <Field title={isCapital(form.general.birthProvince) ? 'Дүүрэг' : 'Сум'}>
+                <select className={inputCls} disabled={!form.general.birthProvince} value={form.general.birthDistrict} onChange={(e) => setGeneral({ birthDistrict: e.target.value, birthSubdistrict: '' })}>
+                  <option value="">Сонгох</option>
+                  {districtOptions.map((option) => <option key={option.code} value={option.name}>{option.name}</option>)}
+                </select>
               </Field>
+              <Field title={isCapital(form.general.birthProvince) ? 'Хороо' : 'Баг'}>
+                <select className={inputCls} disabled={!form.general.birthDistrict} value={form.general.birthSubdistrict} onChange={(e) => setGeneral({ birthSubdistrict: e.target.value })}>
+                  <option value="">Сонгох</option>
+                  {subdistrictOptions.map((option) => <option key={option.code} value={option.name}>{option.name}</option>)}
+                </select>
+              </Field>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field title="Хүйс">
                 <select className={inputCls} value={form.general.gender} onChange={(e) => setGeneral({ gender: e.target.value as 'Эрэгтэй' | 'Эмэгтэй' | '' })}>
                   <option value="">Сонгох</option>
@@ -367,13 +443,43 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
                 </select>
               </Field>
               <Field title="Цусны бүлэг">
-                <input className={inputCls} value={form.general.bloodType} onChange={(e) => setGeneral({ bloodType: e.target.value })} placeholder="ж: I, II, III, IV" />
+                <select className={inputCls} value={form.general.bloodType} onChange={(e) => setGeneral({ bloodType: e.target.value })}>
+                  <option value="">Сонгох</option>
+                  {['I', 'II', 'III', 'IV'].map((group) => <option key={group} value={group}>{group}</option>)}
+                </select>
+              </Field>
+              <Field title="Яс үндэс">
+                <input className={inputCls} value={form.general.ethnicity} onChange={(e) => setGeneral({ ethnicity: e.target.value })} />
+              </Field>
+              <Field title="НД төлдөг эсэх">
+                <YesNo name="social-insurance" value={form.general.paysSocialInsurance} onChange={(v) => setGeneral({ paysSocialInsurance: v })} />
+              </Field>
+              <Field title="Утас (гэр)">
+                <input className={inputCls} type="tel" inputMode="numeric" maxLength={10} placeholder="Зөвхөн тоо" value={form.general.phoneHome} onChange={(e) => setGeneral({ phoneHome: onlyDigits(e.target.value, 10) })} />
               </Field>
             </div>
 
             <Field title="Оршин суугаа хаяг" className="sm:col-span-2">
               <input className={inputCls} value={form.general.address} onChange={(e) => setGeneral({ address: e.target.value })} />
             </Field>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field title="Биеийн хэмжээ">
+                <input className={inputCls} inputMode="numeric" placeholder="ж: 175" value={form.general.bodySize} onChange={(e) => setGeneral({ bodySize: onlyDigits(e.target.value, 3) })} />
+              </Field>
+              <Field title="Хувцасны размер">
+                <select className={inputCls} value={form.general.clothingSize} onChange={(e) => setGeneral({ clothingSize: e.target.value })}>
+                  <option value="">Сонгох</option>
+                  {['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'].map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </Field>
+              <Field title="Гутлын размер">
+                <select className={inputCls} value={form.general.shoeSize} onChange={(e) => setGeneral({ shoeSize: e.target.value })}>
+                  <option value="">Сонгох</option>
+                  {Array.from({ length: 18 }, (_, i) => String(i + 33)).map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </Field>
+            </div>
 
             <div className={`${sectionCls} grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr]`}>
               <div>
@@ -412,7 +518,7 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
                       <input className={inputCls} placeholder="Овог нэр" value={m.fullName} onChange={(e) => { const members = [...form.family.members]; members[i] = { ...members[i], fullName: e.target.value }; setForm((f) => ({ ...f, family: { ...f.family, members } })); }} />
                       <input className={inputCls} placeholder="Хэн болох" value={m.relation} onChange={(e) => { const members = [...form.family.members]; members[i] = { ...members[i], relation: e.target.value }; setForm((f) => ({ ...f, family: { ...f.family, members } })); }} />
                       <input className={inputCls} placeholder="Төрсөн он" value={m.birthYear} onChange={(e) => { const members = [...form.family.members]; members[i] = { ...members[i], birthYear: e.target.value }; setForm((f) => ({ ...f, family: { ...f.family, members } })); }} />
-                      <input className={inputCls} placeholder="Утас" value={m.phone} onChange={(e) => { const members = [...form.family.members]; members[i] = { ...members[i], phone: e.target.value }; setForm((f) => ({ ...f, family: { ...f.family, members } })); }} />
+                      <input className={inputCls} inputMode="numeric" placeholder="Утас — зөвхөн тоо" value={m.phone} onChange={(e) => { const members = [...form.family.members]; members[i] = { ...members[i], phone: onlyDigits(e.target.value, 10) }; setForm((f) => ({ ...f, family: { ...f.family, members } })); }} />
                       <input className={`${inputCls} sm:col-span-2`} placeholder="Ажил/сургууль" value={m.workOrSchool} onChange={(e) => { const members = [...form.family.members]; members[i] = { ...members[i], workOrSchool: e.target.value }; setForm((f) => ({ ...f, family: { ...f.family, members } })); }} />
                     </div>
                   </RowCard>
@@ -500,10 +606,16 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
               <SectionHead num="7" title="Ажилд орох хүсэлт" />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field title="Сонирхож буй албан тушаал">
-                  <input className={inputCls} value={form.jobInterest.position} onChange={(e) => setForm((f) => ({ ...f, jobInterest: { ...f.jobInterest, position: e.target.value } }))} />
+                  <select className={inputCls} value={form.jobInterest.position} onChange={(e) => {
+                    const selected = configuredJobs.find((job: { title: string; salary?: string }) => job.title === e.target.value);
+                    setForm((f) => ({ ...f, jobInterest: { position: e.target.value, desiredSalary: selected?.salary || '' } }));
+                  }}>
+                    <option value="">Сонгох</option>
+                    {configuredJobs.map((job: { title: string; salary?: string }) => <option key={job.title} value={job.title}>{job.title}</option>)}
+                  </select>
                 </Field>
                 <Field title="Хүсэж буй цалин">
-                  <input className={inputCls} value={form.jobInterest.desiredSalary} onChange={(e) => setForm((f) => ({ ...f, jobInterest: { ...f.jobInterest, desiredSalary: e.target.value } }))} />
+                  <input className={inputCls} readOnly value={form.jobInterest.desiredSalary} placeholder="Админаас тохируулна" />
                 </Field>
               </div>
             </div>
@@ -518,7 +630,7 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
                 <RowCard key={i} title={`Хүн ${i + 1}`}>
                   <input className={inputCls} placeholder="Овог нэр" value={c.name} onChange={(e) => { const emergencyContacts = [...form.emergencyContacts]; emergencyContacts[i] = { ...emergencyContacts[i], name: e.target.value }; setForm((f) => ({ ...f, emergencyContacts })); }} />
                   <input className={inputCls} placeholder="Хэн болох" value={c.relation} onChange={(e) => { const emergencyContacts = [...form.emergencyContacts]; emergencyContacts[i] = { ...emergencyContacts[i], relation: e.target.value }; setForm((f) => ({ ...f, emergencyContacts })); }} />
-                  <input className={inputCls} placeholder="Утас" value={c.phone} onChange={(e) => { const emergencyContacts = [...form.emergencyContacts]; emergencyContacts[i] = { ...emergencyContacts[i], phone: e.target.value }; setForm((f) => ({ ...f, emergencyContacts })); }} />
+                  <input className={inputCls} inputMode="numeric" placeholder="Утас — зөвхөн тоо" value={c.phone} onChange={(e) => { const emergencyContacts = [...form.emergencyContacts]; emergencyContacts[i] = { ...emergencyContacts[i], phone: onlyDigits(e.target.value, 10) }; setForm((f) => ({ ...f, emergencyContacts })); }} />
                 </RowCard>
               ))}
             </div>

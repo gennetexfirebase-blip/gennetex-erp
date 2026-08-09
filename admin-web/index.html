@@ -615,30 +615,13 @@
         </div>
         <div class="login-card-head">
           <h2>Нэвтрэх</h2>
-          <p>Админ имэйл, нууц үгээ оруулна уу</p>
+          <p>Зөвшөөрөгдсөн Gmail хаягаараа нэвтэрнэ үү</p>
         </div>
         <form id="loginForm" onsubmit="return false">
-          <div class="login-field">
-            <label for="email">Имэйл</label>
-            <div class="login-input-wrap">
-              <span class="field-icon material-symbols-outlined">mail</span>
-              <input id="email" type="email" placeholder="admin@gennetex.mn" autocomplete="username"/>
-            </div>
-          </div>
-          <div class="login-field">
-            <label for="password">Нууц үг</label>
-            <div class="login-input-wrap">
-              <span class="field-icon material-symbols-outlined">lock</span>
-              <input id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
-              <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="Нууц үг харуулах" title="Нууц үг харуулах">
-                <span class="material-symbols-outlined" id="pwdToggleIcon">visibility</span>
-              </button>
-            </div>
-          </div>
           <button type="submit" class="login-btn" id="loginBtn">
             <span class="spinner" aria-hidden="true"></span>
-            <span class="btn-label">Нэвтрэх</span>
-            <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+            <span class="btn-label">Google-ээр нэвтрэх</span>
+            <span class="material-symbols-outlined" style="font-size:18px">login</span>
           </button>
           <div class="err" id="loginErr" role="alert">
             <span class="material-symbols-outlined">error</span>
@@ -760,8 +743,8 @@
   <script src="job-application-paper.js"></script>
   <script src="public-site-content.js"></script>
   <script>
-    const SUPABASE_URL = 'https://xhxyrzzgmksjlibfrmlx.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoeHlyenpnbWtzamxpYmZybWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4ODEwMjYsImV4cCI6MjA5ODQ1NzAyNn0.nYWs_N09RLHvhmEUCdbS6M8yvthsKJ5TkXjdRv4VMag';
+    const SUPABASE_URL = 'https://zkftykocmqzrgdhgwluu.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZnR5a29jbXF6cmdkaGd3bHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNTAyNDYsImV4cCI6MjEwMTgyNjI0Nn0.FwZ0yK6lS5Ngh3Rd2WaEJw08EA3WGW4Ac_uKNx7oTQ0';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
@@ -797,6 +780,14 @@
       });
     }
     async function loadProfilesOrdered(){
+      const approved=await sb.rpc('admin_list_authorized_users');
+      if(!approved.error){
+        return {
+          data:(approved.data||[]).map(w=>({...w,id:w.record_id,pending:!w.registered})),
+          error:null
+        };
+      }
+      console.error('authorized users:',approved.error);
       const full=await sb.from('profiles').select('*').order('name');
       if(!full.error) return full;
       console.error('profiles:',full.error);
@@ -1096,14 +1087,14 @@
     }
     async function doLogin(){
       showErr('');
-      const email=$('email').value.trim();
-      const password=$('password').value;
-      if(!email||!password){ showErr('Имэйл болон нууц үгээ оруулна уу'); return; }
       setLoginLoading(true);
       try{
-        const { data:d, error }=await sb.auth.signInWithPassword({ email, password });
+        const redirectTo=`${location.origin}/gennetex/admin`;
+        const { error }=await sb.auth.signInWithOAuth({
+          provider:'google',
+          options:{redirectTo,queryParams:{prompt:'select_account'}}
+        });
         if(error){ showErr(error.message); return; }
-        await afterLogin(d.user.id);
       }catch(e){
         showErr(e.message||'Нэвтрэхэд алдаа гарлаа');
       }finally{
@@ -1129,7 +1120,7 @@
     async function afterLogin(uid){
       let p=null;
       try{
-        const { data:boot, error:be }=await sb.rpc('bootstrap_profile');
+        const { data:boot, error:be }=await sb.rpc('claim_authorized_profile');
         if(!be&&boot) p=boot;
       }catch(e){}
       if(!p){
@@ -1138,7 +1129,7 @@
         p=data;
       }
       if(!p || !isAdminRole(p.role)){
-        showErr('Зөвхөн админ нэвтэрнэ. Системийн админ эрх шаардлагатай.');
+        showErr('Зөвхөн энгийн админ эсвэл Хөгжүүлэгч нэвтэрнэ.');
         await sb.auth.signOut(); return;
       }
       me=p; $('uName').textContent=p.name||'Админ'; $('uAvatar').textContent=(p.name||'A').charAt(0).toUpperCase();
@@ -2832,7 +2823,7 @@
       return {
         company:'ЖЕННЕТЕКС ХХК',
         title:'Ажилд орохыг хүсэгчийн анкет',
-        general:{clanName:'',fatherName:r.last_name||'',firstName:r.name||'',birthYear:'',birthMonth:'',birthDay:'',birthProvince:'',birthDistrict:'',ethnicity:'',gender:'',registrationNo:'',email:r.email||'',paysSocialInsurance:'',phoneMobile:r.phone||'',phoneHome:'',driverLicenseNo:'',driverLicenseClass:'',bloodType:'',address:'',housingType:'',bodySize:'',clothingSize:'',shoeSize:'',univisionContractNo:'',photoDataUrl:r.photo_url||''},
+        general:{clanName:'',fatherName:r.last_name||'',firstName:r.name||'',birthYear:'',birthMonth:'',birthDay:'',birthProvince:'',birthDistrict:'',birthSubdistrict:'',ethnicity:'',gender:'',registrationNo:'',email:r.email||'',paysSocialInsurance:'',phoneMobile:r.phone||'',phoneHome:'',driverLicenseNo:'',driverLicenseClass:'',bloodType:'',address:'',housingType:'',bodySize:'',clothingSize:'',shoeSize:'',univisionContractNo:'',photoDataUrl:r.photo_url||''},
         family:{married:'',members:[]},
         education:[],workExperience:[],languages:[],
         personal:{strengths:'',weaknesses:''},
@@ -2857,12 +2848,19 @@
       const html=buildJobApplicationPaperHtml(fd,{
         logoUrl:typeof ADMIN_ASSET==='function'?ADMIN_ASSET('logo.png'):'logo.png',
         signatureSvg:r.signature_svg||fd.signatureSvg||'',
-        signedAt:r.signed_at||fd.signedAt||''
+        signedAt:r.signed_at||fd.signedAt||'',
+        adminSignatureSvg:r.admin_signature_svg||'',
+        adminSignedAt:r.admin_signed_at||'',
+        adminName:r.admin_signed_by_name||'',
+        stampUrl:'/company-stamp.png'
       });
       window._jobPaperCache[id]=html;
       const body=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <button class="btn btn-primary btn-sm" type="button" onclick="printJobAppCached('${String(r.id).replace(/'/g,"\\'")}')">
           <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle">picture_as_pdf</span> PDF / Хэвлэх
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="openAdminJobSignature('${String(r.id).replace(/'/g,"\\'")}')">
+          <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle">draw</span> ${r.admin_signature_svg?'Дахин батлах':'Баталж гарын үсэг зурах'}
         </button>
         <span class="muted" style="font-size:12px">Цаасан анкетын загвар — 3×4 цээж зураг цагаан дэвсгэртэй</span>
       </div>
@@ -2877,6 +2875,34 @@
       },60);
     }
     window.viewJobApplication=viewJobApplication;
+    function openAdminJobSignature(id){
+      const r=(data.jobApplications||[]).find(x=>x.id===id);
+      if(!r){ toast('Олдсонгүй'); return; }
+      window._adminJobSignatureSvg='';
+      const body=`<p class="muted" style="margin-top:0">Админ: <b>${String(me?.name||'Админ').replace(/</g,'&lt;')}</b>. Цагаан талбайд гарын үсгээ зурна уу.</p>
+        <canvas id="adminJobSignatureCanvas" width="600" height="180" style="display:block;width:100%;height:180px;background:#fff;border:1px solid var(--line);border-radius:12px;touch-action:none"></canvas>
+        <button class="btn btn-ghost btn-sm" id="clearAdminJobSignature" type="button" style="margin-top:8px">Цэвэрлэх</button>`;
+      openModal('Анкет батлах',body,'Баталж хадгалах',async()=>{
+        if(!window._adminJobSignatureSvg){ toast('Гарын үсгээ зурна уу'); return false; }
+        const payload={admin_signature_svg:window._adminJobSignatureSvg,admin_signed_at:new Date().toISOString(),admin_signed_by:me?.id||null,admin_signed_by_name:me?.name||'Админ'};
+        const {error}=await sb.from('job_applications').update(payload).eq('id',id);
+        if(error){ toast('Алдаа: '+error.message); return false; }
+        Object.assign(r,payload); toast('Анкетыг баталлаа'); setTimeout(()=>loadAll(),50); return true;
+      },{wide:true});
+      setTimeout(()=>{
+        const canvas=document.getElementById('adminJobSignatureCanvas');
+        if(!canvas) return;
+        const ctx=canvas.getContext('2d'); let drawing=false,hasInk=false;
+        ctx.strokeStyle='#16396f'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+        const point=e=>{ const rect=canvas.getBoundingClientRect(); const src=e.touches?e.touches[0]:e; return {x:(src.clientX-rect.left)*canvas.width/rect.width,y:(src.clientY-rect.top)*canvas.height/rect.height}; };
+        const start=e=>{ e.preventDefault(); drawing=true; const p=point(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+        const move=e=>{ if(!drawing)return; e.preventDefault(); const p=point(e); ctx.lineTo(p.x,p.y); ctx.stroke(); hasInk=true; };
+        const end=()=>{ if(!drawing)return; drawing=false; if(hasInk){ const png=canvas.toDataURL('image/png'); window._adminJobSignatureSvg='<svg xmlns="http://www.w3.org/2000/svg" width="600" height="180"><image href="'+png+'" width="600" height="180"/></svg>'; } };
+        canvas.addEventListener('pointerdown',start); canvas.addEventListener('pointermove',move); canvas.addEventListener('pointerup',end); canvas.addEventListener('pointerleave',end);
+        document.getElementById('clearAdminJobSignature').onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);hasInk=false;window._adminJobSignatureSvg='';};
+      },50);
+    }
+    window.openAdminJobSignature=openAdminJobSignature;
     async function setAppStatus(id,status){
       const {error}=await sb.from('job_applications').update({status}).eq('id',id);
       if(error) toast('Алдаа: '+error.message); else { toast('Төлөв шинэчиллээ'); loadAll(); }
@@ -3754,9 +3780,9 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         <button class="btn btn-primary btn-sm" onclick="empModal()"> Ажилтан нэмэх</button></div>
         ${loadErr?`<div class="card-b" style="padding:12px 16px"><p class="err" style="margin:0">Ажилчид ачаалахад алдаа: ${String(loadErr).replace(/</g,'&lt;')}</p></div>`:''}
         <div class="card-b" style="padding:0"><table><thead><tr><th>Ажилтан</th><th>Имэйл</th><th>Утас</th><th>Хаяг</th><th>Эрх</th><th></th></tr></thead>
-        <tbody>${list.map(w=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${w.avatar_url?`<img class="av-id" src="${w.avatar_url}" alt="">`:`<span class="av-sm av-ph">${(w.name||' ?').charAt(0).toUpperCase()}</span>`}<div><b>${empDisplayName(w)}</b>${w.position?`<br><span class=muted style="font-size:12px">${w.position}</span>`:''}</div></div></td><td class=muted>${w.email||'—'}</td><td class=muted>${w.phone||'—'}</td><td class=muted>${w.address||'—'}</td>
+        <tbody>${list.map(w=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${w.avatar_url?`<img class="av-id" src="${w.avatar_url}" alt="">`:`<span class="av-sm av-ph">${(w.name||' ?').charAt(0).toUpperCase()}</span>`}<div><b>${empDisplayName(w)}</b>${w.position?`<br><span class=muted style="font-size:12px">${w.position}</span>`:''}${w.pending?'<br><span class="muted" style="font-size:11px;color:#f59e0b">Google нэвтрэлт хүлээгдэж байна</span>':''}</div></div></td><td class=muted>${w.email||'—'}</td><td class=muted>${w.phone||'—'}</td><td class=muted>${w.address||'—'}</td>
           <td>${empRolePill(w)}</td>
-          <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button><button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${isSuperAdmin(me.role)?`<button class="btn btn-ghost btn-sm" onclick='resetPwModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Нууц үг</button>`:''}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${w.pending?'':`<button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button>`}<button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
     }
     window.openEmpStockModal=(w)=>{
       const items=computeStockBalances(data.movements,{userId:w.id});
@@ -3773,20 +3799,14 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       `,'Хаах',()=>false);
     };
     window.editEmpModal=(w)=>{
-      if(w.role!=='employee'&&!isSuperAdmin(me.role)){ toast('Зөвхөн ажилтны мэдээлэл засна. Эрхийг системийн админ өөрчилнө.'); return; }
+      if(w.role!=='employee'&&!isSuperAdmin(me.role)){ toast('Зөвхөн ажилтны мэдээлэл засна. Эрхийг Хөгжүүлэгч өөрчилнө.'); return; }
       if(w.role==='superadmin'&&!isSuperAdmin(me.role)){ toast('Энэ хэрэглэгчийг засах эрхгүй'); return; }
       const roleOpts=isSuperAdmin(me.role)
         ? `<option value="employee"${w.role==='employee' ?'selected':''}>Ажилтан</option><option value="admin"${w.role==='admin' ?'selected':''}>Админ</option><option value="superadmin"${w.role==='superadmin' ?'selected':''}>Хөгжүүлэгч</option>`
         : `<option value="employee"selected>Ажилтан</option>`;
       const roleField=isSuperAdmin(me.role)
         ? `<label>Эрх</label><select id="e_role">${roleOpts}</select>`
-        : `<label>Эрх</label><input value="Ажилтан"disabled style="opacity:.65"><p class="muted" style="font-size:12px;margin-top:8px">Эрх өөрчлөхийг зөвхөн системийн админ хийнэ.</p>`;
-      const pwField=isSuperAdmin(me.role)
-        ? `<hr style="margin:16px 0;border:none;border-top:1px solid var(--border)">
-        <label>Шинэ нууц үг</label>
-        <div style="display:flex;gap:8px"><input id="e_pw" type="text" placeholder="Хоосон бол солихгүй" style="flex:1"><button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('e_pw').value=genPw()">Авто</button></div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:500;font-size:13px"><input type="checkbox" id="e_pw_force"checked> Анх нэвтрэхэд заавал солино</label>`
-        : '';
+        : `<label>Эрх</label><input value="Ажилтан"disabled style="opacity:.65"><p class="muted" style="font-size:12px;margin-top:8px">Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ.</p>`;
       openModal('Ажилтан засах',`
         <label>Овог</label><input id="e_lname" value="${(w.last_name||'').replace(/"/g,'&quot;')}">
         <label>Нэр</label><input id="e_name" value="${(w.name||'').replace(/"/g,'&quot;')}">
@@ -3795,66 +3815,30 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         <label>Утас</label><input id="e_phone" value="${(w.phone||'').replace(/"/g,'&quot;')}">
         <label>Хаяг</label><input id="e_addr" value="${(w.address||'').replace(/"/g,'&quot;')}">
         ${roleField}
-        ${pwField}
         <div class="err" id="m_err"></div>`,
         'Хадгалах', async ()=>{
           const name=$('e_name').value.trim(); if(!name){ mErr('Нэр оруулна уу'); return false; }
-          const patch={
-            name,
-            last_name:$('e_lname').value.trim()||null,
-            position:$('e_pos').value.trim()||null,
-            phone:$('e_phone').value.trim()||null,
-            address:$('e_addr').value.trim()||null,
-          };
-          if(isSuperAdmin(me.role)) patch.role=$('e_role').value;
-          const { error } = await sb.from('profiles').update(patch).eq('id',w.id);
+          const { error }=await sb.rpc('admin_authorize_gmail',{
+            p_email:w.email,
+            p_name:name,
+            p_last_name:$('e_lname').value.trim()||null,
+            p_position:$('e_pos').value.trim()||null,
+            p_phone:$('e_phone').value.trim()||null,
+            p_address:$('e_addr').value.trim()||null,
+            p_role:isSuperAdmin(me.role)?$('e_role').value:'employee'
+          });
           if(error){ mErr(error.message); return false; }
-          const newPw=$('e_pw')?.value?.trim();
-          if(isSuperAdmin(me.role)&&newPw){
-            if(newPw.length<6){ mErr('Нууц үг 6+ тэмдэгт'); return false; }
-            const { error:pe }=await sb.rpc('admin_reset_user_password',{target_user_id:w.id,new_password:newPw,force_change:$('e_pw_force')?.checked??true});
-            if(pe){ mErr(mapPwErr(pe.message)); return false; }
-            closeModal();
-            openModal('Нууц үг солигдлоо',`<p><b>${empDisplayName(w)}</b> (${w.email||'—'})</p>
-              <div class="card" style="padding:16px;margin-top:12px"><b>Шинэ нууц үг:</b> <span style="font-size:18px;color:var(--primary)">${newPw}</span></div>
-              <p class="muted" style="font-size:13px;margin-top:10px">Энэ мэдээллийг хэрэглэгчид өгнө үү.</p>`,'Ойлголоо',()=>{closeModal();loadAll();return true;});
-            return false;
-          }
           closeModal(); toast('Мэдээлэл шинэчлэгдлээ'); loadAll(); return false;
         });
     };
-    window.resetPwModal=(w)=>{
-      if(!isSuperAdmin(me.role)){ toast('Зөвхөн системийн админ'); return; }
-      const pw=genPw();
-      openModal('Нууц үг солих',`
-        <p class="muted" style="margin-bottom:12px"><b>${empDisplayName(w)}</b><br>${w.email||'—'} · ${roleLabel(w.role)}</p>
-        <label>Шинэ нууц үг</label>
-        <div style="display:flex;gap:8px"><input id="rp_pw" type="text" value="${pw}" style="flex:1;font-size:18px"><button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('rp_pw').value=genPw()">Дахин</button></div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:500;font-size:13px"><input type="checkbox" id="rp_force"checked> Анх нэвтрэхэд заавал солино</label>
-        <div class="err" id="m_err"></div>`,
-        'Солих', async ()=>{
-          const newPw=$('rp_pw').value.trim();
-          if(newPw.length<6){ mErr('Нууц үг 6+ тэмдэгт'); return false; }
-          const { error }=await sb.rpc('admin_reset_user_password',{target_user_id:w.id,new_password:newPw,force_change:$('rp_force')?.checked??true});
-          if(error){ mErr(mapPwErr(error.message)); return false; }
-          closeModal();
-          openModal('Нууц үг солигдлоо',`<p><b>${empDisplayName(w)}</b></p>
-            <div class="card" style="padding:16px;margin-top:12px"><b>Имэйл:</b> ${w.email||'—'}<br><b>Шинэ нууц үг:</b> <span style="font-size:18px;color:var(--primary)">${newPw}</span></div>`,'Ойлголоо',()=>{closeModal();return true;});
-          return false;
-        });
-    };
-    function mapPwErr(m=''){
-      if(/forbidden/i.test(m)) return 'Зөвхөн системийн админ нууц үг солино.';
-      if(/password_too_short/i.test(m)) return 'Нууц үг 6+ тэмдэгт байх ёстой.';
-      if(/user_not_found/i.test(m)) return ERP_NOT_FOUND;
-      if(/Could not find the function/i.test(m)) return 'Supabase дээр migration_admin_reset_password.sql ажиллуулна уу.';
-      return m;
-    }
     window.toggleRole = async (id,role)=>{
-      if(!isSuperAdmin(me.role)){ toast('Эрх өөрчлөхийг зөвхөн системийн админ хийнэ'); return; }
+      if(!isSuperAdmin(me.role)){ toast('Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ'); return; }
       if(role==='superadmin'){ toast('Энэ хэрэглэгчийг засах боломжгүй'); return; }
       const nr = role==='admin' ?'employee':'admin';
-      await sb.from('profiles').update({role:nr}).eq('id',id); toast('Эрх өөрчлөгдлөө'); loadAll();
+      const w=(data.workers||[]).find(x=>x.id===id);
+      if(!w){ toast('Хэрэглэгч олдсонгүй'); return; }
+      const {error}=await sb.rpc('admin_authorize_gmail',{p_email:w.email,p_name:w.name,p_last_name:w.last_name||null,p_position:w.position||null,p_phone:w.phone||null,p_address:w.address||null,p_role:nr});
+      if(error){toast(error.message);return;} toast('Эрх өөрчлөгдлөө'); loadAll();
     };
     window.empModal = ()=>{
       const roleField=isSuperAdmin(me.role)
@@ -3863,34 +3847,24 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       openModal('Шинэ ажилтан нэмэх',`
         <label>Овог</label><input id="m_lname" placeholder="Овог">
         <label>Нэр</label><input id="m_name">
-        <label>Имэйл</label><input id="m_email" type="email">
+        <label>Gmail</label><input id="m_email" type="email" placeholder="name@gmail.com">
         <div class="row"><div><label>Албан тушаал</label><input id="m_pos"></div><div><label>Утас</label><input id="m_phone"></div></div>
         ${roleField}
-        <label>Нууц үг (хоосон бол авто)</label><input id="m_pw">
+        <p class="muted" style="font-size:12px">Нууц үг үүсгэхгүй. Энэ Gmail Google Sign-In-д зөвшөөрөгдөнө.</p>
         <div class="err" id="m_err"></div>`,
         'Үүсгэх', async ()=>{
           const last_name=$('m_lname').value.trim();
           const name=$('m_name').value.trim(), email=$('m_email').value.trim();
           if(!name||!email){ mErr('Нэр, имэйл шаардлагатай'); return false; }
-          const pw = $('m_pw').value || genPw();
           const newRole=isSuperAdmin(me.role)?($('m_role')?.value||'employee'):'employee';
-          const temp = supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-          const { data: signupData, error } = await temp.auth.signUp({email,password:pw,options:{data:{name,last_name:last_name||null,position:$('m_pos').value.trim(),phone:$('m_phone').value.trim(),role:newRole,must_change_password:true}}});
+          const { error }=await sb.rpc('admin_authorize_gmail',{p_email:email,p_name:name,p_last_name:last_name||null,p_position:$('m_pos').value.trim()||null,p_phone:$('m_phone').value.trim()||null,p_address:null,p_role:newRole});
           if(error){ mErr(error.message); return false; }
-          if(signupData?.user?.id && last_name){
-            await sb.from('profiles').update({last_name}).eq('id',signupData.user.id);
-          }
           closeModal();
-          openModal('Ажилтан үүслээ',`<p>Дараах нэвтрэх мэдээллийг ажилтанд өгнө үү:</p>
-            <div class="card" style="padding:16px"><b>Нэр:</b> ${[last_name,name].filter(Boolean).join(' ')||name}<br><b>Имэйл:</b> ${email}<br><b>Нууц үг:</b> <span style="font-size:18px;color:var(--primary)">${pw}</span></div>
-            <p class="muted" style="font-size:13px">Ажилтан анх нэвтэрмэгц нууц үгээ солино.</p>`,'Ойлголоо',()=>{closeModal();return true;});
-          setTimeout(loadAll,1500);
+          openModal('Gmail зөвшөөрөгдлөө',`<div class="card" style="padding:16px"><b>Нэр:</b> ${[last_name,name].filter(Boolean).join(' ')||name}<br><b>Gmail:</b> ${email}</div><p class="muted" style="font-size:13px">Хэрэглэгч mobile app эсвэл admin web дээр Google-ээр шууд нэвтэрнэ.</p>`,'Ойлголоо',()=>{closeModal();loadAll();return true;});
           return false;
         });
     };
     function mErr(m){ const e=$('m_err'); if(e){e.textContent=m;e.style.display='block';} }
-    function genPw(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<8;i++)o+=c[Math.floor(Math.random()*c.length)]; return o; }
-
     // ===== Машин / QR =====
     let vehQrScanner=null, autoboxPollTimer=null, autoboxLastHash='';
     function plateToAutoboxQuery(raw){

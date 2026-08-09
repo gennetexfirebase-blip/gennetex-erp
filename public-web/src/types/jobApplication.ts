@@ -9,6 +9,7 @@ export interface GeneralInfo {
   birthDay: string;
   birthProvince: string;
   birthDistrict: string;
+  birthSubdistrict: string;
   ethnicity: string;
   gender: 'Эрэгтэй' | 'Эмэгтэй' | '';
   registrationNo: string;
@@ -104,6 +105,7 @@ export const emptyGeneral = (): GeneralInfo => ({
   birthDay: '',
   birthProvince: '',
   birthDistrict: '',
+  birthSubdistrict: '',
   ethnicity: '',
   gender: '',
   registrationNo: '',

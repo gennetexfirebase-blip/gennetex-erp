@@ -1,0 +1,136 @@
+{
+  "expo": {
+    "name": "Gennetex ERP",
+    "slug": "gennetex-erp",
+    "scheme": "gennetex-erp",
+    "version": "1.0.4",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ажилтны байршлыг real-time харуулахад байршлын зөвшөөрөл шаардлагатай.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ажилтны байршлыг ард нь ажиллаж байхад хянахад шаардлагатай.",
+        "NSCameraUsageDescription": "Барааны зураасан код (barcode) унших, царайгаар ирц бүртгэх, видео дуудлагад камер шаардлагатай.",
+        "NSMicrophoneUsageDescription": "Видео дуудлага болон дуу хоолойгоор мессеж бичихэд микрофон шаардлагатай.",
+        "NSSpeechRecognitionUsageDescription": "Монгол дуу хоолойгоор чат бичихэд яриа таних зөвшөөрөл шаардлагатай.",
+        "NSPhotoLibraryUsageDescription": "Профайл зураг сонгоход зургийн санд хандах шаардлагатай.",
+        "NSFaceIDUsageDescription": "Gennetex ERP-г нууц үггүй аюулгүй нээхэд Face ID ашиглана.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
+      },
+      "bundleIdentifier": "com.gennetex.erp"
+    },
+    "android": {
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_PHONE_CALL",
+        "android.permission.DISABLE_KEYGUARD",
+        "android.permission.MANAGE_OWN_CALLS",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
+        }
+      },
+      "package": "com.gennetex.erp"
+    },
+    "web": {
+      "favicon": "./assets/logo.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Ажилтны байршлыг хянахад зөвшөөрөл олгоно уу."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Барааны зураасан код (barcode) унших, ирц бүртгэхэд камер ашиглана.",
+          "microphonePermission": "Видео дуудлага хийхэд микрофон ашиглана."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Профайл зураг сонгоход зургийн санд хандана.",
+          "cameraPermission": "Профайл зураг авахад камер ашиглана."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#3b82f6",
+          "defaultChannel": "default",
+          "sounds": [
+            "./assets/sounds/incoming-call.wav"
+          ]
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Дуу хоолойгоор чат бичихэд микрофон ашиглана.",
+          "speechRecognitionPermission": "Монгол дуу хоолой танихад яриа таних зөвшөөрөл шаардлагатай.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Gennetex ERP-г нууц үггүй аюулгүй нээхэд Face ID ашиглана."
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      "expo-web-browser",
+      "expo-dev-client",
+      [
+        "react-native-full-screen-notification-incoming-call",
+        {
+          "statusBarColor": "#0b1220"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5c8b7868-880a-4c81-aa6c-f5ec464d0d22"
+      }
+    }
+  }
+}

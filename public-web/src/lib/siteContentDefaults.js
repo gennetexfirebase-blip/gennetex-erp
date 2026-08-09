@@ -104,6 +104,10 @@ export const DEFAULT_SITE_CONTENT = {
       'Тогтвортой ажлын байр',
       'Нийгмийн даатгал',
     ],
+    jobOptions: [
+      { title: 'Шончин', salary: '' },
+      { title: 'Installer', salary: '' },
+    ],
     sidebarNote:
       'Анкет илгээсний дараа HR баг хянаж, утсаар холбогдоно. Хувийн мэдээллийг зөвхөн ажилд авах зорилгоор ашиглана.',
     footer: '© {year} ЖЕННЕТЕКС ХХК',

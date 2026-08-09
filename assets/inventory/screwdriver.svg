@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#ffebee"/>
+  <line x1="40" y1="20" x2="40" y2="56" stroke="#c62828" stroke-width="4" stroke-linecap="round"/><rect x="32" y="48" width="16" height="10" rx="3" fill="#fff" stroke="#c62828" stroke-width="2"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#c62828">SCR</text>
+</svg>

@@ -1,0 +1,374 @@
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import * as Application from 'expo-application';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
+
+export const CALLS_CHANNEL = 'calls';
+const TOKEN_KEY = '@gennetex_fcm_token_v1';
+const DEVICE_KEY = '@gennetex_push_device_v1';
+
+function nativeMessaging() {
+  if (Constants.appOwnership === 'expo') return null;
+  try {
+    return require('@react-native-firebase/messaging').default();
+  } catch (error) {
+    console.warn('[push] Firebase Messaging native module unavailable:', error?.message || error);
+    return null;
+  }
+}
+
+Notifications.setNotificationHandler({
+  handleNotification: async (notification) => {
+    const type = notification.request.content.data?.type;
+    const isCall = type === 'call';
+    return {
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      priority: isCall ? Notifications.AndroidNotificationPriority.MAX : Notifications.AndroidNotificationPriority.HIGH,
+    };
+  },
+});
+
+export async function ensureChannels() {
+  if (Platform.OS !== 'android') return;
+  const channels = [
+    ['default', 'Ерөнхий мэдэгдэл', Notifications.AndroidImportance.DEFAULT],
+    ['messages', 'Мессеж', Notifications.AndroidImportance.HIGH],
+    ['chat', 'Чат мессеж', Notifications.AndroidImportance.HIGH],
+    ['orders', 'Захиалга', Notifications.AndroidImportance.HIGH],
+    ['payments', 'Төлбөр', Notifications.AndroidImportance.HIGH],
+    ['urgent', 'Яаралтай', Notifications.AndroidImportance.MAX],
+    ['feed', 'Пост / сэтгэгдэл', Notifications.AndroidImportance.HIGH],
+  ];
+  await Promise.all(channels.map(([id, name, importance]) => Notifications.setNotificationChannelAsync(id, {
+    name,
+    importance,
+    vibrationPattern: importance === Notifications.AndroidImportance.MAX ? [0, 500, 180, 500] : [0, 200, 120, 200],
+    sound: 'default',
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  })));
+  await Notifications.setNotificationChannelAsync('calls', {
+    name: 'Видео дуудлага',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 800, 400, 800, 400, 800],
+    sound: 'incoming-call.wav',
+    bypassDnd: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+}
+
+async function getDeviceId() {
+  try {
+    if (Platform.OS === 'android') return Application.getAndroidId();
+    if (Platform.OS === 'ios') return await Application.getIosIdForVendorAsync();
+  } catch (error) {
+    console.warn('[push] device id unavailable:', error?.message || error);
+  }
+  return null;
+}
+
+// Firebase Cloud Messaging token — Expo Go биш, Development/Production build дээр.
+export async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'web' || !Device.isDevice) return null;
+  if (Constants.appOwnership === 'expo') {
+    console.info('[push] Expo Go remote push дэмжихгүй. Development Build ашиглана уу.');
+    return null;
+  }
+
+  await ensureChannels();
+
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  let finalStatus = existing;
+  if (existing !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') return null;
+
+  const messaging = nativeMessaging();
+  if (!messaging) return null;
+  try {
+    await messaging.registerDeviceForRemoteMessages();
+    if (Platform.OS === 'ios') await messaging.requestPermission();
+    return await messaging.getToken();
+  } catch (error) {
+    console.warn('[push] FCM token авч чадсангүй:', error?.message || error);
+    return null;
+  }
+}
+
+export async function enablePushForUser(userId) {
+  const token = await registerForPushNotificationsAsync();
+  if (!token) return { ok: false, reason: 'permission'};
+  await savePushToken(userId, token);
+  return { ok: true, token };
+}
+
+export async function savePushToken(userId, token) {
+  if (!userId || !token) return;
+  const deviceId = await getDeviceId();
+  const { error } = await supabase.from('push_tokens').upsert({
+    user_id: userId,
+    token,
+    platform: Platform.OS,
+    device_id: deviceId,
+    active: true,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'token' });
+  if (error) throw error;
+  await AsyncStorage.multiSet([[TOKEN_KEY, token], [DEVICE_KEY, deviceId || '']]);
+}
+
+export async function removePushToken(userId, token) {
+  const savedToken = token || await AsyncStorage.getItem(TOKEN_KEY);
+  if (!userId || !savedToken || !supabase) return;
+  const { error } = await supabase.from('push_tokens').update({ active: false, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('token', savedToken);
+  if (error) console.warn('[push] token deactivate failed:', error.message);
+  await AsyncStorage.multiRemove([TOKEN_KEY, DEVICE_KEY]);
+}
+
+export function listenForTokenRefresh(userId, onError) {
+  const messaging = nativeMessaging();
+  if (!messaging || !userId) return () => {};
+  return messaging.onTokenRefresh(async (token) => {
+    try { await savePushToken(userId, token); } catch (error) { onError?.(error); }
+  });
+}
+
+export function listenForForegroundFcm(handler) {
+  const messaging = nativeMessaging();
+  if (!messaging) return () => {};
+  return messaging.onMessage(handler);
+}
+
+function normalizeNotification(payload = {}) {
+  return {
+    title: String(payload.title || 'Gennetex ERP'),
+    body: String(payload.body || ''),
+    type: String(payload.data?.type || payload.type || 'system'),
+    screen: payload.data?.screen || payload.screen,
+    entityId: payload.data?.entityId || payload.entityId,
+    data: { ...(payload.data || {}) },
+    channelId: payload.channelId || 'default',
+    sound: payload.sound || 'default',
+  };
+}
+
+async function invokePush(audience, notification) {
+  if (!supabase) return;
+  const { data, error } = await supabase.functions.invoke('send-push', { body: { audience, notification: normalizeNotification(notification) } });
+  if (error) throw error;
+  return data;
+}
+
+export const sendPushToUser = (userId, notification) => invokePush({ kind: 'user', userId }, notification);
+export const sendPushToUsers = (userIds, notification) => invokePush({ kind: 'users', userIds }, notification);
+export const sendPushToAll = (notification) => invokePush({ kind: 'all' }, notification);
+export const sendPushToRole = (role, notification) => invokePush({ kind: 'role', role }, notification);
+
+export async function showLocalNotification({ title, body, data, channelId }) {
+  await ensureChannels();
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body,
+      data: data || {},
+      sound: true,
+      ...(Platform.OS === 'android' ? { channelId: channelId || 'chat'} : {}),
+    },
+    trigger: null,
+  });
+}
+
+export async function notifyUsers(userIds, payload) {
+  try { await sendPushToUsers(userIds, payload); } catch (e) { console.warn('[push] users:', e?.message || e); }
+}
+
+export async function notifyAdmins(payload) {
+  try { await sendPushToRole('admin', { channelId: 'messages', ...payload }); } catch (e) { console.warn('[push] admins:', e?.message || e); }
+}
+
+export async function notifySuperadmins(payload) {
+  try { await sendPushToRole('superadmin', { channelId: 'messages', ...payload }); } catch (e) { console.warn('[push] superadmins:', e?.message || e); }
+}
+
+/** Ажилд орох шинэ анкет — админд */
+export async function notifyApplicationToAdmins({ name, position, phone, applicationId }) {
+  const details = [position, phone].filter(Boolean).join(' · ');
+  await notifyAdmins({
+    title: 'Ажлын байрны шинэ анкет',
+    body: `${name || 'Нэр байхгүй'}${details ? ` · ${details}` : ''}`.slice(0, 200),
+    data: { type: 'job_application', applicationId: String(applicationId || '') },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+/** Шинэ хөдөлмөрийн гэрээ — ажилтанд */
+export async function notifyContractToEmployee(employeeId, { employeeName, position, contractId }) {
+  if (!employeeId) return;
+  await notifyUsers([employeeId], {
+    title: 'Хөдөлмөрийн гэрээ ирлээ',
+    body: `${employeeName || 'Танд'} гэрээ бэлэн боллоо${position ? ` · ${position}` : ''}. Уншиж гарын үсэг зурна уу.`,
+    data: { type: 'job_contract', contractId: String(contractId || '') },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+/** Гэрээнд гарын үсэг зурсан — админд */
+export async function notifyContractSignedToAdmins({ employeeName, contractId }) {
+  await notifyAdmins({
+    title: 'Гэрээнд гарын үсэг зурлаа',
+    body: `${employeeName || 'Ажилтан'} хөдөлмөрийн гэрээндээ гарын үсэг зурж баталгаажууллаа.`,
+    data: { type: 'job_contract_signed', contractId: String(contractId || '') },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+/** Шинэ төхөөрөмжөөр нэвтрэх хүсэлт — зөвхөн системийн админд */
+export async function notifyDeviceRequestToSuperadmins({ userName, deviceModel, publicIp, localIp, mac, deviceId }) {
+  const info = [deviceModel, publicIp ? `IP: ${publicIp}` : null, mac ? `MAC: ${mac}` : null]
+    .filter(Boolean)
+    .join(' · ');
+  await notifySuperadmins({
+    title: 'Шинэ төхөөрөмжийн зөвшөөрөл',
+    body: `${userName || 'Ажилтан'} шинэ төхөөрөмжөөр нэвтрэхийг хүсэж байна. ${info}`.slice(0, 220),
+    data: { type: 'device_approval', deviceId: String(deviceId || '') },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+/** Төхөөрөмжийн шийдвэр — хэрэглэгчид */
+export async function notifyDeviceDecisionToUser(userId, { status }) {
+  if (!userId) return;
+  const approved = status === 'approved';
+  await notifyUsers([userId], {
+    title: approved ? 'Төхөөрөмж зөвшөөрөгдлөө' : 'Төхөөрөмж татгалзагдлаа',
+    body: approved
+      ? 'Хөгжүүлэгч таны төхөөрөмжийг зөвшөөрлөө. Апп руу орж болно.'
+      : 'Хөгжүүлэгч таны шинэ төхөөрөмжөөр нэвтрэхийг татгалзлаа.',
+    data: { type: 'device_decision', status: String(status || '') },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+// Чат мессеж — бусад гишүүдэд push
+export async function notifyChatMembers(conversationId, senderId, { senderName, content, attachmentType }) {
+  const { data: members } = await supabase
+    .from('conversation_members')
+    .select('user_id')
+    .eq('conversation_id', conversationId);
+  const recipients = (members || []).map((m) => m.user_id).filter((id) => id && id !== senderId);
+  const preview =
+    content ||
+    (attachmentType === 'image'
+      ? 'Зураг илгээлээ'
+      : attachmentType === 'video'
+      ? 'Видео илгээлээ'
+      : attachmentType === 'file'
+      ? 'Файл илгээлээ'
+      : 'Шинэ мессеж');
+  await notifyUsers(recipients, {
+    title: senderName || 'Чат',
+    body: preview,
+    data: { type: 'chat', room: conversationId, senderName },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+/** SLA хэтэрсэн — бүх инженерт яаралтай push */
+export async function notifySlaExceededToEngineers(engineerIds, call) {
+  const ids = [...new Set((engineerIds || []).filter(Boolean))];
+  if (!ids.length || !call?.id) return;
+
+  const kind = call.site_kind === 'baiguulga' ? 'Байгууллага' : 'Айл';
+  const who = call.engineer ? `Жолооч: ${call.engineer} · ` : '';
+  const where = [call.customer, call.address || call.problem].filter(Boolean).join(' · ');
+  const body = `${who}${kind}: ${where || 'Дуудлага'}`.trim();
+
+  await notifyUsers(ids, {
+    title: '⚠️ SLA хэтэрсэн — яаралтай очно уу!',
+    body,
+    data: {
+      type: 'service_call_sla',
+      callId: call.id,
+      siteKind: call.site_kind || 'ail',
+    },
+    channelId: CALLS_CHANNEL,
+    priority: 'high',
+  });
+}
+
+/** Инженерт шинэ үйлчилгээний дуудлага оноогдоход */
+export async function notifyServiceCallAssigned(engineerId, { engineerName, customer, problem, phone, siteKind, callId }) {
+  const name = engineerName || 'Ажилтан';
+  const kind = siteKind === 'baiguulga' ? 'Байгууллага' : 'Айл';
+  const details = [customer, problem, phone].filter(Boolean).join(' · ');
+  await notifyUsers([engineerId], {
+    title: `${name}, танд шинээр дуудлага ирлээ`,
+    body: details ? `${kind}: ${details}` : `${kind} дээрх шинэ дуудлага`,
+    data: { type: 'service_call', callId, siteKind: siteKind || 'ail' },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+// Видео дуудлага — ringtone + TTS push
+export async function notifyIncomingCall(calleeId, { callerName, room, callId }) {
+  const name = callerName || 'Ажилтан';
+  await notifyUsers([calleeId], {
+    title: `${name} залгаж байна`,
+    body: 'Видео дуудлага — хариулахын тулд нээнэ үү',
+    sound: 'incoming-call.wav',
+    data: { type: 'call', room, callId, callerName: name },
+    channelId: 'calls',
+    priority: 'high',
+  });
+}
+
+export async function notifyRemoteAttendance({ staffName, note }) {
+  await notifyAdmins({
+    title: 'Зайнаас ирцийн хүсэлт',
+    body: `${staffName || 'Ажилтан'}: ${note || 'Зөвшөөрөл хүлээж байна'}`,
+    data: { type: 'attendance_pending'},
+  });
+}
+
+export async function notifyFeedbackToAdmins({ fromName, kind, preview, feedbackId, mentionedNames = [] }) {
+  const mention = mentionedNames.length ? ` · ${mentionedNames.join(', ')}` : '';
+  await notifyAdmins({
+    title: `Ажилтан ${fromName || '—'} ${kind || 'гомдол'} ирлээ`,
+    body: `${preview || ''}${mention}`.trim().slice(0, 200),
+    data: { type: 'employee_feedback', feedbackId: String(feedbackId || '') },
+    channelId: 'chat',
+    priority: 'high',
+  });
+}
+
+export async function notifyOffSiteCheckIn({ staffName, locationName, distanceM }) {
+  const where = locationName ? `"${locationName}"-аас` : 'ажлын байршлаас';
+  await notifyAdmins({
+    title: 'Байршил зөрсөн ирц',
+    body: `${staffName || 'Ажилтан'} ${where} ${distanceM != null ? `~${distanceM}м` : 'гадуур'} бүртгүүллээ`,
+    data: { type: 'attendance_offsite'},
+  });
+}
+
+export async function notifyShiftMissed({ staffName, shiftTime, locationName }) {
+  await notifyAdmins({
+    title: 'Хуваарийн байршилд байхгүй',
+    body: `${staffName || 'Ажилтан'} ${shiftTime || ''} цагт ${locationName || 'ажлын газарт'} ирээгүй байна`,
+    data: { type: 'shift_missed' },
+  });
+}

@@ -8,6 +8,16 @@ function esc(s: string) {
     .replace(/"/g, '&quot;');
 }
 
+function safeSignatureSvg(value?: string) {
+  const svg = String(value || '').trim();
+  if (!/^<svg(?:\s|>)/i.test(svg)) return '';
+  return svg
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, '')
+    .replace(/\son\w+\s*=\s*(["'])[\s\S]*?\1/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
 const PAPER_CSS = `
   @page { size: A4; margin: 12mm; }
   * { box-sizing: border-box; }
@@ -100,6 +110,12 @@ const PAPER_CSS = `
     background: #fff;
   }
   .sig-box svg, .sig-box img { max-width: 220px; max-height: 64px; }
+  .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; break-inside: avoid; }
+  .signature-card { position: relative; min-height: 132px; border: 1px solid #333; padding: 8px; overflow: hidden; background: #fff; }
+  .signature-title { font-weight: 700; margin-bottom: 4px; }
+  .signature-layer { position: relative; z-index: 2; height: 72px; display: flex; align-items: center; justify-content: center; }
+  .signature-layer svg, .signature-layer img { max-width: 230px; max-height: 70px; }
+  .stamp-img { position: absolute; right: 8px; top: 24px; width: 82px; height: 82px; object-fit: contain; opacity: .72; z-index: 1; }
   .meta { font-size: 10px; color: #444; margin-top: 4px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
   .two-col table { margin: 0; }
@@ -121,7 +137,7 @@ function paperPhoto(g: JobApplicationFormData['general'], photoAttached?: boolea
 
 export function buildApplicationPaperHtml(
   data: JobApplicationFormData,
-  opts: { logoUrl?: string; signedAt?: string } = {},
+  opts: { logoUrl?: string; signedAt?: string; adminSignatureSvg?: string; adminSignedAt?: string; adminName?: string; stampUrl?: string } = {},
 ) {
   const g = data.general;
   const logo = opts.logoUrl || '/logo.png';
@@ -151,7 +167,7 @@ export function buildApplicationPaperHtml(
     ${cell('Эцэг (эх)-ийн нэр', g.fatherName)}
     ${cell('Өөрийн нэр', g.firstName)}
     ${cell('Төрсөн огноо', [g.birthYear, g.birthMonth, g.birthDay].filter(Boolean).join('.') || '')}
-    ${cell('Төрсөн газар', [g.birthProvince, g.birthDistrict].filter(Boolean).join(', '))}
+    ${cell('Төрсөн газар', [g.birthProvince, g.birthDistrict, g.birthSubdistrict].filter(Boolean).join(', '))}
     ${cell('Яс үндэс', g.ethnicity)}
     ${cell('Хүйс', g.gender)}
     ${cell('Регистрийн дугаар', g.registrationNo)}
@@ -212,9 +228,20 @@ export function buildApplicationPaperHtml(
     <tbody>${emerg.map((e) => `<tr><td>${esc(e.name)}</td><td>${esc(e.relation)}</td><td>${esc(e.phone)}</td></tr>`).join('') || '<tr><td colspan="3">—</td></tr>'}</tbody>
   </table>
 
-  <h3 class="section">9. Гарын үсэг</h3>
-  <div class="sig-box">${data.signatureSvg || '—'}</div>
-  <p class="meta">Огноо: ${esc(signed ? new Date(signed).toLocaleString('mn-MN') : '—')}</p>
+  <h3 class="section">9. Гарын үсэг ба баталгаа</h3>
+  <div class="signature-grid">
+    <div class="signature-card">
+      <div class="signature-title">Ажил горилогч</div>
+      <div class="signature-layer">${safeSignatureSvg(data.signatureSvg) || '—'}</div>
+      <div class="meta">${esc(`${g.fatherName || ''} ${g.firstName || ''}`.trim() || '—')} · ${esc(signed ? new Date(signed).toLocaleString('mn-MN') : '—')}</div>
+    </div>
+    <div class="signature-card">
+      <div class="signature-title">Баталсан</div>
+      ${opts.stampUrl ? `<img class="stamp-img" src="${esc(opts.stampUrl)}" alt="Компанийн тамга"/>` : ''}
+      <div class="signature-layer">${safeSignatureSvg(opts.adminSignatureSvg) || 'Гарын үсэг хүлээгдэж байна'}</div>
+      <div class="meta">${esc(opts.adminName || '—')} · ${esc(opts.adminSignedAt ? new Date(opts.adminSignedAt).toLocaleString('mn-MN') : '—')}</div>
+    </div>
+  </div>
 </div></body></html>`;
 }
 
