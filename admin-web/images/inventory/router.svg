@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#e8edff"/>
+  <rect x="18" y="30" width="44" height="24" rx="4" fill="#fff" stroke="#4f6ef7" stroke-width="2"/><line x1="24" y1="54" x2="24" y2="62" stroke="#4f6ef7" stroke-width="2"/><line x1="32" y1="54" x2="32" y2="62" stroke="#4f6ef7" stroke-width="2"/><line x1="40" y1="54" x2="40" y2="62" stroke="#4f6ef7" stroke-width="2"/><circle cx="52" cy="38" r="2" fill="#4f6ef7"/><circle cx="58" cy="38" r="2" fill="#4f6ef7"/><circle cx="52" cy="46" r="2" fill="#4f6ef7"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#4f6ef7">RTR</text>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#e8eaf6"/>
+  <rect x="24" y="34" width="32" height="20" rx="3" fill="#fff" stroke="#3949ab" stroke-width="2"/><rect x="18" y="40" width="8" height="8" fill="#3949ab"/><line x1="56" y1="44" x2="66" y2="44" stroke="#3949ab" stroke-width="3"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#3949ab">12V</text>
+</svg>

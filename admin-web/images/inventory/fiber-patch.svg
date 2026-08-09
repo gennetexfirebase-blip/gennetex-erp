@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#fff8e1"/>
+  <line x1="20" y1="42" x2="60" y2="42" stroke="#ff8f00" stroke-width="3" stroke-linecap="round"/><rect x="18" y="38" width="6" height="8" rx="1" fill="#ff8f00"/><rect x="56" y="38" width="6" height="8" rx="1" fill="#ff8f00"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#ff8f00">PC</text>
+</svg>

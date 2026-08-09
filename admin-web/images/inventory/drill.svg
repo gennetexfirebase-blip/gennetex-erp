@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#e0f2f1"/>
+  <rect x="34" y="22" width="12" height="28" rx="3" fill="#fff" stroke="#00695c" stroke-width="2"/><path d="M40 50 L40 62 L36 58 L44 58 Z" fill="#00695c"/><circle cx="40" cy="30" r="3" fill="#00695c"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#00695c">DRL</text>
+</svg>
