@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm ci --prefix public-web",
+  "buildCommand": "npm run build --prefix public-web && node scripts/build-vercel.cjs",
+  "outputDirectory": "dist-web",
+  "framework": null,
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/gennetex/admin/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/gennetex/admin", "destination": "/gennetex/admin/index.html" },
+    { "source": "/about", "destination": "/index.html" },
+    { "source": "/services", "destination": "/index.html" },
+    { "source": "/projects", "destination": "/index.html" },
+    { "source": "/contact", "destination": "/index.html" },
+    { "source": "/careers", "destination": "/index.html" }
+  ]
+}
