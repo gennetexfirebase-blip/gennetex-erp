@@ -38,6 +38,30 @@ config.resolver.extraNodeModules = {
   ...NODE_SHIMS,
 };
 
+// ---------------------------------------------------------------------------
+// Урьдчилан бэлдсэн (compiled) оролт албадах багцууд
+// ---------------------------------------------------------------------------
+// `react-native-webrtc` нь package.json дотроо `"react-native": "src/index.ts"`
+// гэж БИЧИГДСЭН ЭХ КОД руу заадаг. Metro нь `main`-аас өмнө `react-native`
+// талбарыг үздэг тул TypeScript эх кодыг ачаалахыг оролдоно. Тэр нь:
+//   • Metro-гийн файлын жагсаалт хуучирсан үед "src\index.ts олдсонгүй"
+//     гэсэн алдаа өгнө (багц нь өөрөө байгаа мөртлөө),
+//   • нэмэлт TypeScript хөрвүүлэлт шаардаж bundle-ийг удаашруулна.
+//
+// Тиймээс шууд хөрвүүлсэн CommonJS хувилбар руу заана — API нь ижил,
+// npm дээр нийтлэгдсэн `main` талбар мөн үүн рүү заадаг.
+const PREBUILT_PACKAGES = {};
+try {
+  PREBUILT_PACKAGES['react-native-webrtc'] = path.resolve(
+    __dirname,
+    'node_modules/react-native-webrtc/lib/commonjs/index.js'
+  );
+  require.resolve(PREBUILT_PACKAGES['react-native-webrtc']);
+} catch (e) {
+  // Багц суулгаагүй бол (Expo Go-д шаардлагагүй) энгийн resolution үлдээнэ.
+  delete PREBUILT_PACKAGES['react-native-webrtc'];
+}
+
 // Expo-гийн node-stdlib "stub" resolver-аас түрүүлж барихын тулд
 // custom resolveRequest ашиглана (extraNodeModules хангалтгүй тохиолдолд).
 const upstreamResolveRequest = config.resolver.resolveRequest;
@@ -45,6 +69,10 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   const shim = NODE_SHIMS[moduleName];
   if (shim) {
     return { type: 'sourceFile', filePath: shim };
+  }
+  const prebuilt = PREBUILT_PACKAGES[moduleName];
+  if (prebuilt) {
+    return { type: 'sourceFile', filePath: prebuilt };
   }
   if (upstreamResolveRequest) {
     return upstreamResolveRequest(context, moduleName, platform);

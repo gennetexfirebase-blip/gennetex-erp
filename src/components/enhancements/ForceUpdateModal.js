@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { checkAppUpdate, openStoreUrl } from '../../services/appUpdateService';
-import { darkColors } from '../../theme/tokens';
+import { useStyles } from '../../context/ThemeContext';
 import { loadFeatureFlagOverrides } from '../../lib/featureFlags';
-
-const c = darkColors;
 
 export default function ForceUpdateModal() {
   const [info, setInfo] = useState(null);
+  const styles = useStyles(makeStyles);
 
   useEffect(() => {
     let active = true;
@@ -49,10 +48,10 @@ export default function ForceUpdateModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: c }) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(1,15,31,0.85)',
+    backgroundColor: c.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

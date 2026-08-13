@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import { ScreenHeader, Card } from '../../components/ui';
 import { spacing, radius } from '../../theme';
 import { useTheme, useStyles } from '../../context/ThemeContext';
+import { accentMap } from '../../theme/accents';
 
 const ITEMS = [
   {
@@ -13,7 +14,7 @@ const ITEMS = [
     title: 'AI тооллого',
     desc: 'Камераар бараа тоолох',
     icon: 'camera',
-    color: '#0866FF',
+    accent: 'brand',
     all: true,
   },
   {
@@ -21,7 +22,7 @@ const ITEMS = [
     title: 'Түүх',
     desc: 'Өмнөх тооллогын бүртгэл',
     icon: 'time',
-    color: '#0f766e',
+    accent: 'teal',
     all: true,
   },
   {
@@ -29,7 +30,7 @@ const ITEMS = [
     title: 'Бүтээгдэхүүн сургалт',
     desc: 'Бүтээгдэхүүн + training зураг',
     icon: 'cube',
-    color: '#7c3aed',
+    accent: 'violet',
     adminOnly: true,
   },
   {
@@ -37,13 +38,14 @@ const ITEMS = [
     title: 'Тохиргоо',
     desc: 'Confidence, FPS, YOLO model',
     icon: 'settings',
-    color: '#64748b',
+    accent: 'slate',
     all: true,
   },
 ];
 
 export default function AiInventoryHomeScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const accents = accentMap(isDark);
   const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const { isAdmin } = useApp();
@@ -64,8 +66,8 @@ export default function AiInventoryHomeScreen() {
             onPress={() => navigation.navigate(item.key)}
           >
             <Card style={styles.card}>
-              <View style={[styles.iconWrap, { backgroundColor: item.color + '18' }]}>
-                <Ionicons name={item.icon} size={26} color={item.color} />
+              <View style={[styles.iconWrap, { backgroundColor: accents[item.accent] + '18' }]}>
+                <Ionicons name={item.icon} size={26} color={accents[item.accent]} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>{item.title}</Text>

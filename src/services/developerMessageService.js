@@ -1,4 +1,5 @@
 import { Platform, Share } from 'react-native';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as Print from 'expo-print';
 import { supabase } from '../lib/supabase';
 import * as notifyApi from './notificationService';
@@ -191,8 +192,7 @@ export async function updateDeveloperMessageStatus(id, status) {
 }
 
 export function subscribeDeveloperMessages(onChange) {
-  const channel = supabase
-    .channel('developer-messages')
+  const channel = uniqueChannel('developer-messages')
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => onChange?.())
     .subscribe();
   return () => supabase.removeChannel(channel);

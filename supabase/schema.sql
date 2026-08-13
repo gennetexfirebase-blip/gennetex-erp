@@ -462,9 +462,9 @@ alter table public.attendance add column if not exists note text;
 
 create index if not exists attendance_created_idx on public.attendance (created_at desc);
 
--- ========== Царайны бүртгэл (face_enrollments) ==========
--- Ажилтан анх удаа 10 удаа царайгаа бүртгэнэ. Дараа нь ирц бүртгэхэд
--- шинэ selfie-г эдгээртэй харьцуулж зөвхөн тухайн хүнийг таньна.
+-- ========== Хуучин царайны бүртгэл (face_enrollments, deprecated) ==========
+-- Шинэ урсгал raw selfie биш, доорх private face_templates хүснэгтэд
+-- эгц, хажуу, инээмсэглэл гэсэн 3 on-device embedding хадгална.
 create table if not exists public.face_enrollments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid,

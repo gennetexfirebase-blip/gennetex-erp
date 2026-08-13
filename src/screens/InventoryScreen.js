@@ -28,8 +28,11 @@ import {
 } from '../components/ui';
 import InventoryThumb from '../components/InventoryThumb';
 import BarcodeScanner from '../components/BarcodeScanner';
+import MultiScanSheet from '../components/MultiScanSheet';
+import { splitScannedCodes, shortCode } from '../lib/scanCodes';
 import GiveToEmployeeModal from '../components/GiveToEmployeeModal';
 import * as invApi from '../services/inventoryService';
+import * as boxApi from '../services/boxService';
 import * as ohaabApi from '../services/ohaabService';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
@@ -43,7 +46,41 @@ const EMPTY_FORM = {
   category: 'material',
   image_url: null,
   imageUri: null,
+  min_stock: '',
+  sku: '',
+  location: '',
+  supplier: '',
+  serial_no: '',
+  note: '',
+  boxCode: '',      // аль хайрцагт хийх вэ
+  boxQty: '',       // тэр хайрцагт хэдэн ширхэг байгаа
 };
+
+/** Тоон талбарыг шалгана. Хоосон бол 0, сөрөг/буруу бол null. */
+function parseQty(v) {
+  const t = String(v ?? '').trim();
+  if (!t) return 0;
+  const n = Number(t.replace(/,/g, '.'));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+/**
+ * Хэмжих нэгжүүд.
+ *
+ * Метр, кг зэрэг нь бүхэл биш байж болно (12.5 м). Гэвч ТООЛОХ нь
+ * ширхэгтэй адил — 12.5 метрээс 3 метр авбал 9.5 үлдэнэ. Тиймээс
+ * тусдаа логик хэрэггүй, зөвхөн бутархай зөвшөөрөх эсэхийг заана.
+ */
+const UNITS = [
+  { key: 'ширхэг', label: 'Ширхэг', decimal: false, hint: 'Бүхэл тоогоор тоолно' },
+  { key: 'метр', label: 'Метр', decimal: true, hint: 'Бутархай байж болно — ж: 12.5 м' },
+  { key: 'кг', label: 'Кг', decimal: true, hint: 'Бутархай байж болно — ж: 2.4 кг' },
+  { key: 'литр', label: 'Литр', decimal: true, hint: 'Бутархай байж болно' },
+  { key: 'багц', label: 'Багц', decimal: false, hint: 'Бүхэл тоогоор тоолно' },
+  { key: 'хайрцаг', label: 'Хайрцаг', decimal: false, hint: 'Бүхэл тоогоор тоолно' },
+  { key: 'ороомог', label: 'Ороомог', decimal: false, hint: 'Бүхэл тоогоор тоолно' },
+];
 
 const CAT_META = {
   material: { label: 'Бараа материал', empty: 'Бараа материал бүртгэгдээгүй байна.', lowLabel: 'бараа' },
@@ -97,6 +134,7 @@ export default function InventoryScreen() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [scanMode, setScanMode] = useState(null);
+  const [bulkCodes, setBulkCodes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [takeItem, setTakeItem] = useState(null);
   const [takeQty, setTakeQty] = useState('1');
@@ -106,6 +144,12 @@ export default function InventoryScreen() {
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [boxes, setBoxes] = useState([]);
+  const [boxPickerOpen, setBoxPickerOpen] = useState(false);
+  const [newBox, setNewBox] = useState({ code: '', name: '' });
+  const [boxView, setBoxView] = useState(null); // QR уншаад харуулж буй хайрцаг
+  const [wholeBoxCode, setWholeBoxCode] = useState(null); // бүтнээр олгох хайрцаг
+  const [issueSession, setIssueSession] = useState(null); // ширхэгээр олгож буй сесс
 
   const requireOhaabForNewItem = async () => {
     if (!isCloud || !currentUser?.id) return true;
@@ -126,6 +170,20 @@ export default function InventoryScreen() {
     loadEmployees();
   }, [loadEmployees]);
 
+  // Хайрцгийн жагсаалт — бараа нэмэхэд сонгоно. Зөвхөн админд хэрэгтэй.
+  const loadBoxes = useCallback(async () => {
+    if (!isAdmin || !isCloud) return;
+    try {
+      setBoxes(await boxApi.fetchBoxes());
+    } catch (e) {
+      // Хайрцаг байхгүй ч бараа бүртгэх боломжтой байх ёстой
+    }
+  }, [isAdmin, isCloud]);
+
+  useEffect(() => {
+    loadBoxes();
+  }, [loadBoxes]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return inventory
@@ -134,15 +192,25 @@ export default function InventoryScreen() {
         if (!q) return true;
         return (
           (it.name || '').toLowerCase().includes(q) ||
-          (it.barcode || '').toLowerCase().includes(q)
+          (it.barcode || '').toLowerCase().includes(q) ||
+          (it.sku || '').toLowerCase().includes(q) ||
+          (it.location || '').toLowerCase().includes(q) ||
+          (it.supplier || '').toLowerCase().includes(q)
         );
       });
   }, [inventory, category, search]);
 
-  const lowStockCount = useMemo(
-    () => filtered.filter((it) => it.quantity > 0 && it.quantity <= LOW_STOCK).length,
-    [filtered]
+  // Бараа тус бүрийн min_stock-ийг ашиглана. Тохируулаагүй бол LOW_STOCK-д
+  // шилжинэ — ингэснээр хуучин бүртгэлүүд ч сануулга өгсөн хэвээр байна.
+  const isLow = useCallback(
+    (it) => {
+      const threshold = Number(it.min_stock) > 0 ? Number(it.min_stock) : LOW_STOCK;
+      return it.quantity > 0 && it.quantity <= threshold;
+    },
+    []
   );
+
+  const lowStockCount = useMemo(() => filtered.filter(isLow).length, [filtered, isLow]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -166,6 +234,62 @@ export default function InventoryScreen() {
         ? 'Багаж авах'
         : meta.label;
 
+  /** Хайрцгийн жагсаалтаас гарахгүйгээр шинэ хайрцаг үүсгэнэ. */
+  const createBox = async () => {
+    const code = newBox.code.trim();
+    const name = newBox.name.trim();
+    if (!code || !name) {
+      Alert.alert('Хайрцаг', 'Код болон нэрийг бөглөнө үү.');
+      return;
+    }
+    try {
+      await boxApi.upsertBox({ code, name });
+      await loadBoxes();
+      setForm((f) => ({ ...f, boxCode: code }));
+      setNewBox({ code: '', name: '' });
+      setBoxPickerOpen(false);
+      setTimeout(() => setModalVisible(true), 220);
+    } catch (e) {
+      Alert.alert('Хайрцаг', e.message);
+    }
+  };
+
+  /** Бүтэн хайрцгийг ажилтанд олгохыг баталгаажуулна. */
+  const confirmWholeBox = (emp) => {
+    const bc = wholeBoxCode;
+    Alert.alert(
+      'Хайрцгаар олгох',
+      `"${bc}" хайрцгийг бүтнээр ${emp.name || 'ажилтан'}-д олгох уу?
+
+` +
+        'Доторх бүх зүйл тухайн хүний нэр дээр шилжиж, агуулахаас хасагдана.',
+      [
+        { text: 'Болих', style: 'cancel' },
+        {
+          text: 'Олгох',
+          onPress: async () => {
+            try {
+              const res = await boxApi.issueWholeBox({ boxCode: bc, userId: emp.id });
+              setWholeBoxCode(null);
+              await refreshInventory?.();
+              await loadBoxes();
+              Alert.alert(
+                'Олгогдлоо',
+                `${res.employee}
+
+${res.items} нэр төрөл, ${res.serials} серийн дугаар шилжлээ.
+
+Хайрцаг хоосорсон — дахин ашиглаж болно.`
+              );
+            } catch (e) {
+              Alert.alert('Олгох', e.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setForm({ ...EMPTY_FORM, category });
@@ -176,11 +300,105 @@ export default function InventoryScreen() {
     resetForm();
   };
 
+  /**
+   * Нэг QR доторх БҮХ MAC/SN-ийг тусдаа бүртгэл болгож хадгална.
+   *
+   * Сүлжээний төхөөрөмж бүр өөрийн MAC-тай тул нэг мөрөнд "тоо 10" гэж
+   * бичих нь буруу — дараа нь аль төхөөрөмж хэнд олгогдсоныг мөрдөх
+   * боломжгүй болно. Тиймээс ширхэг бүрийг тусад нь, тоо = 1 гэж үүсгэнэ.
+   */
+  /**
+   * Хайрцгийн QR доторх БҮХ MAC/SN-ийг бөөнөөр бүртгэнэ.
+   *
+   * НЭГ барааны бүртгэл үүсч, серийн дугаарууд нь хайрцагтаа хадгалагдана.
+   * Өмнө нь MAC тутамд ТУСДАА бараа үүсгэдэг байсан тул жагсаалт ижил
+   * нэртэй хэдэн арван картаар дүүрч ашиглах боломжгүй болдог байв.
+   */
+  const saveBulk = async () => {
+    const name = form.name.trim();
+    if (!name) {
+      Alert.alert('Анхаар', 'Барааны нэр оруулна уу.');
+      return;
+    }
+    if (!form.boxCode) {
+      Alert.alert(
+        'Хайрцаг сонгоно уу',
+        `Уншсан ${bulkCodes.length} MAC/SN нь аль хайрцагт байгааг заах шаардлагатай.
+
+` +
+          'Дээрх "Хайрцаг" хэсгээс сонгоно уу — байхгүй бол тэндээс шинээр үүсгэж болно.'
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await boxApi.registerSerials({
+        boxCode: form.boxCode,
+        name,
+        serials: bulkCodes,
+        category,
+        unit: form.unit || 'ширхэг',
+        price: showPrice ? parseQty(form.price) || 0 : 0,
+      });
+      await refreshInventory?.();
+      await loadBoxes();
+      setBulkCodes([]);
+      setModalVisible(false);
+      resetForm();
+
+      const boxName = boxes.find((b) => b.code === form.boxCode)?.name || form.boxCode;
+      const lines = [`${res.itemName} — ${res.added} ширхэг "${boxName}" хайрцагт нэмэгдлээ.`];
+      if (res.skipped) lines.push(`${res.skipped} MAC/SN өмнө нь бүртгэгдсэн тул алгасав.`);
+      lines.push(`Тухайн хайрцагт нийт: ${res.totalInBox} ширхэг`);
+      Alert.alert('Бүртгэгдлээ', lines.join('\n\n'));
+    } catch (e) {
+      Alert.alert('Алдаа', e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) {
       Alert.alert('Анхаар', 'Барааны нэр оруулна уу.');
       return;
     }
+    const qty = parseQty(form.quantity);
+    if (qty === null) {
+      Alert.alert('Анхаар', 'Тоо хэмжээ нь 0 буюу түүнээс их тоо байх ёстой.');
+      return;
+    }
+    const minStock = parseQty(form.min_stock);
+    if (minStock === null) {
+      Alert.alert('Анхаар', 'Бага үлдэгдлийн босго нь 0 буюу түүнээс их тоо байх ёстой.');
+      return;
+    }
+    const unitPrice = showPrice ? parseQty(form.price) : 0;
+    if (unitPrice === null) {
+      Alert.alert('Анхаар', 'Үнэ нь 0 буюу түүнээс их тоо байх ёстой.');
+      return;
+    }
+
+    // Баркод/SKU давхардвал буруу бараа хасагдах эрсдэлтэй тул урьдчилан шалгана
+    const barcode = form.barcode.trim();
+    const sku = form.sku.trim().toUpperCase();
+    const clash = inventory.find(
+      (it) =>
+        it.id !== editingId &&
+        ((barcode && (it.barcode || '').trim() === barcode) ||
+          (sku && (it.sku || '').trim().toUpperCase() === sku))
+    );
+    if (clash) {
+      const which =
+        barcode && (clash.barcode || '').trim() === barcode ? 'бар код' : 'SKU';
+      Alert.alert(
+        'Давхардал',
+        `Энэ ${which} аль хэдийн "${clash.name}" дээр бүртгэгдсэн байна.`
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       let imageUrl = form.image_url || null;
@@ -190,11 +408,17 @@ export default function InventoryScreen() {
       const payload = {
         name: form.name.trim(),
         unit: form.unit.trim() || 'ширхэг',
-        quantity: Number(form.quantity) || 0,
-        price: showPrice ? Number(form.price) || 0 : 0,
-        barcode: form.barcode.trim() || null,
+        quantity: qty,
+        price: unitPrice,
+        barcode: barcode || null,
         image_url: imageUrl,
         category,
+        min_stock: minStock,
+        sku: sku || null,
+        location: form.location.trim() || null,
+        supplier: form.supplier.trim() || null,
+        serial_no: category === 'tool' ? form.serial_no.trim() || null : null,
+        note: form.note.trim() || null,
       };
       if (editingId) {
         await updateInventoryItem(editingId, payload);
@@ -203,6 +427,35 @@ export default function InventoryScreen() {
         await addInventoryItem(payload);
         Alert.alert('Нэмэгдлээ', `${payload.name} агуулахад бүртгэгдлээ.`);
       }
+
+      // Хайрцаг сонгосон бол тэр хайрцагт хийнэ. Агуулахын бүртгэл
+      // амжилттай болсны ДАРАА хийж байгаа шалтгаан: хайрцгийн RPC нь
+      // барааг кодоор нь хайдаг тул бараа эхлээд бүртгэгдсэн байх ёстой.
+      const boxQty = Number(form.boxQty);
+      if (form.boxCode && boxQty > 0) {
+        const codeForBox = barcode || (category === 'tool' ? form.serial_no.trim() : '');
+        if (!codeForBox) {
+          Alert.alert(
+            'Хайрцагт хийгдсэнгүй',
+            'Хайрцагт хийхийн тулд MAC/SN шаардлагатай. Бараа агуулахад бүртгэгдсэн — MAC/SN нэмээд хайрцгийн хэсгээс дахин оруулна уу.'
+          );
+        } else {
+          try {
+            const res = await boxApi.putItem({
+              boxCode: form.boxCode,
+              barcode: codeForBox,
+              quantity: boxQty,
+            });
+            Alert.alert(
+              'Хайрцагт хийгдлээ',
+              `${res.itemName} — тухайн хайрцагт нийт ${res.quantity} ширхэг боллоо.`
+            );
+          } catch (e) {
+            Alert.alert('Хайрцагт хийхэд алдаа', e.message);
+          }
+        }
+      }
+
       closeFormModal();
     } catch (e) {
       Alert.alert('Алдаа', e?.message || 'Хадгалахад алдаа гарлаа');
@@ -229,19 +482,63 @@ export default function InventoryScreen() {
       category: item.category || category,
       image_url: item.image_url || null,
       imageUri: null,
+      min_stock: item.min_stock != null ? String(item.min_stock) : '',
+      sku: item.sku || '',
+      location: item.location || '',
+      supplier: item.supplier || '',
+      serial_no: item.serial_no || '',
+      note: item.note || '',
     });
     setModalVisible(true);
   };
 
   const handleFormScan = (data) => {
     setScanMode(null);
-    setForm((f) => ({ ...f, barcode: String(data || '').trim() }));
+
+    // Хайрцаг дээрх QR нь ихэвчлэн доторх БҮХ төхөөрөмжийн MAC/SN-ийг
+    // мөр мөрөөр агуулдаг. Өмнө нь бүх мөрийг НЭГ талбарт хийдэг байсан
+    // тул олон мөрт утга нэг барааны код болж бүртгэгдэж, хайлт хэзээ ч
+    // тохирдоггүй байв.
+    const codes = splitScannedCodes(data);
+
+    if (codes.length <= 1) {
+      setForm((f) => ({ ...f, barcode: codes[0] || '' }));
+      setModalVisible(true);
+      return;
+    }
+
+    // Олон код — эхнийхийг талбарт тавьж, үлдсэнийг нь бөөнөөр
+    // бүртгэх эсэхийг асууна.
+    setForm((f) => ({ ...f, barcode: codes[0] }));
+    setBulkCodes(codes);
     setModalVisible(true);
   };
 
-  const closeScanner = () => setScanMode(null);
+  const closeScanner = () => {
+    const wasForm = scanMode === 'form';
+    setScanMode(null);
+    // Формоос сканнер нээсэн бол буцахад форм алга болох ёсгүй.
+    if (wasForm) setTimeout(() => setModalVisible(true), 250);
+  };
 
   const handleTakeScan = async (data) => {
+    // Хайрцгийн QR уу? Хайрцаг бол доторх БҮХ бүртгэлийг харуулна.
+    // Өмнө нь хайрцгийн QR-ыг барааны код гэж үзээд "олдсонгүй" гэдэг
+    // байсан тул хайрцагт юу байгааг харах ямар ч зам байгаагүй.
+    const maybeBoxCode = boxApi.parseQr(data);
+    if (maybeBoxCode) {
+      try {
+        const res = await boxApi.fetchBoxByCode(maybeBoxCode);
+        if (res.box || res.empty) {
+          setScanMode(null);
+          setBoxView({ code: maybeBoxCode, box: res.box, items: res.items });
+          return;
+        }
+      } catch (e) {
+        // Хайрцаг биш байна — доор барааны код гэж үзэж үргэлжилнэ
+      }
+    }
+
     setScanMode(null);
     let item = getItemByBarcode(data);
     if (!item && isCloud) {
@@ -312,14 +609,72 @@ export default function InventoryScreen() {
     }
   };
 
-  const handleGiveSubmit = async ({ employee, qty, photoUrl }) => {
+  /**
+   * Ажилтанд олгох.
+   *
+   * ХОЁР ГОРИМ:
+   *   whole  — тоо хэмжээгээр шууд хасаад дуусна (хайрцгаар)
+   *   pieces — код уншуулах хэсэг НЭН ДАРУЙ нээгдэж, уншуулсан бараа
+   *            тус бүр агуулахаас хасагдана
+   *
+   * Ширхэгээр горимд шууд хасахгүй байгаа шалтгаан: аль ЯГ ТЭР
+   * төхөөрөмж (MAC/SN) очсоныг мэдэх ёстой. Зөвхөн тоо хасвал дараа нь
+   * "энэ MAC хэнд байна вэ" гэдэгт хариулах боломжгүй.
+   */
+  const handleGiveSubmit = async ({ employee, qty, photoUrl, mode }) => {
+    if (mode === 'pieces') {
+      // Модалыг хааж, код уншуулах хэсгийг нээнэ. Modal дээр Modal
+      // давхарлавал камер харагдахгүй тул дараалуулна.
+      const target = { employee, qty: Number(qty) || 1, item: giveItem };
+      setGiveItem(null);
+      setTimeout(() => setIssueSession(target), 260);
+      return;
+    }
+
     await giveItemToEmployee(giveItem, employee, qty, photoUrl);
     Alert.alert(
       'Олгогдлоо',
-      `${giveItem.name}\n${qty} ${giveItem.unit} → ${employee.name}\nАгуулахын үлдэгдэл: ${giveItem.quantity - qty} ${giveItem.unit}`
+      `${giveItem.name}
+${qty} ${giveItem.unit} → ${employee.name}
+Агуулахын үлдэгдэл: ${giveItem.quantity - qty} ${giveItem.unit}`
     );
     setGiveItem(null);
   };
+
+  /** Уншсан код зөв эсэхийг шалгана (хасахгүй). */
+  const resolveIssueCode = async (raw) => {
+    const c = String(raw || '').trim().toLowerCase();
+    if (!c) return { ok: false, error: 'Хоосон код' };
+    const known = inventory.find(
+      (i) =>
+        String(i.barcode || '').trim().toLowerCase() === c ||
+        String(i.serial_no || '').trim().toLowerCase() === c
+    );
+    if (known) return { ok: true, name: known.name };
+    // Хайрцгийн сериал байж болно — сервер эцсийн шалгалтыг хийнэ
+    return { ok: true, name: issueSession?.item?.name || c };
+  };
+
+  /** Уншуулсан бүх барааг агуулахаас хасаж, ажилтанд бүртгэнэ. */
+  const submitIssueSession = async (scanned) => {
+    const sess = issueSession;
+    if (!sess) return;
+    const total = scanned.reduce((sum, r) => sum + r.qty, 0);
+    try {
+      await giveItemToEmployee(sess.item, sess.employee, total, null);
+      setIssueSession(null);
+      await refreshInventory?.();
+      Alert.alert(
+        'Олгогдлоо',
+        `${sess.item.name}\n${total} ${sess.item.unit} → ${sess.employee.name}\n\n` +
+          scanned.map((r) => `• ${r.code} × ${r.qty}`).join('\n')
+      );
+    } catch (e) {
+      Alert.alert('Олгох', e.message);
+    }
+  };
+
+;
 
   const handleDelete = (item) => {
     Alert.alert('Устгах уу?', `${item.name} бүртгэлээс устгах уу?`, [
@@ -382,7 +737,8 @@ export default function InventoryScreen() {
   );
 
   const renderItem = ({ item }) => {
-    const isLow = item.quantity > 0 && item.quantity <= LOW_STOCK;
+    // Бараа тус бүрийн босгыг ашиглана (isLow), глобал LOW_STOCK-ыг биш.
+    const low = isLow(item);
     const isOut = item.quantity <= 0;
     const thumbUri = item.image_url;
 
@@ -402,10 +758,10 @@ export default function InventoryScreen() {
             imageUrl={thumbUri}
             size={cardWidth - spacing.md * 2}
           />
-          <View style={[styles.stockBadge, isLow && styles.stockBadgeLow, isOut && styles.stockBadgeOut]}>
-            <View style={[styles.stockDot, { backgroundColor: isOut ? colors.danger : isLow ? colors.warning : colors.success }]} />
-            <Text style={[styles.stockBadgeText, isLow && { color: colors.warning }, isOut && { color: colors.danger }]}>
-              {isOut ? 'Дууссан' : isLow ? 'Бага' : 'Байгаа'}
+          <View style={[styles.stockBadge, low && styles.stockBadgeLow, isOut && styles.stockBadgeOut]}>
+            <View style={[styles.stockDot, { backgroundColor: isOut ? colors.danger : low ? colors.warning : colors.success }]} />
+            <Text style={[styles.stockBadgeText, low && { color: colors.warning }, isOut && { color: colors.danger }]}>
+              {isOut ? 'Дууссан' : low ? 'Бага' : 'Байгаа'}
             </Text>
           </View>
         </View>
@@ -421,7 +777,7 @@ export default function InventoryScreen() {
         ) : null}
 
         <View style={styles.gridFooter}>
-          <Text style={[styles.gridQty, isLow && { color: colors.warning }, isOut && { color: colors.danger }]}>
+          <Text style={[styles.gridQty, low && { color: colors.warning }, isOut && { color: colors.danger }]}>
             {item.quantity}
           </Text>
           <Text style={styles.gridUnit}>{item.unit}</Text>
@@ -511,6 +867,9 @@ export default function InventoryScreen() {
               </Text>
 
               <Text style={styles.fieldLabel}>Зураг</Text>
+              <Text style={styles.photoHint}>
+                Зураг авахад л хангалттай — бар код заавал биш.
+              </Text>
               {formImageUri ? (
                 <View style={styles.formPhotoWrap}>
                   <Image source={{ uri: formImageUri }} style={styles.formPhoto} resizeMode="cover" />
@@ -552,19 +911,53 @@ export default function InventoryScreen() {
                 value={form.name}
                 onChangeText={(t) => setForm({ ...form, name: t })}
               />
-              <Field
-                label="Хэмжих нэгж"
-                placeholder="ширхэг / метр / кг"
-                value={form.unit}
-                onChangeText={(t) => setForm({ ...form, unit: t })}
-              />
-              <Field
-                label="Тоо хэмжээ"
-                placeholder="0"
-                keyboardType="numeric"
-                value={form.quantity}
-                onChangeText={(t) => setForm({ ...form, quantity: t })}
-              />
+              {/* Хэмжих нэгж — бичихгүй, сонгоно.
+                  Гараар бичихэд "ширхэг", "Ширхэг", "ш", "шир" гэх мэт
+                  олон хувилбар үүсч, тайлан нэгтгэхэд тохирохгүй болдог. */}
+              <Text style={styles.fieldLabel}>Хэмжих нэгж</Text>
+              <View style={styles.unitRow}>
+                {UNITS.map((u) => {
+                  const active = form.unit === u.key;
+                  return (
+                    <TouchableOpacity
+                      key={u.key}
+                      style={[styles.unitChip, active && styles.unitChipOn]}
+                      onPress={() => setForm({ ...form, unit: u.key })}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.unitChipText, active && styles.unitChipTextOn]}>
+                        {u.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.unitHint}>
+                {UNITS.find((u) => u.key === form.unit)?.hint || ''}
+              </Text>
+              <View style={styles.twoCol}>
+                <Field
+                  label="Тоо хэмжээ"
+                  placeholder="0"
+                  keyboardType="numeric"
+                  value={form.quantity}
+                  onChangeText={(t) => setForm({ ...form, quantity: t })}
+                  style={styles.col}
+                />
+                {/* Бараа тус бүрийн босго. Өмнө нь бүх бараанд 5 гэж хатуу
+                    бичсэн байсан тул олон ширхэгтэй бараа хэзээ ч сануулга
+                    өгдөггүй, ганц ширхэгтэй нь байнга сануулдаг байв. */}
+                <Field
+                  label="Бага үлдэгдлийн босго"
+                  placeholder="0"
+                  keyboardType="numeric"
+                  value={form.min_stock}
+                  onChangeText={(t) => setForm({ ...form, min_stock: t })}
+                  hint="Энэ тооноос доош орвол сануулна"
+                  style={styles.col}
+                />
+              </View>
+
               {showPrice ? (
                 <Field
                   label="Нэгж үнэ (₮)"
@@ -574,16 +967,153 @@ export default function InventoryScreen() {
                   onChangeText={(t) => setForm({ ...form, price: t })}
                 />
               ) : null}
+
               <View style={styles.barcodeRow}>
                 <Field
-                  label="Бар код (заавал биш)"
-                  placeholder="Скан эсвэл гараар"
+                  label="MAC / SN"
+                  placeholder="Ж: 48575443F2E92EB8"
+                  hint="Төхөөрөмжийн MAC хаяг эсвэл сериал дугаар"
                   value={form.barcode}
                   onChangeText={(t) => setForm({ ...form, barcode: t })}
                   style={{ flex: 1, marginBottom: 0 }}
+                  autoCapitalize="characters"
                 />
-                <Button title="Скан" variant="ghost" style={styles.scanBtn} onPress={() => setScanMode('form')} />
+                <Button
+                  title="Скан"
+                  variant="ghost"
+                  style={styles.scanBtn}
+                  onPress={() => {
+                    // Формын Modal нээлттэй байхад сканнерын Modal-ыг
+                    // давхарлавал React Native дээр камер харагдахгүй.
+                    // Тиймээс эхлээд хаана — скан дуусмагц дахин нээгдэнэ.
+                    setModalVisible(false);
+                    setTimeout(() => setScanMode('form'), 250);
+                  }}
+                />
               </View>
+
+              {/* --- Хайрцаг ---
+                  Бараа нь ямар хайрцагт, хэдэн ширхэг байгааг энд заана.
+                  Тусдаа "Хайрцаг" цэс рүү орох шаардлагагүй — бараа
+                  бүртгэхтэй нэг урсгалд байх нь байгалийн. */}
+              {isAdmin && isCloud ? (
+                <View style={styles.boxSection}>
+                  <Text style={styles.boxSectionTitle}>Хайрцаг</Text>
+                  <TouchableOpacity
+                    style={styles.boxSelect}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setTimeout(() => setBoxPickerOpen(true), 220);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="cube-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.boxSelectText, !form.boxCode && styles.boxSelectEmpty]}>
+                      {form.boxCode
+                        ? boxes.find((b) => b.code === form.boxCode)?.name || form.boxCode
+                        : 'Хайрцаг сонгох (заавал биш)'}
+                    </Text>
+                    {form.boxCode ? (
+                      <TouchableOpacity
+                        onPress={() => setForm((f) => ({ ...f, boxCode: '', boxQty: '' }))}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="close-circle" size={18} color={colors.textFaint} />
+                      </TouchableOpacity>
+                    ) : (
+                      <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+                    )}
+                  </TouchableOpacity>
+
+                  {form.boxCode ? (
+                    <Field
+                      label="Тэр хайрцагт хэдэн ширхэг байгаа вэ *"
+                      placeholder="Ж: 10"
+                      keyboardType="number-pad"
+                      value={form.boxQty}
+                      onChangeText={(t) => setForm({ ...form, boxQty: t.replace(/[^0-9]/g, '') })}
+                      hint="Хадгалахад энэ тоо тухайн хайрцагт бүртгэгдэнэ"
+                      style={{ marginTop: spacing.sm, marginBottom: 0 }}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
+
+              {/* Нэг QR дотор олон MAC/SN байвал бүгдийг нь харуулна.
+                  Ингэснээр админ 10 төхөөрөмжийг гар аргаар бичихгүй. */}
+              {bulkCodes.length > 1 ? (
+                <View style={styles.bulkBox}>
+                  <View style={styles.bulkHead}>
+                    <Text style={styles.bulkTitle}>
+                      Уншсан QR дотор {bulkCodes.length} MAC/SN байна
+                    </Text>
+                    <TouchableOpacity onPress={() => setBulkCodes([])} hitSlop={8}>
+                      <Ionicons name="close" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled>
+                    {bulkCodes.map((c, i) => (
+                      <Text key={c} style={styles.bulkCode}>
+                        {i + 1}. {c}
+                      </Text>
+                    ))}
+                  </ScrollView>
+                  <Text style={styles.bulkHint}>
+                    Дээрх нэр, ангилал, үнээр {bulkCodes.length} ширхэг тусдаа бүртгэл
+                    үүсч, БҮГД сонгосон хайрцагт орно — тус бүр өөрийн MAC/SN-тэй.
+                  </Text>
+                  <Button
+                    title={`Хайрцагт бүгдийг бүртгэх (${bulkCodes.length})`}
+                    size="sm"
+                    onPress={saveBulk}
+                  />
+                </View>
+              ) : null}
+
+              <View style={styles.twoCol}>
+                <Field
+                  label="Дотоод код (SKU)"
+                  placeholder="Ж: KAB-001"
+                  value={form.sku}
+                  onChangeText={(t) => setForm({ ...form, sku: t })}
+                  autoCapitalize="characters"
+                  style={styles.col}
+                />
+                <Field
+                  label="Байршил"
+                  placeholder="Ж: А агуулах, 3-р тавиур"
+                  value={form.location}
+                  onChangeText={(t) => setForm({ ...form, location: t })}
+                  style={styles.col}
+                />
+              </View>
+
+              <Field
+                label="Нийлүүлэгч"
+                placeholder="Хаанаас авсан бэ"
+                value={form.supplier}
+                onChangeText={(t) => setForm({ ...form, supplier: t })}
+              />
+
+              {/* Сериал дугаар нь зөвхөн багажид хамаатай */}
+              {category === 'tool' ? (
+                <Field
+                  label="Сериал дугаар"
+                  placeholder="Багажны үйлдвэрийн дугаар"
+                  value={form.serial_no}
+                  onChangeText={(t) => setForm({ ...form, serial_no: t })}
+                />
+              ) : null}
+
+              <Field
+                label="Тэмдэглэл"
+                placeholder="Нэмэлт мэдээлэл"
+                value={form.note}
+                onChangeText={(t) => setForm({ ...form, note: t })}
+                multiline
+                numberOfLines={3}
+                inputStyle={{ minHeight: 76, textAlignVertical: 'top' }}
+              />
               <View style={styles.modalActions}>
                 <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={closeFormModal} />
                 <Button
@@ -684,6 +1214,228 @@ export default function InventoryScreen() {
         employees={employees}
         onClose={() => setGiveItem(null)}
         onSubmit={handleGiveSubmit}
+      />
+
+      {/* --- Хайрцгаар бүтнээр олгох: ажилтан сонгох --- */}
+      <Modal
+        visible={wholeBoxCode !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setWholeBoxCode(null)}
+      >
+        <View style={styles.pickerBackdrop}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerTitle}>Хэнд олгох вэ?</Text>
+                <Text style={styles.pickerMeta}>{wholeBoxCode} — бүтэн хайрцаг</Text>
+              </View>
+              <TouchableOpacity onPress={() => setWholeBoxCode(null)} hitSlop={10}>
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {employees.map((emp) => (
+                <TouchableOpacity
+                  key={emp.id}
+                  style={styles.pickerRow}
+                  onPress={() => confirmWholeBox(emp)}
+                >
+                  <Ionicons name="person" size={20} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pickerName}>{emp.name || emp.email || '—'}</Text>
+                    {emp.position ? <Text style={styles.pickerMeta}>{emp.position}</Text> : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+                </TouchableOpacity>
+              ))}
+              {!employees.length ? (
+                <Text style={styles.pickerEmpty}>Ажилтан олдсонгүй.</Text>
+              ) : null}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- Хайрцгийн агуулга (QR уншсаны дараа) --- */}
+      <Modal
+        visible={boxView !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setBoxView(null)}
+      >
+        <View style={styles.pickerBackdrop}>
+          <View style={[styles.pickerSheet, { maxHeight: '86%' }]}>
+            <View style={styles.pickerHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerTitle}>{boxView?.box?.name || 'Хайрцаг'}</Text>
+                <Text style={styles.pickerMeta}>
+                  {boxView?.box?.code || boxView?.code}
+                  {boxView?.box?.location ? ` · ${boxView.box.location}` : ''}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setBoxView(null)} hitSlop={10}>
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.boxTotals}>
+              <Text style={styles.boxTotalsText}>
+                {(boxView?.items || []).length} нэр төрөл · нийт{' '}
+                {(boxView?.items || []).reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)} ширхэг
+              </Text>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }}>
+              {(boxView?.items || []).length ? (
+                boxView.items.map((it) => (
+                  <View key={it.id} style={styles.boxItemRow}>
+                    <Ionicons
+                      name={it.category === 'tool' ? 'construct' : 'cube-outline'}
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pickerName}>{it.name}</Text>
+                      {it.serial_no || it.barcode ? (
+                        <Text style={styles.boxSerial}>
+                          {it.serial_no || it.barcode}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={styles.boxItemQty}>
+                      {it.quantity} {it.unit || 'ш'}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.pickerEmpty}>Энэ хайрцаг хоосон байна.</Text>
+              )}
+            </ScrollView>
+
+            {isAdmin ? (
+              <View style={styles.pickerNew}>
+                <Text style={styles.issueHint}>Хэрхэн олгох вэ?</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Button
+                    title="Хайрцгаар бүтнээр"
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      const bc = boxView?.box?.code || boxView?.code;
+                      setBoxView(null);
+                      setTimeout(() => setWholeBoxCode(bc), 220);
+                    }}
+                  />
+                  <Button
+                    title="Ширхэгээр"
+                    variant="ghost"
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      const bc = boxView?.box?.code || boxView?.code;
+                      setBoxView(null);
+                      setTimeout(() => navigation.navigate('BoxDetail', { code: bc }), 200);
+                    }}
+                  />
+                </View>
+                <Text style={styles.issueNote}>
+                  Хайрцгаар — доторх бүх зүйл нэг хүнд очиж, агуулахаас хасагдана.{'\n'}
+                  Ширхэгээр — код уншуулж, авсан хэмжээгээр л хасагдана.
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- Хайрцаг сонгох --- */}
+      <Modal
+        visible={boxPickerOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setBoxPickerOpen(false);
+          setTimeout(() => setModalVisible(true), 220);
+        }}
+      >
+        <View style={styles.pickerBackdrop}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHead}>
+              <Text style={styles.pickerTitle}>Хайрцаг сонгох</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setBoxPickerOpen(false);
+                  setTimeout(() => setModalVisible(true), 220);
+                }}
+                hitSlop={10}
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 340 }}>
+              {boxes.length ? (
+                boxes.map((b) => (
+                  <TouchableOpacity
+                    key={b.id}
+                    style={styles.pickerRow}
+                    onPress={() => {
+                      setForm((f) => ({ ...f, boxCode: b.code }));
+                      setBoxPickerOpen(false);
+                      setTimeout(() => setModalVisible(true), 220);
+                    }}
+                  >
+                    <Ionicons name="cube" size={20} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pickerName}>{b.name}</Text>
+                      <Text style={styles.pickerMeta}>
+                        {b.code}
+                        {b.location ? ` · ${b.location}` : ''}
+                      </Text>
+                    </View>
+                    {form.boxCode === b.code ? (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    ) : null}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.pickerEmpty}>
+                  Хайрцаг бүртгэгдээгүй байна. Доорх талбарт кодоо бичээд шинээр үүсгэнэ үү.
+                </Text>
+              )}
+            </ScrollView>
+
+            {/* Шинэ хайрцаг — жагсаалтаас гарахгүйгээр */}
+            <View style={styles.pickerNew}>
+              <TextInput
+                style={styles.pickerInput}
+                placeholder="Шинэ хайрцгийн код — ж: BOX-001"
+                placeholderTextColor={colors.textFaint}
+                value={newBox.code}
+                onChangeText={(v) => setNewBox((n) => ({ ...n, code: v.toUpperCase() }))}
+                autoCapitalize="characters"
+              />
+              <TextInput
+                style={styles.pickerInput}
+                placeholder="Нэр — ж: ONT хайрцаг"
+                placeholderTextColor={colors.textFaint}
+                value={newBox.name}
+                onChangeText={(v) => setNewBox((n) => ({ ...n, name: v }))}
+              />
+              <Button title="Хайрцаг үүсгэх" size="sm" onPress={createBox} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Ширхэгээр олгох — код уншуулах */}
+      <MultiScanSheet
+        visible={issueSession !== null}
+        onClose={() => setIssueSession(null)}
+        onResolve={resolveIssueCode}
+        onSubmit={submitIssueSession}
+        title={`${issueSession?.employee?.name || 'Ажилтан'}-д олгох`}
+        hint={`${issueSession?.item?.name || ''} — код уншуулна уу`}
+        submitLabel="Олгох"
       />
 
       <BarcodeScanner
@@ -839,7 +1591,129 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     backgroundColor: colors.bgAlt,
   },
   formPhotoBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  unitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  unitChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgAlt,
+  },
+  unitChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  unitChipText: { color: colors.text, fontSize: 13.5, fontWeight: '600' },
+  unitChipTextOn: { color: colors.onPrimary },
+  unitHint: {
+    color: colors.textFaint,
+    fontSize: 12,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  boxSection: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  boxSectionTitle: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  boxSelect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  boxSelectText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  boxSelectEmpty: { color: colors.textFaint, fontWeight: '400' },
+
+  bulkBox: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    gap: spacing.sm,
+  },
+  bulkHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bulkTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  bulkCode: { color: colors.textMuted, fontSize: 12, fontFamily: undefined, paddingVertical: 1 },
+  bulkHint: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+
+  boxTotals: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  boxTotalsText: { color: colors.textMuted, fontSize: 13 },
+  boxItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  boxSerial: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
+  boxItemQty: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  issueHint: { color: colors.textMuted, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm },
+  issueNote: { color: colors.textFaint, fontSize: 11.5, lineHeight: 16, marginTop: spacing.sm },
+  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  pickerSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingBottom: spacing.xl,
+  },
+  pickerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+  },
+  pickerTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  pickerName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  pickerMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  pickerEmpty: { color: colors.textMuted, fontSize: 13, padding: spacing.lg, textAlign: 'center' },
+  pickerNew: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  pickerInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    color: colors.text,
+    backgroundColor: colors.bgAlt,
+  },
   barcodeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, marginBottom: spacing.md },
+  // Хоёр талбарыг зэрэгцүүлнэ. `flex: 1` + `minWidth: 0` нь урт шошготой
+  // талбар нөгөөгөө шахахаас сэргийлнэ.
+  photoHint: { color: colors.textFaint, fontSize: 12, marginBottom: spacing.sm, marginTop: -2 },
+  twoCol: { flexDirection: 'row', gap: spacing.md },
+  col: { flex: 1, minWidth: 0 },
   scanBtn: { paddingVertical: spacing.md },
   modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   takePreview: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },

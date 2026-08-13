@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Network from 'expo-network';
@@ -89,6 +90,43 @@ export async function getDeviceFingerprint() {
  * Шинэ төхөөрөмж бол pending хүсэлт үүсгээд системийн админд мэдэгдэнэ.
  * Буцаах: { status: 'approved'|'pending'|'rejected', deviceId, row }
  */
+/**
+ * Ирц бүртгэх мөчид төхөөрөмжийг баталгаажуулна.
+ *
+ * `ensureDeviceApproval` нь апп руу орохыг хаахгүйн тулд алдаа гарвал
+ * зөвшөөрдөг (fail-open). Тэр нь зөв — талбарт байгаа ажилтныг сүлжээ
+ * муудсанаас болж аппаасаа хаах ёсгүй.
+ *
+ * ГЭХДЭЭ ирц бүртгэх нь аюулгүй байдлын хувьд эмзэг үйлдэл. Энд шалгаж
+ * чадаагүй бол "зөвшөөрсөн" гэж дүгнэхийн оронд ТОДОРХОЙГҮЙ гэж хэлнэ.
+ * Дуудагч тал түүнийг `pending` төлөвт оруулж админд шалгуулна.
+ *
+ * @returns {Promise<{verified: boolean, deviceId: string|null, reason: string|null}>}
+ */
+export async function verifyDeviceForAttendance(userId) {
+  if (!userId) return { verified: false, deviceId: null, reason: 'no-user' };
+  let deviceId = null;
+  try {
+    const fp = await getDeviceFingerprint();
+    deviceId = fp.device_id;
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('status')
+      .eq('user_id', userId)
+      .eq('device_id', deviceId)
+      .maybeSingle();
+
+    if (error) return { verified: false, deviceId, reason: 'lookup-failed' };
+    if (!data) return { verified: false, deviceId, reason: 'device-not-registered' };
+    if (data.status !== 'approved') {
+      return { verified: false, deviceId, reason: `device-${data.status}` };
+    }
+    return { verified: true, deviceId, reason: null };
+  } catch (e) {
+    return { verified: false, deviceId, reason: 'error' };
+  }
+}
+
 export async function ensureDeviceApproval(user) {
   if (!user?.id) return { status: 'approved', bypass: true };
   const fp = await getDeviceFingerprint();
@@ -154,8 +192,7 @@ export async function fetchMyDeviceStatus(userId, deviceId) {
 
 /** Realtime — өөрийн төхөөрөмжийн төлөв өөрчлөгдөхөд */
 export function subscribeMyDevice(userId, deviceId, onChange) {
-  const channel = supabase
-    .channel(`device-approval-${userId}`)
+  const channel = uniqueChannel(`device-approval-${userId}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: TABLE, filter: `user_id=eq.${userId}` },
@@ -210,8 +247,7 @@ export async function decideDevice(id, status, { deciderId, deciderName, userId 
 }
 
 export function subscribeDevices(onChange) {
-  const channel = supabase
-    .channel('device-approvals-admin')
+  const channel = uniqueChannel('device-approvals-admin')
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => onChange?.())
     .subscribe();
   return () => supabase.removeChannel(channel);

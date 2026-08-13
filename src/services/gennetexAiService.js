@@ -25,7 +25,11 @@ function cleanEnv(value) {
 
 function keyFromExpoConfig() {
   const extra = Constants.expoConfig?.extra || Constants.manifest?.extra || {};
-  return cleanEnv(extra.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY);
+  // process.env.EXPO_PUBLIC_GEMINI_API_KEY-г ЗОРИУД уншихгүй: EXPO_PUBLIC_*
+  // утгууд аппын bundle дотор ил үлддэг тул APK задалсан хэн ч түлхүүрийг
+  // аваад таны Google данснаас төлбөр үүсгэж чадна. Түлхүүрийг апп дотроос
+  // (Тохиргоо) оруулж, төхөөрөмж дээр л хадгална.
+  return cleanEnv(extra.geminiApiKey);
 }
 
 function youtubeFromExpoConfig() {
@@ -177,7 +181,9 @@ async function callGemini(userText, history = []) {
   const apiKey = await getGeminiKeyAsync();
   if (!apiKey) {
     throw new Error(
-      'Gemini API түлхүүр олдсонгүй. Доорх талбарт түлхүүрээ оруулна уу, эсвэл .env дээр EXPO_PUBLIC_GEMINI_API_KEY=AIza... гэж бичээд npx expo start --clear хийнэ үү.'
+      'Gemini API түлхүүр олдсонгүй. Доорх талбарт түлхүүрээ оруулна уу.\n\n' +
+        'Тайлбар: аюулгүйн шалтгаанаар түлхүүрийг аппын кодод шигтгэдэггүй — ' +
+        'APK задалсан хэн ч уншиж чадах тул. Түлхүүр зөвхөн энэ төхөөрөмж дээр хадгалагдана.'
     );
   }
 

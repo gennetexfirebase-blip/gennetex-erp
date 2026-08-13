@@ -604,3 +604,51 @@ export async function fetchMyActivePassengerTrip(userId) {
   }
   return null;
 }
+
+/**
+ * Жолоочийн ОДООГИЙН идэвхтэй аялал болон хамт яваа багийг олно.
+ *
+ * ЯАГААД НЭМСЭН БЭ: `CallDetailScreen` үүнийг дуудаж байсан ч
+ * хэрэгжүүлээгүй байв. Дуудлагын дэлгэц нээх бүрд алдаа шидэж, `catch`
+ * дотор чимээгүй унтарч, улмаар "хамт яваа баг" хэсэг үргэлж fallback
+ * (зөвхөн partner engineer) горимд ажилладаг байсан — трипт бүртгэгдсэн
+ * бодит зорчигчид харагдахгүй.
+ *
+ * @returns {{driver:{id,name}, passengers:Array, tripId:string}|null}
+ */
+export async function fetchActiveTripTeam({ driverId, driverName } = {}) {
+  if (!driverId && !driverName) return null;
+
+  let query = supabase
+    .from('trips')
+    .select('id, driver_id, driver_name, plate_number, started_at')
+    .eq('status', 'active')
+    .order('started_at', { ascending: false })
+    .limit(1);
+
+  // ID-аар хайх нь найдвартай; нэр нь давхардаж болно.
+  query = driverId ? query.eq('driver_id', driverId) : query.eq('driver_name', driverName);
+
+  const { data: trips, error } = await query;
+  if (error) throw error;
+  const trip = (trips || [])[0];
+  if (!trip) return null;
+
+  const { data: passengers, error: pErr } = await supabase
+    .from('trip_passengers')
+    .select('*')
+    .eq('trip_id', trip.id)
+    .order('scanned_at', { ascending: true });
+  if (pErr) throw pErr;
+
+  return {
+    tripId: trip.id,
+    plateNumber: trip.plate_number,
+    driver: { id: trip.driver_id, name: trip.driver_name || driverName || 'Жолооч' },
+    passengers: (passengers || []).map((p) => ({
+      ...p,
+      name: p.passenger_name || p.name || 'Ажилтан',
+    })),
+    fallback: false,
+  };
+}

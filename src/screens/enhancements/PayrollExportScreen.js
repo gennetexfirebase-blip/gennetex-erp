@@ -11,7 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system';
+// SDK 54-д expo-file-system-ийн API шинэчлэгдэж, `cacheDirectory` болон
+// `EncodingType` нь /legacy руу шилжсэн. Шинэ API-аас дуудвал
+// `undefined` буцаж, Excel export чимээгүй бүтэлгүйтдэг байв.
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useTheme, useStyles } from '../../context/ThemeContext';
 import { spacing, radius } from '../../theme';

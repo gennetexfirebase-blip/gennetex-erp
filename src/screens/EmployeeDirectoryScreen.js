@@ -1,10 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, EmptyState } from '../components/ui';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
+import { useCall } from '../context/CallContext';
 import { isOnline, formatLastSeen } from '../lib/online';
 
 function initials(name = '') {
@@ -13,17 +15,23 @@ function initials(name = '') {
   return name.charAt(0).toUpperCase() || ' ?';
 }
 
+/** Дуудлагад шаардлагатай талбарууд — бүтэн мөрийг дамжуулах шаардлагагүй. */
+function peerOf(item, displayName) {
+  return { id: item.id, name: displayName, avatar: item.avatar_url || null };
+}
+
 export default function EmployeeDirectoryScreen() {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
-  const { fetchEmployees, isCloud } = useApp();
+  const { fetchDirectory, isCloud, currentUser } = useApp();
+  const { placeCall } = useCall();
   const [list, setList] = useState([]);
 
   const load = useCallback(async () => {
     try {
-      setList(await fetchEmployees());
+      setList(await fetchDirectory());
     } catch (e) {}
-  }, [fetchEmployees]);
+  }, [fetchDirectory]);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,11 +78,44 @@ export default function EmployeeDirectoryScreen() {
                   {item.address ? <Text style={styles.line}>{item.address}</Text> : null}
                 </View>
               </View>
-              {item.phone ? (
-                <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${item.phone}`)}>
-                  <Text style={styles.callText}>Залгах</Text>
-                </TouchableOpacity>
-              ) : null}
+              {/* Аппаар залгах нь оператороор дамжихгүй, үнэгүй. Утасны
+                  дугаараар залгах сонголтыг ч үлдээв — тухайн ажилтан
+                  апп нээгээгүй байж болно. */}
+              <View style={styles.actions}>
+                {item.id !== currentUser?.id ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.actionPrimary]}
+                      onPress={() => placeCall(peerOf(item, displayName), 'audio')}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${displayName} руу аппаар залгах`}
+                    >
+                      <Ionicons name="call" size={16} color={colors.onPrimary} />
+                      <Text style={styles.actionPrimaryText}>Дуудлага</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.actionPrimary]}
+                      onPress={() => placeCall(peerOf(item, displayName), 'video')}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${displayName} руу видеогоор залгах`}
+                    >
+                      <Ionicons name="videocam" size={16} color={colors.onPrimary} />
+                      <Text style={styles.actionPrimaryText}>Видео</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+                {item.phone ? (
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => Linking.openURL(`tel:${item.phone}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.phone} дугаар руу залгах`}
+                  >
+                    <Ionicons name="keypad" size={16} color={colors.primary} />
+                    <Text style={styles.callText}>Утсаар</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </Card>
           );
         }}
@@ -97,6 +138,17 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   status: { color: colors.textMuted, fontSize: 12, marginTop: 4, fontWeight: '600'},
   statusOn: { color: colors.success },
   line: { color: colors.text, fontSize: 13, marginTop: 4 },
-  callBtn: { marginTop: spacing.md, alignSelf: 'flex-start', backgroundColor: colors.primarySoft, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  actionPrimary: { backgroundColor: colors.primary },
+  actionPrimaryText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
   callText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
 });

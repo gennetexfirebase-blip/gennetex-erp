@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 
 const TABLE = 'telegram_chat_messages';
 
@@ -57,8 +58,7 @@ export async function unlinkTelegram() {
 
 export function subscribeTelegramChat(onInsert) {
   if (!supabase) return () => {};
-  const channel = supabase
-    .channel('telegram-chat-live')
+  const channel = uniqueChannel('telegram-chat-live')
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: TABLE },

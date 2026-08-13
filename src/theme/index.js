@@ -1,9 +1,11 @@
-import { darkColors, lightColors, makeGradients, makeShadow } from './tokens';
+import { brand, ink, darkColors, lightColors, makeGradients, makeShadow } from './tokens';
 
-export { darkColors, lightColors, makeGradients, makeShadow };
+export { brand, ink, darkColors, lightColors, makeGradients, makeShadow };
 
-// Static default (dark = үндсэн горим). Migration хийгдээгүй screen-үүд үүнийг ашиглана.
-// Runtime dark/light солих бол useTheme() ашиглана уу.
+// Static default (dark = үндсэн горим).
+// АНХААР: энэ нь горимоос хамаарахгүй тул зөвхөн горимд хамаарахгүй утгад
+// ашиглана. Дэлгэц дээрх өнгө авахдаа заавал useTheme() ашиглана уу —
+// эс бөгөөс light горимд цагаан дэвсгэр дээр цагаан текст гарна.
 export const colors = darkColors;
 
 export const gradients = makeGradients(darkColors);
@@ -28,10 +30,28 @@ export const radius = {
   full: 999,
 };
 
-export const typography = {
-  h1: { fontSize: 26, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  h2: { fontSize: 20, fontWeight: '800', color: colors.text },
-  h3: { fontSize: 16, fontWeight: '700', color: colors.text },
-  body: { fontSize: 15, color: colors.text },
-  muted: { fontSize: 13, color: colors.textMuted },
+/** Хүрэх талбайн доод хэмжээ — iOS HIG 44pt / Android 48dp. */
+export const touch = {
+  min: 44,
+  icon: 44,
+  compact: 36,
 };
+
+/**
+ * Үсгийн шатлал — өнгөгүй.
+ * Өнгийг дуудах талдаа useTheme()-ээс авч нэмнэ:
+ *   <Text style={[type.h1, { color: colors.text }]}>
+ */
+export const type = {
+  display: { fontSize: 32, fontWeight: '800', letterSpacing: -0.6, lineHeight: 38 },
+  h1: { fontSize: 26, fontWeight: '800', letterSpacing: -0.4, lineHeight: 32 },
+  h2: { fontSize: 20, fontWeight: '700', letterSpacing: -0.2, lineHeight: 26 },
+  h3: { fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  body: { fontSize: 15, fontWeight: '400', lineHeight: 22 },
+  bodyStrong: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
+  label: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  caption: { fontSize: 12, fontWeight: '500', lineHeight: 16 },
+};
+
+/** @deprecated `type`-г ашиглаад өнгийг useTheme()-ээс авна уу. */
+export const typography = type;

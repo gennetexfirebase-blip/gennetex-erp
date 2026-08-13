@@ -15,7 +15,8 @@ import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader, Card, EmptyState } from '../components/ui';
 import NavIcon from '../components/NavIcon';
-import { colors as palette, spacing, radius } from '../theme';
+import { spacing, radius } from '../theme';
+import { accentMap } from '../theme/accents';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as reportApi from '../services/reportService';
 
@@ -25,14 +26,16 @@ const TYPE_LABEL = {
   vehicle: 'Машин',
 };
 
-const TYPE_COLOR = {
-  material: palette.primary,
-  tool: '#ea580c',
-  vehicle: palette.warning,
+// Төрлийн өнгө нь горимоос хамаарна — accentMap(isDark)-аар шийднэ.
+const TYPE_ACCENT = {
+  material: 'brand',
+  tool: 'amber',
+  vehicle: 'slate',
 };
 
 export default function AdminReportsScreen() {
-  const { colors, shadow } = useTheme();
+  const { colors, shadow, isDark } = useTheme();
+  const accents = accentMap(isDark);
   const styles = useStyles(makeStyles);
   const { isAdmin, isCloud } = useApp();
   const [reports, setReports] = useState([]);
@@ -89,8 +92,8 @@ export default function AdminReportsScreen() {
           ) : (
             reports.map((r) => (
               <TouchableOpacity key={r.id} style={styles.row} activeOpacity={0.85} onPress={() => setSelected(r)}>
-                <View style={[styles.badge, { backgroundColor: (TYPE_COLOR[r.report_type] || colors.primary) + '18'}]}>
-                  <NavIcon name="report" size={20} color={TYPE_COLOR[r.report_type] || colors.primary} />
+                <View style={[styles.badge, { backgroundColor: (accents[TYPE_ACCENT[r.report_type]] || colors.primary) + '18'}]}>
+                  <NavIcon name="report" size={20} color={accents[TYPE_ACCENT[r.report_type]] || colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.title}>{r.title}</Text>

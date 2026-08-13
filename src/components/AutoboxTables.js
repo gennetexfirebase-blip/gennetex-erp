@@ -5,9 +5,14 @@ import { useTheme } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
 
 function buildAutoboxHtml(data, colors) {
+  // Хүснэгт бүрийг хэвтээ гүйлгэдэг хайрцагт хийнэ.
+  //
+  // Багануудад `white-space: nowrap` тавьсан тул хүснэгт дэлгэцээс өргөн
+  // болдог. Гүйлгэх хайрцаггүй үед баруун талын багана (Торгуулийн "Огноо",
+  // "Төлөв") бүрмөсөн таслагдаж, хэрэглэгч харах ямар ч аргагүй байв.
   const section = (title, html) => {
     if (!html) return '';
-    return `<h4>${title}</h4>${html}`;
+    return `<h4>${title}</h4><div class="tw">${html}</div>`;
   };
   const body = [
     section('Ерөнхий мэдээлэл', data.general),
@@ -21,7 +26,12 @@ function buildAutoboxHtml(data, colors) {
 *{box-sizing:border-box}
 body{margin:0;padding:4px 2px 12px;font-family:system-ui,sans-serif;font-size:13px;background:${colors.bg};color:${colors.text}}
 h4{margin:14px 0 8px;font-size:14px;font-weight:800}
-table{width:100%;border-collapse:collapse;margin:0 0 4px;font-size:12px}
+/* Хэвтээ гүйлгэх хайрцаг — багана багтахгүй үед таслахгүй, гүйлгэнэ */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 4px;padding-bottom:6px}
+.tw::-webkit-scrollbar{height:5px}
+.tw::-webkit-scrollbar-thumb{background:${colors.borderHi};border-radius:3px}
+/* Агуулгаараа өргөсөж, дэлгэцээс багагүй байна */
+table{width:max-content;min-width:100%;border-collapse:collapse;margin:0;font-size:12px}
 /* break-word нь үсэг бүрээр (вертикаль) унагааж байсан — normal болгож, урт текстийг wrap */
 th,td{border:1px solid ${colors.border};padding:7px 8px;text-align:left;vertical-align:top;white-space:normal;word-break:normal;overflow-wrap:break-word}
 thead th,tbody th{background:${colors.bgAlt};font-weight:700}

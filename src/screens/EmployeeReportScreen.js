@@ -14,14 +14,15 @@ import { useApp } from '../context/AppContext';
 import { ScreenHeader, Button, Card } from '../components/ui';
 import SignaturePad from '../components/SignaturePad';
 import NavIcon from '../components/NavIcon';
-import { colors as palette, spacing, radius } from '../theme';
-import { useStyles } from '../context/ThemeContext';
+import { spacing, radius } from '../theme';
+import { accentMap } from '../theme/accents';
+import { useStyles, useTheme } from '../context/ThemeContext';
 import * as reportApi from '../services/reportService';
 
 const TYPES = [
-  { key: 'material', icon: 'inventory', color: palette.primary },
-  { key: 'tool', icon: 'tools', color: '#ea580c'},
-  { key: 'vehicle', icon: 'vehicle', color: palette.warning },
+  { key: 'material', icon: 'inventory', accent: 'brand' },
+  { key: 'tool', icon: 'tools', accent: 'amber' },
+  { key: 'vehicle', icon: 'vehicle', accent: 'slate' },
 ];
 
 function previewLines(report) {
@@ -43,6 +44,8 @@ function previewLines(report) {
 
 export default function EmployeeReportScreen() {
   const styles = useStyles(makeStyles);
+  const { isDark } = useTheme();
+  const accents = accentMap(isDark);
   const { authProfile, currentUser, isCloud, updateMyProfile } = useApp();
   const [preview, setPreview] = useState(null);
   const [loadingType, setLoadingType] = useState(null);
@@ -168,11 +171,11 @@ export default function EmployeeReportScreen() {
               onPress={() => openPreview(t.key)}
               disabled={loadingType === t.key}
             >
-              <View style={[styles.typeIcon, { backgroundColor: t.color + '18'}]}>
+              <View style={[styles.typeIcon, { backgroundColor: accents[t.accent] + '18'}]}>
                 {loadingType === t.key ? (
-                  <ActivityIndicator color={t.color} />
+                  <ActivityIndicator color={accents[t.accent]} />
                 ) : (
-                  <NavIcon name={t.icon} size={24} color={t.color} />
+                  <NavIcon name={t.icon} size={24} color={accents[t.accent]} />
                 )}
               </View>
               <View style={{ flex: 1 }}>

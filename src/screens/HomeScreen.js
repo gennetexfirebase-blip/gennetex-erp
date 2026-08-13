@@ -4,9 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import NavIcon from '../components/NavIcon';
-import { spacing, radius, colors as C } from '../theme';
+import { spacing, radius } from '../theme';
+import { accent, accentMap } from '../theme/accents';
 import { useTheme, useStyles } from '../context/ThemeContext';
-import { roleLabel, canTakeServiceCalls } from '../lib/roles';
+import {
+  roleLabel,
+  canTakeServiceCalls,
+  canManageInventory,
+  canApproveRequests,
+  canManageEmployees,
+  canManagePayroll,
+} from '../lib/roles';
 import * as tracking from '../services/trackingService';
 import * as vehicleApi from '../services/vehicleService';
 import { countTodayCheckIns } from '../services/attendanceService';
@@ -16,78 +24,81 @@ import { formatTime, formatDate } from '../lib/formatTime';
 import TodayDashboard from '../components/enhancements/TodayDashboard';
 
 const EMPLOYEE_MODULES = [
-  { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', color: '#b45309' },
-  { key: 'Inventory', label: 'Бараа авах', icon: 'inventory', color: C.primary },
-  { key: 'MyStock', label: 'Миний үлдэгдэл', icon: 'allocation', color: '#16a34a'},
-  { key: 'Tools', label: 'Багаж авах', icon: 'tools', color: '#ea580c'},
-  { key: 'MyTools', label: 'Миний багаж', icon: 'allocation', color: '#ca8a04'},
-  { key: 'SiteWork', label: 'Ажлын байр', icon: 'location', color: '#059669'},
-  { key: 'MyContract', label: 'Миний гэрээ', icon: 'report', color: '#0f766e'},
-  { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', color: '#0d9488'},
-  { key: 'Vehicle', label: 'Машин (код)', icon: 'vehicle', color: C.warning },
-  { key: 'Fuel', label: 'Бензин тооцоо', icon: 'fuel', color: C.success },
-  { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', color: '#d97706' },
-  { key: 'TelegramChat', label: 'Telegram чат', icon: 'chat', color: '#229ED9' },
-  { key: 'MyTelegram', label: 'Миний Telegram', icon: 'chat', color: '#0088cc' },
-  { key: 'Calls', label: 'Дуудлага', icon: 'calls', color: '#0891b2'},
-  { key: 'Meeting', label: 'Хурал', icon: 'chat', color: '#0F766E'},
-  { key: 'Attendance', label: 'Ирц', icon: 'attendance', color: '#db2777'},
-  { key: 'MyShift', label: 'Хуваарь харах', icon: 'clock', color: '#2563eb'},
-  { key: 'EmployeeReport', label: 'Ажилтан тайлан', icon: 'report', color: '#1e3a5f'},
-  { key: 'Feedback', label: 'Санал гомдол', icon: 'report', color: '#dc2626'},
-  { key: 'Chat', label: 'Чат', icon: 'chat', color: '#7c3aed'},
+  { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber' },
+  { key: 'Inventory', label: 'Бараа авах', icon: 'inventory', accent: 'brand' },
+  { key: 'MyStock', label: 'Миний үлдэгдэл', icon: 'allocation', accent: 'brand'},
+  { key: 'Tools', label: 'Багаж авах', icon: 'tools', accent: 'brand'},
+  { key: 'MyTools', label: 'Миний багаж', icon: 'allocation', accent: 'brand'},
+  { key: 'SiteWork', label: 'Ажлын байр', icon: 'location', accent: 'green'},
+  { key: 'MyContract', label: 'Миний гэрээ', icon: 'report', accent: 'indigo'},
+  { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', accent: 'indigo'},
+  { key: 'Vehicle', label: 'Машин (код)', icon: 'vehicle', accent: 'amber' },
+  { key: 'Fuel', label: 'Бензин тооцоо', icon: 'fuel', accent: 'amber' },
+  { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber' },
+  { key: 'TelegramChat', label: 'Telegram чат', icon: 'chat', accent: 'teal' },
+  { key: 'MyTelegram', label: 'Миний Telegram', icon: 'chat', accent: 'teal' },
+  { key: 'Calls', label: 'Дуудлага', icon: 'calls', accent: 'teal'},
+  { key: 'Meeting', label: 'Хурал', icon: 'chat', accent: 'teal'},
+  { key: 'Attendance', label: 'Ирц', icon: 'attendance', accent: 'indigo'},
+  { key: 'MyShift', label: 'Хуваарь харах', icon: 'clock', accent: 'indigo'},
+  { key: 'MyPayroll', label: 'Миний цалин', icon: 'report', accent: 'indigo'},
+  { key: 'EmployeeReport', label: 'Ажилтан тайлан', icon: 'report', accent: 'slate'},
+  { key: 'Feedback', label: 'Санал гомдол', icon: 'report', accent: 'rose'},
+  { key: 'Chat', label: 'Чат', icon: 'chat', accent: 'teal'},
+  { key: 'CallHistory', label: 'Дуудлагын түүх', icon: 'calls', accent: 'brand'},
   // --- Enhancements (additive) ---
-  { key: 'RouteOptimize', label: 'Зам оновчлох', icon: 'location', color: '#0ea5e9' },
-  { key: 'KnowledgeBase', label: 'Мэдлэгийн сан', icon: 'report', color: '#6366f1' },
-  { key: 'ToolCheckIn', label: 'Багаж нөхцөл', icon: 'tools', color: '#ea580c' },
-  { key: 'BarcodeMode', label: 'Barcode горим', icon: 'qr', color: '#64748b' },
-  { key: 'OfflineQueue', label: 'Оффлайн queue', icon: 'clock', color: '#7c3aed' },
+  { key: 'RouteOptimize', label: 'Зам оновчлох', icon: 'location', accent: 'green' },
+  { key: 'KnowledgeBase', label: 'Мэдлэгийн сан', icon: 'report', accent: 'slate' },
+  { key: 'ToolCheckIn', label: 'Багаж нөхцөл', icon: 'tools', accent: 'brand' },
+  { key: 'BarcodeMode', label: 'Barcode горим', icon: 'qr', accent: 'brand' },
+  { key: 'OfflineQueue', label: 'Оффлайн queue', icon: 'clock', accent: 'slate' },
 ];
 
 const ADMIN_MODULES = [
-  { key: 'AdminOhaab', label: 'ХААБ заавар', icon: 'attendance', color: '#b45309' },
-  { key: 'Employees', label: 'Ажилтан бүртгэх', icon: 'employees', color: C.primary },
-  { key: 'AdminApplications', label: 'Ажлын байрны анкет', icon: 'employees', color: '#0369a1'},
-  { key: 'AdminContracts', label: 'Хөдөлмөрийн гэрээ', icon: 'report', color: '#0f766e'},
-  { key: 'AdminReports', label: 'Тайлан', icon: 'report', color: '#1e3a5f'},
-  { key: 'AdminFeedback', label: 'Санал гомдол', icon: 'report', color: '#dc2626'},
-  { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', color: '#0d9488'},
-  { key: 'SiteWork', label: 'Ажлын байр / баг', icon: 'location', color: '#059669'},
-  { key: 'AdminCalls', label: 'Бүх дуудлага', icon: 'calls', color: '#0891b2'},
-  { key: 'AdminVisits', label: 'Очсон лог', icon: 'location', color: '#0d9488'},
-  { key: 'Requisition', label: 'Шаардах хуудас', icon: 'report', color: '#0369a1'},
-  { key: 'VehiclesAdmin', label: 'Машины мэдээлэл солих', icon: 'qr', color: C.warning },
-  { key: 'VehicleSpecs', label: 'Машины оншилгоо', icon: 'vehicle', color: '#2563eb' },
-  { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', color: '#d97706' },
-  { key: 'Live', label: 'Байршил хяналт', icon: 'location', color: C.success },
-  { key: 'Inventory', label: 'Бараа материал', icon: 'inventory', color: C.primary },
-  { key: 'Tools', label: 'Багаж', icon: 'tools', color: '#ea580c'},
-  { key: 'ToolAllocation', label: 'Ажилтны үлдэгдэл', icon: 'allocation', color: C.accent },
+  { key: 'AdminOhaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber', need: 'approve' },
+  { key: 'Employees', label: 'Ажилтан бүртгэх', icon: 'employees', accent: 'indigo', need: 'employees' },
+  { key: 'AdminApplications', label: 'Ажлын байрны анкет', icon: 'employees', accent: 'indigo', need: 'employees'},
+  { key: 'AdminContracts', label: 'Хөдөлмөрийн гэрээ', icon: 'report', accent: 'indigo', need: 'employees'},
+  { key: 'AdminReports', label: 'Тайлан', icon: 'report', accent: 'slate', need: 'employees'},
+  { key: 'Payroll', label: 'Цалин тооцоо', icon: 'report', accent: 'indigo', need: 'payroll' },
+  { key: 'AdminFeedback', label: 'Санал гомдол', icon: 'report', accent: 'rose', need: 'employees'},
+  { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', accent: 'indigo', need: 'employees'},
+  { key: 'SiteWork', label: 'Ажлын байр / баг', icon: 'location', accent: 'green', need: 'approve'},
+  { key: 'AdminCalls', label: 'Бүх дуудлага', icon: 'calls', accent: 'teal', need: 'approve'},
+  { key: 'AdminVisits', label: 'Очсон лог', icon: 'location', accent: 'green', need: 'approve'},
+  { key: 'Requisition', label: 'Шаардах хуудас', icon: 'report', accent: 'brand', need: 'inventory'},
+  { key: 'VehiclesAdmin', label: 'Машины мэдээлэл солих', icon: 'qr', accent: 'amber', need: 'employees' },
+  { key: 'VehicleSpecs', label: 'Машины оншилгоо', icon: 'vehicle', accent: 'amber', need: 'employees' },
+  { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber', need: 'employees' },
+  { key: 'Live', label: 'Байршил хяналт', icon: 'location', accent: 'green', need: 'approve' },
+  { key: 'Inventory', label: 'Бараа материал', icon: 'inventory', accent: 'brand', need: 'inventory' },
+  { key: 'Tools', label: 'Багаж', icon: 'tools', accent: 'brand', need: 'inventory'},
+  { key: 'ToolAllocation', label: 'Ажилтны үлдэгдэл', icon: 'allocation', accent: 'brand', need: 'inventory' },
   // --- Enhancements (additive) ---
-  { key: 'LiveOps', label: 'Live Ops', icon: 'location', color: '#ef4444' },
-  { key: 'SlaReport', label: 'SLA & KPI', icon: 'report', color: '#f59e0b' },
-  { key: 'AutoDispatch', label: 'Автомат оноолт', icon: 'calls', color: '#8b5cf6' },
-  { key: 'LowStock', label: 'Бага үлдэгдэл', icon: 'inventory', color: '#dc2626' },
-  { key: 'CallCost', label: 'Дуудлагын өртөг', icon: 'report', color: '#0d9488' },
-  { key: 'PayrollExport', label: 'Цалин export', icon: 'report', color: '#1e3a5f' },
-  { key: 'Predictive', label: 'Predictive', icon: 'location', color: '#db2777' },
-  { key: 'PublicTickets', label: 'Public tickets', icon: 'chat', color: '#0369a1' },
-  { key: 'BranchAdmin', label: 'Салбар', icon: 'location', color: '#64748b' },
-  { key: 'FeatureFlags', label: 'Feature flags', icon: 'ai', color: '#4f46e5' },
+  { key: 'LiveOps', label: 'Live Ops', icon: 'location', accent: 'green', need: 'approve' },
+  { key: 'SlaReport', label: 'SLA & KPI', icon: 'report', accent: 'slate', need: 'employees' },
+  { key: 'AutoDispatch', label: 'Автомат оноолт', icon: 'calls', accent: 'teal', need: 'approve' },
+  { key: 'LowStock', label: 'Бага үлдэгдэл', icon: 'inventory', accent: 'rose', need: 'inventory' },
+  { key: 'CallCost', label: 'Дуудлагын өртөг', icon: 'report', accent: 'slate', need: 'employees' },
+  { key: 'PayrollExport', label: 'Цалин export', icon: 'report', accent: 'indigo', need: 'payroll' },
+  { key: 'Predictive', label: 'Predictive', icon: 'location', accent: 'slate', need: 'employees' },
+  { key: 'PublicTickets', label: 'Public tickets', icon: 'chat', accent: 'teal', need: 'employees' },
+  { key: 'BranchAdmin', label: 'Салбар', icon: 'location', accent: 'slate', need: 'employees' },
+  { key: 'FeatureFlags', label: 'Feature flags', icon: 'ai', accent: 'slate', need: 'employees' },
 ];
 
 // AI боломжуудыг тусад нь тод хэсэг болгож харуулна
 const AI_MODULES_EMPLOYEE = [
-  { key: 'GennetexAi', label: 'Gennetex AI', sub: 'Асуулт асууж чатлах', icon: 'chat', color: '#7c3aed' },
-  { key: 'AiInventoryHome', label: 'AI тооллого', sub: 'Камераар бараа тоолох', icon: 'inventory', color: '#0d9488' },
+  { key: 'GennetexAi', label: 'Gennetex AI', sub: 'Асуулт асууж чатлах', icon: 'chat', accent: 'violet' },
+  { key: 'AiInventoryHome', label: 'AI тооллого', sub: 'Камераар бараа тоолох', icon: 'inventory', accent: 'violet' },
 ];
 
 const AI_MODULES_ADMIN = [
-  { key: 'AiAdmin', label: 'AI Админ туслах', sub: 'Хянах · ажил хуваарилах · Excel', icon: 'ai', color: '#4f46e5' },
-  { key: 'GennetexAi', label: 'Gennetex AI', sub: 'Асуулт асууж чатлах', icon: 'chat', color: '#7c3aed' },
-  { key: 'AiInventoryHome', label: 'AI тооллого', sub: 'Камераар бараа тоолох', icon: 'inventory', color: '#0d9488' },
-  { key: 'AdminPerformance', label: 'AI гүйцэтгэл', sub: 'Ажилтны дүн шинжилгээ', icon: 'report', color: '#6366f1' },
-  { key: 'AdminAppUsage', label: 'Апп ашиглалт', sub: 'AI хэрэглээний тайлан', icon: 'report', color: '#8b5cf6' },
+  { key: 'AiAdmin', label: 'AI Админ туслах', sub: 'Хянах · ажил хуваарилах · Excel', icon: 'ai', accent: 'violet' },
+  { key: 'GennetexAi', label: 'Gennetex AI', sub: 'Асуулт асууж чатлах', icon: 'chat', accent: 'violet' },
+  { key: 'AiInventoryHome', label: 'AI тооллого', sub: 'Камераар бараа тоолох', icon: 'inventory', accent: 'violet' },
+  { key: 'AdminPerformance', label: 'AI гүйцэтгэл', sub: 'Ажилтны дүн шинжилгээ', icon: 'report', accent: 'violet' },
+  { key: 'AdminAppUsage', label: 'Апп ашиглалт', sub: 'AI хэрэглээний тайлан', icon: 'report', accent: 'violet' },
 ];
 
 const ADMIN_KEYS = new Set(ADMIN_MODULES.map((m) => m.key));
@@ -103,7 +114,8 @@ function greeting() {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const accents = useMemo(() => accentMap(isDark), [isDark]);
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const styles = useStyles(makeStyles);
   const { authProfile, profile, isAdmin, isSuperAdmin, isCloud, fetchEmployees, currentUser } = useApp();
@@ -162,6 +174,7 @@ export default function HomeScreen() {
   const dateStr = formatDate(now);
 
   // Админ дуудлагаар явах эрхтэй эсэх (superadmin эрх өгсөн үед)
+  const role = authProfile?.role;
   const canTakeCalls = canTakeServiceCalls(authProfile);
   const serviceModules = useMemo(
     () =>
@@ -175,13 +188,43 @@ export default function HomeScreen() {
     [isAdmin, canTakeCalls]
   );
 
+  /**
+   * Удирдлагын модулиудыг ЧАДВАРаар шүүнэ.
+   *
+   * Эрхийн нэрээр биш чадвараар шалгаснаар нярав агуулахаа, ахлах ирцээ
+   * харна — тус бүрд нь тусдаа жагсаалт зохиох шаардлагагүй.
+   */
+  const capabilities = useMemo(
+    () => ({
+      inventory: canManageInventory(role),
+      approve: canApproveRequests(role),
+      employees: canManageEmployees(role),
+      payroll: canManagePayroll(role),
+    }),
+    [role]
+  );
+
+  /** Удирдлагын хэсэг харуулах эсэх — ядаж нэг чадвартай бол. */
+  const hasAdminArea = useMemo(
+    () => Object.values(capabilities).some(Boolean),
+    [capabilities]
+  );
+
   const aiModules = isAdmin ? AI_MODULES_ADMIN : AI_MODULES_EMPLOYEE;
+
   const adminModules = useMemo(
     () =>
       isSuperAdmin
-        ? [...ADMIN_MODULES, { key: 'AdminDevices', label: 'Төхөөрөмж зөвшөөрөл', icon: 'employees', color: '#b45309' }]
+        ? [...ADMIN_MODULES, { key: 'AdminDevices', label: 'Төхөөрөмж зөвшөөрөл', icon: 'employees', accent: 'slate', need: 'employees' }]
         : ADMIN_MODULES,
     [isSuperAdmin]
+  );
+
+  // Чадвараар шүүнэ. `adminModules`-аас ХОЙШ байх ёстой — эс бөгөөс
+  // тодорхойлогдохоос өмнө уншиж TDZ алдаа өгнө.
+  const adminVisibleModules = useMemo(
+    () => adminModules.filter((m) => !m.need || capabilities[m.need]),
+    [adminModules, capabilities]
   );
 
   const mountAnim = useRef(new Animated.Value(0)).current;
@@ -213,21 +256,26 @@ export default function HomeScreen() {
     navigation.navigate(m.key);
   };
 
-  const renderTile = (m, i) => (
+  const renderTile = (m, i) => {
+    const tint = accents[m.accent] || accents.brand;
+    return (
     <TouchableOpacity
       key={`${m.key}-${i}`}
       style={[styles.tile, { width: tileWidth }]}
       activeOpacity={0.82}
       onPress={() => go(m)}
+      accessibilityRole="button"
+      accessibilityLabel={m.label}
     >
-      <View style={[styles.tileIcon, { backgroundColor: m.color + '14'}]}>
-        <NavIcon name={m.icon} size={24} color={m.color} />
+      <View style={[styles.tileIcon, { backgroundColor: tint + '14'}]}>
+        <NavIcon name={m.icon} size={24} color={tint} />
       </View>
       <Text style={styles.tileLabel} numberOfLines={2}>
         {m.label}
       </Text>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const renderAiCard = (m, i) => (
     <AiCard key={`${m.key}-${i}`} m={m} styles={styles} width={aiCardWidth} onPress={() => go(m)} />
@@ -306,12 +354,12 @@ export default function HomeScreen() {
           <View style={styles.aiGrid}>{aiModules.map(renderAiCard)}</View>
         </Animated.View>
 
-        {isAdmin ? (
+        {hasAdminArea ? (
           <>
             <View style={styles.adminHeaderRow}>
-              <Text style={styles.sectionTitle}>Админ удирдлага</Text>
+              <Text style={styles.sectionTitle}>Удирдлага</Text>
               <View style={styles.adminTag}>
-                <Text style={styles.adminTagText}>{isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}</Text>
+                <Text style={styles.adminTagText}>{roleLabel(role).toUpperCase()}</Text>
               </View>
             </View>
 
@@ -335,7 +383,7 @@ export default function HomeScreen() {
               <Text style={styles.adminCtaArrow}>→</Text>
             </TouchableOpacity>
 
-            <View style={styles.grid}>{adminModules.map(renderTile)}</View>
+            <View style={styles.grid}>{adminVisibleModules.map(renderTile)}</View>
           </>
         ) : (
           <Text style={styles.welcomeSub}>Доорх үйлчилгээнүүдээс сонгон ажлаа үргэлжлүүлнэ үү.</Text>
@@ -349,6 +397,8 @@ export default function HomeScreen() {
 }
 
 function AiCard({ m, styles, width, onPress }) {
+  const { isDark } = useTheme();
+  const tint = accent(m.accent, isDark);
   const scale = useRef(new Animated.Value(1)).current;
   const pressIn = () =>
     Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
@@ -357,14 +407,16 @@ function AiCard({ m, styles, width, onPress }) {
   return (
     <Animated.View style={{ width, transform: [{ scale }] }}>
       <TouchableOpacity
-        style={[styles.aiCard, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}
+        style={[styles.aiCard, { borderColor: tint + '40', backgroundColor: tint + '10' }]}
         activeOpacity={0.9}
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={m.sub ? `${m.label}. ${m.sub}` : m.label}
         onPressIn={pressIn}
         onPressOut={pressOut}
       >
-        <View style={[styles.aiCardIcon, { backgroundColor: m.color + '22' }]}>
-          <NavIcon name={m.icon} size={22} color={m.color} />
+        <View style={[styles.aiCardIcon, { backgroundColor: tint + '22' }]}>
+          <NavIcon name={m.icon} size={22} color={tint} />
         </View>
         <Text style={styles.aiCardTitle} numberOfLines={1}>{m.label}</Text>
         {m.sub ? <Text style={styles.aiCardSub} numberOfLines={2}>{m.sub}</Text> : null}
@@ -390,7 +442,9 @@ function Stat({ icon, value, label, color }) {
 
 const TILE_GAP = spacing.md;
 
-const makeStyles = ({ colors, shadow }) => StyleSheet.create({
+const makeStyles = ({ colors, shadow, isDark }) => {
+  const A = accentMap(isDark);
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.surfaceDim,
@@ -454,7 +508,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  roleChipAdmin: { backgroundColor: colors.primarySoft, borderColor: '#dbe4ff'},
+  roleChipAdmin: { backgroundColor: colors.primarySoft, borderColor: colors.primary + "55" },
   roleChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700'},
   roleChipTextAdmin: { color: colors.primary },
   adminHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
@@ -540,21 +594,21 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 9,
-    backgroundColor: '#7c3aed',
+    backgroundColor: A.violet,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
   aiTag: {
-    backgroundColor: '#7c3aed22',
+    backgroundColor: A.violet + '22',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     marginBottom: spacing.md,
     marginTop: spacing.sm,
   },
-  aiTagText: { color: '#7c3aed', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  aiTagText: { color: A.violet, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   aiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP, marginBottom: spacing.lg },
   aiCard: {
     width: '100%',
@@ -577,7 +631,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#b45309',
+    backgroundColor: A.amber,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginBottom: spacing.lg,
@@ -594,3 +648,4 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   ohaabSub: { color: 'rgba(255,255,255,0.92)', fontSize: 12, marginTop: 2, lineHeight: 16 },
   ohaabArrow: { color: '#fff', fontSize: 22, fontWeight: '800' },
 });
+};

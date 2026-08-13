@@ -1,4 +1,5 @@
-import { makeRedirectUri, QueryParams } from 'expo-auth-session';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
 import {
@@ -8,6 +9,7 @@ import {
   filterVisibleProfiles,
   canManageProfile,
   allowedAssignRole,
+  mapDeleteError,
 } from '../lib/roles';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -142,6 +144,30 @@ export async function fetchEmployees() {
   return filterVisibleProfiles(rows, viewerRole);
 }
 
+/**
+ * Хамт олны лавлах — чат, пост, ажилтны мэдээлэлд ашиглана.
+ *
+ * `fetchEmployees` нь АДМИНЫ УДИРДЛАГЫН жагсаалт: admin_list_authorized_users
+ * RPC дуудаж, энгийн ажилтанд `forbidden` шиднэ. Дэлгэцүүд түүнийг
+ * `.catch(() => [])`-ээр залгидаг байсан тул ажилтан чат дээр хамт олноо
+ * ОГТ ХАРАХГҮЙ байв.
+ *
+ * Мөн тэр жагсаалт нь системийн админыг (superadmin) нуудаг — удирдлагын
+ * хувьд зөв (энгийн админ түүнийг засаж болохгүй), гэхдээ чат/пост дээр
+ * буруу: систем админ бол мөн адил хамт олны нэг.
+ *
+ * Энэ функц `profiles`-ээс шууд уншина. RLS нь нэвтэрсэн бүх хүнд уншихыг
+ * зөвшөөрдөг тул эрхээс үл хамааран бүгд бие биенээ харна.
+ */
+export async function fetchDirectory() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, last_name, email, position, phone, avatar_url, role, last_seen')
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function adminUpdateEmployee(userId, patch) {
   const viewerRole = await getViewerRole();
   if (!isAdminRole(viewerRole)) throw new Error('Зөвхөн админ засна.');
@@ -199,6 +225,52 @@ export async function adminResetUserPassword(userId, newPassword, forceChange = 
     force_change: !!forceChange,
   });
   if (error) throw error;
+}
+
+/**
+ * Хэрэглэгчийг устгана.
+ *
+ * Эрхийн шалгалт нь SQL талын `admin_delete_user` функцэд байгаа
+ * (supabase/migration_admin_delete_user.sql). Энд шалгахгүй — зөвхөн
+ * алдааг нь ойлгомжтой текст болгож дамжуулна. Клиент талын шалгалт
+ * хамгаалалт биш тул серверийн шийдвэрийг эцсийн үнэн гэж үзнэ.
+ *
+ *   superadmin → ажилтан + админыг устгана
+ *   admin      → зөвхөн ажилтныг устгана
+ *   хэн ч      → өөрийгөө болон сүүлчийн superadmin-ийг устгахгүй
+ */
+export async function adminDeleteUser(userId) {
+  // admin_list_authorized_users нь Google-ээр нэвтрээгүй хүнийг
+  // id = 'pending:<email>' гэж буцаадаг. Тэдэнд auth.users мөр байхгүй тул
+  // устгахын оронд зөвшөөрлийг нь цуцална.
+  const id = String(userId || '');
+  if (id.startsWith('pending:')) {
+    return adminRevokeAuthorization(id.slice('pending:'.length));
+  }
+  const { data, error } = await supabase.rpc('admin_delete_user', {
+    target_id: id,
+  });
+  if (error) throw new Error(mapDeleteError(error.message));
+  return data;
+}
+
+/** Google-ээр хараахан нэвтрээгүй хаягийн зөвшөөрлийг цуцална. */
+export async function adminRevokeAuthorization(email) {
+  const { data, error } = await supabase.rpc('admin_revoke_authorization', {
+    p_email: String(email || '').trim().toLowerCase(),
+  });
+  if (error) throw new Error(mapDeleteError(error.message));
+  return data;
+}
+
+/** Хэрэглэгчийн эрхийг солино — шалгалт нь мөн SQL талд. */
+export async function adminSetUserRole(userId, newRole) {
+  const { data, error } = await supabase.rpc('admin_set_user_role', {
+    target_id: userId,
+    new_role: newRole,
+  });
+  if (error) throw new Error(mapDeleteError(error.message));
+  return data;
 }
 
 // Админ Gmail хаягийг зөвшөөрнө. Хэрэглэгч Google-ээр анх нэвтрэхэд auth user/profile үүснэ.

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as notifyApi from './notificationService';
 
 const TABLE = 'call_sessions';
@@ -35,8 +36,7 @@ export async function setCallStatus(id, status) {
 
 // Над руу ирж буй дуудлагыг real-time сонсох
 export function subscribeIncomingCalls(userId, onCall) {
-  const channel = supabase
-    .channel(`calls-${userId}`)
+  const channel = uniqueChannel(`calls-${userId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: TABLE, filter: `callee_id=eq.${userId}` },
@@ -48,8 +48,7 @@ export function subscribeIncomingCalls(userId, onCall) {
 
 // Миний эхлүүлсэн дуудлагын төлөв өөрчлөгдөхийг сонсох (хариулсан/татгалзсан)
 export function subscribeCallUpdates(callId, onUpdate) {
-  const channel = supabase
-    .channel(`call-${callId}`)
+  const channel = uniqueChannel(`call-${callId}`)
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: TABLE, filter: `id=eq.${callId}` },

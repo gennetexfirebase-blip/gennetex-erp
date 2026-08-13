@@ -9,9 +9,13 @@ import {
   Modal,
   ScrollView,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useFaceDetection } from '@infinitered/react-native-mlkit-face-detection';
+import { useFaceDetection } from '../lib/faceDetection';
+import * as faceCloud from '../services/faceCloudService';
+import * as faceEdge from '../services/faceEdgeService';
+import * as deviceApi from '../services/deviceAuthService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
@@ -36,13 +40,63 @@ import { distanceMeters } from '../lib/geo';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
+/**
+ * Царай таниулт бүтэлгүйтсэн ШАЛТГААНЫГ хэрэглэгчид тодорхой хэлнэ.
+ *
+ * ЯАГААД ЧУХАЛ ВЭ: өмнө нь бүх тохиолдолд "Царай таарсангүй" гэсэн нэг
+ * мессеж гардаг байв. Гэтэл шалтгаанууд нь тэс өөр:
+ *
+ *   • царай бүртгүүлээгүй       → бүртгүүлэх хэрэгтэй
+ *   • зураг дээр царай олдоогүй → гэрэл/өнцөг засах хэрэгтэй
+ *   • ӨӨР ХҮНИЙ царай           → энэ хүн өөр хүний эрхээр
+ *                                 ирцээ бүртгүүлэх гэж оролдож байна
+ *
+ * Сүүлийнх нь зөрчил тул "дахин оролдоно уу" гэж хэлэх нь БУРУУ —
+ * дахин оролдоод ч болохгүй, эзэн нь өөрөө ирэх ёстой.
+ */
+function describeFaceFailure(result, ownerName) {
+  const reason = result?.reason;
+
+  if (reason === 'not_enrolled') {
+    return {
+      title: 'Царай бүртгэгдээгүй',
+      message:
+        'Таны царай бүртгэгдээгүй байна.\n\nПрофайл → Царай бүртгүүлэх хэсгээр орж эхлээд бүртгүүлнэ үү.',
+    };
+  }
+
+  if (reason === 'no_face') {
+    return {
+      title: 'Царай олдсонгүй',
+      message:
+        result?.message ||
+        'Зураг дээр царай олдсонгүй. Гэрэл сайтай газар, камер руу эгц харна уу.',
+    };
+  }
+
+  // Царай олдсон, хэрэглэгч бүртгэлтэй, гэвч таарахгүй байна.
+  return {
+    title: 'Өөр хүний царай байна',
+    message:
+      `Энэ бол ${ownerName || 'энэ эрхийн эзэн'}-ийн царай биш байна.\n\n` +
+      'Ажилтан бүр ЗӨВХӨН өөрийн эрхээр, өөрийн царайгаар ирцээ бүртгүүлнэ. ' +
+      'Өөр хүнийг орлож бүртгүүлэх боломжгүй.\n\n' +
+      'Хэрэв та эрхийнхээ эзэн мөн бол профайлаасаа царайгаа дахин бүртгүүлнэ үү.',
+  };
+}
+
 export default function AttendanceScreen() {
   const navigation = useNavigation();
   const faceDetector = useFaceDetection();
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
-  const { currentUser, isCloud, isAdmin, fetchEmployees } = useApp();
+  const { currentUser, isCloud, isAdmin, fetchEmployees, shiftStatus, refreshShiftStatus } = useApp();
   const profile = currentUser;
+  const developerEmail = String(process.env.EXPO_PUBLIC_DEVELOPER_EMAIL || '').trim().toLowerCase();
+  const bypassDeviceApproval =
+    profile?.role === 'superadmin' ||
+    profile?.role === 'developer' ||
+    (!!developerEmail && String(profile?.email || '').trim().toLowerCase() === developerEmail);
   const [cameraVisible, setCameraVisible] = useState(false);
   const [pendingType, setPendingType] = useState('check_in');
   const [pendingRemote, setPendingRemote] = useState(false);
@@ -61,6 +115,21 @@ export default function AttendanceScreen() {
   const [enrolling, setEnrolling] = useState(false);
   const [verificationStep, setVerificationStep] = useState(0);
   const [livenessChallenge, setLivenessChallenge] = useState(null);
+  const [facePreparing, setFacePreparing] = useState(false);
+  /**
+   * Царай таних ажиллах боломжтой эсэх.
+   *
+   *   null  — хараахан шалгаагүй
+   *   true  — ажиллана (native эсвэл Edge Function)
+   *   false — боломжгүй. Ирцийг ЗОГСООХГҮЙ: төхөөрөмж + байршил + selfie-гээр
+   *           бүртгээд `pending` болгож админд шалгуулна.
+   *
+   * Expo Go дээр native модуль ачаалагдахгүй бөгөөд Edge Function ч бэлэн
+   * биш байж болно. Тэр тохиолдолд ажилтныг гацаах нь буруу — ирц бол
+   * өдөр тутмын үйл ажиллагаа.
+   */
+  const [faceBackendReady, setFaceBackendReady] = useState(null);
+  const [faceBackendReason, setFaceBackendReason] = useState(null);
 
   // Зайнаас хүсэлтийн modal
   const [remoteModal, setRemoteModal] = useState(false);
@@ -155,26 +224,73 @@ export default function AttendanceScreen() {
     } catch (e) {}
   }, [isCloud]);
 
+  /**
+   * Царай таних боломжтой эсэхийг НЭГ УДАА тодорхойлно.
+   * Дэлгэц нээгдэхэд шалгаснаар ажилтан зураг авч эхэлсний дараа биш,
+   * урьдчилан мэдэж байх болно.
+   */
+  const probeFaceBackend = useCallback(async () => {
+    if (!isCloud) {
+      setFaceBackendReady(false);
+      setFaceBackendReason('offline');
+      return false;
+    }
+    if (faceApi.isNativeFaceAvailable()) {
+      setFaceBackendReady(true);
+      setFaceBackendReason(null);
+      return true;
+    }
+    if (faceEdge.isEdgeFaceAvailable) {
+      const health = await faceEdge.healthCheck();
+      const ok = !!health.ok && health.modelsLoaded !== false;
+      setFaceBackendReady(ok);
+      setFaceBackendReason(ok ? null : health.error || health.hint || 'edge-unavailable');
+      if (ok) return true;
+    }
+    if (faceCloud.isCloudFaceConfigured) {
+      setFaceBackendReady(true);
+      setFaceBackendReason(null);
+      return true;
+    }
+    setFaceBackendReady(false);
+    setFaceBackendReason((prev) => prev || 'no-backend');
+    return false;
+  }, [isCloud]);
+
   const loadFace = useCallback(async () => {
     if (!isCloud || !profile?.id) {
       setEnrolled(true);
       return;
     }
     try {
-      const templates = await faceApi.getFaceTemplates(profile.id);
-      setFaceTemplates(templates);
-      setEnrollCount(templates.length);
-      setEnrolled(templates.length >= faceApi.ENROLL_TARGET);
-    } catch (e) {}
+      if (faceApi.isNativeFaceAvailable()) {
+        const templates = await faceApi.getFaceTemplates(profile.id);
+        setFaceTemplates(templates);
+        setEnrollCount(templates.length);
+        setEnrolled(templates.length >= faceApi.ENROLL_TARGET);
+      } else {
+        const cloudCount = faceEdge.isEdgeFaceAvailable
+          ? await faceEdge.countEnrollments(profile.id)
+          : await faceCloud.countEnrollments(profile.id);
+        setFaceTemplates([]);
+        setEnrollCount(cloudCount);
+        setEnrolled(cloudCount >= faceApi.ENROLL_TARGET);
+      }
+    } catch (e) {
+      setFaceTemplates([]);
+      setEnrollCount(0);
+      setEnrolled(false);
+    }
   }, [isCloud, profile?.id]);
 
   useEffect(() => {
     loadRecords();
     loadLocations();
     loadFace();
+    probeFaceBackend();
     loadMyDay();
     loadEmployees();
-  }, [loadRecords, loadLocations, loadFace, loadMyDay, loadEmployees]);
+  }, [loadRecords, loadLocations, loadFace, probeFaceBackend, loadMyDay, loadEmployees]);
 
   const getLocation = async () => {
     try {
@@ -188,14 +304,49 @@ export default function AttendanceScreen() {
   };
 
   // Одоогийн байршлыг зөвшөөрөгдсөн цэгүүдтэй харьцуулна
+  /**
+   * Ирц бүртгэсэн байршлыг Google Maps дээр нээнэ.
+   *
+   * Апп дотор газрын зураг суулгахын оронд системийн Maps аппыг ашиглана —
+   * ажилтан тэндээс замын заавар авах, дэлгэрүүлж харах боломжтой бөгөөд
+   * аппын хэмжээ ч нэмэгдэхгүй.
+   */
+  const openOnMap = (record) => {
+    const lat = Number(record?.latitude);
+    const lng = Number(record?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      Alert.alert('Байршил алга', 'Энэ бүртгэлд байршлын мэдээлэл хадгалагдаагүй байна.');
+      return;
+    }
+    const label = encodeURIComponent(
+      `${record.staff_name || 'Ирц'} · ${record.type === 'check_in' ? 'Ирсэн' : 'Явсан'}`
+    );
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${label}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Нээж чадсангүй', 'Газрын зургийн апп олдсонгүй.')
+    );
+  };
+
   const evaluateLocation = (loc) => {
     const near = attApi.nearestAttendanceLocation(loc, locations);
-    if (!locations.length) return { mode: 'onsite', distance: null, locationName: null };
-    if (loc.latitude == null) return { mode: 'remote', distance: null, locationName: null };
+
+    // Ажлын цэг тохируулаагүй бол байршлыг ШАЛГАХ БОЛОМЖГҮЙ.
+    //
+    // Өмнө нь энэ тохиолдолд 'onsite' гэж буцаадаг байсан — өөрөөр хэлбэл
+    // хаанаас ирц бүртгүүлсэн ч "ажлын байран дээр" гэж тооцогдож,
+    // баталгаажуулалтгүй өнгөрдөг байв. Шалгаж чадахгүй байгааг
+    // "зөв" гэж үзэх нь буруу — админд шалгуулна.
+    if (!locations.length) {
+      return { mode: 'remote', distance: null, locationName: null, reason: 'no-locations' };
+    }
+    if (loc.latitude == null) {
+      return { mode: 'remote', distance: null, locationName: null, reason: 'no-gps' };
+    }
     return {
       mode: near.within ? 'onsite' : 'remote',
       distance: near.distance,
       locationName: near.name,
+      reason: near.within ? null : 'outside',
     };
   };
 
@@ -276,37 +427,127 @@ export default function AttendanceScreen() {
   }, [isCloud, isAdmin, myShift, myDayAttendance, locations, profile?.name]);
 
   const startCheck = async (type) => {
+    if (facePreparing) return;
+
+    // Өдөрт нэг удаа ирсэн, нэг удаа явсан.
+    if (type === 'check_in' && shiftStatus.checkedIn) {
+      Alert.alert('Аль хэдийн бүртгэгдсэн', 'Өнөөдөр та ирснээ бүртгүүлсэн байна.');
+      return;
+    }
+    if (type === 'check_out') {
+      if (!shiftStatus.checkedIn) {
+        Alert.alert('Эхлээд ирснээ бүртгүүлнэ үү', 'Ирсэн бүртгэлгүйгээр явсан гэж бүртгэх боломжгүй.');
+        return;
+      }
+      if (shiftStatus.checkedOut) {
+        Alert.alert('Аль хэдийн бүртгэгдсэн', 'Өнөөдөр та явсанаа бүртгүүлсэн байна.');
+        return;
+      }
+    }
+
     setError(null);
     setVerificationStep(0);
     setLivenessChallenge(null);
-    const loc = await getLocation();
-    const { mode, distance, locationName } = evaluateLocation(loc);
-    setPendingType(type);
-    setPendingDistance(distance);
-    setCapturedLoc({ ...loc, locationName });
-
-    // Анх удаа — царай бүртгэх горим (10 удаа)
-    if (isCloud && !enrolled) {
-      setEnrolling(true);
-      setPendingRemote(mode === 'remote');
-      if (mode === 'remote') {
-        setRemoteReason('');
-        setRemoteModal(true);
-      } else {
-        setCameraVisible(true);
-      }
+    const nativeFace = faceApi.isNativeFaceAvailable();
+    // Expo Go дээр хоёр зам байна: өөрийн Edge Function (үнэгүй, эрхэмлэнэ)
+    // эсвэл Luxand (гуравдагч тал). Аль нь ч байхгүй бол л зогсооно.
+    if (isCloud && !nativeFace && !faceEdge.isEdgeFaceAvailable && !faceCloud.isCloudFaceConfigured) {
+      Alert.alert('Царай таних тохиргоо дутуу', 'Царай таних үйлчилгээ тохируулаагүй байна. Админд хандана уу.');
       return;
     }
 
-    setEnrolling(false);
-    if (mode === 'onsite') {
-      setPendingRemote(false);
-      setRemoteReason('');
-      setCameraVisible(true);
-    } else {
-      setPendingRemote(true);
-      setRemoteReason('');
-      setRemoteModal(true);
+    // Expo Go дээр эхлэхийн өмнө Edge Function ажиллаж байгаа эсэхийг шалгана.
+    // Эс бөгөөс ажилтан гурван зураг авсны эцэст л алдаа мэдэх болно.
+    if (isCloud && !nativeFace && faceEdge.isEdgeFaceAvailable) {
+      const health = await faceEdge.healthCheck();
+      if (!health.ok || health.modelsLoaded === false) {
+        Alert.alert(
+          'Царай таних бэлэн бус байна',
+          `${health.error || health.hint || 'Тодорхойгүй алдаа'}\n\n` +
+            (health.stage ? `Үе шат: ${health.stage}\n` : '') +
+            'Админд энэ мессежийг дамжуулна уу.'
+        );
+        return;
+      }
+    }
+    setFacePreparing(true);
+    try {
+      const [loc] = await Promise.all([
+        getLocation(),
+        isCloud && nativeFace ? faceApi.prepareFaceModel() : Promise.resolve(),
+      ]);
+      const { mode, distance, locationName } = evaluateLocation(loc);
+      setPendingType(type);
+      setPendingDistance(distance);
+      setCapturedLoc({ ...loc, locationName });
+
+      // Царай таних боломжгүй бол ирцийг ЗОГСООХГҮЙ.
+      //
+      // Expo Go дээр native модуль ачаалагдахгүй, Edge Function ч бэлэн биш
+      // байж болно. Ажилтныг гацаахын оронд төхөөрөмж + байршил + selfie-гээр
+      // бүртгээд `pending` болгож админд шалгуулна. Хамгаалалт алдагдахгүй —
+      // зөвхөн шалгах ажил хүнд шилжинэ.
+      if (isCloud && faceBackendReady === false) {
+        setEnrolling(false);
+        setVerificationStep(0);
+        setCameraVisible(true);
+        return;
+      }
+
+      // Анхны бүртгэлийг зөвшөөрөгдсөн төхөөрөмж, ажлын цэг дээр хийнэ.
+      if (isCloud && !enrolled) {
+        const dev = bypassDeviceApproval
+          ? { verified: true, deviceId: null, reason: null }
+          : await deviceApi.verifyDeviceForAttendance(profile.id);
+        if (!dev.verified && !bypassDeviceApproval) {
+          Alert.alert(
+            'Төхөөрөмж зөвшөөрөгдөөгүй',
+            'Энэ төхөөрөмжийг эхлээд хөгжүүлэгчээр зөвшөөрүүлсний дараа царайгаа бүртгүүлнэ үү.'
+          );
+          return;
+        }
+        if (locations.length > 0 && mode === 'remote') {
+          Alert.alert(
+            'Ажлын байршилд очно уу',
+            'Аюулгүй байдлын үүднээс анхны царай бүртгэлийг зөвхөн зөвшөөрөгдсөн ажлын цэг дээр хийнэ.'
+          );
+          return;
+        }
+        setEnrolling(true);
+        setPendingRemote(false);
+        setRemoteReason('');
+        setCameraVisible(true);
+        return;
+      }
+
+      setEnrolling(false);
+
+      // ЯВСАН бүртгэлийг ХААНААС Ч хийж болно.
+      //
+      // Ажилтан ажлаа дуусгаад талбараас, замаас, эсвэл өөр газраас явсанаа
+      // тэмдэглэх шаардлага гарна. Байршлаар хаах нь бодит ажилд саад болно.
+      // Оронд нь: байршлыг тэмдэглээд `pending` болгож админ баталгаажуулна.
+      if (type === 'check_out' && mode !== 'onsite') {
+        setPendingRemote(true);
+        setRemoteReason('');
+        setCameraVisible(true);
+        return;
+      }
+
+      if (mode === 'onsite') {
+        setPendingRemote(false);
+        setRemoteReason('');
+        setCameraVisible(true);
+      } else {
+        setPendingRemote(true);
+        setRemoteReason('');
+        setRemoteModal(true);
+      }
+    } catch (e) {
+      setError(e.message);
+      Alert.alert('Царай таних AI бэлэн болсонгүй', e.message);
+    } finally {
+      setFacePreparing(false);
     }
   };
 
@@ -315,33 +556,49 @@ export default function AttendanceScreen() {
     setCameraVisible(true);
   };
 
-  // Царай бүртгэх — эгц, хоёр хажуу, дээш/доош, инээмсэглэл гэсэн олон өнцөг.
+  // Царай бүртгэх — эгц, хажуу, инээмсэглэл гэсэн 3 чанартай template.
   const handleEnrollCapture = async (photo) => {
     setBusy(true);
     setError(null);
     try {
       const pose = faceApi.getEnrollmentPose(enrollCount);
-      const template = await faceApi.extractFaceTemplate(photo.uri, faceDetector, {
-        expectedPose: pose.key,
-        existingTemplates: faceTemplates,
-      });
-      await faceApi.insertEnrollment({
-        userId: profile.id,
-        userName: profile.name,
-        pose: pose.key,
-        template,
-      });
-      const savedTemplate = {
-        pose: pose.key,
-        embedding: template.embedding,
-        quality: template.quality,
-        yaw: template.metrics.yaw,
-        pitch: template.metrics.pitch,
-        roll: template.metrics.roll,
-        model_version: template.modelVersion,
-      };
-      const nextTemplates = [...faceTemplates.filter((item) => item.pose !== pose.key), savedTemplate];
-      setFaceTemplates(nextTemplates);
+      const nativeFace = faceApi.isNativeFaceAvailable();
+      if (nativeFace) {
+        const template = await faceApi.extractFaceTemplate(photo.uri, faceDetector, {
+          expectedPose: pose.key,
+          existingTemplates: faceTemplates,
+        });
+        await faceApi.insertEnrollment({
+          userId: profile.id,
+          userName: profile.name,
+          pose: pose.key,
+          template,
+        });
+        const savedTemplate = {
+          pose: pose.key,
+          embedding: template.embedding,
+          quality: template.quality,
+          yaw: template.metrics.yaw,
+          pitch: template.metrics.pitch,
+          roll: template.metrics.roll,
+          model_version: template.modelVersion,
+        };
+        const nextTemplates = [...faceTemplates.filter((item) => item.pose !== pose.key), savedTemplate];
+        setFaceTemplates(nextTemplates);
+      } else {
+        // Өөрийн Edge Function-ийг эрхэмлэнэ — үнэгүй, зураг гадагш гарахгүй,
+        // мөн утсан дээрхтэй ижил SFace тул embedding нь нийцнэ.
+        if (faceEdge.isEdgeFaceAvailable) {
+          await faceEdge.enrollPhoto({ uri: photo.uri, pose: pose.key });
+        } else {
+          await faceCloud.enrollPhoto({
+            userId: profile.id,
+            userName: profile.name,
+            uri: photo.uri,
+            pose: pose.key,
+          });
+        }
+      }
       const next = enrollCount + 1;
       setEnrollCount(next);
 
@@ -350,12 +607,20 @@ export default function AttendanceScreen() {
         return;
       }
 
-      // 10 хүрсэн — бүртгэл дуусч, ирцээ бас бүртгэнэ
-      await faceApi.setFaceEnrolled(profile.id);
+      // 3 template бүрдсэн — бүртгэл дуусч, тухайн ирцийг мөн бүртгэнэ.
+      if (nativeFace) await faceApi.setFaceEnrolled(profile.id);
+      else if (faceEdge.isEdgeFaceAvailable) await faceEdge.setFaceEnrolled(profile.id);
+      else await faceCloud.setFaceEnrolled(profile.id);
       setEnrolled(true);
       setEnrolling(false);
       const photoUrl = await attApi.uploadSelfie(photo.uri, profile.id);
-      const status = pendingRemote ? 'pending' : 'approved';
+      // Төхөөрөмжийг баталгаажуулна. Батлагдаагүй бол зөвшөөрөхийн оронд
+      // админд шалгуулна — ингэснээр өөр утаснаас бүртгүүлэх нь илэрнэ.
+      const dev = bypassDeviceApproval
+        ? { verified: true, deviceId: null, reason: null }
+        : await deviceApi.verifyDeviceForAttendance(profile.id);
+      const status = pendingRemote || !dev.verified ? 'pending' : 'approved';
+      const deviceNote = dev.verified ? null : `Төхөөрөмж баталгаажаагүй (${dev.reason})`;
       await attApi.insertAttendance({
         staffId: profile.id,
         staffName: profile.name,
@@ -364,17 +629,18 @@ export default function AttendanceScreen() {
         status,
         isRemote: pendingRemote,
         distanceM: pendingDistance,
-        note: pendingRemote ? remoteReason.trim() : null,
+        note: [pendingRemote ? remoteReason.trim() : null, deviceNote].filter(Boolean).join(' · ') || null,
         locationName: capturedLoc?.locationName || null,
         latitude: capturedLoc?.latitude,
         longitude: capturedLoc?.longitude,
       });
       await loadRecords();
       await loadMyDay();
+      await refreshShiftStatus();
       setCameraVisible(false);
       Alert.alert(
         'Царай бүртгэгдлээ',
-        '7 өөр өнцгийн template амжилттай үүслээ. Дараагийн ирцэд эгц зураг болон санамсаргүй хөдөлгөөнөөр баталгаажуулна.'
+        '3 чанартай template амжилттай үүслээ. Дараагийн ирцэд эгц зураг болон санамсаргүй хөдөлгөөнөөр баталгаажуулна.'
       );
     } catch (e) {
       setError(e.message);
@@ -392,18 +658,61 @@ export default function AttendanceScreen() {
     setError(null);
     try {
       const loc = capturedLoc || {};
-      const status = pendingRemote ? 'pending' : 'approved';
+      // Төхөөрөмжийг баталгаажуулна. Батлагдаагүй бол зөвшөөрөхийн оронд
+      // админд шалгуулна — ингэснээр өөр утаснаас бүртгүүлэх нь илэрнэ.
+      const dev = bypassDeviceApproval
+        ? { verified: true, deviceId: null, reason: null }
+        : await deviceApi.verifyDeviceForAttendance(profile.id);
+      const faceOff = isCloud && faceBackendReady === false;
+      // Царайгүй бүртгэл нь заавал админы хяналтад орно.
+      const status =
+        pendingRemote || !dev.verified || faceOff ? 'pending' : 'approved';
+      const deviceNote = dev.verified ? null : `Төхөөрөмж баталгаажаагүй (${dev.reason})`;
+      const faceNote = faceOff ? 'Царай танилтгүй — админ шалгана' : null;
+
+      if (isCloud && faceOff) {
+        // Царай таних боломжгүй: selfie + байршил + төхөөрөмжөөр бүртгэнэ.
+        const photoUrl = await attApi.uploadSelfie(photo.uri, profile.id);
+        await attApi.insertAttendance({
+          staffId: profile.id,
+          staffName: profile.name,
+          type: pendingType,
+          photoUrl,
+          status,
+          isRemote: pendingRemote,
+          distanceM: pendingDistance,
+          note: [pendingRemote ? remoteReason.trim() : null, deviceNote, faceNote]
+            .filter(Boolean)
+            .join(' · ') || null,
+          locationName: capturedLoc?.locationName || null,
+          latitude: loc?.latitude,
+          longitude: loc?.longitude,
+        });
+        await loadRecords();
+        await loadMyDay();
+        await refreshShiftStatus();
+        setCameraVisible(false);
+        Alert.alert(
+          'Ирц бүртгэгдлээ',
+          'Царай таних энэ төхөөрөмж дээр ажиллахгүй байгаа тул админ зургийг харж баталгаажуулна.'
+        );
+        return;
+      }
+
       if (isCloud) {
         // 1-р зураг: эгц танилт. 2-р зураг: санамсаргүй хөдөлгөөнөөр active liveness.
         const expectedPose = verificationStep === 0
           ? 'liveness_center'
           : livenessChallenge?.key;
-        const vr = await faceApi.verifyFace(photo.uri, faceTemplates, faceDetector, { expectedPose });
+        const nativeFace = faceApi.isNativeFaceAvailable();
+        const vr = nativeFace
+          ? await faceApi.verifyFace(photo.uri, faceTemplates, faceDetector, { expectedPose })
+          : faceEdge.isEdgeFaceAvailable
+            ? await faceEdge.verifyFace(photo.uri)
+            : await faceCloud.verifyFace(photo.uri, profile.id);
         if (!vr.match) {
-          Alert.alert(
-            'Царай таарсангүй',
-            'Энэ царай бүртгэлтэй ажилтны царайтай таарахгүй байна. Дахин оролдоно уу.'
-          );
+          const failure = describeFaceFailure(vr, profile.name);
+          Alert.alert(failure.title, failure.message);
           return;
         }
         if (verificationStep === 0) {
@@ -420,13 +729,14 @@ export default function AttendanceScreen() {
           status,
           isRemote: pendingRemote,
           distanceM: pendingDistance,
-          note: pendingRemote ? remoteReason.trim() : null,
+          note: [pendingRemote ? remoteReason.trim() : null, deviceNote].filter(Boolean).join(' · ') || null,
           locationName: capturedLoc?.locationName || loc.locationName || null,
           latitude: loc.latitude,
           longitude: loc.longitude,
         });
         await loadRecords();
         await loadMyDay();
+        await refreshShiftStatus();
         setVerificationStep(0);
         setLivenessChallenge(null);
       } else {
@@ -559,6 +869,31 @@ export default function AttendanceScreen() {
     ]);
   };
 
+  const resetMyFace = () => {
+    Alert.alert(
+      'Царай дахин бүртгэх',
+      'Одоогийн царайны template-ууд устаж, дараагийн ирц дээр шинээр 3 зураг авна. Үргэлжлүүлэх үү?',
+      [
+        { text: 'Болих', style: 'cancel' },
+        {
+          text: 'Дахин бүртгэх',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await faceApi.resetFaceEnrollment(profile.id);
+              setFaceTemplates([]);
+              setEnrollCount(0);
+              setEnrolled(false);
+              Alert.alert('Бэлэн', 'Дараагийн ирц дээр царайгаа шинээр бүртгүүлнэ үү.');
+            } catch (e) {
+              Alert.alert('Алдаа', e.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!profile) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -580,21 +915,63 @@ export default function AttendanceScreen() {
           </View>
         </View>
         <View style={styles.btnRow}>
-          <Button title="Ирсэн" variant="success" style={{ flex: 1 }} onPress={() => startCheck('check_in')} />
-          <Button title="Явсан" variant="danger" style={{ flex: 1 }} onPress={() => startCheck('check_out')} />
+          <Button
+            title={shiftStatus.checkedIn ? 'Ирсэн ✓' : 'Ирсэн'}
+            variant="success"
+            style={{ flex: 1 }}
+            loading={facePreparing}
+            disabled={shiftStatus.checkedIn}
+            onPress={() => startCheck('check_in')}
+          />
+          <Button
+            title={shiftStatus.checkedOut ? 'Явсан ✓' : 'Явсан'}
+            variant="danger"
+            style={{ flex: 1 }}
+            disabled={facePreparing || !shiftStatus.checkedIn || shiftStatus.checkedOut}
+            onPress={() => startCheck('check_out')}
+          />
         </View>
+        {/* Байршил хянах төлөв — ажилтан юу болж байгааг мэдэж байх ёстой */}
+        {isCloud && !isAdmin ? (
+          <View style={styles.trackRow}>
+            <View
+              style={[
+                styles.trackDot,
+                { backgroundColor: shiftStatus.onShift ? colors.success : colors.textFaint },
+              ]}
+            />
+            <Text style={styles.trackText}>
+              {shiftStatus.onShift
+                ? 'Ажил дээр · байршил хянагдаж байна'
+                : shiftStatus.checkedOut
+                  ? 'Ажил дууссан · байршил хянахыг зогсоов'
+                  : 'Ирснээ бүртгүүлбэл байршил хянаж эхэлнэ'}
+            </Text>
+          </View>
+        ) : null}
         {isCloud && locations.length > 0 ? (
           <Text style={styles.geoHint}>
              {locations.map((l) => l.name).join(', ')} цэгийн ойролцоо байх шаардлагатай. Гадуур бол зайнаас хүсэлт илгээнэ.
           </Text>
         ) : null}
-        {isCloud && !enrolled ? (
+        {isCloud && faceBackendReady === false ? (
           <Text style={styles.enrollHint}>
-             Анх удаа: царайгаа 7 өөр өнцгөөр бүртгүүлнэ ({enrollCount}/
-            {faceApi.ENROLL_TARGET}). Боловсруулалт утсан дээр, төлбөргүй ажиллана.
+            Царай таних энэ төхөөрөмж дээр ажиллахгүй байна. Ирц нь байршил,
+            төхөөрөмж, selfie-гээр бүртгэгдэж админы баталгаажуулалтад орно.
+            {'\n'}Бүрэн ажиллуулах: development build (npx expo run:android) эсвэл APK.
+          </Text>
+        ) : isCloud && !enrolled ? (
+          <Text style={styles.enrollHint}>
+             Анх удаа: царайгаа 3 зааврын дагуу бүртгүүлнэ ({enrollCount}/
+            {faceApi.ENROLL_TARGET}).
           </Text>
         ) : isCloud ? (
-          <Text style={styles.geoHint}> Царай бүртгэгдсэн. Эгц зураг + санамсаргүй хөдөлгөөнөөр ирцийг батална.</Text>
+          <View>
+            <Text style={styles.geoHint}> Царай бүртгэгдсэн. Эгц зураг + санамсаргүй хөдөлгөөнөөр ирцийг батална.</Text>
+            {faceApi.isNativeFaceAvailable() ? (
+              <Button title="Царай дахин бүртгэх" variant="ghost" size="sm" onPress={resetMyFace} />
+            ) : null}
+          </View>
         ) : null}
       </Card>
 
@@ -730,6 +1107,15 @@ export default function AttendanceScreen() {
                   {item.location_name ? (
                     <Text style={styles.recordDate}> Бүртгсэн: {item.location_name}</Text>
                   ) : null}
+                  {item.latitude != null && item.longitude != null ? (
+                    <TouchableOpacity
+                      onPress={() => openOnMap(item)}
+                      accessibilityRole="link"
+                      accessibilityLabel="Байршлыг газрын зураг дээр харах"
+                    >
+                      <Text style={styles.mapLink}>Газрын зураг дээр харах</Text>
+                    </TouchableOpacity>
+                  ) : null}
                   {item.note ? <Text style={styles.noteText}>{item.note}</Text> : null}
                 </View>
               </View>
@@ -785,6 +1171,20 @@ export default function AttendanceScreen() {
                 ) : item.is_remote && item.distance_m != null ? (
                   <Text style={styles.recordDate}> Цэгээс ~{item.distance_m}м зайд</Text>
                 ) : null}
+                {/* Ирц бүртгүүлсэн байршил — БҮХ ажилтанд харагдана.
+                    Өмнө нь зөвхөн админы "зөвшөөрөх" жагсаалт дээр байсан
+                    тул энгийн ажилтан өөрийнхөө ирц хаана бүртгэгдсэнийг
+                    шалгах боломжгүй байв. */}
+                {item.latitude != null && item.longitude != null ? (
+                  <TouchableOpacity
+                    onPress={() => openOnMap(item)}
+                    accessibilityRole="link"
+                    accessibilityLabel="Ирц бүртгүүлсэн байршлыг газрын зураг дээр харах"
+                    hitSlop={6}
+                  >
+                    <Text style={styles.mapLink}>Газрын зураг дээр харах</Text>
+                  </TouchableOpacity>
+                ) : null}
                 <View style={styles.tagRow}>
                   {item.is_remote ? <Badge text="Зайнаас" color={colors.accent} /> : null}
                   {item.status === 'rejected' ? <Badge text="Татгалзсан" color={colors.danger} /> : null}
@@ -828,6 +1228,8 @@ export default function AttendanceScreen() {
           setLivenessChallenge(null);
         }}
         onCapture={handleCapture}
+        profileUri={profile?.avatar_url || null}
+        profileName={profile?.name || null}
       />
 
       {/* Зайнаас бүртгүүлэх хүсэлт */}
@@ -1058,6 +1460,16 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   cardTitle: { color: colors.text, fontSize: 16, fontWeight: '800'},
   cardSub: { color: colors.textMuted, marginTop: 2, fontSize: 13 },
   btnRow: { flexDirection: 'row', gap: spacing.md },
+  // Байршил хянах төлөв — ажилтанд ил тод байх ёстой
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  trackDot: { width: 8, height: 8, borderRadius: 4 },
+  mapLink: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 3 },
+  trackText: { color: colors.textMuted, fontSize: 12, flex: 1 },
   recordRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   avatar: { width: 50, height: 50, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
   avatarEmpty: { alignItems: 'center', justifyContent: 'center'},

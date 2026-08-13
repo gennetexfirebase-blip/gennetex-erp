@@ -437,7 +437,7 @@ function PostCard({
 export default function FeedScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles(makeStyles);
   const { currentUser, authProfile, isCloud, fetchEmployees } = useApp();
   const me = currentUser;
@@ -754,7 +754,7 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surfaceDim} />
 
       {/* Header — Figma Facebook UI */}
       <View style={styles.header}>
@@ -1043,7 +1043,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceDim,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },

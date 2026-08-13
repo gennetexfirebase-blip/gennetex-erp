@@ -49,8 +49,34 @@ export async function saveNotificationSettings(userId, patch) {
   return data;
 }
 
+let channelSeq = 0;
+
 export function subscribeNotifications(userId, onChange) {
   if (!userId || !supabase) return () => {};
-  const channel = supabase.channel(`notifications-${userId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, onChange).subscribe();
+
+  // Дуудагч бүрд ӨВӨРМӨЦ нэртэй суваг үүсгэнэ.
+  //
+  // Өмнө нь нэр нь `notifications-${userId}` гэж тогтмол байсан. Гэтэл TabBar
+  // болон NotificationCenterScreen ХОЁУЛАА үүнийг дууддаг тул Supabase нэг
+  // сувгийг дахин ашиглаж, аль хэдийн subscribe() хийсэн сувагт дахин on()
+  // нэмэхийг оролдож алдаа шидэж, дэлгэц крэш болдог байв:
+  //   "cannot add postgres_changes callbacks ... after subscribe()"
+  channelSeq += 1;
+  const name = `notifications-${userId}-${channelSeq}`;
+
+  const channel = supabase
+    .channel(name)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      },
+      onChange
+    )
+    .subscribe();
+
   return () => supabase.removeChannel(channel);
 }

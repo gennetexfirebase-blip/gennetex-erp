@@ -15,7 +15,17 @@ import { useApp } from '../context/AppContext';
 import { Card, Button, Field, Badge, ScreenHeader, HeaderButton, EmptyState } from '../components/ui';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
-import { ROLES, roleLabel, canManageProfile, canAssignRoles } from '../lib/roles';
+import {
+  ROLES,
+  roleLabel,
+  canManageProfile,
+  canAssignRoles,
+  canDeleteProfile,
+  deleteBlockedReason,
+  assignableRoles,
+  isValidRole,
+} from '../lib/roles';
+import * as authApi from '../services/authService';
 
 const EMPTY = { name: '', last_name: '', email: '', position: '', phone: '', address: '', role: 'employee' };
 
@@ -24,9 +34,13 @@ export default function EmployeesScreen() {
   const styles = useStyles(makeStyles);
   const { isAdmin, isSuperAdmin: isSuperAdminUser, authProfile, fetchEmployees, adminCreateEmployee, adminUpdateEmployee } = useApp();
   const mayAssignRoles = canAssignRoles(authProfile?.role);
+  // Тухайн хүн олгож болох эрхүүд — өөрөөсөө доош зэрэглэлтэй нь
+  const assignable = assignableRoles(authProfile?.role);
   const [list, setList] = useState([]);
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
+  // Устгах эрхийг шалгахад бүтэн мөр хэрэгтэй тул editId-аас гадна өөрийг нь хадгална.
+  const [editTarget, setEditTarget] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,9 +66,43 @@ export default function EmployeesScreen() {
 
   const openCreate = () => {
     setEditId(null);
+    setEditTarget(null);
     setForm(EMPTY);
     setError(null);
     setModal(true);
+  };
+
+  /**
+   * Хэрэглэгч устгах.
+   * UI нь эрхийг урьдчилан шалгаж ойлгомжтой мессеж өгнө, гэхдээ эцсийн
+   * шийдвэрийг SQL талын admin_delete_user функц гаргана.
+   */
+  const confirmDelete = (item) => {
+    const blocked = deleteBlockedReason(authProfile, item);
+    if (blocked) {
+      Alert.alert('Боломжгүй', blocked);
+      return;
+    }
+    const who = item.name || item.email || 'Энэ хэрэглэгч';
+    Alert.alert(
+      'Хэрэглэгч устгах',
+      `${who}-ийг бүрмөсөн устгах уу?\n\nНэвтрэх эрх нь хаагдаж, зөвшөөрлийн жагсаалтаас хасагдана. Энэ үйлдлийг буцаах боломжгүй.`,
+      [
+        { text: 'Болих', style: 'cancel' },
+        {
+          text: 'Устгах',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authApi.adminDeleteUser(item.id);
+              setList((prev) => prev.filter((p) => p.id !== item.id));
+            } catch (e) {
+              Alert.alert('Устгаж чадсангүй', e.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openEdit = (item) => {
@@ -67,6 +115,7 @@ export default function EmployeesScreen() {
       return;
     }
     setEditId(item.id);
+    setEditTarget(item);
     setForm({
       name: item.name || '',
       last_name: item.last_name || '',
@@ -74,7 +123,10 @@ export default function EmployeesScreen() {
       position: item.position || '',
       phone: item.phone || '',
       address: item.address || '',
-      role: item.role === ROLES.ADMIN ? ROLES.ADMIN : item.role === ROLES.SUPERADMIN ? ROLES.SUPERADMIN : ROLES.EMPLOYEE,
+      // Эрхийг хэвээр нь авна. Өмнө нь admin/superadmin-аас бусдыг бүгдийг
+      // employee болгож хаядаг байсан тул нярав, ахлах, захирал зэрэг
+      // эрхтэй хүнийг засахад эрх нь ажилтан болж бууж байв.
+      role: isValidRole(item.role) ? item.role : ROLES.EMPLOYEE,
     });
     setError(null);
     setModal(true);
@@ -83,6 +135,7 @@ export default function EmployeesScreen() {
   const closeModal = () => {
     setModal(false);
     setEditId(null);
+    setEditTarget(null);
     setForm(EMPTY);
     setError(null);
   };
@@ -157,7 +210,19 @@ export default function EmployeesScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         renderItem={({ item }) => (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => openEdit(item)}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => openEdit(item)}
+            onLongPress={canDeleteProfile(authProfile, item) ? () => confirmDelete(item) : undefined}
+            delayLongPress={450}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.name || item.email}, ${roleLabel(item.role)}`}
+            accessibilityHint={
+              canDeleteProfile(authProfile, item)
+                ? 'Засах бол дарна. Устгах бол удаан дарна.'
+                : 'Засах бол дарна.'
+            }
+          >
             <Card style={styles.row}>
               <View style={styles.avatar}>
                 {item.avatar_url ? (
@@ -200,12 +265,29 @@ export default function EmployeesScreen() {
               <Field label="Хаяг" value={form.address} onChangeText={(t) => setForm({ ...form, address: t })} />
               <Text style={styles.roleLabel}>Эрх</Text>
               {mayAssignRoles ? (
-                <View style={styles.roleRow}>
-                  <Button title="Ажилтан" variant={form.role === ROLES.EMPLOYEE ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={() => setForm({ ...form, role: ROLES.EMPLOYEE })} />
-                  <Button title="Админ" variant={form.role === ROLES.ADMIN ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={() => setForm({ ...form, role: ROLES.ADMIN })} />
-                  {isSuperAdminUser ? (
-                    <Button title="Хөгжүүлэгч" variant={form.role === ROLES.SUPERADMIN ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={() => setForm({ ...form, role: ROLES.SUPERADMIN })} />
-                  ) : null}
+                // Эрх бүрийг тайлбартай нь жагсаана. Товчны эгнээ болгосон
+                // хуучин хувилбар нь 6 эрхэд багтахгүй, мөн нярав/ахлах
+                // юу хийхийг тайлбарлахгүй байв.
+                <View style={styles.roleList}>
+                  {assignable.map((r) => {
+                    const on = form.role === r.key;
+                    return (
+                      <TouchableOpacity
+                        key={r.key}
+                        style={[styles.roleOption, on && styles.roleOptionOn]}
+                        onPress={() => setForm({ ...form, role: r.key })}
+                        activeOpacity={0.8}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                      >
+                        <View style={[styles.roleDot, on && styles.roleDotOn]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.roleName, on && styles.roleNameOn]}>{r.label}</Text>
+                          <Text style={styles.roleDesc}>{r.desc}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               ) : (
                 <Text style={styles.otpHint}>Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ. Энгийн админ ажилтны мэдээлэл засна.</Text>
@@ -213,8 +295,27 @@ export default function EmployeesScreen() {
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <View style={styles.actions}>
                 <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={closeModal} />
-                <Button title={saving ? '...' : editId ? 'Хадгалах' : 'Үүсгэх'} style={{ flex: 1 }} onPress={handleSave} disabled={saving} />
+                <Button
+                  title={editId ? 'Хадгалах' : 'Үүсгэх'}
+                  style={{ flex: 1 }}
+                  onPress={handleSave}
+                  loading={saving}
+                  disabled={saving}
+                />
               </View>
+              {/* Устгах нь эрсдэлтэй үйлдэл тул хадгалах товчноос тусад нь,
+                  доор нь тавьж, санамсаргүй дарагдахаас сэргийлэв. */}
+              {editId && canDeleteProfile(authProfile, editTarget) ? (
+                <Button
+                  title="Хэрэглэгчийг устгах"
+                  variant="danger"
+                  style={{ marginTop: spacing.md }}
+                  onPress={() => {
+                    closeModal();
+                    confirmDelete(editTarget);
+                  }}
+                />
+              ) : null}
             </ScrollView>
           </View>
         </View>
@@ -264,6 +365,29 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   otpHint: { color: colors.textFaint, fontSize: 12, marginBottom: spacing.md, marginTop: -spacing.xs, lineHeight: 17 },
   roleLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: spacing.xs },
   roleRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  // Эрхийн жагсаалт — тайлбартай, 6 эрхэд багтана
+  roleList: { gap: spacing.sm, marginBottom: spacing.md },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
+  roleOptionOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  roleDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: colors.outline,
+  },
+  roleDotOn: { borderColor: colors.primary, borderWidth: 6 },
+  roleName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  roleNameOn: { color: colors.primary },
+  roleDesc: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   error: { color: colors.danger, marginBottom: spacing.md },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
 });

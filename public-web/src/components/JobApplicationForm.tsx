@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus, Send, Trash2 } from 'lucide-react';
+import { CalendarDays, CarFront, ChevronLeft, ChevronRight, MapPin, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import SignaturePad from './SignaturePad';
 import { submitJobApplication } from '../lib/submitApplication';
 import { getDistrictOptions, getSubdistrictOptions, isCapital, PROVINCE_OPTIONS } from '../lib/mongoliaLocations';
@@ -22,6 +22,9 @@ const inputCls = 'job-input';
 const labelCls = 'job-label';
 const sectionCls = 'job-section';
 const REGISTER_LETTERS = 'АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯ'.split('');
+const ETHNICITY_OPTIONS = [
+  'Халх', 'Казах', 'Дөрвөд', 'Баяд', 'Буриад', 'Захчин', 'Дарьганга', 'Урианхай', 'Өөлд', 'Торгууд', 'Мянгад', 'Хотон', 'Хамниган', 'Цаатан', 'Бусад',
+];
 const DEFAULT_JOB_OPTIONS = [
   { title: 'Шончин', salary: '' },
   { title: 'Installer', salary: '' },
@@ -282,7 +285,7 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
         <button
           type="button"
           onClick={next}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white shadow-lg shadow-accent/20 transition-opacity hover:opacity-90 sm:ml-auto sm:max-w-[240px] sm:flex-none"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent-strong py-3 text-sm font-semibold text-white shadow-lg shadow-accent/20 transition-opacity hover:opacity-90 sm:ml-auto sm:max-w-[240px] sm:flex-none"
         >
           Дараах
           <ChevronRight size={18} />
@@ -292,7 +295,7 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
           type="button"
           onClick={submit}
           disabled={loading}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white shadow-lg shadow-accent/20 transition-opacity hover:opacity-90 disabled:opacity-50 sm:ml-auto sm:max-w-[240px] sm:flex-none"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent-strong py-3 text-sm font-semibold text-white shadow-lg shadow-accent/20 transition-opacity hover:opacity-90 disabled:opacity-50 sm:ml-auto sm:max-w-[240px] sm:flex-none"
         >
           <Send size={16} />
           {loading ? 'Илгээж байна...' : 'Анкет илгээх'}
@@ -343,7 +346,7 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
             >
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  i <= step ? 'bg-accent text-white' : 'bg-graphite-800 text-graphite-500'
+                  i <= step ? 'bg-accent-strong text-white' : 'bg-graphite-800 text-graphite-500'
                 }`}
               >
                 {i + 1}
@@ -434,7 +437,9 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="job-subsection">
+              <div className="job-subsection-title"><UserRound size={17} /> Хувийн нэмэлт мэдээлэл</div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field title="Хүйс">
                 <select className={inputCls} value={form.general.gender} onChange={(e) => setGeneral({ gender: e.target.value as 'Эрэгтэй' | 'Эмэгтэй' | '' })}>
                   <option value="">Сонгох</option>
@@ -449,7 +454,10 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
                 </select>
               </Field>
               <Field title="Яс үндэс">
-                <input className={inputCls} value={form.general.ethnicity} onChange={(e) => setGeneral({ ethnicity: e.target.value })} />
+                <input className={inputCls} list="ethnicity-options" placeholder="Ж: Халх" value={form.general.ethnicity} onChange={(e) => setGeneral({ ethnicity: e.target.value })} />
+                <datalist id="ethnicity-options">
+                  {ETHNICITY_OPTIONS.map((option) => <option key={option} value={option} />)}
+                </datalist>
               </Field>
               <Field title="НД төлдөг эсэх">
                 <YesNo name="social-insurance" value={form.general.paysSocialInsurance} onChange={(v) => setGeneral({ paysSocialInsurance: v })} />
@@ -457,11 +465,31 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
               <Field title="Утас (гэр)">
                 <input className={inputCls} type="tel" inputMode="numeric" maxLength={10} placeholder="Зөвхөн тоо" value={form.general.phoneHome} onChange={(e) => setGeneral({ phoneHome: onlyDigits(e.target.value, 10) })} />
               </Field>
+              <Field title="Оршин суух төрөл">
+                <select className={inputCls} value={form.general.housingType} onChange={(e) => setGeneral({ housingType: e.target.value as JobApplicationFormData['general']['housingType'] })}>
+                  <option value="">Сонгох</option>
+                  <option value="Өөрийн">Өөрийн</option>
+                  <option value="Түрээсийн">Түрээсийн</option>
+                  <option value="Эцэг эх хамаатан садангийн">Эцэг эх, хамаатан садангийн</option>
+                </select>
+              </Field>
+              </div>
             </div>
 
-            <Field title="Оршин суугаа хаяг" className="sm:col-span-2">
-              <input className={inputCls} value={form.general.address} onChange={(e) => setGeneral({ address: e.target.value })} />
-            </Field>
+            <div className="job-subsection">
+              <div className="job-subsection-title"><CarFront size={17} /> Жолоодох эрх ба хаяг</div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field title="Жолооны үнэмлэхийн дугаар">
+                  <input className={inputCls} maxLength={20} placeholder="Үнэмлэхгүй бол хоосон үлдээнэ" value={form.general.driverLicenseNo} onChange={(e) => setGeneral({ driverLicenseNo: e.target.value.toUpperCase() })} />
+                </Field>
+                <Field title="Жолооны ангилал">
+                  <input className={inputCls} maxLength={24} placeholder="Ж: B, C, CE" value={form.general.driverLicenseClass} onChange={(e) => setGeneral({ driverLicenseClass: e.target.value.toUpperCase() })} />
+                </Field>
+                <Field title="Оршин суугаа хаяг" className="sm:col-span-2">
+                  <input className={inputCls} placeholder="Дүүрэг, хороо, хотхон/байр, тоот" value={form.general.address} onChange={(e) => setGeneral({ address: e.target.value })} />
+                </Field>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field title="Биеийн хэмжээ">
@@ -492,7 +520,7 @@ export default function JobApplicationForm({ embedded = false }: { embedded?: bo
                 )}
               </div>
               <Field title="Зураг хавсаргах">
-                <input type="file" accept="image/*" className="text-sm text-graphite-400 file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-white" onChange={(e) => onPhoto(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*" className="text-sm text-graphite-400 file:mr-3 file:rounded-lg file:border-0 file:bg-accent-strong file:px-3 file:py-2 file:text-sm file:font-medium file:text-white" onChange={(e) => onPhoto(e.target.files?.[0] || null)} />
                 <p className="mt-2 text-xs text-graphite-500">JPG/PNG, хамгийн ихдээ 3MB</p>
               </Field>
             </div>

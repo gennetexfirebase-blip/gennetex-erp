@@ -7,7 +7,7 @@ let ttsTimer = null;
 let vibeTimer = null;
 
 // Дуудлагын ringtone — апп дотор багцлагдсан аудио файл (Алс хол нь дэргэд)
-const RINGTONE_ASSET = require('../../assets/sounds/incoming-call.mp3');
+const RINGTONE_ASSET = require('../../assets/sounds/incoming_call.mp3');
 // Нөөц (локал файл ачаалахад алдаа гарвал онлайн)
 const RINGTONE_FALLBACK_URI =
   'https://cdn.pixabay.com/download/audio/2022/03/15/audio_8cb7499d42.mp3?filename=phone-ringtone-124474.mp3';

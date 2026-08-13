@@ -165,12 +165,12 @@ export default function PushNotificationManager() {
 
     receivedSub.current = Notifications.addNotificationReceivedListener(async (notification) => {
       const data = notification.request.content.data;
-      if (data?.type === 'call') {
-        // Апп идэвхтэй (foreground) үед Supabase realtime (IncomingCallManager)
+      if (data?.type === 'call' || data?.type === 'incoming_call') {
+        // Апп идэвхтэй (foreground) үед Supabase realtime (CallProvider)
         // өөрөө дуудлагыг гаргана — давхардуулахгүй.
         if (AppState.currentState === 'active') return;
         if (isNativeIncomingCallAvailable()) {
-          showNativeIncomingCallFromPush({ ...data, type: 'call' });
+          showNativeIncomingCallFromPush(data);
         } else {
           await startIncomingCallAlert(data.callerName || notification.request.content.title);
         }

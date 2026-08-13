@@ -1,17 +1,18 @@
 import { Platform } from 'react-native';
+import { isExpoGo } from '../lib/runtimeEnv';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import * as deviceTokens from './deviceTokenService';
 
 export const CALLS_CHANNEL = 'calls';
 const TOKEN_KEY = '@gennetex_fcm_token_v1';
 const DEVICE_KEY = '@gennetex_push_device_v1';
 
 function nativeMessaging() {
-  if (Constants.appOwnership === 'expo') return null;
+  if (isExpoGo) return null;
   try {
     return require('@react-native-firebase/messaging').default();
   } catch (error) {
@@ -57,7 +58,7 @@ export async function ensureChannels() {
     name: 'Видео дуудлага',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 800, 400, 800, 400, 800],
-    sound: 'incoming-call.wav',
+    sound: 'incoming_call.wav',
     bypassDnd: true,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
@@ -76,7 +77,7 @@ async function getDeviceId() {
 // Firebase Cloud Messaging token — Expo Go биш, Development/Production build дээр.
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'web' || !Device.isDevice) return null;
-  if (Constants.appOwnership === 'expo') {
+  if (isExpoGo) {
     console.info('[push] Expo Go remote push дэмжихгүй. Development Build ашиглана уу.');
     return null;
   }
@@ -123,6 +124,16 @@ export async function savePushToken(userId, token) {
   }, { onConflict: 'token' });
   if (error) throw error;
   await AsyncStorage.multiSet([[TOKEN_KEY, token], [DEVICE_KEY, deviceId || '']]);
+
+  // Дуудлагын төхөөрөмжийн бүртгэл. `push_tokens` нь ерөнхий мэдэгдэлд,
+  // `device_tokens` нь дуудлагад — сүүлийнх нь iOS-ийн VoIP token-ийг
+  // тусад нь хадгалах шаардлагатай тул салангид. Энд хамт бичих нь
+  // хоёр газар мартагдахаас сэргийлнэ.
+  try {
+    await deviceTokens.registerDevice(userId, { fcmToken: token });
+  } catch (e) {
+    console.warn('[push] дуудлагын төхөөрөмж бүртгэгдсэнгүй:', e?.message || e);
+  }
 }
 
 export async function removePushToken(userId, token) {
@@ -130,6 +141,7 @@ export async function removePushToken(userId, token) {
   if (!userId || !savedToken || !supabase) return;
   const { error } = await supabase.from('push_tokens').update({ active: false, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('token', savedToken);
   if (error) console.warn('[push] token deactivate failed:', error.message);
+  await deviceTokens.deactivateDevice(userId).catch(() => {});
   await AsyncStorage.multiRemove([TOKEN_KEY, DEVICE_KEY]);
 }
 
@@ -330,7 +342,7 @@ export async function notifyIncomingCall(calleeId, { callerName, room, callId })
   await notifyUsers([calleeId], {
     title: `${name} залгаж байна`,
     body: 'Видео дуудлага — хариулахын тулд нээнэ үү',
-    sound: 'incoming-call.wav',
+    sound: 'incoming_call.wav',
     data: { type: 'call', room, callId, callerName: name },
     channelId: 'calls',
     priority: 'high',
@@ -370,5 +382,33 @@ export async function notifyShiftMissed({ staffName, shiftTime, locationName }) 
     title: 'Хуваарийн байршилд байхгүй',
     body: `${staffName || 'Ажилтан'} ${shiftTime || ''} цагт ${locationName || 'ажлын газарт'} ирээгүй байна`,
     data: { type: 'shift_missed' },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Дутуу байсан мэдэгдлүүд
+// ---------------------------------------------------------------------------
+// Эдгээрийг үйлчилгээнүүд дуудаж байсан ч хэрэгжүүлээгүй байв. Дуудлага нь
+// `try/catch` дотор байсан тул алдаа чимээгүй залгигдаж, УНАХГҮЙ ч
+// МЭДЭГДЭЛ ОГТ ЯВДАГГҮЙ байв — админ чөлөөний хүсэлт ирснийг мэдэхгүй
+// өнгөрдөг гэсэн үг.
+
+/** Хөгжүүлэгч рүү ирсэн шинэ мессеж. */
+export async function notifyDeveloperMessage({ fromName, subject, preview, messageId } = {}) {
+  return sendPushToRole('superadmin', {
+    title: `Шинэ мессеж: ${fromName || 'Ажилтан'}`,
+    body: subject ? `${subject} — ${preview || ''}`.trim() : preview || 'Мессеж ирлээ',
+    data: { type: 'admin', screen: 'DeveloperInbox', entityId: messageId },
+    channelId: 'default',
+  });
+}
+
+/** Чөлөөний хүсэлт — админуудад. */
+export async function notifyLeaveRequestToAdmins({ userName, dateRange, reason, requestId } = {}) {
+  return sendPushToRole('admin', {
+    title: 'Чөлөөний хүсэл',
+    body: `${userName || 'Ажилтан'} — ${dateRange || ''}${reason ? ` · ${reason}` : ''}`.trim(),
+    data: { type: 'admin', screen: 'Notifications', entityId: requestId },
+    channelId: 'default',
   });
 }

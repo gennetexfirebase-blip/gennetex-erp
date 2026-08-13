@@ -31,8 +31,14 @@ export function navigateFromNotification(data) {
       });
       break;
     case 'call':
-      // Дуудлагын мэдэгдэл дарсан — чат руу (IncomingCallManager pending шалгана)
+      // Хуучин Jitsi дуудлагын мэдэгдэл — чат руу
       navigationRef.navigate('MainTabs', { screen: 'Chat' });
+      break;
+    case 'incoming_call':
+    case 'missed_call':
+      // Дуудлага өөрөө CallProvider дээр гарна. Мэдэгдэл дарсан үед
+      // хэрэглэгчийн хүсэж буй зүйл нь "хэн залгасныг харах" тул түүх рүү.
+      navigationRef.navigate('CallHistory');
       break;
     case 'attendance_pending' :
       navigationRef.navigate('Attendance');

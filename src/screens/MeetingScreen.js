@@ -248,7 +248,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800', color: colors.text },
   body: { padding: spacing.lg, gap: spacing.lg },
   hero: {
-    backgroundColor: '#0F766E',
+    backgroundColor: colors.primaryContainer,
     borderRadius: radius.lg,
     padding: spacing.lg,
     alignItems: 'center',
@@ -263,8 +263,8 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  heroTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  heroSub: { color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  heroTitle: { color: colors.onPrimaryContainer, fontSize: 20, fontWeight: '800' },
+  heroSub: { color: colors.onPrimaryContainer, textAlign: 'center', marginTop: 8, lineHeight: 20, opacity: 0.9 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -288,7 +288,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   cardSub: { marginTop: 6, color: colors.textMuted, lineHeight: 20 },
   primaryBtn: {
     marginTop: 16,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryContainer,
     borderRadius: radius.md,
     paddingVertical: 14,
     flexDirection: 'row',

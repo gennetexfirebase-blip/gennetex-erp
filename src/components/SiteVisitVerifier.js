@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, Alert } from 'react-native';
-import { useFaceDetection } from '@infinitered/react-native-mlkit-face-detection';
+import { useFaceDetection } from '../lib/faceDetection';
 import { useApp } from '../context/AppContext';
 import SelfieCamera from './SelfieCamera';
 import * as attApi from '../services/attendanceService';

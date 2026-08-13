@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as Print from 'expo-print';
 import { Platform, Share } from 'react-native';
 import * as notifyApi from './notificationService';
@@ -206,8 +207,7 @@ export async function updateFeedbackStatus(id, status) {
 }
 
 export function subscribeFeedback(onChange) {
-  const channel = supabase
-    .channel('employee-feedback')
+  const channel = uniqueChannel('employee-feedback')
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => onChange?.())
     .subscribe();
   return () => supabase.removeChannel(channel);

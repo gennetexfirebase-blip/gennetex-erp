@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
 import * as tracking from '../services/trackingService';
+import * as bgLocation from '../services/backgroundLocationService';
 import { distanceMeters } from '../lib/geo';
 
 const MIN_UPLOAD_MS = 15000; // хамгийн багадаа 15 сек тутам
@@ -15,9 +16,28 @@ export default function LocationTracker() {
   const lastUpload = useRef(0);
   const lastCoord = useRef(null);
   const visited = useRef(new Set());
+  // `calls` нь байнга шинэчлэгддэг. Хэрэв түүнийг useEffect-ийн хамаарал болговол
+  // дуудлага өөрчлөгдөх бүрд GPS watcher дахин эхэлж, байршил тасалддаг байв.
+  // Тиймээс хамгийн сүүлийн утгыг ref-д хадгалж, effect-ийг нэг л удаа асаана.
+  const callsRef = useRef(calls);
+  callsRef.current = calls;
 
   useEffect(() => {
-    if (!isCloud || !currentUser?.id) return;
+    // Нэвтэрсэн бол БАЙНГА байршил илгээнэ.
+    //
+    // Өмнө нь `onShift` шалгаж, зөвхөн ирц бүртгүүлснээс явах хүртэл
+    // хянадаг байв. Гэвч тэр үед админ ажилтныг ээлжийн гадна огт
+    // харахгүй байсан тул шаардлагаар нь байнгын болгов.
+    //
+    // ⚠️ Үүний үнэ: батерей илүү зарцуулагдана, мөн ажлын бус цагт ч
+    //    байршил бүртгэгдэнэ. Ажилтнуудад үүнийг мэдэгдэх ёстой —
+    //    Android дээр байнга харагдах мэдэгдэл гарч байгаа нь үүнийг
+    //    ил тод болгож байгаа.
+    if (!isCloud || !currentUser?.id) {
+      bgLocation.stopTracking().catch(() => {});
+      setTrackingState?.({ active: false, reason: 'signed-out' });
+      return;
+    }
     let active = true;
 
     (async () => {
@@ -28,6 +48,17 @@ export default function LocationTracker() {
           return;
         }
         setTrackingState?.({ active: true });
+
+        // Апп хаагдсан/дэлгэц түгжигдсэн ч байршил үргэлжлүүлэхийн тулд
+        // OS түвшний арын task бүртгэнэ. watchPositionAsync нь зөвхөн апп
+        // нээлттэй байхад ажилладаг тул ганцаараа хангалтгүй.
+        bgLocation.startTracking(currentUser).then((res) => {
+          if (!res.ok && active) {
+            setTrackingState?.({ active: true, background: false, reason: res.reason });
+          } else if (active) {
+            setTrackingState?.({ active: true, background: true });
+          }
+        });
 
         // Эхлэнгүүт шууд нэг удаа байршил илгээх (хөдлөхийг хүлээхгүй)
         try {
@@ -62,15 +93,17 @@ export default function LocationTracker() {
             ...coord,
             speed: pos.coords.speed,
           });
-          setTrackingState?.({ active: true, last: { ...coord, at: now } });
+          // Урьд тогтоосон `background` тугийг хадгална — орлуулбал
+          // арын хяналт ажиллаж байхад ч "зөвхөн апп нээлттэй" гэж харагдана.
+          setTrackingState?.((prev) => ({ ...prev, active: true, error: null, last: { ...coord, at: now } }));
         } catch (e) {
           // Алдааг харуулах (RLS/сүлжээ) — админ/ажилтан оношилоход тус болно
-          setTrackingState?.({ active: false, reason: e.message, last: { ...coord, at: now } });
+          setTrackingState?.((prev) => ({ ...prev, active: true, error: e.message, last: { ...coord, at: now } }));
         }
       }
 
       // Айлд очсон эсэхийг шалгах
-      for (const c of calls || []) {
+      for (const c of callsRef.current || []) {
         if (c.latitude == null || visited.current.has(c.id)) continue;
         const d = distanceMeters(coord, { latitude: c.latitude, longitude: c.longitude });
         if (d <= ARRIVE_RADIUS_M) {
@@ -96,7 +129,7 @@ export default function LocationTracker() {
         watchRef.current = null;
       }
     };
-  }, [isCloud, currentUser?.id, calls]);
+  }, [isCloud, currentUser?.id]);
 
   return null;
 }

@@ -401,19 +401,15 @@ export async function saveInventoryCount({
     .single();
   if (error) throw error;
 
-  await supabase.from('inventory_history').insert({
-    count_id: count.id,
-    product_id: productId || null,
-    product_name: productName,
-    expected_stock: expected,
-    detected_stock: detected,
-    adjusted_stock: adjusted,
-    difference,
-    evidence_url: evidenceUrl || null,
-    employee_id: employeeId || null,
-    employee_name: employeeName || null,
-    warehouse: warehouse || null,
-  });
+  // `inventory_history`-д давхар бичихээ больсон.
+  //
+  // Тэр хүснэгт нь `count_id`-аар холбогдсон атлаа дээрээс нь 10 баганыг
+  // (product_id, product_name, expected/detected/adjusted_stock, difference,
+  // evidence_url, employee_id, employee_name, warehouse) бүрэн хуулж
+  // хадгалдаг байв. Хадгалалт бүр хоёуланд нь бичдэг тул 1:1 хуулбар болж,
+  // хоёр хуулбар зөрөх эрсдэл үүсгэж, зайг дэмий эзэлж байсан.
+  //
+  // Түүх нь `inventory_counts`-оос уншигдана — тэнд бүх талбар нь бий.
 
   if (productId != null) {
     await updateProduct(productId, { stock: adjusted });
@@ -441,9 +437,16 @@ export async function saveInventoryCount({
   return count;
 }
 
+/**
+ * Тооллогын түүх.
+ *
+ * Өмнө нь `inventory_history`-оос уншдаг байсан. Тэр хүснэгт нь
+ * `inventory_counts`-ийн 1:1 хуулбар байсан тул шууд эх сурвалжаас нь уншина.
+ * `inventory_counts` нь нэмээд confidence / status / notes талбартай.
+ */
 export async function fetchInventoryHistory(limit = 100) {
   const { data, error } = await supabase
-    .from('inventory_history')
+    .from('inventory_counts')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);

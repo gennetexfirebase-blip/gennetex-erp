@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import * as notifyApi from './notificationService';
@@ -490,8 +491,7 @@ export async function markStoryViewed(storyId, userId) {
 }
 
 export function subscribeFeed({ onPost, onReaction, onComment, onStory }) {
-  const channel = supabase
-    .channel('feed-realtime')
+  const channel = uniqueChannel('feed-realtime')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
       onPost?.(payload.new);
     })

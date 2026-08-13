@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as notifyApi from './notificationService';
 
 const TABLE = 'job_applications';
@@ -92,8 +93,7 @@ export async function approveApplication(id, { signatureSvg, adminId, adminName 
 }
 
 export function subscribeApplications(onChange) {
-  const channel = supabase
-    .channel('job-applications')
+  const channel = uniqueChannel('job-applications')
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => onChange?.())
     .subscribe();
   return () => supabase.removeChannel(channel);

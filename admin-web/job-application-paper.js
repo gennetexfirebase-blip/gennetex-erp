@@ -20,11 +20,65 @@
       .replace(/javascript:/gi, '');
   }
 
-  var PAPER_CSS =
-    "@page { size: A4; margin: 12mm; } * { box-sizing: border-box; } body { font-family: 'Times New Roman', Times, serif; color: #111; font-size: 11px; line-height: 1.35; margin: 0; padding: 0; background: #fff; } .paper { max-width: 210mm; margin: 0 auto; padding: 8px; } .paper-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; border-bottom: 2px solid #111; padding-bottom: 8px; } .paper-head-center { flex: 1; text-align: center; } .paper-logo { height: 52px; object-fit: contain; margin-bottom: 4px; } .paper-company { font-size: 14px; font-weight: 700; margin: 0; text-transform: uppercase; } .paper-title { font-size: 13px; font-weight: 700; margin: 4px 0 0; } .paper-photo { width: 99px; height: 132px; flex: 0 0 99px; background: #fff; border: 1.5px solid #111; padding: 3px; display: flex; align-items: center; justify-content: center; overflow: hidden; } .paper-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; background: #fff; display: block; } .paper-photo-empty { font-size: 9px; color: #666; text-align: center; line-height: 1.3; background: #fff; } h3.section { font-size: 11px; font-weight: 700; margin: 12px 0 4px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 2px; } table.form { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; } table.form td, table.form th { border: 1px solid #333; padding: 4px 6px; vertical-align: top; word-wrap: break-word; } table.form .lbl { width: 28%; font-weight: 600; background: #f5f5f5; } table.data th { background: #eee; font-weight: 700; font-size: 10px; text-align: center; } .meta { font-size: 10px; color: #444; margin-top: 4px; } .signature-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; break-inside:avoid; } .signature-card { position:relative; min-height:132px; border:1px solid #333; padding:8px; overflow:hidden; background:#fff; } .signature-title { font-weight:700; margin-bottom:4px; } .signature-layer { position:relative; z-index:2; height:72px; display:flex; align-items:center; justify-content:center; } .signature-layer svg, .signature-layer img { max-width:230px; max-height:70px; } .stamp-img { position:absolute; right:8px; top:24px; width:82px; height:82px; object-fit:contain; opacity:.72; z-index:1; }";
+  var PAPER_CSS = `
+    @page { size:A4; margin:10mm; }
+    :root { color-scheme:light; --ink:#172033; --muted:#64748b; --line:#dbe3ee; --soft:#f4f7fb; --brand:#2563eb; --brand-dark:#172554; }
+    * { box-sizing:border-box; }
+    html { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body { margin:0; padding:20px; color:var(--ink); background:#e8eef6; font-family:'Segoe UI',Arial,sans-serif; font-size:10.5px; line-height:1.45; }
+    .paper { position:relative; max-width:210mm; min-height:277mm; margin:0 auto; padding:26px 28px 30px; overflow:hidden; border-radius:12px; background:#fff; box-shadow:0 18px 55px rgba(15,23,42,.15); }
+    .paper::before { content:''; position:absolute; inset:0 0 auto; height:6px; background:linear-gradient(90deg,var(--brand-dark),var(--brand) 58%,#60a5fa); }
+    .paper-head { display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:14px; border-bottom:1px solid var(--line); padding:2px 0 16px; }
+    .paper-head-spacer { width:92px; flex:0 0 92px; }
+    .paper-head-center { flex:1; text-align:center; }
+    .paper-logo { height:44px; max-width:190px; object-fit:contain; margin-bottom:5px; }
+    .paper-company { margin:0; color:var(--brand); font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; }
+    .paper-title { margin:5px 0 0; color:var(--brand-dark); font-size:20px; line-height:1.2; font-weight:800; letter-spacing:-.02em; }
+    .paper-photo { width:92px; height:120px; flex:0 0 92px; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:2px; border:2px solid #fff; border-radius:10px; background:#fff; box-shadow:0 0 0 1px #cbd5e1,0 5px 15px rgba(15,23,42,.12); }
+    .paper-photo img { width:100%; height:100%; object-fit:cover; object-position:center 18%; background:#fff; display:block; }
+    .paper-photo-empty { color:var(--muted); background:var(--soft); font-size:9px; line-height:1.3; text-align:center; }
+    .paper-summary { display:grid; grid-template-columns:1.45fr 1fr 1fr; margin:0 0 16px; overflow:hidden; border-radius:10px; color:#fff; background:linear-gradient(110deg,var(--brand-dark),#1e3a8a 62%,#1d4ed8); break-inside:avoid; }
+    .summary-item { min-height:60px; padding:11px 14px; border-left:1px solid rgba(255,255,255,.16); }
+    .summary-item:first-child { border-left:0; }
+    .summary-label { display:block; margin-bottom:4px; color:#bfdbfe; font-size:8px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .summary-value { display:block; font-size:11px; font-weight:650; overflow-wrap:anywhere; }
+    .summary-name { font-size:15px; font-weight:800; line-height:1.2; }
+    h3.section { display:flex; align-items:center; gap:8px; margin:16px 0 7px; padding:0 0 5px; color:var(--brand-dark); border-bottom:1px solid #bfdbfe; font-size:10.5px; font-weight:800; letter-spacing:.065em; text-transform:uppercase; break-after:avoid; }
+    h3.section::before { content:''; width:4px; height:15px; flex:0 0 4px; border-radius:999px; background:var(--brand); }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; overflow:hidden; border:1px solid var(--line); border-radius:9px; background:#fff; break-inside:avoid; }
+    .info-item { min-height:43px; padding:7px 10px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .info-item:nth-child(even) { border-right:0; }
+    .info-item:last-child,.info-item:nth-last-child(2):nth-child(odd) { border-bottom:0; }
+    .info-item.wide { grid-column:1/-1; border-right:0; }
+    .info-item.wide:not(:last-child) { border-bottom:1px solid var(--line); }
+    .info-label { display:block; color:var(--muted); font-size:8px; font-weight:750; letter-spacing:.055em; text-transform:uppercase; }
+    .info-value { display:block; margin-top:2px; color:var(--ink); font-size:10.5px; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+    table.form { width:100%; overflow:hidden; margin-bottom:7px; border:1px solid var(--line); border-radius:9px; border-collapse:separate; border-spacing:0; table-layout:fixed; }
+    table.form td,table.form th { padding:6px 8px; border:0; border-right:1px solid var(--line); border-bottom:1px solid var(--line); vertical-align:top; word-wrap:break-word; }
+    table.form tr:last-child td { border-bottom:0; }
+    table.form td:last-child,table.form th:last-child { border-right:0; }
+    table.form .lbl { width:28%; color:var(--muted); background:var(--soft); font-size:9px; font-weight:700; }
+    table.data th { color:#334155; background:#eaf1fb; font-size:8.5px; font-weight:800; text-align:center; }
+    table.data td { font-size:9px; }
+    table.data tbody tr:nth-child(even) td { background:#f8fafc; }
+    table.data tr { break-inside:avoid; }
+    .meta { margin:4px 0 7px; color:var(--muted); font-size:9px; }
+    .signature-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; break-inside:avoid; }
+    .signature-card { position:relative; min-height:132px; overflow:hidden; padding:10px; border:1px solid var(--line); border-radius:9px; background:linear-gradient(180deg,#fff,#f8fafc); }
+    .signature-title { margin-bottom:4px; color:var(--brand-dark); font-weight:800; }
+    .signature-layer { position:relative; z-index:2; height:72px; display:flex; align-items:center; justify-content:center; }
+    .signature-layer svg,.signature-layer img { max-width:230px; max-height:70px; }
+    .stamp-img { position:absolute; right:8px; top:24px; width:82px; height:82px; object-fit:contain; opacity:.72; z-index:1; }
+    @media (max-width:720px) { body{padding:0}.paper{border-radius:0;padding:20px}.paper-head-spacer{display:none}.paper-summary,.info-grid{grid-template-columns:1fr}.summary-item{border-left:0;border-top:1px solid rgba(255,255,255,.16)}.summary-item:first-child{border-top:0}.info-item,.info-item:nth-child(even){border-right:0;border-bottom:1px solid var(--line)}.info-item:last-child{border-bottom:0} }
+    @media print { body{padding:0;background:#fff}.paper{max-width:none;min-height:0;padding:0;border-radius:0;box-shadow:none}.paper::before{top:-10mm;left:-10mm;right:-10mm}.paper-summary{break-inside:avoid} }
+  `;
 
   function cell(label, value) {
     return '<tr><td class="lbl">' + esc(label) + '</td><td>' + esc(value || '—') + '</td></tr>';
+  }
+
+  function infoItem(label, value, wide) {
+    return '<div class="info-item' + (wide ? ' wide' : '') + '"><span class="info-label">' + esc(label) + '</span><span class="info-value">' + esc(value || '—') + '</span></div>';
   }
 
   function paperPhoto(g, photoAttached) {
@@ -50,6 +104,10 @@
     var signed = opts.signedAt || fd.signedAt;
     var sig = safeSignatureSvg(opts.signatureSvg || fd.signatureSvg);
     var adminSig = safeSignatureSvg(opts.adminSignatureSvg);
+    var fullName = [g.clanName, g.fatherName, g.firstName].filter(Boolean).join(' ');
+    var birthDate = [g.birthYear, g.birthMonth, g.birthDay].filter(Boolean).join('.');
+    var birthPlace = [g.birthProvince, g.birthDistrict, g.birthSubdistrict].filter(Boolean).join(', ');
+    var driverLicense = [g.driverLicenseNo, g.driverLicenseClass && 'Ангилал: ' + g.driverLicenseClass].filter(Boolean).join(' · ');
 
     return (
       '<!DOCTYPE html><html lang="mn"><head><meta charset="utf-8"/><title>' +
@@ -57,7 +115,7 @@
       '</title><style>' +
       PAPER_CSS +
       '</style></head><body><div class="paper">' +
-      '<div class="paper-head"><div style="width:99px"></div><div class="paper-head-center">' +
+      '<div class="paper-head"><div class="paper-head-spacer"></div><div class="paper-head-center">' +
       '<img class="paper-logo" src="' +
       esc(logo) +
       '" alt=""/>' +
@@ -69,28 +127,31 @@
       '</p></div>' +
       paperPhoto(g, g.photoAttached) +
       '</div>' +
-      '<h3 class="section">1. Ерөнхий мэдээлэл</h3><table class="form">' +
-      cell('Ургийн овог', g.clanName) +
-      cell('Эцэг (эх)-ийн нэр', g.fatherName) +
-      cell('Өөрийн нэр', g.firstName) +
-      cell('Төрсөн огноо', [g.birthYear, g.birthMonth, g.birthDay].filter(Boolean).join('.')) +
-      cell('Төрсөн газар', [g.birthProvince, g.birthDistrict, g.birthSubdistrict].filter(Boolean).join(', ')) +
-      cell('Яс үндэс', g.ethnicity) +
-      cell('Хүйс', g.gender) +
-      cell('Регистрийн дугаар', g.registrationNo) +
-      cell('И-мэйл', g.email) +
-      cell('НД төлдөг эсэх', g.paysSocialInsurance) +
-      cell('Утас (гар)', g.phoneMobile) +
-      cell('Утас (гэр)', g.phoneHome) +
-      cell('Жолооны үнэмлэх №', g.driverLicenseNo) +
-      cell('Жолооны ангилал', g.driverLicenseClass) +
-      cell('Цусны бүлэг', g.bloodType) +
-      cell('Оршин суугаа хаяг', g.address) +
-      cell('Оршин суух төрөл', g.housingType) +
-      cell('Биеийн хэмжээ', g.bodySize) +
-      cell('Хувцасны размер', g.clothingSize) +
-      cell('Гутлын размер', g.shoeSize) +
-      '</table>' +
+      '<div class="paper-summary">' +
+      '<div class="summary-item"><span class="summary-label">Ажил горилогч</span><span class="summary-value summary-name">' + esc(fullName || 'Нэр оруулаагүй') + '</span></div>' +
+      '<div class="summary-item"><span class="summary-label">Сонирхож буй албан тушаал</span><span class="summary-value">' + esc(fd.jobInterest && fd.jobInterest.position || '—') + '</span></div>' +
+      '<div class="summary-item"><span class="summary-label">Холбоо барих</span><span class="summary-value">' + esc(g.phoneMobile || g.email || '—') + '</span></div></div>' +
+      '<h3 class="section">1. Ерөнхий мэдээлэл</h3><div class="info-grid">' +
+      infoItem('Ургийн овог', g.clanName) +
+      infoItem('Эцэг (эх)-ийн нэр', g.fatherName) +
+      infoItem('Өөрийн нэр', g.firstName) +
+      infoItem('Регистрийн дугаар', g.registrationNo) +
+      infoItem('Төрсөн огноо', birthDate) +
+      infoItem('Төрсөн газар', birthPlace) +
+      infoItem('Хүйс', g.gender) +
+      infoItem('Яс үндэс', g.ethnicity) +
+      infoItem('Цусны бүлэг', g.bloodType) +
+      infoItem('Нийгмийн даатгал төлдөг эсэх', g.paysSocialInsurance) +
+      infoItem('Гар утас', g.phoneMobile) +
+      infoItem('Гэрийн утас', g.phoneHome) +
+      infoItem('И-мэйл', g.email) +
+      infoItem('Оршин суух төрөл', g.housingType) +
+      infoItem('Жолооны үнэмлэх', driverLicense || 'Байхгүй') +
+      infoItem('Өндөр / биеийн хэмжээ', g.bodySize) +
+      infoItem('Хувцасны размер', g.clothingSize) +
+      infoItem('Гутлын размер', g.shoeSize) +
+      infoItem('Оршин суугаа хаяг', g.address, true) +
+      '</div>' +
       '<h3 class="section">2. Гэр бүлийн байдал</h3><p class="meta">Гэрлэсэн эсэх: <b>' +
       esc((fd.family && fd.family.married) || '—') +
       '</b></p><table class="form data"><thead><tr><th>Овог нэр</th><th>Харилцаа</th><th>Төрсөн он</th><th>Ажил/сургууль</th><th>Утас</th></tr></thead><tbody>' +
@@ -177,14 +238,14 @@
         })
         .join('') || '<tr><td colspan="5">—</td></tr>') +
       '</tbody></table>' +
-      '<h3 class="section">6. Хувийн онцлог</h3><table class="form">' +
-      cell('Давуу тал', fd.personal && fd.personal.strengths) +
-      cell('Сул тал', fd.personal && fd.personal.weaknesses) +
-      '</table>' +
-      '<h3 class="section">7. Ажилд орох хүсэлт</h3><table class="form">' +
-      cell('Сонирхож буй албан тушаал', fd.jobInterest && fd.jobInterest.position) +
-      cell('Хүсэж буй цалин', fd.jobInterest && fd.jobInterest.desiredSalary) +
-      '</table>' +
+      '<h3 class="section">6. Хувийн онцлог</h3><div class="info-grid">' +
+      infoItem('Давуу тал', fd.personal && fd.personal.strengths) +
+      infoItem('Сайжруулах тал', fd.personal && fd.personal.weaknesses) +
+      '</div>' +
+      '<h3 class="section">7. Ажилд орох хүсэлт</h3><div class="info-grid">' +
+      infoItem('Сонирхож буй албан тушаал', fd.jobInterest && fd.jobInterest.position) +
+      infoItem('Хүсэж буй цалин', fd.jobInterest && fd.jobInterest.desiredSalary) +
+      '</div>' +
       '<h3 class="section">8. Яаралтай холбоо барих</h3><table class="form data"><thead><tr><th>Овог нэр</th><th>Хэн болох</th><th>Утас</th></tr></thead><tbody>' +
       (emerg
         .map(function (e) {

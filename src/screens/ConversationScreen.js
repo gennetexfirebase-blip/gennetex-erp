@@ -23,10 +23,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import VideoCallModal from '../components/VideoCallModal';
-import CallScreen from '../components/CallScreen';
 import ActiveTripsBanner from '../components/ActiveTripsBanner';
 import * as chatApi from '../services/chatService';
-import * as callApi from '../services/callService';
+import { useCall } from '../context/CallContext';
 import VoiceMessageButton from '../components/VoiceMessageButton';
 import ChatImagePreview from '../components/ChatImagePreview';
 import ChatVideoPreview from '../components/ChatVideoPreview';
@@ -147,6 +146,7 @@ export default function ConversationScreen() {
   const styles = useStyles(makeStyles);
   const { conversationId, title, isGroup, otherUser, memberCount, groupAvatarUrl: initialGroupAvatar } = route.params || {};
   const { currentUser, isCloud } = useApp();
+  const { placeCall } = useCall();
   const me = currentUser;
   const room = conversationId;
 
@@ -154,8 +154,6 @@ export default function ConversationScreen() {
   const [text, setText] = useState('');
   const [error, setError] = useState(null);
   const [callVisible, setCallVisible] = useState(false);
-  const [outgoing, setOutgoing] = useState(null);
-  const outgoingUnsub = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const [voicePreview, setVoicePreview] = useState('');
@@ -389,7 +387,14 @@ export default function ConversationScreen() {
     ]);
   };
 
-  const handleCall = async () => {
+  /**
+   * Дуудлага эхлүүлнэ.
+   *
+   * Хоёр хүний дуудлага нь WebRTC-ээр шууд холбогдоно (CallProvider удирдана).
+   * Групп дуудлага нь олон талт холболт шаардах тул хуучин Jitsi өрөөгөөр
+   * үлдээв — WebRTC mesh нь 3-аас дээш хүнд утас хэт халаадаг.
+   */
+  const handleCall = async (type = 'video') => {
     if (isGroup) {
       setCallVisible(true);
       await send('Групп видео дуудлага эхэллээ.');
@@ -399,51 +404,16 @@ export default function ConversationScreen() {
       Alert.alert('Дуудлага', 'Хэн рүү залгахаа олсонгүй.');
       return;
     }
-    try {
-      const call = await callApi.startCall({
-        room,
-        caller: { id: me.id, name: me.name },
-        callee: { id: otherUser.id, name: otherUser.name },
-      });
-      setOutgoing(call);
-      await send('Видео дуудлага руу залгаж байна...');
-      if (call?.id) {
-        outgoingUnsub.current = callApi.subscribeCallUpdates(call.id, (updated) => {
-          if (updated.status === 'accepted') {
-            cleanupOutgoing();
-            setOutgoing(null);
-            setCallVisible(true);
-          } else if (updated.status === 'declined' || updated.status === 'ended') {
-            cleanupOutgoing();
-            setOutgoing(null);
-            Alert.alert('Дуудлага', 'Хэрэглэгч татгалзлаа.');
-          }
-        });
-      }
-    } catch (e) {
-      setOutgoing(null);
-      Alert.alert('Дуудлага', e.message || 'Залгахад алдаа гарлаа');
-    }
+    await placeCall(
+      { id: otherUser.id, name: otherUser.name, avatar: otherUser.avatar_url || null },
+      type
+    );
   };
 
-  const cleanupOutgoing = () => {
-    if (outgoingUnsub.current) {
-      outgoingUnsub.current();
-      outgoingUnsub.current = null;
-    }
-  };
-
-  const cancelOutgoing = async () => {
-    cleanupOutgoing();
-    if (outgoing?.id) {
-      try {
-        await callApi.setCallStatus(outgoing.id, 'ended');
-      } catch (e) {}
-    }
-    setOutgoing(null);
-  };
-
-  useEffect(() => () => cleanupOutgoing(), []);
+  // Гарах дуудлагын цэвэрлэгээг CallProvider өөрөө хийдэг болсон тул
+  // энэ дэлгэц дээрх хуучин `cleanupOutgoing` эффектийг хассан —
+  // тэр функц устсан хойно ч дуудагдсаар байсан нь ReferenceError өгч,
+  // чат нээх бүрд дэлгэц унаж байв.
 
   const changeGroupAvatar = () => {
     if (!isGroup || !room) return;
@@ -560,7 +530,24 @@ export default function ConversationScreen() {
                 <Ionicons name="person-add-outline" size={22} color="#fff" />
               </Pressable>
             ) : null}
-            <Pressable style={styles.headerIconBtn} onPress={handleCall} hitSlop={8}>
+            {!isGroup ? (
+              <Pressable
+                style={styles.headerIconBtn}
+                onPress={() => handleCall('audio')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Дуут дуудлага"
+              >
+                <Ionicons name="call" size={22} color="#fff" />
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={styles.headerIconBtn}
+              onPress={() => handleCall('video')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Видео дуудлага"
+            >
               <Ionicons name="videocam" size={24} color="#fff" />
             </Pressable>
           </View>
@@ -812,15 +799,8 @@ export default function ConversationScreen() {
       <ChatImagePreview uri={previewImage} onClose={() => setPreviewImage(null)} />
       <ChatVideoPreview uri={previewVideo} onClose={() => setPreviewVideo(null)} />
 
-      <CallScreen
-        visible={!!outgoing}
-        mode="outgoing"
-        name={otherUser?.name || 'Ажилтан'}
-        video
-        status="Залгаж байна..."
-        onCancel={cancelOutgoing}
-      />
-
+      {/* Гарах дуудлагын дэлгэцийг CallHost апп-ын дээд түвшинд харуулна —
+          энэ дэлгэцээс гарсан ч дуудлага үргэлжилнэ. */}
       <VideoCallModal
         visible={callVisible}
         room={`gennetex-${room}`}
@@ -834,7 +814,7 @@ export default function ConversationScreen() {
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.primary },
   flex: { flex: 1, backgroundColor: colors.background },
-  headerSafe: { backgroundColor: colors.primary },
+  headerSafe: { backgroundColor: colors.surfaceDim },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -866,8 +846,8 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   headerAvatarImg: { width: '100%', height: '100%' },
   headerAvatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   headerTextCol: { flex: 1, minWidth: 0 },
-  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  headerSub: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 1 },
+  headerTitle: { color: colors.onSurface, fontSize: 17, fontWeight: '600' },
+  headerSub: { color: colors.textMuted, fontSize: 13, marginTop: 1 },
   headerSubOnline: { color: '#B5E0A8' },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerIconBtn: {
@@ -887,12 +867,12 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   messageListEmpty: { flexGrow: 1, justifyContent: 'center' },
   dateChipWrap: { alignItems: 'center', marginVertical: 10 },
   dateChip: {
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  dateChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  dateChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   bubbleRow: {
     marginBottom: 6,
     flexDirection: 'row',

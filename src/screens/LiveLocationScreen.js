@@ -7,6 +7,7 @@ import { CALL_TYPES } from '../data/mockData';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as tracking from '../services/trackingService';
+import * as bgLocation from '../services/backgroundLocationService';
 
 function callTypeLabel(key) {
   const t = CALL_TYPES.find((x) => x.key === key);
@@ -121,11 +122,40 @@ export default function LiveLocationScreen() {
         subtitle={`${isCloud ? 'Supabase' : 'Локал'} · ${located.length} online`}
         right={
           <Badge
-            text={trackingState?.active ? 'Илгээж байна' : 'Идэвхгүй'}
-            color={trackingState?.active ? colors.success : colors.textFaint}
+            text={
+              !trackingState?.active
+                ? 'Идэвхгүй'
+                : trackingState?.background
+                ? 'Тасралтгүй'
+                : 'Зөвхөн апп нээлттэй'
+            }
+            color={
+              !trackingState?.active
+                ? colors.textFaint
+                : trackingState?.background
+                ? colors.success
+                : colors.warning || colors.textMuted
+            }
           />
         }
       />
+
+      {/* Арын хяналт ажиллахгүй бол ЯАГААДЫГ нь хэлж, засах товч өгнө.
+          Өмнө нь зүгээр л "Идэвхгүй" гэж бичээд орхидог байсан тул
+          ажилтан юу хийхээ мэдэхгүй, админ байршлыг нь хардаггүй байв. */}
+      {trackingState?.active && trackingState?.background === false ? (
+        <View style={styles.warnBar}>
+          <Text style={styles.warnText}>
+            {bgLocation.trackingProblemText(trackingState.reason) ||
+              'Байршил зөвхөн апп нээлттэй үед шинэчлэгдэж байна.'}
+          </Text>
+          {Platform.OS === 'android' && trackingState.reason !== 'expo-go' ? (
+            <TouchableOpacity onPress={() => bgLocation.openBatterySettings()}>
+              <Text style={styles.warnAction}>Тохиргоо нээх</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
 
       <MapView
         ref={mapRef}
@@ -248,6 +278,17 @@ function Tab({ active, label, onPress }) {
 const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   map: { flex: 1 },
+  warnBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.warningSoft || colors.surfaceAlt,
+  },
+  warnText: { flex: 1, color: colors.text, fontSize: 12.5, lineHeight: 17 },
+  warnAction: { color: colors.primary, fontSize: 12.5, fontWeight: '700' },
   panel: {
     padding: spacing.lg,
     paddingBottom: spacing.xl,

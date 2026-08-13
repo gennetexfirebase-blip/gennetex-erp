@@ -28,6 +28,8 @@ export default function GiveToEmployeeModal({
   const styles = useStyles(makeStyles);
   const [employeeId, setEmployeeId] = useState('');
   const [qty, setQty] = useState('1');
+  // 'whole' = хайрцгаар бүтнээр, 'pieces' = ширхэгээр (код уншуулна)
+  const [mode, setMode] = useState('pieces');
   const [photoUri, setPhotoUri] = useState(null);
   const [listOpen, setListOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -98,6 +100,7 @@ export default function GiveToEmployeeModal({
         employee: { id: employeeId, name: emp?.name || 'Ажилтан' },
         qty: q,
         photoUrl,
+        mode,
       });
       onClose();
     } catch (e) {
@@ -146,6 +149,37 @@ export default function GiveToEmployeeModal({
               </View>
             ) : null}
 
+            {/* Хэрхэн олгох вэ.
+                Хайрцгаар — доторх бүх зүйл нэг дор очно.
+                Ширхэгээр — "Илгээх" дарсны дараа код уншуулах хэсэг
+                шууд нээгдэж, уншуулсан бараа тус бүр хасагдана. */}
+            <Text style={styles.label}>Хэрхэн олгох вэ?</Text>
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                style={[styles.modeBtn, mode === 'whole' && styles.modeBtnOn]}
+                onPress={() => setMode('whole')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modeText, mode === 'whole' && styles.modeTextOn]}>
+                  Хайрцгаар
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeBtn, mode === 'pieces' && styles.modeBtnOn]}
+                onPress={() => setMode('pieces')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modeText, mode === 'pieces' && styles.modeTextOn]}>
+                  Ширхэгээр
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.hint}>
+              {mode === 'whole'
+                ? 'Доторх бүх зүйл нэг дор очиж, агуулахаас хасагдана.'
+                : 'Илгээх дарсны дараа код уншуулах хэсэг нээгдэнэ. Уншуулсан бараа тус бүр хасагдана.'}
+            </Text>
+
             <Text style={styles.label}>Тоо хэмжээ ({item.unit})</Text>
             <TextInput
               style={styles.input}
@@ -187,7 +221,7 @@ export default function GiveToEmployeeModal({
             {saving ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Олгох</Text>
+              <Text style={styles.submitText}>{mode === 'pieces' ? 'Илгээх' : 'Олгох'}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -197,6 +231,19 @@ export default function GiveToEmployeeModal({
 }
 
 const makeStyles = ({ colors }) => StyleSheet.create({
+  modeRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgAlt,
+    alignItems: 'center',
+  },
+  modeBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  modeText: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  modeTextOn: { color: colors.onPrimary },
   overlay: { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,

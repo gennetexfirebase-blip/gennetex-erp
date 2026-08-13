@@ -105,20 +105,20 @@
 
   .job-input {
     @apply w-full rounded-xl border border-graphite-600 bg-graphite-900 px-3.5 py-2.5 text-sm outline-none transition-colors;
-    color: #fafafa !important;
-    -webkit-text-fill-color: #fafafa;
-    background-color: #18181b !important;
-    caret-color: #fafafa;
+    color: #f7f7f8 !important;
+    -webkit-text-fill-color: #f7f7f8;
+    background-color: #201e1f !important;
+    caret-color: #f7f7f8;
   }
 
   .job-input::placeholder {
-    color: #71717a;
+    color: #77777f;
     opacity: 1;
   }
 
   .job-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+    border-color: #0099db;
+    box-shadow: 0 0 0 3px rgba(0, 153, 219, 0.28);
   }
 
   .job-input:disabled {
@@ -127,8 +127,8 @@
   }
 
   .job-input option {
-    color: #fafafa;
-    background-color: #18181b;
+    color: #f7f7f8;
+    background-color: #201e1f;
   }
 
   .job-section {
@@ -148,9 +148,9 @@
   }
 
   .job-subsection {
-    border: 1px solid rgb(51 55 65 / 0.8);
+    border: 1px solid rgb(72 71 77 / 0.8);
     border-radius: 14px;
-    background: rgb(13 15 19 / 0.58);
+    background: rgb(20 19 20 / 0.58);
     padding: 16px;
   }
 
@@ -159,7 +159,7 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 14px;
-    color: rgb(191 199 214);
+    color: rgb(200 200 205);
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -175,7 +175,7 @@
 .job-input:-webkit-autofill,
 .job-input:-webkit-autofill:hover,
 .job-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #fafafa !important;
-  box-shadow: 0 0 0 1000px #18181b inset !important;
+  -webkit-text-fill-color: #f7f7f8 !important;
+  box-shadow: 0 0 0 1000px #201e1f inset !important;
   transition: background-color 9999s ease-out 0s;
 }

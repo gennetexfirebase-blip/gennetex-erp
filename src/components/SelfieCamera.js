@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Button } from './ui';
 import { spacing } from '../theme';
@@ -14,15 +14,32 @@ export default function SelfieCamera({
   hint,
   auto = false,
   autoDelayMs = 1500,
+  /**
+   * Хүрээн дотор харуулах ажилтны профайл зураг.
+   *
+   * Ажилтан хэний нэрийн өмнөөс бүртгүүлж байгаагаа харна — өөр хүний
+   * утсаар санамсаргүй бүртгүүлэхээс сэргийлнэ.
+   */
+  profileUri,
+  profileName,
 }) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [capturing, setCapturing] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  // Камер бэлэн болохоос ӨМНӨ takePictureAsync дуудвал expo-camera
+  // 'Image could not be captured' гэж унадаг. Автомат тоолуур нь модал
+  // нээгдсэн даруйд асдаг тул яг ингэж болдог байв.
+  const [cameraReady, setCameraReady] = useState(false);
   const styles = useStyles(makeStyles);
 
+  // Модал хаагдахад дахин бэлэн болохыг хүлээнэ
+  useEffect(() => {
+    if (!visible) setCameraReady(false);
+  }, [visible]);
+
   const takePhoto = async () => {
-    if (!cameraRef.current || capturing) return;
+    if (!cameraRef.current || capturing || !cameraReady) return;
     try {
       setCapturing(true);
       const photo = await cameraRef.current.takePictureAsync({
@@ -30,7 +47,9 @@ export default function SelfieCamera({
         // ML Kit frame coordinates and ONNX crop must use the physically rotated JPEG.
         skipProcessing: false,
       });
-      onCapture?.(photo);
+      // Parent талын царай танилт/хадгалалт дуусахаас өмнө capturing=false
+      // болговол auto timer дахин зураг авч давхар ирц үүсгэх боломжтой.
+      await onCapture?.(photo);
     } catch (e) {
       console.warn('Зураг авахад алдаа:', e);
     } finally {
@@ -40,7 +59,7 @@ export default function SelfieCamera({
 
   // Автомат зураг авах — товч дарахгүйгээр тодорхой хугацааны дараа
   useEffect(() => {
-    if (!auto || !visible || !permission?.granted || busy || capturing) {
+    if (!auto || !visible || !permission?.granted || busy || capturing || !cameraReady) {
       setCountdown(null);
       return;
     }
@@ -58,7 +77,7 @@ export default function SelfieCamera({
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, visible, permission?.granted, busy, capturing, autoDelayMs]);
+  }, [auto, visible, permission?.granted, busy, capturing, cameraReady, autoDelayMs]);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -77,12 +96,28 @@ export default function SelfieCamera({
           </View>
         ) : (
           <>
-            <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="front"/>
+            <CameraView
+              ref={cameraRef}
+              style={StyleSheet.absoluteFill}
+              facing="front"
+              onCameraReady={() => setCameraReady(true)}
+            />
             <View style={styles.overlay} pointerEvents="none">
               {progressText ? <Text style={styles.progress}>{progressText}</Text> : null}
               <View style={styles.faceFrame}>
+                {/* Ажилтны профайл зураг — хэний нэрийн өмнөөс бүртгүүлж
+                    байгааг харуулна. Тоолуур эхэлмэгц бүдгэрч, царайг
+                    халхлахгүй. */}
+                {profileUri && !countdown ? (
+                  <Image source={{ uri: profileUri }} style={styles.profilePhoto} />
+                ) : null}
                 {auto && countdown ? <Text style={styles.countdown}>{countdown}</Text> : null}
               </View>
+              {profileName ? (
+                <Text style={styles.profileName} numberOfLines={1}>
+                  {profileName}
+                </Text>
+              ) : null}
               <Text style={styles.hint}>
                 {busy || capturing
                   ? 'Боловсруулж байна...'
@@ -115,6 +150,23 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   msg: { color: colors.text, fontSize: 16, textAlign: 'center', marginBottom: spacing.lg },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center'},
+  // Хүрээн доторх профайл зураг — бүдэг, царайг халхлахгүй
+  profilePhoto: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    opacity: 0.5,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
+  profileName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: spacing.md,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 6,
+  },
   faceFrame: {
     width: 220,
     height: 280,

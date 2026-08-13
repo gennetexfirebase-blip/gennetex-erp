@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import * as notifyApi from './notificationService';
@@ -195,8 +196,7 @@ export async function fetchMyConversations(userId) {
 }
 
 export function subscribeConversations(userId, onChange) {
-  const channel = supabase
-    .channel(`conv-${userId}`)
+  const channel = uniqueChannel(`conv-${userId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members'}, () => onChange())
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, () => onChange())
     .subscribe();
@@ -209,8 +209,7 @@ export function subscribeMessages(room, handlers) {
   const onUpdate = typeof handlers === 'function' ? null : handlers?.onUpdate;
   const onDelete = typeof handlers === 'function' ? null : handlers?.onDelete;
 
-  const channel = supabase
-    .channel(`messages-${room}`)
+  const channel = uniqueChannel(`messages-${room}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: TABLE, filter: `room=eq.${room}` },
@@ -259,6 +258,72 @@ export async function fetchMyChatFiles(userId, limit = 150) {
     .from(TABLE)
     .select('*')
     .in('room', ids)
+    .not('attachment_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+// ---------------------------------------------------------------------------
+// Дутуу байсан функцууд
+// ---------------------------------------------------------------------------
+// Эдгээрийг дэлгэцүүд дуудаж байсан ч хэрэгжүүлээгүй байв. Babel нь ийм
+// алдааг барьдаггүй (синтакс зөв) тул зөвхөн тухайн үйлдлийг хийх үед
+// `undefined is not a function` гэж унадаг байсан:
+//   • Групп чатын зураг солих  → ConversationScreen
+//   • Хуваалцсан файл харах    → ChatSharedScreen
+
+/** Нэг ярианы мэдээлэл (нэр, зураг, групп эсэх). */
+export async function fetchConversation(conversationId) {
+  if (!conversationId) return null;
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Ярианы талбар шинэчлэх (нэр, зураг). */
+export async function updateConversation(conversationId, patch) {
+  if (!conversationId || !patch) return null;
+  const { data, error } = await supabase
+    .from('conversations')
+    .update(patch)
+    .eq('id', conversationId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Группын зураг байршуулна.
+ *
+ * Чатын файлуудтай ижил bucket ашиглана — тусдаа bucket үүсгэвэл
+ * түүнд зориулсан policy дахин тохируулах шаардлагатай болно.
+ */
+export async function uploadGroupAvatar(uri, conversationId) {
+  if (!uri || !conversationId) throw new Error('Зураг эсвэл яриа тодорхойгүй.');
+  const path = `group-avatars/${conversationId}-${Date.now()}.jpg`;
+  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, decode(base64), { contentType: 'image/jpeg', upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/** Тухайн ярианд хуваалцсан бүх зураг/видео/файл. */
+export async function fetchRoomAttachments(conversationId, limit = 200) {
+  if (!conversationId) return [];
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('room', conversationId)
     .not('attachment_url', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limit);

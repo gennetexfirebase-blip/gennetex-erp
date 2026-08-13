@@ -5,8 +5,8 @@
     "scheme": "gennetex-erp",
     "version": "1.0.4",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
@@ -18,6 +18,13 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification",
+          "location",
+          "fetch",
+          "voip",
+          "audio"
+        ],
         "NSLocationWhenInUseUsageDescription": "Ажилтны байршлыг real-time харуулахад байршлын зөвшөөрөл шаардлагатай.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Ажилтны байршлыг ард нь ажиллаж байхад хянахад шаардлагатай.",
         "NSCameraUsageDescription": "Барааны зураасан код (barcode) унших, царайгаар ирц бүртгэх, видео дуудлагад камер шаардлагатай.",
@@ -25,12 +32,16 @@
         "NSSpeechRecognitionUsageDescription": "Монгол дуу хоолойгоор чат бичихэд яриа таних зөвшөөрөл шаардлагатай.",
         "NSPhotoLibraryUsageDescription": "Профайл зураг сонгоход зургийн санд хандах шаардлагатай.",
         "NSFaceIDUsageDescription": "Gennetex ERP-г нууц үггүй аюулгүй нээхэд Face ID ашиглана.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationAlwaysUsageDescription": "Ажилтны байршлыг ажлын цагт тасралтгүй хянахад шаардлагатай."
       },
       "config": {
         "googleMapsApiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
       },
-      "bundleIdentifier": "com.gennetex.erp"
+      "bundleIdentifier": "com.gennetex.erp",
+      "entitlements": {
+        "com.apple.developer.pushkit.unrestricted-voip": true
+      }
     },
     "android": {
       "permissions": [
@@ -48,10 +59,15 @@
         "android.permission.FOREGROUND_SERVICE_PHONE_CALL",
         "android.permission.DISABLE_KEYGUARD",
         "android.permission.MANAGE_OWN_CALLS",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.FOREGROUND_SERVICE_CAMERA",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.CALL_PHONE"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "config": {
@@ -65,10 +81,13 @@
       "favicon": "./assets/logo.png"
     },
     "plugins": [
+      "./plugins/withFirebaseManifestFix",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Ажилтны байршлыг хянахад зөвшөөрөл олгоно уу."
+          "locationAlwaysAndWhenInUsePermission": "Ажилтны байршлыг хянахад зөвшөөрөл олгоно уу.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -88,11 +107,11 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo.png",
-          "color": "#3b82f6",
+          "icon": "./assets/notification-icon.png",
+          "color": "#0099db",
           "defaultChannel": "default",
           "sounds": [
-            "./assets/sounds/incoming-call.wav"
+            "./assets/sounds/incoming_call.wav"
           ]
         }
       ],
@@ -123,8 +142,13 @@
       [
         "react-native-full-screen-notification-incoming-call",
         {
-          "statusBarColor": "#0b1220"
+          "statusBarColor": "#201e1f"
         }
+      ],
+      "@config-plugins/react-native-webrtc",
+      [
+        "@config-plugins/react-native-callkeep",
+        {}
       ]
     ],
     "extra": {

@@ -1,29 +1,46 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, RefreshControl, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, RefreshControl, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader, Card, Badge, EmptyState } from '../components/ui';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as appApi from '../services/jobApplicationService';
+import { openApplicationPdf } from '../lib/applicationPdf';
+import { accentMap } from '../theme/accents';
 import NativeSignaturePad from '../components/NativeSignaturePad';
 
-const STATUS_COLORS = {
-  new: '#2563eb',
-  reviewing: '#d97706',
-  contacted: '#7c3aed',
-  hired: '#16a34a',
-  rejected: '#dc2626',
+// Төлвийн өнгө нь theme/accents.js-ийн багцтай нийцнэ.
+const STATUS_ACCENT = {
+  new: 'brand',
+  reviewing: 'amber',
+  contacted: 'violet',
+  hired: 'green',
+  rejected: 'rose',
 };
 
 export default function AdminApplicationsScreen() {
   const { currentUser } = useApp();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const accents = accentMap(isDark);
   const styles = useStyles(makeStyles);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [signingRow, setSigningRow] = useState(null);
   const [adminSignature, setAdminSignature] = useState('');
   const [savingSignature, setSavingSignature] = useState(false);
+  const [pdfBusyId, setPdfBusyId] = useState(null);
+
+  /** Анкетыг PDF болгож системийн нээх/хуваалцах цонхыг гаргана. */
+  const openPdf = async (row) => {
+    setPdfBusyId(row.id);
+    try {
+      await openApplicationPdf(row);
+    } catch (e) {
+      Alert.alert('Алдаа', e.message || 'PDF үүсгэж чадсангүй');
+    } finally {
+      setPdfBusyId(null);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -98,7 +115,7 @@ export default function AdminApplicationsScreen() {
                   {r.name} {r.last_name || ''}
                 </Text>
                 <TouchableOpacity onPress={() => cycleStatus(r)}>
-                  <Badge text={appApi.applicationStatusLabel(r.status)} color={STATUS_COLORS[r.status]} />
+                  <Badge text={appApi.applicationStatusLabel(r.status)} color={accents[STATUS_ACCENT[r.status]]} />
                 </TouchableOpacity>
               </View>
               {r.position ? <Text style={styles.pos}>{r.position}</Text> : null}
@@ -116,13 +133,32 @@ export default function AdminApplicationsScreen() {
                 ) : null}
                 {r.cv_url ? (
                   <TouchableOpacity onPress={() => Linking.openURL(r.cv_url)}>
-                    <Text style={styles.link}>CV нээх</Text>
+                    <Text style={styles.link}>Хавсаргасан CV</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
+
+              {/* Бүтэн анкетыг PDF болгож харуулна. Өмнө нь зөвхөн хавсаргасан
+                  файлын холбоос байсан тул боловсрол, ажлын туршлага, гэр бүл
+                  зэрэг анкетын үндсэн агуулгыг мобайлаас харах боломжгүй байв. */}
+              <TouchableOpacity
+                style={[styles.pdfButton, { borderColor: colors.primary }]}
+                onPress={() => openPdf(r)}
+                disabled={pdfBusyId === r.id}
+                accessibilityRole="button"
+                accessibilityLabel="Анкетыг PDF болгож харах"
+              >
+                {pdfBusyId === r.id ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={[styles.pdfButtonText, { color: colors.primary }]}>
+                    Анкет PDF харах
+                  </Text>
+                )}
+              </TouchableOpacity>
               <Text style={styles.date}>{new Date(r.created_at).toLocaleString('mn-MN')}</Text>
               <View style={styles.approvalRow}>
-                <Text style={[styles.approvalText, { color: r.admin_signature_svg ? '#16a34a' : colors.textMuted }]}>
+                <Text style={[styles.approvalText, { color: r.admin_signature_svg ? colors.success : colors.textMuted }]}>
                   {r.admin_signature_svg ? `✓ ${r.admin_signed_by_name || 'Админ'} баталсан` : 'Баталгаажаагүй'}
                 </Text>
                 <TouchableOpacity style={[styles.signButton, { borderColor: colors.primary }]} onPress={() => { setAdminSignature(''); setSigningRow(r); }}>
@@ -143,8 +179,8 @@ export default function AdminApplicationsScreen() {
               <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.surfaceAlt }]} onPress={() => setSigningRow(null)}>
                 <Text style={{ color: colors.text }}>Болих</Text>
               </TouchableOpacity>
-              <TouchableOpacity disabled={savingSignature} style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={saveApproval}>
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{savingSignature ? 'Хадгалж байна...' : 'Баталж хадгалах'}</Text>
+              <TouchableOpacity disabled={savingSignature} style={[styles.modalButton, { backgroundColor: colors.primaryContainer }]} onPress={saveApproval}>
+                <Text style={{ color: colors.onPrimaryContainer, fontWeight: '800' }}>{savingSignature ? 'Хадгалж байна...' : 'Баталж хадгалах'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -156,6 +192,16 @@ export default function AdminApplicationsScreen() {
 
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  pdfButton: {
+    marginTop: spacing.md,
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  pdfButtonText: { fontSize: 14, fontWeight: '700' },
   body: { padding: spacing.lg, paddingBottom: 40 },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   name: { color: colors.text, fontSize: 16, fontWeight: '800', flex: 1 },

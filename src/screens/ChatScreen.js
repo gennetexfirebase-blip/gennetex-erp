@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
-import { EmptyState } from '../components/ui';
+import { EmptyState, ScreenHeader } from '../components/ui';
 import * as chatApi from '../services/chatService';
 import { formatConvTime } from '../lib/formatTime';
 import { isOnline } from '../lib/online';
@@ -124,9 +124,9 @@ function ConversationRow({ conv, me, employees, onPress }) {
 
 export default function ChatScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles(makeStyles);
-  const { currentUser, isCloud, fetchEmployees } = useApp();
+  const { currentUser, isCloud, fetchDirectory } = useApp();
   const me = currentUser;
   const [employees, setEmployees] = useState([]);
   const [conversations, setConversations] = useState([]);
@@ -136,7 +136,7 @@ export default function ChatScreen() {
     if (!isCloud || !me?.id) return;
     try {
       const [emps, convs] = await Promise.all([
-        fetchEmployees().catch(() => []),
+        fetchDirectory().catch(() => []),
         chatApi.fetchMyConversations(me.id).catch(() => []),
       ]);
       setEmployees(emps.filter((e) => e.id !== me.id));
@@ -145,7 +145,7 @@ export default function ChatScreen() {
     } catch (e) {
       setError(e.message);
     }
-  }, [isCloud, me?.id, fetchEmployees]);
+  }, [isCloud, me?.id, fetchDirectory]);
 
   useFocusEffect(
     useCallback(() => {
@@ -209,12 +209,8 @@ export default function ChatScreen() {
   if (!isCloud) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-        <SafeAreaView edges={['top']} style={styles.headerSafe}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Чатууд</Text>
-          </View>
-        </SafeAreaView>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surfaceDim} />
+        <ScreenHeader title="Чатууд" back={false} />
         <EmptyState text="Чат хийхэд Supabase холбогдсон байх шаардлагатай." />
       </View>
     );
@@ -222,20 +218,21 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      <SafeAreaView edges={['top']} style={styles.headerSafe}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Чатууд</Text>
-          <View style={styles.headerActions}>
-            <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('ChatArchive')} hitSlop={8}>
-              <Ionicons name="archive-outline" size={22} color="#fff" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surfaceDim} />
+      <ScreenHeader
+        title="Чатууд"
+        back={false}
+        right={
+          <>
+            <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('ChatArchive')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Архив">
+              <Ionicons name="archive-outline" size={22} color={colors.onSurface} />
             </Pressable>
-            <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('NewGroup')} hitSlop={8}>
-              <Ionicons name="create-outline" size={22} color="#fff" />
+            <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('NewGroup')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Шинэ групп">
+              <Ionicons name="create-outline" size={22} color={colors.onSurface} />
             </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
+          </>
+        }
+      />
 
       <FlatList
         data={sortedConversations}
@@ -361,17 +358,19 @@ export default function ChatScreen() {
 }
 
 const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  headerSafe: { backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.background },
+  headerSafe: { backgroundColor: colors.surfaceDim },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surfaceDim,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
   },
-  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  headerTitle: { color: colors.onSurface, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerBtn: {
     width: 40,
@@ -381,11 +380,11 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   listContent: { paddingBottom: 110 },
   errorBar: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: colors.danger + "1f",
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  errorText: { color: '#B91C1C', fontSize: 13 },
+  errorText: { color: colors.danger, fontSize: 13 },
   peopleStrip: {
     paddingHorizontal: 12,
     paddingTop: 12,

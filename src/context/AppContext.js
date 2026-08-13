@@ -4,11 +4,9 @@ import {
   INITIAL_INVENTORY,
   INITIAL_CALLS,
   DEFAULT_FUEL_SETTINGS,
-  STAFF,
 } from '../data/mockData';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import * as invApi from '../services/inventoryService';
-import * as staffApi from '../services/staffService';
 import * as authApi from '../services/authService';
 import * as fuelApi from '../services/fuelService';
 import * as serviceCallApi from '../services/serviceCallService';
@@ -16,6 +14,8 @@ import { calculateFuel } from '../lib/fuelCalc';
 import { withoutSampleByName, withoutSampleCalls } from '../lib/sampleNames';
 import { isAdminRole, isSuperAdmin, canTakeServiceCalls } from '../lib/roles';
 import * as notificationService from '../services/notificationService';
+import * as bgLocation from '../services/backgroundLocationService';
+import * as shiftApi from '../services/shiftService';
 import { clearLocalAccess } from '../services/localAccessService';
 
 const AppContext = createContext(null);
@@ -29,7 +29,6 @@ function genId() {
 
 export function AppProvider({ children }) {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
-  const [staff, setStaff] = useState(STAFF);
   const [calls, setCalls] = useState(INITIAL_CALLS);
   const [fuelSettings, setFuelSettings] = useState(DEFAULT_FUEL_SETTINGS);
   const [fuelLogs, setFuelLogs] = useState([]);
@@ -45,6 +44,14 @@ export function AppProvider({ children }) {
 
   // ---- Байршил хянах төлөв ----
   const [trackingState, setTrackingState] = useState({ active: false });
+  // Ажилтан ажил дээрээ байгаа эсэх (ирснээс хойш явах хүртэл).
+  // Байршил хянах нь ЗӨВХӨН энэ хугацаанд ажиллана.
+  const [onShift, setOnShift] = useState(false);
+  const [shiftStatus, setShiftStatus] = useState({
+    checkedIn: false,
+    checkedOut: false,
+    onShift: false,
+  });
   const [pendingVisit, setPendingVisit] = useState(null);
 
   // ---- Ачаалах ----
@@ -71,13 +78,7 @@ export function AppProvider({ children }) {
 
         // Бараа материал ба ажилтан — Supabase-ээс
         if (isSupabaseConfigured) {
-          const [inv, stf] = await Promise.all([
-            invApi.fetchInventory(),
-            staffApi.fetchStaff(),
-          ]);
-          setInventory(inv);
-          // 'me'(энэ төхөөрөмж) + backend-ийн ажилчид
-          setStaff([STAFF[0], ...withoutSampleByName(stf)]);
+          setInventory(await invApi.fetchInventory());
           try {
             setFuelSettings(await fuelApi.fetchFuelSettings());
           } catch (e) {}
@@ -166,6 +167,9 @@ export function AppProvider({ children }) {
     const userId = session?.user?.id;
     if (userId) await notificationService.removePushToken(userId).catch(() => {});
     if (userId) await clearLocalAccess(userId).catch(() => {});
+    // Арын байршлын task нь OS түвшинд бүртгэгддэг тул гарахад заавал
+    // зогсоохгүй бол нэвтрээгүй байхад ч байршил илгээсээр байна.
+    await bgLocation.stopTracking().catch(() => {});
     await authApi.signOut();
     setAuthProfile(null);
     setSession(null);
@@ -210,14 +214,46 @@ export function AppProvider({ children }) {
     if (authProfile) setAuthProfile({ ...authProfile, must_change_password: false });
   };
 
+  /**
+   * Өнөөдрийн ирцийн төлвийг сэргээнэ.
+   *
+   * Ирц бүртгэсний дараа дуудна — LocationTracker үүнийг хараад байршил
+   * хянахыг асаах/унтраахаа шийднэ.
+   */
+  const refreshShiftStatus = useCallback(async () => {
+    const uid = authProfile?.id;
+    if (!isSupabaseConfigured || !uid) {
+      setOnShift(false);
+      setShiftStatus({ checkedIn: false, checkedOut: false, onShift: false });
+      return;
+    }
+    try {
+      const st = await shiftApi.fetchTodayStatus(uid);
+      setShiftStatus(st);
+      setOnShift(st.onShift);
+    } catch (e) {
+      // Сүлжээгүй үед өмнөх төлвийг хэвээр үлдээнэ — хяналтыг санамсаргүй
+      // унтраах нь мэдээлэл алдагдуулна.
+    }
+  }, [authProfile?.id]);
+
+  // Нэвтэрсэн/өдөр солигдоход төлвийг шинэчилнэ
+  useEffect(() => {
+    refreshShiftStatus();
+  }, [refreshShiftStatus]);
+
   const fetchEmployees = async () => authApi.fetchEmployees();
+  /** Чат/пост/лавлахад — эрхээс үл хамааран бүх хамт олон. */
+  const fetchDirectory = async () => authApi.fetchDirectory();
 
   const isSuperAdminUser = isSuperAdmin(authProfile?.role);
   const isAdmin = isAdminRole(authProfile?.role);
   const mustChangePassword = !!authProfile?.must_change_password;
   // Чат/ирцэд ашиглах нэгдсэн хэрэглэгч
   const currentUser = authProfile
-    ? { id: authProfile.id, name: authProfile.name }
+    // role/email зэрэг эрхийн талбаруудыг хаяж болохгүй. Attendance зэрэг
+    // хамгаалалттай дэлгэц хэрэглэгч хөгжүүлэгч эсэхийг үүгээр шийддэг.
+    ? { ...authProfile, id: authProfile.id, name: authProfile.name }
     : profile;
 
   // ---- Профайл (Supabase-гүй үед) ----
@@ -369,39 +405,6 @@ export function AppProvider({ children }) {
       setSyncError(e.message);
     }
   };
-
-  // ---- Ажилтан ----
-  const addStaff = async (person) => {
-    if (isSupabaseConfigured) {
-      try {
-        const saved = await staffApi.insertStaff(person);
-        setStaff((prev) => [...prev, saved]);
-        return;
-      } catch (e) {
-        setSyncError(e.message);
-      }
-    }
-    setStaff((prev) => [...prev, { id: Date.now().toString(), ...person }]);
-  };
-
-  const refreshStaff = async () => {
-    if (!isSupabaseConfigured) return;
-    try {
-      const stf = await staffApi.fetchStaff();
-      setStaff([STAFF[0], ...stf]);
-    } catch (e) {
-      setSyncError(e.message);
-    }
-  };
-
-  // Real-time subscription (Supabase configured үед)
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    const unsub = staffApi.subscribeStaff(() => {
-      refreshStaff();
-    });
-    return unsub;
-  }, []);
 
   // ---- Дуудлага (Supabase эсвэл локал) ----
   const refreshCalls = useCallback(async (profile = authProfile) => {
@@ -562,6 +565,10 @@ export function AppProvider({ children }) {
     adminResetUserPassword,
     changePassword,
     fetchEmployees,
+    fetchDirectory,
+    onShift,
+    shiftStatus,
+    refreshShiftStatus,
     inventory,
     addInventoryItem,
     updateInventoryItem,
@@ -574,9 +581,6 @@ export function AppProvider({ children }) {
     fetchStockMovements,
     getItemByBarcode,
     refreshInventory,
-    staff,
-    addStaff,
-    refreshStaff,
     calls,
     addCall,
     updateCallStatus,

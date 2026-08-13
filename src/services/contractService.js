@@ -1,4 +1,5 @@
 import { decode } from 'base64-arraybuffer';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import { supabase } from '../lib/supabase';
@@ -188,8 +189,7 @@ export async function signContract(contract, signatureSvg, { userName } = {}) {
 }
 
 export function subscribeContracts(onChange) {
-  const channel = supabase
-    .channel('job-contracts')
+  const channel = uniqueChannel('job-contracts')
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => onChange?.())
     .subscribe();
   return () => supabase.removeChannel(channel);

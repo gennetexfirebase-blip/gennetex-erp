@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as notifyApi from './notificationService';
 
 const TABLE = 'service_calls';
@@ -136,8 +137,7 @@ export function subscribeServiceCalls(onChange) {
   // Суваг бүр өвөрмөц нэртэй — олон дэлгэц/context зэрэг subscribe хийхэд
   // "cannot add postgres_changes callbacks after subscribe()" алдаа гарахгүй.
   const topic = `service-calls-sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const channel = supabase
-    .channel(topic)
+  const channel = uniqueChannel(topic)
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => onChange())
     .subscribe();
   return () => supabase.removeChannel(channel);

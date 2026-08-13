@@ -162,6 +162,35 @@ export async function fetchAttendanceForUserRange(userId, fromDate, toDate) {
   return data || [];
 }
 
+/**
+ * Ажилтны өнөөдрийн ирцийн төлөв.
+ *
+ * Дүрэм: өдөрт НЭГ удаа ирсэн, НЭГ удаа явсан бүртгэнэ.
+ *
+ * `onShift` нь байршил хянах эсэхийг шийднэ — ирснээс хойш явах хүртэл л
+ * хянана. Ажлын бус цагт ажилтны байршлыг мөрдөх нь шаардлагагүй.
+ *
+ * @returns {{checkedIn: boolean, checkedOut: boolean, onShift: boolean,
+ *            checkInAt: string|null, checkOutAt: string|null}}
+ */
+export async function fetchTodayStatus(userId, date = dayKey()) {
+  if (!userId) {
+    return { checkedIn: false, checkedOut: false, onShift: false, checkInAt: null, checkOutAt: null };
+  }
+  const rows = await fetchAttendanceForUserDay(userId, date);
+  // Цуцлагдсан бүртгэлийг тооцохгүй
+  const valid = rows.filter((r) => r.status !== 'rejected');
+  const inRow = valid.find((r) => r.type === 'check_in') || null;
+  const outRow = valid.find((r) => r.type === 'check_out') || null;
+  return {
+    checkedIn: !!inRow,
+    checkedOut: !!outRow,
+    onShift: !!inRow && !outRow,
+    checkInAt: inRow?.created_at || null,
+    checkOutAt: outRow?.created_at || null,
+  };
+}
+
 export async function fetchAttendanceForUserDay(userId, date = dayKey()) {
   const start = new Date(`${date}T00:00:00`);
   const end = new Date(`${date}T23:59:59.999`);

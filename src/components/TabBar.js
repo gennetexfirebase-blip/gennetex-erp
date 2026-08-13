@@ -34,8 +34,8 @@ export default function TabBar({ state, descriptors, navigation }) {
         style={[
           styles.bar,
           {
-            backgroundColor: isDark ? 'rgba(18,33,49,0.92)' : 'rgba(255,255,255,0.95)',
-            borderColor: colors.outlineVariant + '55',
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
           },
           Platform.select({
             android: { elevation: 6 },
@@ -68,40 +68,52 @@ export default function TabBar({ state, descriptors, navigation }) {
             navigation.emit({ type: 'tabLongPress', target: route.key });
 
           const icon = ICONS[route.name] || 'home';
+          const showBadge = route.name === 'Notifications' && unread > 0;
 
-          if (focused) {
-            return (
-              <TouchableOpacity
-                key={route.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected: true }}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                activeOpacity={0.85}
-                style={[styles.itemActive, { backgroundColor: colors.primaryContainer + '1a' }]}
-              >
-                <NavIcon name={icon} size={20} color={colors.primaryContainer} active activeColor={colors.primaryContainer} />
-                <Text style={[styles.labelActive, { color: colors.primaryContainer }]} numberOfLines={1}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          }
-
+          // Таб бүр ЯГ ижил өргөнтэй (`flex: 1`) бөгөөд идэвхтэй, идэвхгүй
+          // хоёулаа ижил бүтэцтэй. Тиймээс таб солиход юу ч байрлалаа
+          // өөрчлөхгүй. Өмнө нь идэвхтэй нь өргөн бөмбөлөг болж, бусдыг
+          // шахаж, зай жигд бус болдог байв.
           return (
             <TouchableOpacity
               key={route.key}
-              accessibilityRole="button"
-              accessibilityState={{ selected: false }}
+              accessibilityRole="tab"
+              accessibilityLabel={showBadge ? `${label}, ${unread} шинэ` : label}
+              accessibilityState={{ selected: focused }}
               onPress={onPress}
               onLongPress={onLongPress}
               activeOpacity={0.7}
               style={styles.item}
             >
-              <View>
-                <NavIcon name={icon} size={22} color={colors.onSurfaceVariant} />
-                {route.name === 'Notifications' && unread > 0 ? <View style={[styles.countBadge, { backgroundColor: colors.danger || '#ef4444' }]}><Text style={styles.countText}>{unread > 99 ? '99+' : unread}</Text></View> : null}
+              <View
+                style={[
+                  styles.iconWrap,
+                  focused && { backgroundColor: colors.primarySoft },
+                ]}
+              >
+                <NavIcon
+                  name={icon}
+                  size={22}
+                  color={focused ? colors.primary : colors.onSurfaceVariant}
+                  active={focused}
+                  activeColor={colors.primary}
+                />
+                {showBadge ? (
+                  <View style={[styles.countBadge, { backgroundColor: colors.danger }]}>
+                    <Text style={styles.countText}>{unread > 99 ? '99+' : unread}</Text>
+                  </View>
+                ) : null}
               </View>
+              <Text
+                style={[
+                  styles.label,
+                  { color: focused ? colors.primary : colors.textFaint },
+                  focused && styles.labelFocused,
+                ]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -129,22 +141,25 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 1,
   },
+  // Бүх таб ижил өргөнтэй. Идэвхтэй нь зөвхөн дүрсний ард бөмбөлөг нэмнэ —
+  // хэмжээ өөрчлөгдөхгүй тул таб солиход юу ч шилжихгүй.
   item: {
-    width: 52,
-    height: 48,
-    borderRadius: radius.lg,
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  iconWrap: {
+    width: 40,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemActive: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    height: 48,
-    borderRadius: radius.lg,
-  },
-  labelActive: { fontWeight: '800', fontSize: 14 },
-  countBadge: { position: 'absolute', right: -10, top: -9, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 10, fontWeight: '600', letterSpacing: -0.1 },
+  labelFocused: { fontWeight: '800' },
+  countBadge: { position: 'absolute', right: 2, top: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   countText: { color: '#fff', fontSize: 9, fontWeight: '900' },
 });

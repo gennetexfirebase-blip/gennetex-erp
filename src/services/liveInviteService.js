@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import * as notifyApi from './notificationService';
 import { CALLS_CHANNEL } from './notificationService';
 import { resolveKind, KIND_LIVE } from './meetingService';
@@ -61,8 +62,7 @@ export async function postLiveComment({ liveId, userId, userName, content }) {
 
 export function subscribeLiveComments(liveId, onInsert) {
   if (!liveId) return () => {};
-  const channel = supabase
-    .channel(`live-comments-db-${liveId}`)
+  const channel = uniqueChannel(`live-comments-db-${liveId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'live_comments', filter: `live_id=eq.${liveId}` },
@@ -156,8 +156,7 @@ export async function respondLiveInvite(inviteId, status) {
 
 export function subscribeLiveInvites(userId, onInvite) {
   if (!userId) return () => {};
-  const channel = supabase
-    .channel(`live-invites-${userId}`)
+  const channel = uniqueChannel(`live-invites-${userId}`)
     .on(
       'postgres_changes',
       {

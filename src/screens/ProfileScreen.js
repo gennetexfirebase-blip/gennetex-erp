@@ -6,20 +6,29 @@ import {
   ScrollView,
   Alert,
   Image,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
-import { Card, Button, Field, Badge, ScreenHeader, SectionTitle } from '../components/ui';
+import {
+  Button,
+  Field,
+  GroupLabel,
+  ListGroup,
+  ListRow,
+  StatusPill,
+} from '../components/ui';
 import QRCode from '../components/QRCode';
 import { formatEmployeeBadge } from '../lib/employeeBadge';
 import * as vehicleApi from '../services/vehicleService';
 import { roleLabel } from '../lib/roles';
 import { DEVELOPER_LABEL, SUPERADMIN_EMAIL, HAS_DEVELOPER_EMAIL } from '../lib/developerConfig';
 import { useNavigation } from '@react-navigation/native';
-import { spacing, radius } from '../theme';
+import { spacing, radius, type } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
 const THEME_OPTIONS = [
@@ -30,12 +39,13 @@ const THEME_OPTIONS = [
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
-  const { colors, mode, setMode } = useTheme();
+  const { colors, gradients, mode, setMode } = useTheme();
   const styles = useStyles(makeStyles);
   const { authProfile, profile, isAdmin, isSuperAdmin, isCloud, signOut, updateMyProfile } = useApp();
   const canEdit = isAdmin;
   const canEditAvatar = !!authProfile;
   const [editing, setEditing] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [form, setForm] = useState({
     name: authProfile?.name || '',
     position: authProfile?.position || '',
@@ -114,7 +124,7 @@ export default function ProfileScreen() {
     Alert.alert('Профайл зураг', 'Зургаа хаанаас сонгох вэ?', [
       { text: 'Зургийн сангаас', onPress: pickFromLibrary },
       { text: 'Камераар авах', onPress: takePhoto },
-      { text: 'Болих', style: 'cancel'},
+      { text: 'Болих', style: 'cancel' },
     ]);
   };
 
@@ -134,245 +144,353 @@ export default function ProfileScreen() {
     }
   };
 
+  const startEdit = () => {
+    setForm({
+      name: authProfile.name || '',
+      position: authProfile.position || '',
+      phone: authProfile.phone || '',
+    });
+    setEditing(true);
+  };
+
   const confirmSignOut = () => {
     Alert.alert('Гарах', 'Та системээс гарахдаа итгэлтэй байна уу?', [
-      { text: 'Болих', style: 'cancel'},
+      { text: 'Болих', style: 'cancel' },
       { text: 'Гарах', style: 'destructive', onPress: signOut },
     ]);
   };
 
   return (
     <View style={styles.container}>
-      <ScreenHeader back={false} title="Профайл" subtitle={isCloud ? 'Supabase холбогдсон' : 'Локал горим'} />
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}>
-        <Card borderless style={styles.hero}>
-          <TouchableOpacity
-            activeOpacity={canEditAvatar ? 0.85 : 1}
-            onPress={changeAvatar}
-            disabled={uploading || !canEditAvatar}
-          >
-            <View style={styles.avatar}>
-              {uploading ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-              ) : (
-                <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
-              )}
-            </View>
-            {canEditAvatar ? (
-              <View style={styles.camBadge}>
-                <Text style={{ fontSize: 14 }}></Text>
+      {/* --- Брэнд өнгөт толгой --- */}
+      <LinearGradient
+        colors={gradients.brand}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <SafeAreaView edges={['top']}>
+          <View style={styles.headerRow}>
+            <Pressable
+              onPress={changeAvatar}
+              disabled={uploading || !canEditAvatar}
+              accessibilityRole={canEditAvatar ? 'button' : undefined}
+              accessibilityLabel={canEditAvatar ? 'Профайл зураг солих' : undefined}
+            >
+              <View style={styles.avatar}>
+                {uploading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+                ) : (
+                  <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
+                )}
               </View>
-            ) : null}
-          </TouchableOpacity>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.email}>{email}</Text>
-          <Badge
-            text={roleLabel(authProfile?.role || 'employee')}
-            color={isAdmin ? colors.accent : colors.primary}
-          />
-        </Card>
+              {canEditAvatar && !uploading ? (
+                <View style={styles.camBadge}>
+                  <Text style={styles.camIcon}>✎</Text>
+                </View>
+              ) : null}
+            </Pressable>
 
-        {withDriver ? (
-          <Card style={{ marginTop: spacing.lg }}>
-            <SectionTitle>Хамт яваа аялал</SectionTitle>
-            <Text style={styles.withDriverLabel}>Жолооч</Text>
-            <Text style={styles.withDriverName}>{withDriver.driver_name || '—'}</Text>
-            <Text style={styles.withDriverSub}>
-              {withDriver.plate_number || 'Машин'} · идэвхтэй аялал
-            </Text>
-          </Card>
-        ) : null}
-
-        {authProfile && !isAdmin ? (
-          <Card style={{ marginTop: spacing.lg, alignItems: 'center'}}>
-            <SectionTitle>Миний QR</SectionTitle>
-            <Text style={styles.qrHint}>
-              Жолооч хамт яваа хүн болгох эсвэл ганцаараа аялал эхлүүлэхэд энэ QR-ыг уншуулна
-            </Text>
-            <View style={styles.qrBox}>
-              <QRCode value={formatEmployeeBadge(authProfile.id)} size={200} />
+            <View style={styles.headerText}>
+              <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
+              <Text style={styles.headerEmail} numberOfLines={1}>{email}</Text>
+              <View style={styles.rolePill}>
+                <Text style={styles.rolePillText}>
+                  {roleLabel(authProfile?.role || 'employee')}
+                </Text>
+              </View>
             </View>
-          </Card>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        {/* --- Идэвхтэй аялал --- */}
+        {withDriver ? (
+          <>
+            <GroupLabel>Хамт яваа аялал</GroupLabel>
+            <ListGroup>
+              <ListRow icon="◉" label="Жолооч" value={withDriver.driver_name || '—'} chevron={false} />
+              <ListRow
+                icon="▤"
+                label={withDriver.plate_number || 'Машин'}
+                right={<StatusPill text="Идэвхтэй" tone="success" />}
+                chevron={false}
+              />
+            </ListGroup>
+          </>
         ) : null}
 
+        {/* --- Хувийн мэдээлэл --- */}
+        <GroupLabel>Хувийн мэдээлэл</GroupLabel>
         {authProfile ? (
           canEdit && editing ? (
-            <Card>
-              <SectionTitle>Мэдээлэл засах</SectionTitle>
+            <View style={styles.editCard}>
               <Field label="Нэр" value={form.name} onChangeText={(t) => setForm({ ...form, name: t })} />
-              <Field label="Албан тушаал" value={form.position} onChangeText={(t) => setForm({ ...form, position: t })} />
-              <Field label="Утас" keyboardType="phone-pad" value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} />
-              <View style={styles.row}>
+              <Field
+                label="Албан тушаал"
+                value={form.position}
+                onChangeText={(t) => setForm({ ...form, position: t })}
+              />
+              <Field
+                label="Утас"
+                keyboardType="phone-pad"
+                value={form.phone}
+                onChangeText={(t) => setForm({ ...form, phone: t })}
+              />
+              <View style={styles.editActions}>
                 <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={() => setEditing(false)} />
-                <Button title={saving ? '...' : 'Хадгалах'} style={{ flex: 1 }} onPress={handleSave} disabled={saving} />
-              </View>
-            </Card>
-          ) : (
-            <Card>
-              <InfoRow label="Нэр" value={authProfile.name || '—'} />
-              <InfoRow label="Албан тушаал" value={authProfile.position || '—'} />
-              <InfoRow label="Утас" value={authProfile.phone || '—'} />
-              <InfoRow label="Эрх" value={roleLabel(authProfile?.role || 'employee')} last />
-              {canEdit ? (
                 <Button
-                  title="Мэдээлэл засах" variant="ghost"
-                  style={{ marginTop: spacing.md }}
-                  onPress={() => {
-                    setForm({
-                      name: authProfile.name || '',
-                      position: authProfile.position || '',
-                      phone: authProfile.phone || '',
-                    });
-                    setEditing(true);
-                  }}
+                  title="Хадгалах"
+                  style={{ flex: 1 }}
+                  onPress={handleSave}
+                  loading={saving}
+                  disabled={saving}
                 />
-              ) : (
+              </View>
+            </View>
+          ) : (
+            <>
+              <ListGroup>
+                <ListRow icon="◧" label="Нэр" value={authProfile.name || '—'} chevron={false} />
+                <ListRow icon="▣" label="Албан тушаал" value={authProfile.position || '—'} chevron={false} />
+                <ListRow icon="✆" label="Утас" value={authProfile.phone || '—'} chevron={false} />
+                <ListRow
+                  icon="◆"
+                  label="Эрх"
+                  value={roleLabel(authProfile?.role || 'employee')}
+                  chevron={false}
+                />
+                {canEdit ? <ListRow icon="✎" label="Мэдээлэл засах" onPress={startEdit} /> : null}
+              </ListGroup>
+              {!canEdit ? (
                 <Text style={styles.lockedNote}>
                   Нэр, утас, албан тушаалыг админ засна. Профайл зураг дээр дарж солино.
                 </Text>
-              )}
-            </Card>
+              ) : null}
+            </>
           )
         ) : (
-          <Text style={styles.note}>Нэвтэрсэн хэрэглэгчийн мэдээлэл энд харагдана.</Text>
+          <Text style={styles.lockedNote}>Нэвтэрсэн хэрэглэгчийн мэдээлэл энд харагдана.</Text>
         )}
 
-        {authProfile ? (
-          <Card style={{ marginTop: spacing.lg }}>
-            <SectionTitle>{DEVELOPER_LABEL}тэй холбогдох</SectionTitle>
-            <InfoRow label="Холбоо барих имэйл" value={HAS_DEVELOPER_EMAIL ? SUPERADMIN_EMAIL : 'Тохируулаагүй'} />
-            <Button
-              title="Мэдээ илгээх"
-              variant="ghost"
-              style={{ marginTop: spacing.sm }}
-              onPress={() => navigation.navigate('DeveloperContact')}
-            />
-            {isSuperAdmin ? (
-              <Button
-                title="Над руу ирсэн мэдээ"
-                style={{ marginTop: spacing.sm }}
-                onPress={() => navigation.navigate('DeveloperInbox')}
+        {/* --- QR --- */}
+        {authProfile && !isAdmin ? (
+          <>
+            <GroupLabel>Миний QR</GroupLabel>
+            <ListGroup>
+              <ListRow
+                icon="▦"
+                label={showQr ? 'QR-ыг нуух' : 'QR-ыг харуулах'}
+                onPress={() => setShowQr((v) => !v)}
+                chevron={false}
+                right={<Text style={styles.toggleCaret}>{showQr ? '⌃' : '⌄'}</Text>}
               />
-            ) : null}
-          </Card>
+              {showQr ? (
+                <View style={styles.qrBox}>
+                  <QRCode value={formatEmployeeBadge(authProfile.id)} size={200} />
+                  <Text style={styles.qrHint}>
+                    Жолооч хамт яваа хүн болгох эсвэл аялал эхлүүлэхэд уншуулна
+                  </Text>
+                </View>
+              ) : null}
+            </ListGroup>
+          </>
         ) : null}
 
-        <Card style={{ marginTop: spacing.lg }}>
-          <SectionTitle>Харагдац</SectionTitle>
-          <Text style={styles.themeHint}>Апп-ын өнгө горимыг сонгоно уу.</Text>
+        {/* --- Харагдац --- */}
+        <GroupLabel>Харагдац</GroupLabel>
+        <View style={styles.themeCard}>
           <View style={styles.themeRow}>
             {THEME_OPTIONS.map((opt) => {
               const active = mode === opt.key;
               return (
-                <TouchableOpacity
+                <Pressable
                   key={opt.key}
-                  style={[styles.themeOption, active && styles.themeOptionActive]}
+                  style={({ pressed }) => [
+                    styles.themeOption,
+                    active && styles.themeOptionActive,
+                    pressed && { opacity: 0.7 },
+                  ]}
                   onPress={() => setMode(opt.key)}
-                  activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={opt.label}
                 >
                   <Text style={[styles.themeIcon, active && styles.themeIconActive]}>{opt.icon}</Text>
-                  <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>{opt.label}</Text>
-                </TouchableOpacity>
+                  <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
               );
             })}
           </View>
-        </Card>
+        </View>
 
-        <Button title="Системээс гарах" variant="danger" size="lg" style={{ marginTop: spacing.lg }} onPress={confirmSignOut} />
+        {/* --- Тусламж --- */}
+        {authProfile ? (
+          <>
+            <GroupLabel>{DEVELOPER_LABEL}тэй холбогдох</GroupLabel>
+            <ListGroup>
+              <ListRow
+                icon="✉"
+                label="Холбоо барих"
+                value={HAS_DEVELOPER_EMAIL ? SUPERADMIN_EMAIL : 'Тохируулаагүй'}
+                chevron={false}
+              />
+              <ListRow
+                icon="➤"
+                label="Мэдээ илгээх"
+                onPress={() => navigation.navigate('DeveloperContact')}
+              />
+              {isSuperAdmin ? (
+                <ListRow
+                  icon="▼"
+                  label="Над руу ирсэн мэдээ"
+                  onPress={() => navigation.navigate('DeveloperInbox')}
+                />
+              ) : null}
+            </ListGroup>
+          </>
+        ) : null}
+
+        {/* --- Нууцлал --- */}
+        {/* Apple 5.1.1(v) болон Google Play нь бүртгэл устгах замыг аппаас
+            ХҮРЭХ боломжтой байхыг шаарддаг. Мөн ажилтан өөрийн юуг нь
+            цуглуулж, хэн харж байгааг мэдэх ёстой. */}
+        <View style={{ marginTop: spacing.xl }}>
+          <ListGroup>
+            <ListRow
+              icon="🔒"
+              label="Нууцлал ба өгөгдөл"
+              onPress={() => navigation.navigate('Privacy')}
+            />
+          </ListGroup>
+        </View>
+
+        {/* --- Гарах --- */}
+        <View style={{ marginTop: spacing.lg }}>
+          <ListGroup>
+            <ListRow icon="⏻" label="Системээс гарах" danger onPress={confirmSignOut} chevron={false} />
+          </ListGroup>
+        </View>
+
+        <Text style={styles.connNote}>
+          {isCloud ? 'Supabase холбогдсон' : 'Локал горим'}
+        </Text>
       </ScrollView>
     </View>
   );
 }
 
-function InfoRow({ label, value, last }) {
-  const styles = useStyles(makeStyles);
-  return (
-    <View style={[styles.infoRow, !last && styles.infoBorder]}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
-}
-
-const makeStyles = ({ colors }) => StyleSheet.create({
+const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  hero: { alignItems: 'center', paddingVertical: spacing.xl },
+
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingTop: spacing.lg,
+  },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.surfaceAlt,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
-    borderWidth: 2,
-    borderColor: colors.primary,
     overflow: 'hidden',
   },
-  avatarImg: { width: '100%', height: '100%', borderRadius: 44 },
-  avatarLetter: { color: colors.primary, fontSize: 34, fontWeight: '800'},
+  avatarImg: { width: '100%', height: '100%' },
+  // Брэнд градиент дээрх текст — хоёр горимд ижил тул цагаан тогтмол.
+  avatarLetter: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
   camBadge: {
     position: 'absolute',
-    right: 0,
-    bottom: spacing.md,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.surface,
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.sm,
+  },
+  camIcon: { fontSize: 13, color: '#201e1f' },
+  headerText: { flex: 1, minWidth: 0 },
+  headerName: { ...type.h2, color: '#ffffff' },
+  headerEmail: { ...type.caption, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  rolePill: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  rolePillText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
+
+  body: { padding: spacing.lg, paddingBottom: 120 },
+
+  editCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    padding: spacing.lg,
   },
-  name: { color: colors.text, fontSize: 22, fontWeight: '900'},
-  email: { color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
-  row: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
-  infoBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  infoLabel: { color: colors.textMuted, fontSize: 14 },
-  infoValue: { color: colors.text, fontSize: 14, fontWeight: '700'},
+  editActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+
   lockedNote: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: spacing.md,
-    textAlign: 'center',
-    backgroundColor: colors.bgAlt,
-    padding: spacing.md,
-    borderRadius: radius.md,
+    ...type.caption,
+    color: colors.textFaint,
+    marginTop: spacing.sm,
+    marginLeft: spacing.xs,
+    lineHeight: 17,
   },
-  note: { color: colors.textMuted, textAlign: 'center', marginVertical: spacing.lg },
-  qrHint: { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: spacing.md },
-  qrBox: {
-    backgroundColor: '#fff',
-    padding: spacing.md,
-    borderRadius: radius.md,
+
+  toggleCaret: { color: colors.textFaint, fontSize: 14 },
+  qrBox: { alignItems: 'center', paddingVertical: spacing.xl, paddingHorizontal: spacing.lg },
+  qrHint: {
+    ...type.caption,
+    color: colors.textFaint,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    lineHeight: 17,
+  },
+
+  themeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    padding: spacing.sm,
   },
-  withDriverLabel: { color: colors.textMuted, fontSize: 12, marginTop: spacing.sm },
-  withDriverName: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 2 },
-  withDriverSub: { color: colors.primary, fontSize: 13, marginTop: 4, fontWeight: '600' },
-  themeHint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.md },
   themeRow: { flexDirection: 'row', gap: spacing.sm },
   themeOption: {
     flex: 1,
     alignItems: 'center',
+    gap: 4,
     paddingVertical: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    backgroundColor: colors.surfaceContainerLow,
-    gap: 4,
+    borderColor: 'transparent',
   },
-  themeOptionActive: {
-    borderColor: colors.primaryContainer,
-    backgroundColor: colors.primarySoft,
-  },
-  themeIcon: { fontSize: 20, color: colors.textMuted },
+  themeOptionActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary + '55' },
+  themeIcon: { fontSize: 18, color: colors.textMuted },
   themeIconActive: { color: colors.primary },
-  themeLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  themeLabelActive: { color: colors.primary },
+  themeLabel: { ...type.caption, color: colors.textMuted },
+  themeLabelActive: { color: colors.primary, fontWeight: '700' },
+
+  connNote: {
+    ...type.caption,
+    color: colors.textFaint,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
 });

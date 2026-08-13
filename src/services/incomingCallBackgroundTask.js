@@ -8,10 +8,13 @@ export const BACKGROUND_CALL_TASK = 'gennetex-background-incoming-call';
 TaskManager.defineTask(BACKGROUND_CALL_TASK, ({ data, error }) => {
   if (error || Platform.OS !== 'android') return;
   const payload = data?.notification?.request?.content?.data;
-  if (payload?.type === 'call' || payload?.type === 'live_invite') {
+  const kinds = ['incoming_call', 'call', 'live_invite'];
+  if (payload && kinds.includes(payload.type)) {
     showNativeIncomingCallFromPush({
       ...payload,
-      type: 'call',
+      // `incoming_call` нь VoIP урсгал — callType-ыг хадгална. Бусад нь
+      // хуучин видео дуудлага/урилга тул `call` болгож нэгтгэнэ.
+      type: payload.type === 'incoming_call' ? 'incoming_call' : 'call',
       callerName: payload.callerName || payload.hostName || 'Ажилтан',
     });
   }

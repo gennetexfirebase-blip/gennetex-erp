@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uniqueChannel } from '../lib/realtimeChannel';
 import { withoutSampleByName, withoutSampleVisits } from '../lib/sampleNames';
 import { filterVisibleProfiles } from '../lib/roles';
 
@@ -82,8 +83,7 @@ export async function fetchVisitLogs(limit = 50) {
 }
 
 export function subscribeWorkers(onChange) {
-  const channel = supabase
-    .channel('workers-loc')
+  const channel = uniqueChannel('workers-loc')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => onChange())
     .subscribe();
   return () => supabase.removeChannel(channel);

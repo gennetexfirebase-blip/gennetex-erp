@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import { isExpoGo } from '../lib/runtimeEnv';
 import { AppState } from 'react-native';
-import Constants from 'expo-constants';
 import { useApp } from '../context/AppContext';
 import { navigationRef } from '../lib/navigationRef';
 import { supabase } from '../lib/supabase';
@@ -15,9 +15,6 @@ const INTERVAL_MS = 900;
 const MAX_WIDTH = 420;
 const QUALITY = 0.28;
 
-const isExpoGo =
-  Constants.appOwnership === 'expo' ||
-  Constants.executionEnvironment === 'storeClient';
 
 function getActiveRouteName(state) {
   if (!state) return null;

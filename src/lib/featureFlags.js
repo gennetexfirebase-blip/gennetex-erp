@@ -6,8 +6,42 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@gennetex/feature_flags_v1';
 
+/**
+ * ⚠️ Metro нь `process.env.X`-ийг BUILD үед статикаар орлуулдаг —
+ *    `process.env[key]` гэсэн ДИНАМИК хандалт нь үргэлж `undefined`
+ *    буцаана. Тиймээс өмнөх хувилбар дээр бүх flag env-ээс уншигдалгүй
+ *    зөвхөн fallback дээр ажилладаг байв (өөрөөр хэлбэл env тохируулсан
+ *    ч нөлөөгүй).
+ *
+ *    Засвар: түлхүүр бүрийг СТАТИКААР бичнэ.
+ */
+const RAW_ENV = {
+  EXPO_PUBLIC_AUTO_DISPATCH: process.env.EXPO_PUBLIC_AUTO_DISPATCH,
+  EXPO_PUBLIC_BARCODE_MODE: process.env.EXPO_PUBLIC_BARCODE_MODE,
+  EXPO_PUBLIC_CALL_COST: process.env.EXPO_PUBLIC_CALL_COST,
+  EXPO_PUBLIC_CALL_WORKFLOW_STRICT: process.env.EXPO_PUBLIC_CALL_WORKFLOW_STRICT,
+  EXPO_PUBLIC_CRASH_REPORTING: process.env.EXPO_PUBLIC_CRASH_REPORTING,
+  EXPO_PUBLIC_CUSTOMER_NOTIFY: process.env.EXPO_PUBLIC_CUSTOMER_NOTIFY,
+  EXPO_PUBLIC_DIGITAL_TWIN: process.env.EXPO_PUBLIC_DIGITAL_TWIN,
+  EXPO_PUBLIC_FORCE_UPDATE: process.env.EXPO_PUBLIC_FORCE_UPDATE,
+  EXPO_PUBLIC_KNOWLEDGE_BASE: process.env.EXPO_PUBLIC_KNOWLEDGE_BASE,
+  EXPO_PUBLIC_LIVE_OPS: process.env.EXPO_PUBLIC_LIVE_OPS,
+  EXPO_PUBLIC_LOW_STOCK: process.env.EXPO_PUBLIC_LOW_STOCK,
+  EXPO_PUBLIC_MATERIAL_SUGGEST: process.env.EXPO_PUBLIC_MATERIAL_SUGGEST,
+  EXPO_PUBLIC_MULTI_BRANCH: process.env.EXPO_PUBLIC_MULTI_BRANCH,
+  EXPO_PUBLIC_OFFLINE_FIRST: process.env.EXPO_PUBLIC_OFFLINE_FIRST,
+  EXPO_PUBLIC_PAYROLL_EXPORT: process.env.EXPO_PUBLIC_PAYROLL_EXPORT,
+  EXPO_PUBLIC_PREDICTIVE: process.env.EXPO_PUBLIC_PREDICTIVE,
+  EXPO_PUBLIC_PUBLIC_TICKETS: process.env.EXPO_PUBLIC_PUBLIC_TICKETS,
+  EXPO_PUBLIC_ROUTE_OPTIMIZE: process.env.EXPO_PUBLIC_ROUTE_OPTIMIZE,
+  EXPO_PUBLIC_SLA_REPORTS: process.env.EXPO_PUBLIC_SLA_REPORTS,
+  EXPO_PUBLIC_SMART_TODAY: process.env.EXPO_PUBLIC_SMART_TODAY,
+  EXPO_PUBLIC_SUBCONTRACTOR: process.env.EXPO_PUBLIC_SUBCONTRACTOR,
+  EXPO_PUBLIC_TOOL_CONDITION: process.env.EXPO_PUBLIC_TOOL_CONDITION,
+};
+
 const ENV_BOOL = (key, fallback = false) => {
-  const v = process.env[key];
+  const v = RAW_ENV[key];
   if (v == null || v === '') return fallback;
   return v === '1' || v === 'true' || v === 'yes';
 };

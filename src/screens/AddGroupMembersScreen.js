@@ -14,7 +14,7 @@ export default function AddGroupMembersScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { conversationId, title } = route.params || {};
-  const { currentUser, fetchEmployees } = useApp();
+  const { currentUser, fetchDirectory } = useApp();
   const [employees, setEmployees] = useState([]);
   const [members, setMembers] = useState([]);
   const [selected, setSelected] = useState({});
@@ -23,14 +23,14 @@ export default function AddGroupMembersScreen() {
   const load = useCallback(async () => {
     try {
       const [emps, mems] = await Promise.all([
-        fetchEmployees(),
+        fetchDirectory(),
         chatApi.fetchConversationMembers(conversationId),
       ]);
       const memberIds = new Set(mems.map((m) => m.user_id));
       setMembers(mems);
       setEmployees(emps.filter((e) => e.id !== currentUser?.id && !memberIds.has(e.id)));
     } catch (e) {}
-  }, [conversationId, currentUser?.id, fetchEmployees]);
+  }, [conversationId, currentUser?.id, fetchDirectory]);
 
   React.useEffect(() => {
     load();

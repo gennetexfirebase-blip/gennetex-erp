@@ -210,7 +210,7 @@ export default function ChatSharedScreen() {
 
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  headerSafe: { backgroundColor: colors.primary },
+  headerSafe: { backgroundColor: colors.surfaceDim },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,8 +225,8 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     justifyContent: 'center',
   },
   headerTextCol: { flex: 1, minWidth: 0, paddingRight: 12 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  headerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 1 },
+  headerTitle: { color: colors.onSurface, fontSize: 18, fontWeight: '700' },
+  headerSub: { color: colors.textMuted, fontSize: 13, marginTop: 1 },
   tabs: {
     flexDirection: 'row',
     paddingHorizontal: 12,
@@ -241,9 +241,9 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     borderRadius: 16,
     backgroundColor: colors.surfaceContainerHigh,
   },
-  tabActive: { backgroundColor: colors.primary },
+  tabActive: { backgroundColor: colors.primaryContainer },
   tabText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: '#fff' },
+  tabTextActive: { color: colors.onPrimaryContainer },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   gridRow: { gap: GAP },
   gridCell: {

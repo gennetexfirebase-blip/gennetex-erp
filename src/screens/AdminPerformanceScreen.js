@@ -16,6 +16,10 @@ import { Card, Button, ScreenHeader, SectionTitle, EmptyState } from '../compone
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as engPerf from '../services/engineerPerformanceService';
+// `perfApi` нэрээр 6 газар дуудагдаж байсан ч import хийгдээгүй байсан —
+// энэ дэлгэц нээх бүрд `perfApi is not defined` гэж унана. Бүх функц нь
+// performanceAnalysisService дотор бий.
+import * as perfApi from '../services/performanceAnalysisService';
 import { formatEngineerDetailText, getEngineerFromStats, formatEngineerDetailWithAi, getAiInsightForEngineer } from '../services/engineerPerformanceService';
 
 export default function AdminPerformanceScreen() {
@@ -194,8 +198,6 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   body: { padding: spacing.lg, paddingBottom: 40 },
   desc: { fontSize: 13, color: colors.textMuted, lineHeight: 19, marginBottom: spacing.md },
-  analyzingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
-  analyzingText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   analyzingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
   analyzingText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   error: { color: colors.danger, fontSize: 13, marginBottom: spacing.md, lineHeight: 18 },

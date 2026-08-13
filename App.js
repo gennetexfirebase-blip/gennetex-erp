@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,10 +8,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppState, View, Text, ActivityIndicator, Image } from 'react-native';
 import { APP_VERSION_LABEL } from './src/version';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FaceDetectionProvider } from '@infinitered/react-native-mlkit-face-detection';
+import { FaceDetectionProvider } from './src/lib/faceDetection';
 
 import { AppProvider, useApp } from './src/context/AppContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { CallProvider } from './src/context/CallContext';
 import LoginScreen from './src/screens/LoginScreen';
 import LocalAccessScreen from './src/screens/LocalAccessScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -25,8 +26,14 @@ import CallsMapScreen from './src/screens/CallsMapScreen';
 import AdminCallsScreen from './src/screens/AdminCallsScreen';
 import AdminVisitsScreen from './src/screens/AdminVisitsScreen';
 import CallDetailScreen from './src/screens/CallDetailScreen';
+import CallHistoryScreen from './src/screens/CallHistoryScreen';
+import PrivacyScreen from './src/screens/PrivacyScreen';
+import BoxesScreen from './src/screens/BoxesScreen';
+import BoxDetailScreen from './src/screens/BoxDetailScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import MyShiftScreen from './src/screens/MyShiftScreen';
+import PayrollAdminScreen from './src/screens/PayrollAdminScreen';
+import MyPayrollScreen from './src/screens/MyPayrollScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import FeedProfileScreen from './src/screens/FeedProfileScreen';
@@ -97,7 +104,7 @@ import NotificationCenterScreen from './src/screens/NotificationCenterScreen';
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
 import LocationTracker from './src/components/LocationTracker';
 import SiteVisitVerifier from './src/components/SiteVisitVerifier';
-import IncomingCallManager from './src/components/IncomingCallManager';
+import CallHost from './src/components/CallHost';
 import IncomingLiveInviteManager from './src/components/IncomingLiveInviteManager';
 import PushNotificationManager from './src/components/PushNotificationManager';
 import ActivityLogger from './src/components/ActivityLogger';
@@ -118,11 +125,14 @@ import { startOfflineSyncWatcher } from './src/services/offlineQueueService';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function buildNavTheme(colors) {
+function buildNavTheme(colors, isDark) {
+  // React Navigation-ы дотоод хэсэг (modal дэвсгэр, шилжилтийн анимаци) `dark`
+  // тугнаас хамаардаг тул үндсэн сэдвийг горимд нь тааруулж авна.
+  const base = isDark ? DarkTheme : DefaultTheme;
   return {
-    ...DefaultTheme,
+    ...base,
     colors: {
-      ...DefaultTheme.colors,
+      ...base.colors,
       background: colors.background,
       card: colors.surface,
       text: colors.text,
@@ -166,6 +176,16 @@ function AppStack() {
       <Stack.Screen name="AdminCalls" component={AdminCallsScreen} />
       <Stack.Screen name="AdminVisits" component={AdminVisitsScreen} />
       <Stack.Screen name="CallDetail" component={CallDetailScreen} />
+      {/* "Calls" нь үйлчилгээний дуудлага (ажлын захиалга). Энэ нь ажилтан
+          хоорондын дуут/видео дуудлагын түүх — нэр давхцуулахгүй. */}
+      <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Нууцлал ба өгөгдөл' }} />
+      <Stack.Screen name="Boxes" component={BoxesScreen} options={{ title: 'Хайрцаг' }} />
+      <Stack.Screen name="BoxDetail" component={BoxDetailScreen} options={{ title: 'Хайрцгийн агуулга' }} />
+      <Stack.Screen
+        name="CallHistory"
+        component={CallHistoryScreen}
+        options={{ title: 'Дуудлагын түүх' }}
+      />
       <Stack.Screen name="Vehicle" component={VehicleScreen} />
       <Stack.Screen name="VehiclesAdmin" component={VehiclesAdminScreen} />
       <Stack.Screen name="VehicleSpecs" component={VehicleSpecsScreen} />
@@ -182,6 +202,8 @@ function AppStack() {
       <Stack.Screen name="EmployeeReport" component={EmployeeReportScreen} />
       <Stack.Screen name="Requisition" component={RequisitionScreen} />
       <Stack.Screen name="MyShift" component={MyShiftScreen} />
+      <Stack.Screen name="Payroll" component={PayrollAdminScreen} options={{ title: 'Цалин' }} />
+      <Stack.Screen name="MyPayroll" component={MyPayrollScreen} options={{ title: 'Миний цалин' }} />
       <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
       <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
       <Stack.Screen name="AdminOhaab" component={AdminOhaabScreen} />
@@ -313,9 +335,14 @@ function Root({ shareRef }) {
     };
   }, [isCloud, session?.user?.id, currentUser?.id, isSuperAdmin]);
 
-  // Апп руу орохын өмнө: өнөөдрийн ХААБ зааврыг гарын үсгээр баталсан эсэх
+  // Апп руу орохын өмнө: өнөөдрийн ХААБ зааврыг гарын үсгээр баталсан эсэх.
+  // Системийн админ (superadmin) ХААБ баталгаажуулалтыг алгасана.
   useEffect(() => {
     if (!isCloud || !session || !currentUser?.id) {
+      setOhaabOk(true);
+      return;
+    }
+    if (isSuperAdmin) {
       setOhaabOk(true);
       return;
     }
@@ -337,7 +364,7 @@ function Root({ shareRef }) {
     return () => {
       active = false;
     };
-  }, [isCloud, session?.user?.id, currentUser?.id]);
+  }, [isCloud, session?.user?.id, currentUser?.id, isSuperAdmin]);
 
   if (isCloud) {
     if (authLoading) return <Splash />;
@@ -375,7 +402,7 @@ function Root({ shareRef }) {
       <OfflineSyncBanner />
       <LocationTracker />
       <SiteVisitVerifier />
-      <IncomingCallManager />
+      <CallHost />
       <IncomingLiveInviteManager />
       <PushNotificationManager />
       <ActivityLogger />
@@ -389,7 +416,7 @@ function Root({ shareRef }) {
 function ThemedRoot({ shareRef }) {
   const { colors, isDark } = useTheme();
   return (
-    <NavigationContainer ref={navigationRef} theme={buildNavTheme(colors)} onReady={flushPendingNotification}>
+    <NavigationContainer ref={navigationRef} theme={buildNavTheme(colors, isDark)} onReady={flushPendingNotification}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <OfflineGate>
         <Root shareRef={shareRef} />
@@ -429,9 +456,13 @@ export default function App() {
               }}
             >
               <AppProvider>
-                <View ref={shareRef} style={{ flex: 1 }} collapsable={false}>
-                  <ThemedRoot shareRef={shareRef} />
-                </View>
+                {/* Дуудлага нь дэлгэцээс дээгүүр амьдардаг тул AppProvider-ын
+                    дотор, навигацийн ГАДНА байрлана. */}
+                <CallProvider>
+                  <View ref={shareRef} style={{ flex: 1 }} collapsable={false}>
+                    <ThemedRoot shareRef={shareRef} />
+                  </View>
+                </CallProvider>
               </AppProvider>
             </FaceDetectionProvider>
           </ThemeProvider>

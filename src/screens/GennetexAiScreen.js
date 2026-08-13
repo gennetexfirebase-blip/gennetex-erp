@@ -343,7 +343,7 @@ export default function GennetexAiScreen() {
 
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  headerSafe: { backgroundColor: colors.primary },
+  headerSafe: { backgroundColor: colors.surfaceDim },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -364,8 +364,8 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   headerLogo: { width: 32, height: 32 },
   headerMeta: { flex: 1 },
-  headerTitle: { color: colors.onPrimaryContainer, fontSize: 17, fontWeight: '700' },
-  headerSub: { color: colors.onPrimaryContainer, fontSize: 12, marginTop: 1 },
+  headerTitle: { color: colors.onSurface, fontSize: 17, fontWeight: '700' },
+  headerSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   listFlex: { flex: 1 },
   list: { padding: 12, paddingBottom: 8, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row', marginBottom: 10, alignItems: 'flex-end', maxWidth: '92%' },
