@@ -14,7 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
-import { getPushDiagnostics, enablePushForUser } from '../services/notificationService';
+import {
+  getPushDiagnostics,
+  enablePushForUser,
+  sendPushToUser,
+} from '../services/notificationService';
 import {
   MODES,
   MODE_OPTIONS,
@@ -57,12 +61,60 @@ export default function ProfileScreen() {
   // Гүйцэтгэлийн горим — сул утсанд аппыг хөнгөлнө
   const [perf, setPerf] = useState(() => getPerformanceState());
   const [pushChecking, setPushChecking] = useState(false);
+  const [pushTesting, setPushTesting] = useState(false);
   useEffect(() => subscribePerformance(setPerf), []);
 
   /**
    * Мэдэгдэл яагаад ирэхгүй байгааг шалгаж, ойлгомжтой хариу өгнө.
    * Алхам бүр (зөвшөөрөл -> Firebase -> token -> сан) тусад нь харагдана.
    */
+  /**
+   * Өөр рүүгээ ЖИНХЭНЭ push илгээж, бүх гинжийг шалгана:
+   *   апп -> send-push функц -> Firebase -> утас
+   *
+   * Серверийн хариу нь хаана тасарсныг тоогоор хэлнэ:
+   *   tokens: 0  -> энэ хэрэглэгчид бүртгэлтэй төхөөрөмж алга
+   *   failed > 0 -> Firebase руу илгээх үед алдаа (ихэвчлэн серверийн
+   *                 FIREBASE_* нууц утга дутуу)
+   *   sent: 1    -> илгээгдсэн. Ирэхгүй бол утасны батарей/мэдэгдлийн
+   *                 тохиргоог шалгана.
+   */
+  const testPush = async () => {
+    if (!authProfile?.id) return;
+    setPushTesting(true);
+    try {
+      const res = await sendPushToUser(authProfile.id, {
+        title: 'Тест мэдэгдэл',
+        body: 'Энэ мэдэгдэл ирсэн бол push бүрэн ажиллаж байна.',
+        type: 'test',
+        channelId: 'default',
+      });
+      const lines = [
+        `Хүлээн авагч: ${res?.recipients ?? '—'}`,
+        `Бүртгэлтэй төхөөрөмж: ${res?.tokens ?? '—'}`,
+        `Илгээсэн: ${res?.sent ?? '—'}`,
+        `Амжилтгүй: ${res?.failed ?? '—'}`,
+      ];
+      if (!res?.tokens) {
+        lines.push('', '⚠️ Энэ хэрэглэгчид бүртгэлтэй төхөөрөмж алга. "Дахин бүртгүүлэх" дарна уу.');
+      } else if (res?.failed) {
+        lines.push('', '⚠️ Firebase руу илгээхэд алдаа. Серверийн FIREBASE_* нууц утгыг шалгана уу.');
+      } else if (res?.sent) {
+        lines.push('', '✅ Илгээгдлээ. Хэдэн секундын дотор мэдэгдэл ирэх ёстой.');
+      }
+      Alert.alert('Тест мэдэгдэл', lines.join('\n'));
+    } catch (e) {
+      Alert.alert(
+        'Тест мэдэгдэл',
+        `Илгээж чадсангүй: ${e?.message || e}\n\n`
+          + 'Ихэвчлэн серверийн FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / '
+          + 'FIREBASE_PRIVATE_KEY нууц утга тохируулаагүйгээс болно.'
+      );
+    } finally {
+      setPushTesting(false);
+    }
+  };
+
   const checkPush = async () => {
     if (!authProfile?.id) return;
     setPushChecking(true);
@@ -336,6 +388,11 @@ export default function ProfileScreen() {
                 icon="🔔"
                 label={pushChecking ? 'Шалгаж байна…' : 'Мэдэгдэл ирэхгүй бол шалгах'}
                 onPress={pushChecking ? undefined : checkPush}
+              />
+              <ListRow
+                icon="📨"
+                label={pushTesting ? 'Илгээж байна…' : 'Тест мэдэгдэл илгээх'}
+                onPress={pushTesting ? undefined : testPush}
               />
             </ListGroup>
 
