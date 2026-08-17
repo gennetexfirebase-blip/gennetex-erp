@@ -121,6 +121,7 @@ import { ONBOARDING_KEY } from './src/services/permissionsService';
 import * as ohaabApi from './src/services/ohaabService';
 import * as deviceApi from './src/services/deviceAuthService';
 import { loadFeatureFlagOverrides } from './src/lib/featureFlags';
+import { initPerformanceMode } from './src/lib/performanceMode';
 import { installGlobalCrashHandlers } from './src/services/crashReportService';
 import { startOfflineSyncWatcher } from './src/services/offlineQueueService';
 
@@ -444,6 +445,9 @@ export default function App() {
   const shareRef = useRef(null);
 
   useEffect(() => {
+    // Утасны чадлыг эхлэхэд нэг удаа тогтооно — видео дуудлагын нягтрал,
+    // жагсаалтын ачаалал зэрэг нь үүнээс хамаарна (src/lib/performanceMode.js).
+    initPerformanceMode().catch(() => {});
     loadFeatureFlagOverrides()
       .then(() => {
         installGlobalCrashHandlers();

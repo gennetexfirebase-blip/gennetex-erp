@@ -33,6 +33,7 @@ import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as tracking from '../services/trackingService';
 import * as bgLocation from '../services/backgroundLocationService';
+import { pollInterval } from '../lib/performanceMode';
 
 function callTypeLabel(key) {
   const t = CALL_TYPES.find((x) => x.key === key);
@@ -133,7 +134,9 @@ export default function LiveLocationScreen() {
     load();
     if (!isCloud) return;
     const unsub = tracking.subscribeWorkers(() => load());
-    const timer = setInterval(load, 20000);
+    // Хөнгөн горимд сийрэг татна — газрын зураг + сүлжээ хамгийн их
+    // ачаалал өгдөг хосолол.
+    const timer = setInterval(load, pollInterval(20000));
     return () => {
       unsub?.();
       clearInterval(timer);

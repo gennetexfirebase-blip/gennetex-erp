@@ -34,6 +34,7 @@ import * as invApi from '../services/inventoryService';
 import * as boxApi from '../services/boxService';
 import * as ohaabApi from '../services/ohaabService';
 import * as deptApi from '../services/departmentService';
+import { imageQuality, listPerfProps } from '../lib/performanceMode';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
@@ -111,9 +112,11 @@ async function pickImage(useCamera) {
     Alert.alert('Зөвшөөрөл', 'Камер эсвэл зургийн сан ашиглах зөвшөөрөл шаардлагатай.');
     return null;
   }
+  // Сул утсанд өндөр нягтралтай зураг санах ойд багтахгүй, илгээлт удаан.
+  const quality = imageQuality();
   const result = useCamera
-    ? await ImagePicker.launchCameraAsync({ quality: 0.75, allowsEditing: true, aspect: [4, 3] })
-    : await ImagePicker.launchImageLibraryAsync({ quality: 0.75, allowsEditing: true, aspect: [4, 3] });
+    ? await ImagePicker.launchCameraAsync({ quality, allowsEditing: true, aspect: [4, 3] })
+    : await ImagePicker.launchImageLibraryAsync({ quality, allowsEditing: true, aspect: [4, 3] });
   if (result.canceled || !result.assets?.[0]?.uri) return null;
   return result.assets[0].uri;
 }
@@ -809,6 +812,7 @@ ${qty} ${giveItem.unit} → ${employee.name}
         data={filtered}
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
+        {...listPerfProps()}
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={

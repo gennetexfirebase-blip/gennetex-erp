@@ -15,6 +15,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
 import {
+  MODES,
+  MODE_OPTIONS,
+  getPerformanceState,
+  setPerformanceMode,
+  subscribePerformance,
+} from '../lib/performanceMode';
+import {
   Button,
   Field,
   GroupLabel,
@@ -46,6 +53,9 @@ export default function ProfileScreen() {
   const canEditAvatar = !!authProfile;
   const [editing, setEditing] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  // Гүйцэтгэлийн горим — сул утсанд аппыг хөнгөлнө
+  const [perf, setPerf] = useState(() => getPerformanceState());
+  useEffect(() => subscribePerformance(setPerf), []);
   const [form, setForm] = useState({
     name: authProfile?.name || '',
     position: authProfile?.position || '',
@@ -279,6 +289,30 @@ export default function ProfileScreen() {
         {/* --- QR --- */}
         {authProfile && !isAdmin ? (
           <>
+            <GroupLabel>Гүйцэтгэл</GroupLabel>
+            <ListGroup>
+              {MODE_OPTIONS.map((opt) => (
+                <ListRow
+                  key={opt.key}
+                  icon={perf.mode === opt.key ? '◉' : '○'}
+                  label={opt.label}
+                  value={
+                    opt.key === MODES.AUTO
+                      ? perf.tier === 'low'
+                        ? 'сул утас илэрсэн'
+                        : 'хангалттай хүчтэй'
+                      : opt.desc
+                  }
+                  chevron={false}
+                  onPress={() => setPerformanceMode(opt.key)}
+                />
+              ))}
+            </ListGroup>
+            <Text style={styles.perfHint}>
+              Хөнгөн горимд видео дуудлага 480p болж, жагсаалт, зураг, байршлын
+              шинэчлэлт хөнгөрнө. Хуучин утсан дээр гацахаас сэргийлнэ.
+            </Text>
+
             <GroupLabel>Миний QR</GroupLabel>
             <ListGroup>
               <ListRow
@@ -442,6 +476,14 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
 
   toggleCaret: { color: colors.textFaint, fontSize: 14 },
   qrBox: { alignItems: 'center', paddingVertical: spacing.xl, paddingHorizontal: spacing.lg },
+  perfHint: {
+    color: colors.textFaint,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 6,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
   qrHint: {
     ...type.caption,
     color: colors.textFaint,

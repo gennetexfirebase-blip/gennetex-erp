@@ -1,5 +1,6 @@
 import { NativeModules } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { videoConstraints } from '../lib/performanceMode';
 
 /**
  * WebRTC холболт — жинхэнэ дуу/дүрсийг энэ дамжуулна.
@@ -129,13 +130,13 @@ export async function createCallSession({ video = false, signaling, onRemoteStre
   });
 
   // --- Микрофон / камер ---
+  // Нягтралыг утасны чадлаар сонгоно: сул утсанд 720p кодлох нь
+  // гацаа үүсгэдэг тул 480p/20fps болгож буулгана (src/lib/performanceMode.js).
   const localStream = await mediaDevices.getUserMedia({
     audio: true,
     video: video
       ? {
-          width: { min: 640, ideal: 1280 },
-          height: { min: 480, ideal: 720 },
-          frameRate: { min: 15, ideal: 30 },
+          ...videoConstraints(),
           facingMode: 'user',
         }
       : false,

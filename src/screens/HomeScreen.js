@@ -12,6 +12,7 @@ import { effectivePermissions } from '../lib/permissions';
 import DraggableTileGrid from '../components/DraggableTileGrid';
 import RealtimeWeather from '../components/RealtimeWeather';
 import { loadTileOrder, saveTileOrder, applyTileOrder } from '../lib/tileOrder';
+import { animationsEnabled } from '../lib/performanceMode';
 import * as tracking from '../services/trackingService';
 import * as vehicleApi from '../services/vehicleService';
 import { countTodayCheckIns } from '../services/attendanceService';
@@ -273,6 +274,8 @@ export default function HomeScreen() {
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
+    // Сул утсанд тасралтгүй давтагдах хөдөлгөөн нь CPU-г дэмий эзэлнэ.
+    if (!animationsEnabled()) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),

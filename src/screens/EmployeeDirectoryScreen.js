@@ -35,6 +35,7 @@ import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { useCall } from '../context/CallContext';
 import { isOnline, formatLastSeen } from '../lib/online';
+import { listPerfProps } from '../lib/performanceMode';
 
 function initials(name = '') {
   const parts = String(name).trim().split(/\s+/);
@@ -148,6 +149,7 @@ export default function EmployeeDirectoryScreen() {
         data={shown}
         keyExtractor={(item) => item.id}
         numColumns={2}
+        {...listPerfProps()}
         columnWrapperStyle={{ gap }}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40, gap }}
         renderItem={({ item }) => {
