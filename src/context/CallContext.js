@@ -25,6 +25,7 @@ import {
   hideNativeIncomingCall,
 } from '../services/nativeIncomingCallService';
 import { incomingCallBridge } from '../lib/incomingCallBridge';
+import { navigationRef } from '../lib/navigationRef';
 
 /**
  * Дуудлагын нэгдсэн удирдлага.
@@ -526,6 +527,23 @@ export function CallProvider({ children }) {
   // Native дуудлагын дэлгэц (Android full-screen) → энэ context
   useEffect(() => {
     const unsub = incomingCallBridge.subscribe(({ type, data }) => {
+      /**
+       * Jitsi горимын дуудлага — залгагч тал native WebRTC-гүй орчинд
+       * (Expo Go) байгаа тул WebRTC сесс огт байхгүй. Хариулбал зүгээр
+       * ижил Jitsi өрөө рүү оруулна.
+       */
+      if (data?.jitsiRoom && !data?.callId) {
+        hideNativeIncomingCall();
+        if (type === 'answer') {
+          navigationRef.navigate('Conversation', {
+            conversationId: data.jitsiRoom,
+            title: data.callerName || 'Дуудлага',
+            autoJoinCall: true,
+          });
+        }
+        return;
+      }
+
       const target =
         incomingRef.current ||
         (data?.callId

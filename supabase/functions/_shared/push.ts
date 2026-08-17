@@ -122,17 +122,42 @@ export async function sendPushAudience(db: SupabaseClient, audience: PushAudienc
   let sent = 0;
   let failed = 0;
   const data = stringData(notification);
+  /**
+   * Ирэх дуудлага — DATA-ONLY мессеж байх ЁСТОЙ.
+   *
+   * ⚠️ ЯАГААД: `notification` талбар агуулсан мессежийг Android СИСТЕМ
+   *    өөрөө энгийн мэдэгдэл болгож харуулдаг бөгөөд аппын JS
+   *    `setBackgroundMessageHandler` нь ЭНЭ ҮЕД АЖИЛЛАХГҮЙ. Тиймээс
+   *    `showNativeIncomingCallFromPush()` дуудагдахгүй, бүтэн дэлгэцийн
+   *    дуудлагын UI хэзээ ч гарахгүй байв.
+   *
+   *    Data-only үед л апп өөрөө сэрж, дуудлагын дэлгэцээ гаргана.
+   */
+  const isCallPush = notification.type === 'incoming_call' || notification.type === 'call';
+
   for (let offset = 0; offset < tokens.length; offset += 500) {
     const chunk = tokens.slice(offset, offset + 500);
     const result = await messaging.sendEachForMulticast({
       tokens: chunk,
-      notification: { title: notification.title, body: notification.body },
+      ...(isCallPush ? {} : { notification: { title: notification.title, body: notification.body } }),
       data,
       android: {
-        priority: notification.channelId === 'urgent' ? 'high' : 'high',
-        notification: { channelId: notification.channelId || 'default', sound: notification.sound || 'default', icon: 'notification_icon' },
+        priority: 'high',
+        ...(isCallPush
+          ? {}
+          : {
+              notification: {
+                channelId: notification.channelId || 'default',
+                sound: notification.sound || 'default',
+                icon: 'notification_icon',
+              },
+            }),
       },
-      apns: { payload: { aps: { sound: notification.sound || 'default', badge: 1, contentAvailable: true } } },
+      apns: {
+        // iOS дээр data-only мессеж аппыг сэрээхийн тулд content-available
+        headers: isCallPush ? { 'apns-push-type': 'background', 'apns-priority': '5' } : undefined,
+        payload: { aps: { sound: notification.sound || 'default', badge: 1, contentAvailable: true } },
+      },
     });
     sent += result.successCount;
     failed += result.failureCount;

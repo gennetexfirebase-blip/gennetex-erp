@@ -432,13 +432,21 @@ export default function ConversationScreen() {
       try {
         await sendPushToUser(otherUser.id, {
           title: `${me?.name || 'Ажилтан'} залгаж байна`,
-          body: `${type === 'audio' ? 'Дуу' : 'Видео'} дуудлага — нэгдэхийн тулд чатаа нээнэ үү.`,
-          type: 'call',
+          body: `${type === 'audio' ? 'Дуу' : 'Видео'} дуудлага`,
+          // `incoming_call` — сервер тал үүнийг DATA-ONLY болгож илгээнэ
+          // (supabase/functions/_shared/push.ts). Зөвхөн тэр үед л апп
+          // өөрөө сэрж, БҮТЭН ДЭЛГЭЦИЙН дуудлага гаргана.
+          type: 'incoming_call',
           channelId: 'calls',
           sound: 'incoming_call.wav',
-          // `jitsi_call` — хүлээн авагч мэдэгдлээ дармагц ижил Jitsi
-          // өрөөнд шууд орно (src/lib/navigationRef.js).
-          data: { type: 'jitsi_call', room, callerName: me?.name || 'Ажилтан' },
+          data: {
+            type: 'incoming_call',
+            room,
+            // Jitsi горим — хариулахад WebRTC биш, ижил өрөөнд орно.
+            jitsiRoom: room,
+            callerName: me?.name || 'Ажилтан',
+            callType: type,
+          },
         });
       } catch (e) {
         // Мэдэгдэл явахгүй ч дуудлагын өрөө нээгдэх ёстой.
