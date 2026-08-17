@@ -7,18 +7,60 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import * as deviceTokens from './deviceTokenService';
 
+/**
+ * Сүүлийн бүртгэлийн алдаа — оношилгооны дэлгэц уншина.
+ *
+ * ⚠️ Урьд нь бүртгэл амжилтгүй болоход хаана ч мэдэгддэггүй байсан
+ *    (дуудагч тал `try/catch`-аар нууж байв). Тиймээс "token яагаад
+ *    үүсэхгүй байна вэ" гэдэг харагдахгүй байлаа.
+ */
+let lastPushError = null;
+
+export function getLastPushError() {
+  return lastPushError;
+}
+
 export const CALLS_CHANNEL = 'calls';
 const TOKEN_KEY = '@gennetex_fcm_token_v1';
 const DEVICE_KEY = '@gennetex_push_device_v1';
 
+/**
+ * Firebase Messaging — МОДУЛЬ (modular) API.
+ *
+ * ⚠️ ЭНЭ БАЙСАН ГОЛ АЛДАА:
+ *   Урьд нь `require('@react-native-firebase/messaging').default()` гэж
+ *   дууддаг байв. React Native Firebase v22-оос эхлэн нэрийн зайн
+ *   (namespaced) API-г хассан бөгөөд v26 дээр `default` export
+ *   БҮРМӨСӨН БАЙХГҮЙ. Тиймээс `.default` нь `undefined` болж, дуудахад
+ *   TypeError шидэж, catch дотор "модуль байхгүй" гэж дүгнэгдэж байлаа.
+ *
+ *   Үр дагавар: FCM token ХЭЗЭЭ Ч үүсдэггүй → `push_tokens` хоосон →
+ *   апп хаалттай үед мэдэгдэл, дуудлага огт ирдэггүй байв.
+ *
+ * Одоо зөв API-г ашиглана: `getMessaging()` + чөлөөт функцүүд.
+ */
+let messagingCache;
+
 function nativeMessaging() {
   if (isExpoGo) return null;
+  if (messagingCache !== undefined) return messagingCache;
   try {
-    return require('@react-native-firebase/messaging').default();
+    const mod = require('@react-native-firebase/messaging');
+    const instance = mod.getMessaging();
+    messagingCache = {
+      instance,
+      registerDeviceForRemoteMessages: () => mod.registerDeviceForRemoteMessages(instance),
+      requestPermission: () => mod.requestPermission(instance),
+      getToken: () => mod.getToken(instance),
+      onTokenRefresh: (fn) => mod.onTokenRefresh(instance, fn),
+      onMessage: (fn) => mod.onMessage(instance, fn),
+    };
   } catch (error) {
+    lastPushError = `Firebase Messaging ачаалагдсангүй: ${error?.message || error}`;
     console.warn('[push] Firebase Messaging native module unavailable:', error?.message || error);
-    return null;
+    messagingCache = null;
   }
+  return messagingCache;
 }
 
 Notifications.setNotificationHandler({
@@ -146,7 +188,9 @@ export async function getPushDiagnostics(userId) {
   const messaging = nativeMessaging();
   out.firebaseModule = !!messaging;
   if (!messaging) {
-    out.problem = 'Firebase модуль ачаалагдсангүй. Шинэ APK (1.0.7+) суулгана уу.';
+    // Жинхэнэ алдааг харуулна — "шинэ APK суулга" гэсэн ерөнхий зөвлөгөө
+    // буруу мөрөөр хөөж, цаг алдахад хүргэдэг байв.
+    out.problem = lastPushError || 'Firebase модуль ачаалагдсангүй.';
     return out;
   }
 
@@ -180,19 +224,6 @@ export async function getPushDiagnostics(userId) {
   if (!out.problem && lastPushError) out.problem = lastPushError;
 
   return out;
-}
-
-/**
- * Сүүлийн бүртгэлийн алдаа — оношилгооны дэлгэц уншина.
- *
- * ⚠️ Урьд нь бүртгэл амжилтгүй болоход хаана ч мэдэгддэггүй байсан
- *    (дуудагч тал `try/catch`-аар нууж байв). Тиймээс "token яагаад
- *    үүсэхгүй байна вэ" гэдэг харагдахгүй байлаа.
- */
-let lastPushError = null;
-
-export function getLastPushError() {
-  return lastPushError;
 }
 
 export async function enablePushForUser(userId) {
