@@ -1,3 +1,4 @@
+import { hasNativeModule } from '../lib/nativeModules';
 import { NativeModules } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
@@ -56,12 +57,15 @@ let sessionPromise = null;
  *   false  →  Expo Go; APK/development build шаардлагатай
  */
 export function isNativeFaceAvailable() {
-  return !!NativeModules.Onnxruntime;
+  // Шинэ архитектур дээр ONNX нь TurboModule болдог тул хуучин
+  // `NativeModules` бүртгэлд харагдахгүй — `hasNativeModule` хоёуланг
+  // нь шалгана (src/lib/nativeModules.js).
+  return hasNativeModule('Onnxruntime');
 }
 
 function getOrt() {
   if (ortModule) return ortModule;
-  if (!NativeModules.Onnxruntime) {
+  if (!hasNativeModule('Onnxruntime')) {
     throw new Error('Царай таних AI нь Expo Go-д ажиллахгүй. APK эсвэл development build ашиглана уу.');
   }
   // eslint-disable-next-line global-require, import/no-extraneous-dependencies

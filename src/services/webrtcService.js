@@ -16,24 +16,49 @@ import { videoConstraints } from '../lib/performanceMode';
  *    шалгаад, боломжгүй бол ойлгомжтой мессеж өгнө.
  */
 
-let rtc = null;
+let rtc;          // undefined = хараахан шалгаагүй, null = боломжгүй
+
+/**
+ * WebRTC ачаалж, боломжтой бол модулийг буцаана.
+ *
+ * ⚠️ ЯАГААД `NativeModules.WebRTCModule`-аар ШАЛГАХГҮЙ ВЭ:
+ *   Шинэ архитектур (`newArchEnabled=true`) дээр react-native-webrtc нь
+ *   TurboModule болж бүртгэгддэг тул хуучин `NativeModules` бүртгэлд
+ *   ХАРАГДАХГҮЙ. Ингэснээр APK дотор native сан (libjingle_peerconnection)
+ *   бүрэн байсаар атал "модуль байхгүй" гэж андуурч, дуудлага бүр
+ *   зогсож байв.
+ *
+ *   Тиймээс модулийг ӨӨРИЙГ нь ачаалж, ажиллахад шаардлагатай экспортууд
+ *   байгаа эсэхээр шалгана. Энэ нь хуучин ба шинэ архитектур хоёуланд
+ *   зөв ажиллана.
+ */
+function loadRtc() {
+  if (rtc !== undefined) return rtc;
+  try {
+    // eslint-disable-next-line global-require
+    const mod = require('react-native-webrtc');
+    rtc = mod?.RTCPeerConnection && mod?.mediaDevices ? mod : null;
+  } catch (e) {
+    // Expo Go — native хэсэг байхгүй тул require өөрөө уначихна.
+    rtc = null;
+  }
+  return rtc;
+}
 
 /** Native модуль ачаалагдах боломжтой эсэх. */
 export function isWebRtcAvailable() {
-  return !!NativeModules.WebRTCModule;
+  return !!loadRtc();
 }
 
 function getRtc() {
-  if (rtc) return rtc;
-  if (!isWebRtcAvailable()) {
+  const mod = loadRtc();
+  if (!mod) {
     throw new Error(
       'Дуудлагын модуль энэ хувилбарт байхгүй байна.\n\n' +
         'Development build эсвэл APK ашиглана уу (npx expo run:android).'
     );
   }
-  // eslint-disable-next-line global-require
-  rtc = require('react-native-webrtc');
-  return rtc;
+  return mod;
 }
 
 /**

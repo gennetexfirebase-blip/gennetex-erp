@@ -3,7 +3,7 @@
     "name": "Gennetex ERP",
     "slug": "gennetex-erp",
     "scheme": "gennetex-erp",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -75,13 +75,15 @@
           "apiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
         }
       },
-      "package": "com.gennetex.erp"
+      "package": "com.gennetex.erp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/logo.png"
     },
     "plugins": [
       "./plugins/withFirebaseManifestFix",
+      "@react-native-firebase/app",
       [
         "expo-location",
         {

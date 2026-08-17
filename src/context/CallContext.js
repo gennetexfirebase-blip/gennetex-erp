@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { Alert, AppState, Platform } from 'react-native';
 import { useApp } from './AppContext';
+import { isExpoGo } from '../lib/runtimeEnv';
 import * as voip from '../services/voipCallService';
 import { CALL_STATE, CALL_TEXT, isTerminal, toUiState } from '../services/voipCallService';
 import {
@@ -230,9 +231,19 @@ export function CallProvider({ children }) {
         return;
       }
       if (!isWebRtcAvailable()) {
+        // Expo Go бол Expo-гийн БЭЛЭН апп — танай төслийн native хэсгүүд
+        // (WebRTC) түүн дотор байхгүй. Энэ нь алдаа биш, зарчмын
+        // хязгаарлалт тул юу хийхийг нь тодорхой хэлнэ.
         Alert.alert(
           'Дуудлага',
-          'Дуудлагын модуль энэ хувилбарт байхгүй байна.\n\nDevelopment build эсвэл APK суулгана уу.'
+          isExpoGo
+            ? 'Expo Go дээр дуудлага ажиллахгүй.\n\n'
+              + 'Дуудлага нь native модуль (WebRTC) шаарддаг бөгөөд Expo Go '
+              + 'дотор тэр байдаггүй.\n\n'
+              + 'Шийдэл: суулгасан APK-гаа ашиглах, эсвэл нэг удаа\n'
+              + '"npx expo run:android" ажиллуулж development build хийх.'
+            : 'Дуудлагын модуль энэ хувилбарт байхгүй байна.\n\n'
+              + 'APK эсвэл development build суулгана уу.'
         );
         return;
       }

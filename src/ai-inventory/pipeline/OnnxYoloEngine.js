@@ -4,6 +4,7 @@
  * Download once with ensureModelDownloaded().
  */
 
+import { hasNativeModule } from '../../lib/nativeModules';
 import { NativeModules } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { nms } from './YoloNms';
@@ -27,7 +28,7 @@ function tryLoadOrt() {
   if (loadError) return null;
   // Expo Go-д натив Onnxruntime модуль байхгүй. require хийвэл binding.ts дотор
   // NativeModules.Onnxruntime.install() ажиллаж крэш болдог тул урьдчилж шалгана.
-  if (!NativeModules.Onnxruntime) {
+  if (!hasNativeModule('Onnxruntime')) {
     loadError =
       'onnxruntime-react-native нь Expo Go-д ажиллахгүй. Development build (npx expo run:android) ашиглана уу.';
     return null;
