@@ -23,6 +23,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import VideoCallModal from '../components/VideoCallModal';
+import { sendPushToUser } from '../services/notificationService';
 import ActiveTripsBanner from '../components/ActiveTripsBanner';
 import * as chatApi from '../services/chatService';
 import { useCall } from '../context/CallContext';
@@ -419,6 +420,23 @@ export default function ConversationScreen() {
      */
     if (!callingAvailable) {
       setCallVisible(true);
+
+      // Нөгөө тал руу ЖИНХЭНЭ мэдэгдэл илгээнэ — чат мессеж дангаараа
+      // утас түгжээтэй/апп хаалттай үед харагдахгүй. Энэ нь хүлээн
+      // авагчийн төхөөрөмж дээр push болж очно.
+      try {
+        await sendPushToUser(otherUser.id, {
+          title: `${me?.name || 'Ажилтан'} залгаж байна`,
+          body: `${type === 'audio' ? 'Дуу' : 'Видео'} дуудлага — нэгдэхийн тулд чатаа нээнэ үү.`,
+          type: 'call',
+          channelId: 'calls',
+          sound: 'incoming_call.wav',
+          data: { type: 'chat', room },
+        });
+      } catch (e) {
+        // Мэдэгдэл явахгүй ч дуудлагын өрөө нээгдэх ёстой.
+      }
+
       await send(
         `${type === 'audio' ? 'Дуу' : 'Видео'} дуудлага эхэллээ. `
           + 'Нэгдэхийн тулд энэ чатнаас дуудлагын товчийг дарна уу.'

@@ -28,14 +28,41 @@ export default function PushNotificationManager() {
 
     let active = true;
 
-    (async () => {
+    /**
+     * Төхөөрөмжийг бүртгэх.
+     *
+     * ⚠️ ХОЁР АСУУДЛЫГ ЗАССАН:
+     *   1. Алдаа гарвал `catch {}` дотор чимээгүй алга болдог байсан тул
+     *      "token яагаад үүсэхгүй байна" гэдэг хэзээ ч харагддаггүй байв.
+     *      Одоо шалтгааныг `getLastPushError()` дотор үлдээж, Профайл →
+     *      Мэдэгдэл хэсэгт харуулна.
+     *   2. Зөвхөн НЭГ УДАА, дэлгэц ачаалагдах үед оролддог байсан.
+     *      Хэрэглэгч зөвшөөрлөө дараа нь (Тохиргооноос) өгвөл апп дахин
+     *      эхлэх хүртэл бүртгэгдэхгүй байв. Одоо апп идэвхжих бүрд
+     *      дахин оролдоно.
+     */
+    const register = async () => {
       try {
         const res = await notifyApi.enablePushForUser(currentUser.id);
-        if (!active || !res.ok) return;
+        if (!active) return;
+        if (!res.ok) {
+          console.warn('[push] бүртгэл амжилтгүй:', res.error || res.reason);
+          return;
+        }
+        if (tokenRef.current === res.token) return;
         tokenRef.current = res.token;
         tokenRefreshSub.current = notifyApi.listenForTokenRefresh(currentUser.id, (error) => console.warn('[push] token refresh:', error?.message || error));
-      } catch (e) {}
-    })();
+      } catch (e) {
+        console.warn('[push] бүртгэлийн алдаа:', e?.message || e);
+      }
+    };
+
+    register();
+
+    // Тохиргооноос зөвшөөрөл өгөөд буцаж ирэхэд шууд бүртгэнэ.
+    const appStateSub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && !tokenRef.current) register();
+    });
 
     // App хаалттай/background үед дуудлагын push ирвэл утасны native
     // дуудлагын дэлгэц гаргах background task-ийг бүртгэнэ.
@@ -206,6 +233,7 @@ export default function PushNotificationManager() {
 
     return () => {
       active = false;
+      appStateSub?.remove?.();
       receivedSub.current?.remove();
       responseSub.current?.remove();
       tokenRefreshSub.current?.();

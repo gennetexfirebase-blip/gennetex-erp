@@ -175,13 +175,52 @@ export async function getPushDiagnostics(userId) {
     out.problem = `Санд шалгахад алдаа: ${e?.message || e}`;
   }
 
+  // Автомат бүртгэлийн үед гарсан алдаа байвал түүнийг давуу гэж үзнэ —
+  // жинхэнэ шалтгаан ихэвчлэн тэнд байдаг.
+  if (!out.problem && lastPushError) out.problem = lastPushError;
+
   return out;
 }
 
+/**
+ * Сүүлийн бүртгэлийн алдаа — оношилгооны дэлгэц уншина.
+ *
+ * ⚠️ Урьд нь бүртгэл амжилтгүй болоход хаана ч мэдэгддэггүй байсан
+ *    (дуудагч тал `try/catch`-аар нууж байв). Тиймээс "token яагаад
+ *    үүсэхгүй байна вэ" гэдэг харагдахгүй байлаа.
+ */
+let lastPushError = null;
+
+export function getLastPushError() {
+  return lastPushError;
+}
+
 export async function enablePushForUser(userId) {
-  const token = await registerForPushNotificationsAsync();
-  if (!token) return { ok: false, reason: 'permission'};
-  await savePushToken(userId, token);
+  let token = null;
+  try {
+    token = await registerForPushNotificationsAsync();
+  } catch (e) {
+    lastPushError = `Token авахад алдаа: ${e?.message || e}`;
+    return { ok: false, reason: 'token', error: lastPushError };
+  }
+
+  if (!token) {
+    // Шалтгааныг ялгаж хэлнэ — бүгдийг "permission" гэж нэрлэх нь
+    // буруу мөрөөр хөөж, цаг алдахад хүргэдэг.
+    if (isExpoGo) lastPushError = 'Expo Go нь алсын push дэмжихгүй.';
+    else if (!Device.isDevice) lastPushError = 'Симулятор дээр push ажиллахгүй.';
+    else lastPushError = 'Зөвшөөрөл өгөөгүй эсвэл Firebase тохиргоо дутуу.';
+    return { ok: false, reason: 'permission', error: lastPushError };
+  }
+
+  try {
+    await savePushToken(userId, token);
+  } catch (e) {
+    lastPushError = `Token санд хадгалж чадсангүй: ${e?.message || e}`;
+    return { ok: false, reason: 'save', error: lastPushError };
+  }
+
+  lastPushError = null;
   return { ok: true, token };
 }
 
