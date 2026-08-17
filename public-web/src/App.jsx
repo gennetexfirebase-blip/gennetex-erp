@@ -7,6 +7,9 @@ import ServicesPage from './pages/ServicesPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ContactPage from './pages/ContactPage';
 import CareersPage from './pages/CareersPage';
+// Microsoft Teams App-д шаардлагатай public хуудсууд. Нэвтрэлт шаардахгүй.
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 
 export default function App() {
   return (
@@ -20,6 +23,8 @@ export default function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/careers" element={<CareersPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

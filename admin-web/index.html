@@ -687,7 +687,6 @@
           <a data-view="feedposts"><span class="material-symbols-outlined">feed</span><span class="t">Gennetex Post</span></a>
           <a data-view="meetings"><span class="material-symbols-outlined">videocam</span><span class="t">Хурал</span></a>
           <a data-view="livestreams"><span class="material-symbols-outlined">live_tv</span><span class="t">Live stream хянах</span></a>
-          <a data-view="screenshare"><span class="material-symbols-outlined">screenshot_monitor</span><span class="t">Дэлгэц хянах</span></a>
           <div class="grp">Лог</div>
           <a data-view="activitylogs"><span class="material-symbols-outlined">history</span><span class="t">Нийт лог</span></a>
           <div class="grp">Excel</div>
@@ -761,7 +760,7 @@
     const searchEmpty=(q,def)=>String(q||'').trim()?ERP_NOT_FOUND:def;
     const isSuperAdmin=r=>r==='superadmin';
     const isAdminRole=r=>r==='admin' ||r==='superadmin';
-    const roleLabel=r=>r==='superadmin' ?'Хөгжүүлэгч':r==='admin' ?'Админ':'Ажилтан';
+    const roleLabel=r=>r==='superadmin' ?'Хөгжүүлэгч':r==='admin' ?'Админ':r==='menejer' ?'Менежер':r==='ahlah' ?'Ахлах':'Ажилтан';
     const visibleWorkers=()=>{
       // Системийн админ: бүгд; энгийн админ: superadmin-аас бусад бүгд (ажилтан + админ)
       const list=data.workers||[];
@@ -1150,7 +1149,7 @@
 
     // ===== Navigation =====
     document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.view));
-    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',screenshare:'Дэлгэц хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
+    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
     let activityFilter={year:new Date().getFullYear(),month:0,day:0,user:''};
     const ACTION_LABEL={login:'Нэвтрэлт',leave_request:'Чөлөө хүсэлт',screen:'Дэлгэц нээсэн',tap:'Даралт',location:'Байршил',face_enroll:'Царай бүртгэл',attendance:'Ирц',inventory:'Бараа/багаж',visit:'Айлд очсон',site_work:'Ажлын байр',service_call:'Дуудлага',other:'Бусад'};
     const fmtLogTime=ts=>{
@@ -1159,7 +1158,7 @@
       const p=n=>String(n).padStart(2,'0');
       return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     };
-    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',screenshare:'Дэлгэц хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
+    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
     function go(v){
       if(view==='vehicles'&&v!=='vehicles'){ stopVehicleQrScan(); stopAutoboxPoll(); }
       view=v;
@@ -1381,7 +1380,8 @@
       if(view==='feedposts') return renderFeedPosts(c);
       if(view==='meetings') return renderMeetings(c);
       if(view==='livestreams'){ renderLiveStreams(c); return; }
-      if(view==='screenshare'){ renderScreenShare(c); return; }
+      // "Дэлгэц хянах" хэсгийг хассан — ажилтны дэлгэцийг шууд харах
+      // боломж байхгүй. Доорх renderScreenShare/... код нь дуудагдахгүй.
       if(view==='activitylogs') return renderActivityLogs(c);
       if(view==='excelarchive') return renderExcelArchive(c);
     }
@@ -3121,7 +3121,7 @@
     async function collectWebAppUsageStats(from,to){
       const [logsRes,profRes]=await Promise.all([
         sb.from('activity_logs').select('*').gte('created_at',from).lte('created_at',to).order('created_at',{ascending:false}).limit(8000),
-        sb.from('profiles').select('id,name,email,role,last_seen').in('role',['employee','admin','superadmin']).order('name'),
+        sb.from('profiles').select('id,name,email,role,last_seen').in('role',['employee','ahlah','menejer','admin','superadmin']).order('name'),
       ]);
       const logs=logsRes.error?[]:(logsRes.data||[]);
       const profiles=(profRes.data||[]).filter(p=>p.id&&(p.name||p.email));
@@ -3874,6 +3874,8 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     function empRolePill(w){
       if(w.role==='superadmin') return '<span class="pill admin">Хөгжүүлэгч</span>';
       if(w.role==='admin') return '<span class="pill admin">Админ</span>';
+      if(w.role==='menejer') return '<span class="pill admin">Менежер</span>';
+      if(w.role==='ahlah') return '<span class="pill admin">Ахлах</span>';
       return '<span class="pill emp">Ажилтан</span>';
     }
     function renderEmployees(c){
@@ -3905,7 +3907,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       if(w.role!=='employee'&&!isSuperAdmin(me.role)){ toast('Зөвхөн ажилтны мэдээлэл засна. Эрхийг Хөгжүүлэгч өөрчилнө.'); return; }
       if(w.role==='superadmin'&&!isSuperAdmin(me.role)){ toast('Энэ хэрэглэгчийг засах эрхгүй'); return; }
       const roleOpts=isSuperAdmin(me.role)
-        ? `<option value="employee"${w.role==='employee' ?'selected':''}>Ажилтан</option><option value="admin"${w.role==='admin' ?'selected':''}>Админ</option><option value="superadmin"${w.role==='superadmin' ?'selected':''}>Хөгжүүлэгч</option>`
+        ? `<option value="employee"${w.role==='employee' ?'selected':''}>Ажилтан</option><option value="ahlah"${w.role==='ahlah' ?'selected':''}>Ахлах</option><option value="menejer"${w.role==='menejer' ?'selected':''}>Менежер</option><option value="admin"${w.role==='admin' ?'selected':''}>Админ</option><option value="superadmin"${w.role==='superadmin' ?'selected':''}>Хөгжүүлэгч</option>`
         : `<option value="employee"selected>Ажилтан</option>`;
       const roleField=isSuperAdmin(me.role)
         ? `<label>Эрх</label><select id="e_role">${roleOpts}</select>`
@@ -3945,7 +3947,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     };
     window.empModal = ()=>{
       const roleField=isSuperAdmin(me.role)
-        ? `<label>Эрх</label><select id="m_role"><option value="employee">Ажилтан</option><option value="admin">Админ</option><option value="superadmin">Хөгжүүлэгч</option></select>`
+        ? `<label>Эрх</label><select id="m_role"><option value="employee">Ажилтан</option><option value="ahlah">Ахлах</option><option value="menejer">Менежер</option><option value="admin">Админ</option><option value="superadmin">Хөгжүүлэгч</option></select>`
         : `<p class="muted" style="font-size:12px;margin-bottom:8px">Шинэ хэрэглэгч ажилтны эрхтэй үүснэ.</p>`;
       openModal('Шинэ ажилтан нэмэх',`
         <label>Овог</label><input id="m_lname" placeholder="Овог">

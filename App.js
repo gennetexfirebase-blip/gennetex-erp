@@ -27,7 +27,6 @@ import AdminCallsScreen from './src/screens/AdminCallsScreen';
 import AdminVisitsScreen from './src/screens/AdminVisitsScreen';
 import CallDetailScreen from './src/screens/CallDetailScreen';
 import CallHistoryScreen from './src/screens/CallHistoryScreen';
-import PrivacyScreen from './src/screens/PrivacyScreen';
 import BoxesScreen from './src/screens/BoxesScreen';
 import BoxDetailScreen from './src/screens/BoxDetailScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
@@ -45,6 +44,9 @@ import MyTelegramScreen from './src/screens/MyTelegramScreen';
 import TelegramDialogScreen from './src/screens/TelegramDialogScreen';
 import NewGroupScreen from './src/screens/NewGroupScreen';
 import EmployeesScreen from './src/screens/EmployeesScreen';
+import DepartmentsScreen from './src/screens/DepartmentsScreen';
+import DepartmentDetailScreen from './src/screens/DepartmentDetailScreen';
+import UserPermissionsScreen from './src/screens/UserPermissionsScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import VehicleScreen from './src/screens/VehicleScreen';
 import VehiclesAdminScreen from './src/screens/VehiclesAdminScreen';
@@ -178,7 +180,6 @@ function AppStack() {
       <Stack.Screen name="CallDetail" component={CallDetailScreen} />
       {/* "Calls" нь үйлчилгээний дуудлага (ажлын захиалга). Энэ нь ажилтан
           хоорондын дуут/видео дуудлагын түүх — нэр давхцуулахгүй. */}
-      <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Нууцлал ба өгөгдөл' }} />
       <Stack.Screen name="Boxes" component={BoxesScreen} options={{ title: 'Хайрцаг' }} />
       <Stack.Screen name="BoxDetail" component={BoxDetailScreen} options={{ title: 'Хайрцгийн агуулга' }} />
       <Stack.Screen
@@ -195,6 +196,10 @@ function AppStack() {
       <Stack.Screen name="TelegramDialog" component={TelegramDialogScreen} options={{ title: 'Telegram чат' }} />
       <Stack.Screen name="NewGroup" component={NewGroupScreen} />
       <Stack.Screen name="Employees" component={EmployeesScreen} />
+      {/* Хэлтэс — байгууллага ба өрх. Хүн, бараа, багажийн эрхийн хил. */}
+      <Stack.Screen name="Departments" component={DepartmentsScreen} options={{ title: 'Хэлтэс' }} />
+      <Stack.Screen name="DepartmentDetail" component={DepartmentDetailScreen} options={{ title: 'Хэлтсийн мэдээлэл' }} />
+      <Stack.Screen name="UserPermissions" component={UserPermissionsScreen} options={{ title: 'Эрхийн тохиргоо' }} />
       <Stack.Screen name="StockLog" component={StockLogScreen} />
       <Stack.Screen name="ToolAllocation" component={ToolAllocationScreen} initialParams={{ category: 'tool' }} />
       <Stack.Screen name="MyStock" component={MyStockScreen} initialParams={{ category: 'material' }} />
@@ -373,6 +378,16 @@ function Root({ shareRef }) {
       return (
         <LocalAccessScreen
           userId={session.user.id}
+          // Түгжээний дэлгэц дээр "энэ хэн бэ" гэдэг харагдана. Профайл
+          // хараахан ачаалагдаагүй байж болзошгүй тул Google-ийн өгсөн
+          // мэдээллийг нөөцөөр ашиглана.
+          name={
+            authProfile?.name
+            || session.user.user_metadata?.full_name
+            || session.user.user_metadata?.name
+            || session.user.email
+          }
+          avatarUrl={authProfile?.avatar_url || session.user.user_metadata?.avatar_url}
           onUnlocked={() => setLocalUnlocked(true)}
           onSignOut={signOut}
         />

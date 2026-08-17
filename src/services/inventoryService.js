@@ -59,6 +59,9 @@ export async function insertInventory(item) {
       barcode: item.barcode || null,
       image_url: item.image_url || null,
       category: item.category || 'material',
+      // `null` = НИЙТИЙН бараа (бүх хэлтэс харна). Хэлтэс сонгосон бол
+      // зөвхөн тэр хэлтсийнхэнд харагдана — шүүлт нь RLS дээр.
+      department_id: item.department_id || null,
     })
     .select()
     .single();

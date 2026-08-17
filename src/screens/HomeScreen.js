@@ -7,14 +7,11 @@ import NavIcon from '../components/NavIcon';
 import { spacing, radius } from '../theme';
 import { accent, accentMap } from '../theme/accents';
 import { useTheme, useStyles } from '../context/ThemeContext';
-import {
-  roleLabel,
-  canTakeServiceCalls,
-  canManageInventory,
-  canApproveRequests,
-  canManageEmployees,
-  canManagePayroll,
-} from '../lib/roles';
+import { roleLabel, canTakeServiceCalls } from '../lib/roles';
+import { effectivePermissions } from '../lib/permissions';
+import DraggableTileGrid from '../components/DraggableTileGrid';
+import RealtimeWeather from '../components/RealtimeWeather';
+import { loadTileOrder, saveTileOrder, applyTileOrder } from '../lib/tileOrder';
 import * as tracking from '../services/trackingService';
 import * as vehicleApi from '../services/vehicleService';
 import { countTodayCheckIns } from '../services/attendanceService';
@@ -25,9 +22,10 @@ import TodayDashboard from '../components/enhancements/TodayDashboard';
 
 const EMPLOYEE_MODULES = [
   { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber' },
-  { key: 'Inventory', label: 'Бараа авах', icon: 'inventory', accent: 'brand' },
+  // Бараа материал / багажийг ажилтан ӨӨРӨӨ авахгүй — зөвхөн админ олгоно.
+  // Тиймээс агуулахын жагсаалт руу орох хавтас байхгүй, зөвхөн өөрт нь
+  // олгогдсон үлдэгдлээ харна.
   { key: 'MyStock', label: 'Миний үлдэгдэл', icon: 'allocation', accent: 'brand'},
-  { key: 'Tools', label: 'Багаж авах', icon: 'tools', accent: 'brand'},
   { key: 'MyTools', label: 'Миний багаж', icon: 'allocation', accent: 'brand'},
   { key: 'SiteWork', label: 'Ажлын байр', icon: 'location', accent: 'green'},
   { key: 'MyContract', label: 'Миний гэрээ', icon: 'report', accent: 'indigo'},
@@ -57,6 +55,10 @@ const EMPLOYEE_MODULES = [
 const ADMIN_MODULES = [
   { key: 'AdminOhaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber', need: 'approve' },
   { key: 'Employees', label: 'Ажилтан бүртгэх', icon: 'employees', accent: 'indigo', need: 'employees' },
+  // ⚠️ "Хэлтэс" нь нүүр дэлгэцийн хавтан БИШ. Хэлтсийг ажилтан нэмэх
+  //    хэсгээс (Ажилтан бүртгэх → Хэлтэс) сонгож, хөгжүүлэгч тэндээсээ
+  //    шинээр үүсгэнэ. Ингэснээр "хаана хэлтэс нэмдэг билээ" гэсэн
+  //    хоёр өөр зам үүсэхгүй.
   { key: 'AdminApplications', label: 'Ажлын байрны анкет', icon: 'employees', accent: 'indigo', need: 'employees'},
   { key: 'AdminContracts', label: 'Хөдөлмөрийн гэрээ', icon: 'report', accent: 'indigo', need: 'employees'},
   { key: 'AdminReports', label: 'Тайлан', icon: 'report', accent: 'slate', need: 'employees'},
@@ -191,18 +193,14 @@ export default function HomeScreen() {
   /**
    * Удирдлагын модулиудыг ЧАДВАРаар шүүнэ.
    *
-   * Эрхийн нэрээр биш чадвараар шалгаснаар нярав агуулахаа, ахлах ирцээ
+   * Эрхийн нэрээр биш чадвараар шалгаснаар ахлах хэлтсээ, админ бүгдийг
    * харна — тус бүрд нь тусдаа жагсаалт зохиох шаардлагагүй.
+   *
+   * Чадвар нь ХОЁР эх сурвалжтай: эрхийн түвшний анхны утга, дээр нь
+   * хөгжүүлэгчийн хүн тус бүрд тохируулсан тусгай зөвшөөрөл
+   * (`src/lib/permissions.js`).
    */
-  const capabilities = useMemo(
-    () => ({
-      inventory: canManageInventory(role),
-      approve: canApproveRequests(role),
-      employees: canManageEmployees(role),
-      payroll: canManagePayroll(role),
-    }),
-    [role]
-  );
+  const capabilities = useMemo(() => effectivePermissions(authProfile), [authProfile]);
 
   /** Удирдлагын хэсэг харуулах эсэх — ядаж нэг чадвартай бол. */
   const hasAdminArea = useMemo(
@@ -225,6 +223,45 @@ export default function HomeScreen() {
   const adminVisibleModules = useMemo(
     () => adminModules.filter((m) => !m.need || capabilities[m.need]),
     [adminModules, capabilities]
+  );
+
+  // ---------------------------------------------------------------------
+  // Хавтангийн дараалал — хэрэглэгч өөрөө чирж зөөнө
+  // ---------------------------------------------------------------------
+  // Дараалал нь ХЭРЭГЛЭГЧ БҮРЭЭР төхөөрөмж дээр хадгалагдана. Эрхээс
+  // үл хамааран (ажилтан, ахлах, админ, хөгжүүлэгч) бүгд зөөж чадна.
+  const tileUserId = authProfile?.id || currentUser?.id || null;
+  const [tileOrders, setTileOrders] = useState({ admin: null, service: null });
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [admin, service] = await Promise.all([
+        loadTileOrder('admin', tileUserId),
+        loadTileOrder('service', tileUserId),
+      ]);
+      if (alive) setTileOrders({ admin, service });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tileUserId]);
+
+  const saveOrder = useCallback(
+    (section, keys) => {
+      setTileOrders((prev) => ({ ...prev, [section]: keys }));
+      saveTileOrder(section, tileUserId, keys);
+    },
+    [tileUserId]
+  );
+
+  const orderedAdminModules = useMemo(
+    () => applyTileOrder(adminVisibleModules, tileOrders.admin),
+    [adminVisibleModules, tileOrders.admin]
+  );
+  const orderedServiceModules = useMemo(
+    () => applyTileOrder(serviceModules, tileOrders.service),
+    [serviceModules, tileOrders.service]
   );
 
   const mountAnim = useRef(new Animated.Value(0)).current;
@@ -256,24 +293,29 @@ export default function HomeScreen() {
     navigation.navigate(m.key);
   };
 
-  const renderTile = (m, i) => {
+  /**
+   * Хавтангийн ДОТООД харагдац.
+   *
+   * Дарах/чирэх үйлдлийг гаднах `DraggableTileGrid` хариуцна — тиймээс
+   * энд зөвхөн зураг, нэрийг зурна (өргөн, өндрийг нь мөн тэр өгнө).
+   */
+  const renderTileFace = (m, { dragging } = {}) => {
     const tint = accents[m.accent] || accents.brand;
     return (
-    <TouchableOpacity
-      key={`${m.key}-${i}`}
-      style={[styles.tile, { width: tileWidth }]}
-      activeOpacity={0.82}
-      onPress={() => go(m)}
-      accessibilityRole="button"
-      accessibilityLabel={m.label}
-    >
-      <View style={[styles.tileIcon, { backgroundColor: tint + '14'}]}>
-        <NavIcon name={m.icon} size={24} color={tint} />
+      <View
+        style={[
+          styles.tile,
+          { width: '100%', height: '100%' },
+          dragging && styles.tileDragging,
+        ]}
+      >
+        <View style={[styles.tileIcon, { backgroundColor: tint + '14' }]}>
+          <NavIcon name={m.icon} size={24} color={tint} />
+        </View>
+        <Text style={styles.tileLabel} numberOfLines={2}>
+          {m.label}
+        </Text>
       </View>
-      <Text style={styles.tileLabel} numberOfLines={2}>
-        {m.label}
-      </Text>
-    </TouchableOpacity>
     );
   };
 
@@ -295,6 +337,10 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.date}>{dateStr}</Text>
           </View>
+          {/* Цаг агаар — нэр ба цагийн ХООРОНДОХ сул зайд. Толгой хэсгийн
+              өндөр, нэр, badge, огноо, цаг, профайл зураг байрандаа хэвээр:
+              энэ нь дээд ирмэгтээ наалдсан бие даасан элемент. */}
+          <RealtimeWeather style={styles.headerWeather} />
           <View style={styles.headerRight}>
             <Text style={styles.headerClock}>{formatTime(now)}</Text>
             <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
@@ -383,14 +429,36 @@ export default function HomeScreen() {
               <Text style={styles.adminCtaArrow}>→</Text>
             </TouchableOpacity>
 
-            <View style={styles.grid}>{adminVisibleModules.map(renderTile)}</View>
+            <Text style={styles.dragHint}>Хавтанг удаан дараад чирвэл байрлалыг нь өөрчилнө.</Text>
+            <DraggableTileGrid
+              items={orderedAdminModules}
+              columns={3}
+              tileWidth={tileWidth}
+              tileHeight={tileWidth}
+              gap={tileGap}
+              renderItem={renderTileFace}
+              onPressItem={go}
+              onOrderChange={(keys) => saveOrder('admin', keys)}
+              style={{ marginTop: spacing.sm }}
+            />
           </>
         ) : (
           <Text style={styles.welcomeSub}>Доорх үйлчилгээнүүдээс сонгон ажлаа үргэлжлүүлнэ үү.</Text>
         )}
 
         <Text style={styles.sectionTitle}>{isAdmin ? 'Ажилтны үйлчилгээ' : 'Үйлчилгээ'}</Text>
-        <View style={styles.grid}>{serviceModules.map(renderTile)}</View>
+        <Text style={styles.dragHint}>Хавтанг удаан дараад чирвэл байрлалыг нь өөрчилнө.</Text>
+        <DraggableTileGrid
+          items={orderedServiceModules}
+          columns={3}
+          tileWidth={tileWidth}
+          tileHeight={tileWidth}
+          gap={tileGap}
+          renderItem={renderTileFace}
+          onPressItem={go}
+          onOrderChange={(keys) => saveOrder('service', keys)}
+          style={{ marginTop: spacing.sm }}
+        />
       </ScrollView>
     </View>
   );
@@ -455,6 +523,9 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', paddingTop: spacing.sm },
   headerRight: { alignItems: 'flex-end', gap: spacing.sm },
+  // Цаг агаар: цагтай нэг мөрөнд зэрэгцүүлж, баруун талдаа зайтай.
+  // `flex-start` тул доорх нэр, badge, огнооны байрлалд нөлөөлөхгүй.
+  headerWeather: { alignSelf: 'flex-start', marginTop: 4, marginRight: spacing.md },
   headerClock: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   greeting: { color: colors.textMuted, fontSize: 14 },
   name: { color: colors.text, fontSize: 24, fontWeight: '800', marginTop: 2, letterSpacing: -0.3 },
@@ -588,6 +659,13 @@ const makeStyles = ({ colors, shadow, isDark }) => {
     marginBottom: spacing.sm,
   },
   tileLabel: { color: colors.text, fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
+  // Чирч байгаа хавтан — өргөгдсөн мэт харагдана
+  tileDragging: {
+    borderColor: colors.primary,
+    backgroundColor: colors.surfaceAlt,
+    ...shadow.lg,
+  },
+  dragHint: { color: colors.textFaint, fontSize: 11, marginTop: spacing.xs },
   aiHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   aiTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   aiBadge: {

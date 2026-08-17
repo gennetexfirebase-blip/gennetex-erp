@@ -356,22 +356,8 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {/* --- Нууцлал --- */}
-        {/* Apple 5.1.1(v) болон Google Play нь бүртгэл устгах замыг аппаас
-            ХҮРЭХ боломжтой байхыг шаарддаг. Мөн ажилтан өөрийн юуг нь
-            цуглуулж, хэн харж байгааг мэдэх ёстой. */}
-        <View style={{ marginTop: spacing.xl }}>
-          <ListGroup>
-            <ListRow
-              icon="🔒"
-              label="Нууцлал ба өгөгдөл"
-              onPress={() => navigation.navigate('Privacy')}
-            />
-          </ListGroup>
-        </View>
-
         {/* --- Гарах --- */}
-        <View style={{ marginTop: spacing.lg }}>
+        <View style={{ marginTop: spacing.xl }}>
           <ListGroup>
             <ListRow icon="⏻" label="Системээс гарах" danger onPress={confirmSignOut} chevron={false} />
           </ListGroup>

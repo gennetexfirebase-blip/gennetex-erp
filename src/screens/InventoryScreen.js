@@ -12,7 +12,6 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
-  useWindowDimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,6 +33,7 @@ import GiveToEmployeeModal from '../components/GiveToEmployeeModal';
 import * as invApi from '../services/inventoryService';
 import * as boxApi from '../services/boxService';
 import * as ohaabApi from '../services/ohaabService';
+import * as deptApi from '../services/departmentService';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
@@ -52,6 +52,9 @@ const EMPTY_FORM = {
   supplier: '',
   serial_no: '',
   note: '',
+  // `null` = НИЙТИЙН (бүх хэлтэс харна). Хэлтэс сонгосон бол зөвхөн
+  // тэр хэлтсийнхэн харна — шүүлт нь өгөгдлийн сангийн RLS дээр.
+  department_id: null,
   boxCode: '',      // аль хайрцагт хийх вэ
   boxQty: '',       // тэр хайрцагт хэдэн ширхэг байгаа
 };
@@ -89,6 +92,17 @@ const CAT_META = {
 
 const LOW_STOCK = 5;
 
+/** Дэлгэрэнгүй цонхны нэг мөр — "нэр : утга". */
+function DetailRow({ label, value }) {
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailRowLabel}>{label}</Text>
+      <Text style={styles.detailRowValue} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+}
+
 async function pickImage(useCamera) {
   const perm = useCamera
     ? await ImagePicker.requestCameraPermissionsAsync()
@@ -107,12 +121,10 @@ async function pickImage(useCamera) {
 export default function InventoryScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { width } = useWindowDimensions();
   const { colors, shadow } = useTheme();
   const styles = useStyles(makeStyles);
   const category = route.params?.category === 'tool' ? 'tool' : 'material';
   const meta = CAT_META[category];
-  const cardWidth = (width - spacing.lg * 2 - spacing.sm) / 2;
 
   const {
     inventory,
@@ -120,15 +132,26 @@ export default function InventoryScreen() {
     updateInventoryItem,
     adjustQuantity,
     removeInventoryItem,
-    withdrawItem,
     giveItemToEmployee,
     getItemByBarcode,
     isCloud,
-    isAdmin,
+    isManager,
+    departmentId: myDepartmentId,
     currentUser,
     refreshInventory,
     fetchEmployees,
   } = useApp();
+
+  /**
+   * Агуулах удирдах эрхтэй эсэх.
+   *
+   * Урьд нь `isAdmin` байсныг АХЛАХ багтаах болгов: ахлах өөрийн
+   * хэлтсийн бараа, багажийг бүртгэж, ажилтандаа олгоно. Аль хэлтсийн
+   * зүйл харагдахыг серверийн RLS шийднэ — энэ хувьсагч нь зөвхөн
+   * товч, талбар харуулах эсэхийг заана.
+   */
+  const isAdmin = isManager;
+  const [departments, setDepartments] = useState([]);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -136,10 +159,8 @@ export default function InventoryScreen() {
   const [scanMode, setScanMode] = useState(null);
   const [bulkCodes, setBulkCodes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [takeItem, setTakeItem] = useState(null);
-  const [takeQty, setTakeQty] = useState('1');
-  const [takePhotoUri, setTakePhotoUri] = useState(null);
-  const [takeSaving, setTakeSaving] = useState(false);
+  // Нэр дээр дарахад нээгдэх дэлгэрэнгүй — зураг, тоо ширхэг энд харагдана
+  const [detailItem, setDetailItem] = useState(null);
   const [giveItem, setGiveItem] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
@@ -184,6 +205,19 @@ export default function InventoryScreen() {
     loadBoxes();
   }, [loadBoxes]);
 
+  // Хэлтсийн жагсаалт — бараа/багажийг хэлтэст хуваарилахад сонгоно.
+  useEffect(() => {
+    if (!isAdmin || !isCloud) return;
+    let alive = true;
+    deptApi
+      .fetchDepartments()
+      .then((rows) => alive && setDepartments(rows))
+      .catch(() => {}); // хэлтэсгүй ч агуулах ажиллана
+    return () => {
+      alive = false;
+    };
+  }, [isAdmin, isCloud]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return inventory
@@ -227,12 +261,9 @@ export default function InventoryScreen() {
   );
 
   const showPrice = category === 'tool';
-  const screenTitle =
-    !isAdmin && category === 'material'
-      ? 'Бараа авах'
-      : !isAdmin && category === 'tool'
-        ? 'Багаж авах'
-        : meta.label;
+  // Ажилтан өөрөө авахгүй тул "Бараа авах" гэсэн гарчиг байхаа больсон —
+  // харагдах бол зөвхөн агуулахын үлдэгдлийг ХАРАХ жагсаалт.
+  const screenTitle = meta.label;
 
   /** Хайрцгийн жагсаалтаас гарахгүйгээр шинэ хайрцаг үүсгэнэ. */
   const createBox = async () => {
@@ -292,7 +323,9 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
 
   const resetForm = () => {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, category });
+    // Хэлтэстэй удирдагчийн бүртгэсэн зүйл автоматаар түүний хэлтэст
+    // орно — эс тэгвээс бүртгээд л өөрөө нь харахаа болино (RLS).
+    setForm({ ...EMPTY_FORM, category, department_id: myDepartmentId });
   };
 
   const closeFormModal = () => {
@@ -419,6 +452,7 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
         supplier: form.supplier.trim() || null,
         serial_no: category === 'tool' ? form.serial_no.trim() || null : null,
         note: form.note.trim() || null,
+        department_id: form.department_id || null,
       };
       if (editingId) {
         await updateInventoryItem(editingId, payload);
@@ -488,6 +522,7 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
       supplier: item.supplier || '',
       serial_no: item.serial_no || '',
       note: item.note || '',
+      department_id: item.department_id || null,
     });
     setModalVisible(true);
   };
@@ -557,7 +592,16 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
       Alert.alert('Буруу ангилал', `Энэ код "${where}" хэсэгт бүртгэгдсэн.`);
       return;
     }
-    openTake(item);
+    // Код уншсаны дараа: админ бол шууд "хэнд олгох" руу, ажилтан бол
+    // зөвхөн үлдэгдлийн мэдээлэл. Ажилтан өөрөө авах зам байхгүй.
+    if (isAdmin) {
+      setGiveItem(item);
+    } else {
+      Alert.alert(
+        item.name,
+        `Агуулахад: ${item.quantity} ${item.unit}\n\nБараа материал болон багажийг зөвхөн админ олгоно. Шаардлагатай бол админд хандана уу.`
+      );
+    }
   };
 
   const handleScanned = (data) => {
@@ -566,48 +610,6 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
   };
 
   const openScan = () => setScanMode('take');
-
-  const openTake = (item) => {
-    if (!isAdmin && item.quantity <= 0) {
-      Alert.alert('Дууссан', 'Агуулахад үлдэгдэл байхгүй байна.');
-      return;
-    }
-    setTakeItem(item);
-    setTakeQty('1');
-    setTakePhotoUri(null);
-  };
-
-  const confirmTake = async () => {
-    const q = Number(takeQty) || 0;
-    if (!takeItem || q <= 0) return;
-    if (q > takeItem.quantity) {
-      Alert.alert('Хүрэлцэхгүй', `Агуулахад ${takeItem.quantity} ${takeItem.unit} л байна.`);
-      return;
-    }
-    if (!isAdmin && !takePhotoUri) {
-      Alert.alert('Зураг шаардлагатай', 'Бараа авахын тулд баталгаа зураг авна уу.');
-      return;
-    }
-    setTakeSaving(true);
-    try {
-      let photoUrl = null;
-      if (takePhotoUri && isCloud) {
-        photoUrl = await invApi.uploadMovementPhoto(takePhotoUri);
-      }
-      const item = takeItem;
-      setTakeItem(null);
-      setTakePhotoUri(null);
-      await withdrawItem(item, q, photoUrl);
-      Alert.alert(
-        'Олгогдлоо',
-        `${item.name}\n${q} ${item.unit} авлаа. Үлдэгдэл: ${item.quantity - q} ${item.unit}`
-      );
-    } catch (e) {
-      Alert.alert('Алдаа', e?.message || 'Авахад алдаа гарлаа');
-    } finally {
-      setTakeSaving(false);
-    }
-  };
 
   /**
    * Ажилтанд олгох.
@@ -696,13 +698,11 @@ ${qty} ${giveItem.unit} → ${employee.name}
 
       {!isAdmin ? (
         <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>Бараа авах</Text>
+          <Text style={styles.bannerTitle}>Зөвхөн харах</Text>
           <Text style={styles.bannerText}>
-            Жагсаалтаас сонгох эсвэл зураг авч баталгаажуулна. Бар код унших боломжтой.
+            Бараа материал болон багажийг ажилтан өөрөө авах боломжгүй. Админ олгосны
+            дараа «Миний үлдэгдэл» хэсэгт харагдана.
           </Text>
-          <View style={styles.bannerBtns}>
-            <Button title="Бар код" variant="ghost" size="sm" onPress={openScan} />
-          </View>
         </View>
       ) : null}
 
@@ -736,78 +736,44 @@ ${qty} ${giveItem.unit} → ${employee.name}
     </View>
   );
 
+  /**
+   * Жагсаалтын мөр — ЗУРАГГҮЙ.
+   *
+   * Өмнө нь 2 баганат зурагтай сүлжээ байсан. Нэг дэлгэцэнд 4 бараа
+   * багтдаг тул хэдэн зуун нэр төрөл дундаас хайх боломжгүй байв.
+   * Одоо нэр, үлдэгдлээр нь жагсаана — зураг нь нэр дээр дарахад
+   * нээгдэх дэлгэрэнгүй цонхонд харагдана.
+   */
   const renderItem = ({ item }) => {
     // Бараа тус бүрийн босгыг ашиглана (isLow), глобал LOW_STOCK-ыг биш.
     const low = isLow(item);
     const isOut = item.quantity <= 0;
-    const thumbUri = item.image_url;
 
     return (
       <TouchableOpacity
-        style={[styles.gridCard, { width: cardWidth }, shadow.sm]}
-        activeOpacity={isAdmin ? 0.9 : 0.85}
-        onPress={() => {
-          if (!isAdmin) openTake(item);
-        }}
+        style={[styles.row, shadow.sm]}
+        activeOpacity={0.85}
+        onPress={() => setDetailItem(item)}
         onLongPress={isAdmin ? () => openEdit(item) : undefined}
       >
-        <View style={styles.gridImageWrap}>
-          <InventoryThumb
-            name={item.name}
-            category={item.category || category}
-            imageUrl={thumbUri}
-            size={cardWidth - spacing.md * 2}
-          />
-          <View style={[styles.stockBadge, low && styles.stockBadgeLow, isOut && styles.stockBadgeOut]}>
-            <View style={[styles.stockDot, { backgroundColor: isOut ? colors.danger : low ? colors.warning : colors.success }]} />
-            <Text style={[styles.stockBadgeText, low && { color: colors.warning }, isOut && { color: colors.danger }]}>
-              {isOut ? 'Дууссан' : low ? 'Бага' : 'Байгаа'}
-            </Text>
-          </View>
+        <View style={[styles.rowDot, { backgroundColor: isOut ? colors.danger : low ? colors.warning : colors.success }]} />
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.rowSub} numberOfLines={1}>
+            {showPrice ? `${formatMNT(item.price)} / ${item.unit}` : item.unit}
+            {item.barcode ? ` · ▮ ${item.barcode}` : ''}
+          </Text>
         </View>
 
-        <Text style={styles.gridName} numberOfLines={2}>{item.name}</Text>
-        {showPrice ? (
-          <Text style={styles.gridSub}>{formatMNT(item.price)} / {item.unit}</Text>
-        ) : (
-          <Text style={styles.gridSub}>{item.unit}</Text>
-        )}
-        {item.barcode ? (
-          <Text style={styles.gridBarcode} numberOfLines={1}>▮ {item.barcode}</Text>
-        ) : null}
-
-        <View style={styles.gridFooter}>
-          <Text style={[styles.gridQty, low && { color: colors.warning }, isOut && { color: colors.danger }]}>
+        <View style={styles.rowQtyWrap}>
+          <Text style={[styles.rowQty, low && { color: colors.warning }, isOut && { color: colors.danger }]}>
             {item.quantity}
           </Text>
-          <Text style={styles.gridUnit}>{item.unit}</Text>
+          <Text style={styles.rowUnit}>{item.unit}</Text>
         </View>
 
-        {isAdmin ? (
-          <View style={styles.adminRow}>
-            <TouchableOpacity style={styles.adminBtn} onPress={() => setGiveItem(item)}>
-              <Ionicons name="person-add" size={14} color={colors.success} />
-              <Text style={styles.adminBtnGive}>Олгох</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.adminBtn} onPress={() => openEdit(item)}>
-              <Text style={styles.adminBtnEdit}>Засах</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.adminBtn} onPress={() => handleDelete(item)}>
-              <Text style={styles.adminBtnDel}>Устгах</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {isAdmin ? (
-          <View style={styles.stepper}>
-            <TouchableOpacity style={styles.stepChip} onPress={() => adjustQuantity(item.id, -1)}>
-              <Text style={styles.stepText}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.stepChip} onPress={() => adjustQuantity(item.id, 1)}>
-              <Text style={styles.stepText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
+        <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
       </TouchableOpacity>
     );
   };
@@ -820,15 +786,14 @@ ${qty} ${giveItem.unit} → ${employee.name}
         right={
           <View style={styles.headerBtns}>
             {!isAdmin ? (
-              <>
-                <HeaderButton
-                  title="Үлдэгдэл"
-                  onPress={() => navigation.navigate(category === 'tool' ? 'MyTools' : 'MyStock')}
-                />
-                <HeaderButton title="Унших" onPress={openScan} />
-              </>
+              <HeaderButton
+                title="Миний үлдэгдэл"
+                onPress={() => navigation.navigate(category === 'tool' ? 'MyTools' : 'MyStock')}
+              />
             ) : (
               <>
+                {/* Код/хайрцгийн QR уншиж олгох нь одоо АДМИНы үйлдэл */}
+                <HeaderButton title="Унших" onPress={openScan} />
                 <HeaderButton
                   title="Хэн авсан"
                   onPress={() => navigation.navigate('ToolAllocation', { category })}
@@ -844,8 +809,6 @@ ${qty} ${giveItem.unit} → ${employee.name}
         data={filtered}
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -1114,6 +1077,50 @@ ${qty} ${giveItem.unit} → ${employee.name}
                 numberOfLines={3}
                 inputStyle={{ minHeight: 76, textAlignVertical: 'top' }}
               />
+
+              {/* --- Хэлтэс --- */}
+              {/* Хэлтэс сонговол ЗӨВХӨН тэр хэлтсийнхэн харна. Сонгохгүй
+                  бол нийтийн — бүх хэлтэст харагдана. */}
+              <Text style={styles.deptLabel}>Хэлтэс</Text>
+              {myDepartmentId ? (
+                <Text style={styles.deptHint}>
+                  {departments.find((d) => d.id === myDepartmentId)?.name || 'Миний хэлтэс'} —
+                  та зөвхөн өөрийн хэлтэст бүртгэнэ.
+                </Text>
+              ) : departments.length ? (
+                <View style={styles.deptChips}>
+                  <TouchableOpacity
+                    style={[styles.deptChip, !form.department_id && styles.deptChipOn]}
+                    onPress={() => setForm({ ...form, department_id: null })}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: !form.department_id }}
+                  >
+                    <Text style={[styles.deptChipText, !form.department_id && styles.deptChipTextOn]}>
+                      Нийтийн
+                    </Text>
+                  </TouchableOpacity>
+                  {departments.map((d) => {
+                    const on = form.department_id === d.id;
+                    return (
+                      <TouchableOpacity
+                        key={d.id}
+                        style={[styles.deptChip, on && styles.deptChipOn]}
+                        onPress={() => setForm({ ...form, department_id: d.id })}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                      >
+                        <Text style={[styles.deptChipText, on && styles.deptChipTextOn]}>
+                          {deptApi.kindIcon(d.kind)} {d.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={styles.deptHint}>
+                  Хэлтэс бүртгэгдээгүй тул энэ бүртгэл нийтийнх болно.
+                </Text>
+              )}
               <View style={styles.modalActions}>
                 <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={closeFormModal} />
                 <Button
@@ -1129,78 +1136,134 @@ ${qty} ${giveItem.unit} → ${employee.name}
         </View>
       </Modal>
 
-      {/* Ажилтан авах */}
-      <Modal visible={takeItem !== null} animationType="slide" transparent>
+      {/* Ажилтан өөрөө авах модал байхгүй — олголтыг зөвхөн админ хийнэ */}
+
+      {/* --- Дэлгэрэнгүй: зураг, тоо ширхэг --- */}
+      <Modal
+        visible={detailItem !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDetailItem(null)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>
-                {category === 'tool' ? 'Багаж авах' : 'Бараа авах'}
-              </Text>
-              {takeItem ? (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {detailItem ? (
                 <>
-                  <View style={styles.takePreview}>
+                  <View style={styles.detailImageWrap}>
                     <InventoryThumb
-                      name={takeItem.name}
-                      category={takeItem.category || category}
-                      imageUrl={takeItem.image_url}
-                      size={72}
+                      name={detailItem.name}
+                      category={detailItem.category || category}
+                      imageUrl={detailItem.image_url}
+                      size={180}
                     />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.takeName}>{takeItem.name}</Text>
-                      <Text style={styles.takeSub}>
-                        Агуулахад: {takeItem.quantity} {takeItem.unit}
+                  </View>
+
+                  <Text style={styles.detailName}>{detailItem.name}</Text>
+
+                  <View style={styles.detailQtyCard}>
+                    <Text style={styles.detailQtyLabel}>Агуулахын үлдэгдэл</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                      <Text
+                        style={[
+                          styles.detailQty,
+                          isLow(detailItem) && { color: colors.warning },
+                          detailItem.quantity <= 0 && { color: colors.danger },
+                        ]}
+                      >
+                        {detailItem.quantity}
                       </Text>
+                      <Text style={styles.detailQtyUnit}>{detailItem.unit}</Text>
                     </View>
                   </View>
-                  <Field
-                    label={`Авах тоо (${takeItem.unit})`}
-                    placeholder="1"
-                    keyboardType="numeric"
-                    value={takeQty}
-                    onChangeText={setTakeQty}
-                  />
-                  {!isAdmin ? (
-                    <>
-                      <Text style={styles.fieldLabel}>Баталгаа зураг *</Text>
-                      {takePhotoUri ? (
-                        <View style={styles.formPhotoWrap}>
-                          <Image source={{ uri: takePhotoUri }} style={styles.formPhoto} resizeMode="cover" />
-                          <TouchableOpacity
-                            style={styles.formPhotoRemove}
-                            onPress={() => setTakePhotoUri(null)}
-                          >
-                            <Ionicons name="close-circle" size={26} color={colors.danger} />
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={styles.formPhotoBtns}>
-                          <TouchableOpacity
-                            style={styles.formPhotoBtn}
-                            onPress={async () => {
-                              const uri = await pickImage(true);
-                              if (uri) setTakePhotoUri(uri);
-                            }}
-                          >
-                            <Ionicons name="camera" size={22} color={colors.success} />
-                            <Text style={[styles.formPhotoBtnText, { color: colors.success }]}>Зураг авах</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </>
+
+                  {showPrice ? (
+                    <DetailRow label="Нэгжийн үнэ" value={formatMNT(detailItem.price)} />
                   ) : null}
-                  <View style={styles.modalActions}>
-                    <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={() => setTakeItem(null)} />
-                    <Button
-                      title="Авах"
-                      variant="success"
-                      style={{ flex: 1 }}
-                      onPress={confirmTake}
-                      disabled={takeSaving}
-                    />
-                  </View>
-                  {takeSaving ? <ActivityIndicator style={{ marginTop: spacing.md }} color={colors.success} /> : null}
+                  {detailItem.barcode ? <DetailRow label="Бар код" value={detailItem.barcode} /> : null}
+                  {detailItem.serial_no ? <DetailRow label="Сериал" value={detailItem.serial_no} /> : null}
+                  {detailItem.sku ? <DetailRow label="SKU" value={detailItem.sku} /> : null}
+                  {detailItem.location ? <DetailRow label="Байршил" value={detailItem.location} /> : null}
+                  <DetailRow
+                    label="Хэлтэс"
+                    value={
+                      departments.find((d) => d.id === detailItem.department_id)?.name || 'Нийтийн'
+                    }
+                  />
+                  {detailItem.supplier ? <DetailRow label="Нийлүүлэгч" value={detailItem.supplier} /> : null}
+                  {detailItem.min_stock ? (
+                    <DetailRow label="Доод хязгаар" value={`${detailItem.min_stock} ${detailItem.unit}`} />
+                  ) : null}
+                  {detailItem.note ? <DetailRow label="Тэмдэглэл" value={detailItem.note} /> : null}
+
+                  {isAdmin ? (
+                    <>
+                      <View style={styles.detailActions}>
+                        <Button
+                          title="Олгох"
+                          variant="success"
+                          style={{ flex: 1 }}
+                          onPress={() => {
+                            const it = detailItem;
+                            setDetailItem(null);
+                            setTimeout(() => setGiveItem(it), 240);
+                          }}
+                        />
+                        <Button
+                          title="Засах"
+                          variant="ghost"
+                          style={{ flex: 1 }}
+                          onPress={() => {
+                            const it = detailItem;
+                            setDetailItem(null);
+                            setTimeout(() => openEdit(it), 240);
+                          }}
+                        />
+                      </View>
+                      <View style={styles.detailActions}>
+                        <TouchableOpacity
+                          style={styles.stepChip}
+                          onPress={() => {
+                            adjustQuantity(detailItem.id, -1);
+                            setDetailItem((d) => (d ? { ...d, quantity: Math.max(0, d.quantity - 1) } : d));
+                          }}
+                        >
+                          <Text style={styles.stepText}>−</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.stepChip}
+                          onPress={() => {
+                            adjustQuantity(detailItem.id, 1);
+                            setDetailItem((d) => (d ? { ...d, quantity: d.quantity + 1 } : d));
+                          }}
+                        >
+                          <Text style={styles.stepText}>+</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.detailDelete}
+                          onPress={() => {
+                            const it = detailItem;
+                            setDetailItem(null);
+                            setTimeout(() => handleDelete(it), 240);
+                          }}
+                        >
+                          <Text style={styles.adminBtnDel}>Устгах</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={styles.detailNote}>
+                      Энэ зүйлийг зөвхөн админ олгоно.
+                    </Text>
+                  )}
+
+                  <Button
+                    title="Хаах"
+                    variant="ghost"
+                    style={{ marginTop: spacing.md }}
+                    onPress={() => setDetailItem(null)}
+                  />
                 </>
               ) : null}
             </ScrollView>
@@ -1507,6 +1570,69 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   searchIcon: { marginRight: spacing.sm },
   searchInput: { flex: 1, paddingVertical: spacing.md, color: colors.text, fontSize: 15 },
   countLabel: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
+
+  // --- Жагсаалтын мөр (зурaггүй) ---
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  rowDot: { width: 8, height: 8, borderRadius: 4 },
+  rowName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  rowQtyWrap: { alignItems: 'flex-end', minWidth: 52 },
+  rowQty: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  rowUnit: { color: colors.textFaint, fontSize: 10 },
+
+  // --- Дэлгэрэнгүй цонх ---
+  detailImageWrap: { alignItems: 'center', marginBottom: spacing.md },
+  detailName: { color: colors.text, fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  detailQtyCard: {
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginVertical: spacing.md,
+  },
+  detailQtyLabel: { color: colors.textMuted, fontSize: 13, marginBottom: 2 },
+  detailQty: { color: colors.text, fontSize: 34, fontWeight: '900' },
+  detailQtyUnit: { color: colors.textMuted, fontSize: 14 },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  detailRowLabel: { color: colors.textMuted, fontSize: 13 },
+  detailRowValue: { color: colors.text, fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+  detailActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' },
+  detailDelete: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.danger + '55',
+  },
+  detailNote: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    lineHeight: 19,
+  },
+
   gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
   gridCard: {
     backgroundColor: colors.surface,
@@ -1716,6 +1842,20 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   col: { flex: 1, minWidth: 0 },
   scanBtn: { paddingVertical: spacing.md },
   modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  // Хэлтэс сонгох
+  deptLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: spacing.xs },
+  deptHint: { color: colors.textFaint, fontSize: 12, marginBottom: spacing.md, lineHeight: 17 },
+  deptChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  deptChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
+  deptChipOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  deptChipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  deptChipTextOn: { color: colors.primary },
   takePreview: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
   takeName: { color: colors.text, fontSize: 18, fontWeight: '800' },
   takeSub: { color: colors.textMuted, fontSize: 13, marginTop: 2 },

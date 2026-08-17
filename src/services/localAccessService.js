@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const KEY_PREFIX = 'gennetex.local-access.v1.';
 
@@ -60,6 +61,8 @@ export async function setupLocalAccess(userId, pin, enableBiometric) {
     keyFor(userId),
     JSON.stringify({ version: 1, salt, pinHash, biometricEnabled })
   );
+  // Хөгжүүлэгчийн хяналтад ТӨЛӨВийг мэдэгдэнэ (PIN өөрөө явахгүй).
+  await reportPinState(true);
   return { biometricEnabled };
 }
 
@@ -86,4 +89,54 @@ export async function unlockWithBiometric(userId) {
 export async function clearLocalAccess(userId) {
   if (!userId) return;
   await SecureStore.deleteItemAsync(keyFor(userId));
+}
+
+// ---------------------------------------------------------------------------
+// Хөгжүүлэгчийн хяналт
+// ---------------------------------------------------------------------------
+//
+// ⚠️ PIN болон түүний hash нь ЗӨВХӨН төхөөрөмж дээр үлдэнэ. Сервер рүү
+//    зөвхөн ТӨЛӨВ ("PIN тохируулсан эсэх", "хэзээ") явна. Ингэснээр
+//    хөгжүүлэгч хэн PIN-гүй яваа, хэн мартсаныг хараад арга хэмжээ авна,
+//    гэхдээ хэн нэгний PIN-ийг уншиж, оронд нь нэвтэрч чадахгүй.
+
+/** "Би PIN тохируулсан / устгасан" гэдгээ серверт мэдэгдэнэ. */
+export async function reportPinState(hasPin) {
+  if (!isSupabaseConfigured) return;
+  try {
+    await supabase.rpc('set_my_pin_state', { p_has_pin: !!hasPin });
+  } catch {
+    // Сүлжээгүй байж болно — түгжээ нээх урсгалыг зогсоохгүй.
+  }
+}
+
+/**
+ * Хөгжүүлэгч надаас PIN-ээ дахин тохируулахыг шаардсан эсэх.
+ *
+ * Сүлжээгүй үед `null` буцаана — тэр үед хуучин PIN хэвээр ажиллана
+ * (офлайн ажилтныг апп-аасаа таслахгүй).
+ */
+export async function fetchPinPolicy() {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase.rpc('my_pin_policy');
+    if (error) return null;
+    return data || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Хөгжүүлэгч: тухайн хүнээс PIN-ээ дахин тохируулахыг шаардана. */
+export async function requirePinReset(userId, required = true) {
+  const { data, error } = await supabase.rpc('admin_require_pin_reset', {
+    target_id: userId,
+    p_required: required,
+  });
+  if (error) {
+    if (/forbidden/.test(error.message)) throw new Error('Зөвхөн Хөгжүүлэгч энэ үйлдлийг хийнэ.');
+    if (/target_not_found/.test(error.message)) throw new Error('Хэрэглэгч олдсонгүй.');
+    throw error;
+  }
+  return data;
 }

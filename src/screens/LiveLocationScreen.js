@@ -1,5 +1,30 @@
+/**
+ * Байршил хяналт — нэг ажилтан дээр төвлөрсөн харагдац.
+ *
+ * ХЭЛБЭР:
+ *   [ Ажилтан сонгох карт ▾ ]     ← хэн бэ, online эсэх
+ *   [        Газрын зураг       ] ← сонгосон хүн тодруулагдсан
+ *   [ Одоогийн байршил · хэдэн мин өмнө ]  ← зураг дээр хөвөх карт
+ *   Сүүлийн үйл явдал / Бүгд
+ *   [ айл · асуудал · цаг › ]
+ *
+ * ЯАГААД: өмнөх хувилбар нь бүх ажилтныг нэг таб, очсон логийг нөгөө
+ * табанд жагсаадаг байсан тул "тэр хүн ОДОО хаана байна вэ" гэсэн гол
+ * асуултад хариулахад 2-3 алхам шаарддаг байв. Одоо нэг хүнийг сонгоод
+ * байршил, түүх нь нэг дэлгэц дээр цуг харагдана.
+ */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Modal,
+  Pressable,
+} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../components/Map';
 import { Badge, ScreenHeader, EmptyState } from '../components/ui';
 import { useApp } from '../context/AppContext';
@@ -15,7 +40,7 @@ function callTypeLabel(key) {
 }
 
 function initials(name) {
-  if (!name) return ' ?';
+  if (!name) return '?';
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
@@ -28,6 +53,12 @@ const UB_REGION = {
 
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4'];
 
+/** 5 минутын дотор дохио ирсэн бол "идэвхтэй" гэж үзнэ. */
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+
+const isOnline = (w) =>
+  !!w?.last_seen && Date.now() - new Date(w.last_seen).getTime() < ONLINE_WINDOW_MS;
+
 function timeAgo(ts) {
   if (!ts) return 'мэдээлэлгүй';
   const diff = Date.now() - new Date(ts).getTime();
@@ -39,7 +70,7 @@ function timeAgo(ts) {
   return `${Math.floor(h / 24)} өдөр өмнө`;
 }
 
-function WorkerMarker({ worker, color, visit, onPress }) {
+function WorkerMarker({ worker, color, visit, focused, onPress }) {
   const styles = useStyles(makeStyles);
   const [tracks, setTracks] = useState(!!worker.avatar_url);
 
@@ -51,24 +82,28 @@ function WorkerMarker({ worker, color, visit, onPress }) {
       title={worker.name || 'Ажилтан'}
       description={
         visit
-          ? ` ${visit.customer || 'Айл'}${visit.problem ? '· ' + visit.problem : ''}`
+          ? `${visit.customer || 'Айл'}${visit.problem ? ' · ' + visit.problem : ''}`
           : timeAgo(worker.last_seen)
       }
       onPress={onPress}
+      zIndex={focused ? 10 : 1}
     >
-      <View style={[styles.marker, { borderColor: color }]}>
-        {worker.avatar_url ? (
-          <Image
-            source={{ uri: worker.avatar_url }}
-            style={styles.markerImg}
-            onLoad={() => setTracks(false)}
-            onError={() => setTracks(false)}
-          />
-        ) : (
-          <View style={[styles.markerFallback, { backgroundColor: color }]}>
-            <Text style={styles.markerInitials}>{initials(worker.name)}</Text>
-          </View>
-        )}
+      {/* Сонгосон хүн тодрох цагираг — олон тэмдэг дундаас нүдэнд шууд өртөнө */}
+      <View style={[styles.markerHalo, focused && { backgroundColor: color + '33' }]}>
+        <View style={[styles.marker, { borderColor: color }]}>
+          {worker.avatar_url ? (
+            <Image
+              source={{ uri: worker.avatar_url }}
+              style={styles.markerImg}
+              onLoad={() => setTracks(false)}
+              onError={() => setTracks(false)}
+            />
+          ) : (
+            <View style={[styles.markerFallback, { backgroundColor: color }]}>
+              <Text style={styles.markerInitials}>{initials(worker.name)}</Text>
+            </View>
+          )}
+        </View>
       </View>
     </Marker>
   );
@@ -80,7 +115,9 @@ export default function LiveLocationScreen() {
   const { isCloud, isAdmin, trackingState } = useApp();
   const [workers, setWorkers] = useState([]);
   const [visits, setVisits] = useState([]);
-  const [tab, setTab] = useState('workers'); // workers | visits
+  const [selectedId, setSelectedId] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const mapRef = useRef(null);
 
   const load = async () => {
@@ -112,37 +149,79 @@ export default function LiveLocationScreen() {
     return map;
   }, [visits]);
 
-  const located = workers
-    .filter((w) => w.latitude != null && w.longitude != null)
-    .map((w, i) => ({ ...w, color: COLORS[i % COLORS.length], visit: latestVisitByUser[w.id] }));
+  const located = useMemo(
+    () =>
+      workers
+        .filter((w) => w.latitude != null && w.longitude != null)
+        .map((w, i) => ({ ...w, color: COLORS[i % COLORS.length], visit: latestVisitByUser[w.id] })),
+    [workers, latestVisitByUser]
+  );
+
+  // Сонголт хийгээгүй бол хамгийн сүүлд дохио өгсөн хүнийг өөрөө сонгоно —
+  // дэлгэц нээмэгц хоосон карт харагдахгүй.
+  const selected = useMemo(() => {
+    if (!located.length) return null;
+    const found = located.find((w) => w.id === selectedId);
+    if (found) return found;
+    return [...located].sort(
+      (a, b) => new Date(b.last_seen || 0) - new Date(a.last_seen || 0)
+    )[0];
+  }, [located, selectedId]);
+
+  const focusOn = (w, delta = 0.008) => {
+    if (!w?.latitude) return;
+    mapRef.current?.animateToRegion?.(
+      {
+        latitude: w.latitude,
+        longitude: w.longitude,
+        latitudeDelta: delta,
+        longitudeDelta: delta,
+      },
+      450
+    );
+  };
+
+  const pick = (w) => {
+    setSelectedId(w.id);
+    setPickerOpen(false);
+    focusOn(w);
+  };
+
+  /** Доорх жагсаалт: сонгосон хүний түүх, эсвэл "Бүгд" горимд бүх лог. */
+  const activity = useMemo(() => {
+    if (showAll || !selected) return visits;
+    return visits.filter((v) => v.user_id === selected.id);
+  }, [visits, showAll, selected]);
+
+  const online = located.filter(isOnline).length;
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={isAdmin ? 'Ажилчдын хяналт' : 'Байршил'}
-        subtitle={`${isCloud ? 'Supabase' : 'Локал'} · ${located.length} online`}
+      <ScreenHeader
+        title={isAdmin ? 'Ажилчдын хяналт' : 'Байршил'}
+        subtitle={`${located.length} ажилтан · ${online} идэвхтэй`}
+        back
         right={
           <Badge
             text={
               !trackingState?.active
                 ? 'Идэвхгүй'
                 : trackingState?.background
-                ? 'Тасралтгүй'
-                : 'Зөвхөн апп нээлттэй'
+                  ? 'Тасралтгүй'
+                  : 'Апп нээлттэй үед'
             }
             color={
               !trackingState?.active
                 ? colors.textFaint
                 : trackingState?.background
-                ? colors.success
-                : colors.warning || colors.textMuted
+                  ? colors.success
+                  : colors.warning || colors.textMuted
             }
           />
         }
       />
 
-      {/* Арын хяналт ажиллахгүй бол ЯАГААДЫГ нь хэлж, засах товч өгнө.
-          Өмнө нь зүгээр л "Идэвхгүй" гэж бичээд орхидог байсан тул
-          ажилтан юу хийхээ мэдэхгүй, админ байршлыг нь хардаггүй байв. */}
+      {/* Арын хяналт ажиллахгүй бол ЯАГААДЫГ нь хэлж, засах товч өгнө. */}
       {trackingState?.active && trackingState?.background === false ? (
         <View style={styles.warnBar}>
           <Text style={styles.warnText}>
@@ -157,127 +236,218 @@ export default function LiveLocationScreen() {
         </View>
       ) : null}
 
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={UB_REGION}
-        showsUserLocation
-      >
-        {located.map((w) => (
-          <WorkerMarker
-            key={w.id}
-            worker={w}
-            color={w.color}
-            visit={w.visit}
-            onPress={() => mapRef.current?.animateToRegion?.({
-              latitude: w.latitude,
-              longitude: w.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }, 400)}
-          />
-        ))}
-      </MapView>
-
-      <View style={styles.panel}>
-        {!isCloud ? (
-          <Text style={styles.note}>
-            Supabase холбогдоогүй тул бусад ажилчдын байршил харагдахгүй.
-          </Text>
-        ) : (
-          <>
-            <View style={styles.tabs}>
-              <Tab active={tab === 'workers'} label={`Ажилчид (${located.length})`} onPress={() => setTab('workers')} />
-              <Tab active={tab === 'visits'} label={`Очсон лог (${visits.length})`} onPress={() => setTab('visits')} />
+      {!isCloud ? (
+        <EmptyState text="Supabase холбогдоогүй тул бусад ажилчдын байршил харагдахгүй." />
+      ) : (
+        <>
+          {/* --- Хэнийг хянаж байна --- */}
+          <TouchableOpacity
+            style={styles.picker}
+            activeOpacity={0.85}
+            onPress={() => setPickerOpen(true)}
+            disabled={!located.length}
+            accessibilityRole="button"
+            accessibilityLabel="Ажилтан сонгох"
+          >
+            <View style={[styles.pickerAvatar, { borderColor: selected?.color || colors.border }]}>
+              {selected?.avatar_url ? (
+                <Image source={{ uri: selected.avatar_url }} style={styles.avatarImg} />
+              ) : (
+                <View
+                  style={[
+                    styles.markerFallback,
+                    { backgroundColor: selected?.color || colors.surfaceAlt },
+                  ]}
+                >
+                  <Text style={styles.markerInitials}>{initials(selected?.name)}</Text>
+                </View>
+              )}
             </View>
 
-            <ScrollView style={{ maxHeight: 220 }}>
-              {tab === 'workers' ? (
-                located.length === 0 ? (
-                  <EmptyState text="Online ажилтан алга."/>
-                ) : (
-                  located.map((w) => (
-                    <TouchableOpacity
-                      key={w.id}
-                      style={styles.row}
-                      activeOpacity={0.7}
-                      onPress={() => mapRef.current?.animateToRegion?.({
-                        latitude: w.latitude,
-                        longitude: w.longitude,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                      }, 400)}
-                    >
-                      <View style={[styles.rowAvatar, { borderColor: w.color }]}>
-                        {w.avatar_url ? (
-                          <Image source={{ uri: w.avatar_url }} style={styles.rowAvatarImg} />
-                        ) : (
-                          <View style={[styles.markerFallback, { backgroundColor: w.color }]}>
-                            <Text style={styles.markerInitials}>{initials(w.name)}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.rowName}>{w.name || 'Нэргүй'}</Text>
-                        {w.visit ? (
-                          <Text style={styles.rowActivity} numberOfLines={1}>
-                             {w.visit.customer || 'Айл'}
-                            {callTypeLabel(w.visit.call_type) ? ` · ${callTypeLabel(w.visit.call_type)}` : ''}
-                            {w.visit.problem ? ` · ${w.visit.problem}` : ''}
-                          </Text>
-                        ) : (
-                          <Text style={styles.rowSub}>
-                            {w.latitude.toFixed(4)}, {w.longitude.toFixed(4)}
-                          </Text>
-                        )}
-                      </View>
-                      <Text style={styles.rowTime}>{timeAgo(w.last_seen)}</Text>
-                    </TouchableOpacity>
-                  ))
-                )
-              ) : visits.length === 0 ? (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pickerName} numberOfLines={1}>
+                {selected?.name || 'Ажилтан алга'}
+              </Text>
+              <View style={styles.statusRow}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: isOnline(selected) ? colors.success : colors.textFaint },
+                  ]}
+                />
+                <Text style={styles.statusText}>
+                  {selected
+                    ? isOnline(selected)
+                      ? 'Идэвхтэй'
+                      : timeAgo(selected.last_seen)
+                    : 'Дохио ирээгүй'}
+                </Text>
+                {selected?.position ? (
+                  <Text style={styles.statusMuted} numberOfLines={1}>
+                    · {selected.position}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            <Text style={styles.chevron}>⌄</Text>
+          </TouchableOpacity>
+
+          {/* --- Газрын зураг --- */}
+          <View style={styles.mapWrap}>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+              initialRegion={UB_REGION}
+              showsUserLocation
+            >
+              {located.map((w) => (
+                <WorkerMarker
+                  key={w.id}
+                  worker={w}
+                  color={w.color}
+                  visit={w.visit}
+                  focused={selected?.id === w.id}
+                  onPress={() => pick(w)}
+                />
+              ))}
+            </MapView>
+
+            {/* Зураг дээр хөвөх "одоогийн байршил" карт */}
+            {selected ? (
+              <View style={styles.floatCard}>
+                <View style={styles.pinWrap}>
+                  <Text style={styles.pin}>📍</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.floatTitle} numberOfLines={1}>
+                    {selected.visit?.customer
+                      || selected.visit?.address
+                      || `${selected.latitude.toFixed(4)}, ${selected.longitude.toFixed(4)}`}
+                  </Text>
+                  <Text style={styles.floatSub} numberOfLines={1}>
+                    Одоогийн байршил · {timeAgo(selected.last_seen)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.locBtn}
+                  onPress={() => focusOn(selected, 0.004)}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Байршил руу ойртох"
+                >
+                  <Text style={styles.locBtnIcon}>➤</Text>
+                  <Text style={styles.locBtnText}>Байршил</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+
+          {/* --- Сүүлийн үйл явдал --- */}
+          <View style={styles.activity}>
+            <View style={styles.activityHead}>
+              <Text style={styles.activityTitle}>Сүүлийн үйл явдал</Text>
+              <TouchableOpacity onPress={() => setShowAll((v) => !v)} accessibilityRole="button">
+                <Text style={styles.activityLink}>{showAll ? 'Зөвхөн энэ хүн' : 'Бүх лог'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {activity.length === 0 ? (
                 <EmptyState text="Очсон бүртгэл алга." />
               ) : (
-                visits.map((v) => (
-                  <View key={v.id} style={styles.row}>
-                    <Text style={{ fontSize: 18, marginRight: spacing.sm }}></Text>
+                activity.slice(0, 40).map((v) => (
+                  <TouchableOpacity
+                    key={v.id}
+                    style={styles.actRow}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      if (v.latitude && v.longitude) {
+                        mapRef.current?.animateToRegion?.(
+                          {
+                            latitude: v.latitude,
+                            longitude: v.longitude,
+                            latitudeDelta: 0.006,
+                            longitudeDelta: 0.006,
+                          },
+                          450
+                        );
+                      }
+                    }}
+                  >
+                    <View style={styles.actIcon}>
+                      <Text style={styles.actIconText}>📍</Text>
+                    </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.rowName}>{v.customer || 'Айл'}</Text>
-                      <Text style={styles.rowSub}>
-                         {v.user_name}
-                        {callTypeLabel(v.call_type) ? ` · ${callTypeLabel(v.call_type)}` : ''}
-                        {v.problem ? ` · ${v.problem}` : ''}
+                      <Text style={styles.actName} numberOfLines={1}>
+                        {v.customer || 'Айл'}
+                      </Text>
+                      <Text style={styles.actSub} numberOfLines={1}>
+                        {showAll ? `${v.user_name || 'Ажилтан'} · ` : ''}
+                        {callTypeLabel(v.call_type) || v.problem || 'Очсон'}
                       </Text>
                     </View>
-                    <Text style={styles.rowTime}>{timeAgo(v.arrived_at)}</Text>
-                  </View>
+                    <Text style={styles.actTime}>{timeAgo(v.arrived_at)}</Text>
+                    <Text style={styles.actChevron}>›</Text>
+                  </TouchableOpacity>
                 ))
               )}
             </ScrollView>
-          </>
-        )}
-      </View>
-    </View>
-  );
-}
+          </View>
+        </>
+      )}
 
-function Tab({ active, label, onPress }) {
-  const styles = useStyles(makeStyles);
-  return (
-    <TouchableOpacity
-      style={[styles.tab, active && styles.tabActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-    </TouchableOpacity>
+      {/* --- Ажилтан сонгох --- */}
+      <Modal visible={pickerOpen} transparent animationType="slide">
+        <Pressable style={styles.overlay} onPress={() => setPickerOpen(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.handle} />
+            <Text style={styles.sheetTitle}>Ажилтан сонгох</Text>
+            <ScrollView style={{ maxHeight: 420 }}>
+              {located.map((w) => (
+                <TouchableOpacity
+                  key={w.id}
+                  style={styles.pickRow}
+                  activeOpacity={0.8}
+                  onPress={() => pick(w)}
+                >
+                  <View style={[styles.rowAvatar, { borderColor: w.color }]}>
+                    {w.avatar_url ? (
+                      <Image source={{ uri: w.avatar_url }} style={styles.avatarImg} />
+                    ) : (
+                      <View style={[styles.markerFallback, { backgroundColor: w.color }]}>
+                        <Text style={styles.markerInitials}>{initials(w.name)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowName}>{w.name || 'Нэргүй'}</Text>
+                    <Text style={styles.rowSub} numberOfLines={1}>
+                      {w.visit?.customer ? `${w.visit.customer} · ` : ''}
+                      {timeAgo(w.last_seen)}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: isOnline(w) ? colors.success : colors.textFaint },
+                    ]}
+                  />
+                </TouchableOpacity>
+              ))}
+              {located.length === 0 ? <EmptyState text="Байршил илгээсэн ажилтан алга." /> : null}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
 const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  map: { flex: 1 },
+
   warnBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -289,51 +459,156 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
   warnText: { flex: 1, color: colors.text, fontSize: 12.5, lineHeight: 17 },
   warnAction: { color: colors.primary, fontSize: 12.5, fontWeight: '700' },
-  panel: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    marginTop: -radius.xl,
-    ...shadow.md,
-  },
-  note: { color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.md },
-  tabs: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
-  tabTextActive: { color: '#fff'},
-  row: {
+
+  // --- Хэнийг хянаж байна ---
+  picker: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
   },
-  dot: { width: 12, height: 12, borderRadius: 6, marginRight: spacing.md },
-  rowName: { color: colors.text, fontSize: 15, fontWeight: '700'},
-  rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  rowActivity: { color: colors.primary, fontSize: 12, marginTop: 2, fontWeight: '600'},
-  rowTime: { color: colors.textFaint, fontSize: 11 },
+  pickerAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+  },
+  avatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  pickerName: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  statusMuted: { color: colors.textFaint, fontSize: 12, flexShrink: 1 },
+  chevron: { color: colors.textFaint, fontSize: 20, paddingHorizontal: spacing.xs },
+
+  // --- Газрын зураг ---
+  mapWrap: {
+    flex: 1,
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+  },
+  map: { ...StyleSheet.absoluteFillObject },
+
+  floatCard: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.lg,
+  },
+  pinWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pin: { fontSize: 17 },
+  floatTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  floatSub: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
+  locBtn: { alignItems: 'center', paddingHorizontal: spacing.xs },
+  locBtnIcon: { color: colors.primary, fontSize: 17, transform: [{ rotate: '-45deg' }] },
+  locBtnText: { color: colors.primary, fontSize: 11, fontWeight: '700', marginTop: 2 },
+
+  // --- Сүүлийн үйл явдал ---
+  activity: {
+    height: '34%',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  activityHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  activityTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  activityLink: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  actRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
+  },
+  actIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actIconText: { fontSize: 16 },
+  actName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  actSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  actTime: { color: colors.textFaint, fontSize: 11 },
+  actChevron: { color: colors.textFaint, fontSize: 18, marginLeft: 2 },
+
+  // --- Сонгох цонх ---
+  overlay: { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.xl,
+    maxHeight: '80%',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderHi,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  sheetTitle: { color: colors.text, fontSize: 19, fontWeight: '800', marginBottom: spacing.md },
+  pickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
+  },
   rowAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    marginRight: spacing.md,
     overflow: 'hidden',
     backgroundColor: colors.surfaceAlt,
   },
-  rowAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover'},
+  rowName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+
+  // --- Газрын зураг дээрх тэмдэг ---
+  markerHalo: {
+    padding: 6,
+    borderRadius: 32,
+    backgroundColor: 'transparent',
+  },
   marker: {
     width: 48,
     height: 48,
@@ -343,7 +618,12 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadow.md,
   },
-  markerImg: { width: '100%', height: '100%', resizeMode: 'cover'},
-  markerFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center'},
+  markerImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  markerFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   markerInitials: { color: '#fff', fontWeight: '900', fontSize: 14 },
 });

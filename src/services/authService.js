@@ -4,7 +4,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
 import {
   ROLES,
-  isAdminRole,
+  normalizeRole,
+  isManagerRole,
   isSuperAdmin,
   filterVisibleProfiles,
   canManageProfile,
@@ -14,18 +15,33 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-async function getViewerRole() {
+/**
+ * Нэвтэрсэн хүний эрх БА хэлтэс.
+ *
+ * Зөвхөн эрхийг уншиж байсныг өргөтгөв: хэлтсийн хамрах хүрээг
+ * шалгахад `department_id` хэрэгтэй (ахлах зөвхөн өөрийн хэлтсийнхээ
+ * хүнийг засна).
+ */
+async function getViewer() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  return data?.role || null;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, role, department_id')
+    .eq('id', user.id)
+    .maybeSingle();
+  return data || null;
 }
 
-async function getProfileRole(userId) {
-  const { data } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
-  return data?.role || null;
+async function getTargetProfile(userId) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, role, department_id')
+    .eq('id', userId)
+    .maybeSingle();
+  return data || null;
 }
 
 export async function signIn(email, password) {
@@ -133,15 +149,19 @@ export async function updateProfile(userId, patch) {
 }
 
 export async function fetchEmployees() {
-  const viewerRole = await getViewerRole();
+  const viewer = await getViewer();
   const { data, error } = await supabase.rpc('admin_list_authorized_users');
   if (error) throw error;
   const rows = (data || []).map((item) => ({
     ...item,
     id: item.record_id,
     pending: !item.registered,
+    permissions: item.permissions || {},
   }));
-  return filterVisibleProfiles(rows, viewerRole);
+  // Сервер аль хэдийн зэрэглэл, хэлтсээр шүүсэн. Энд давхар шүүх нь
+  // зөвхөн UI-г цэгцлэх зорилготой (жишээ нь migration ажиллаагүй
+  // хуучин серверт).
+  return filterVisibleProfiles(rows, viewer);
 }
 
 /**
@@ -162,23 +182,26 @@ export async function fetchEmployees() {
 export async function fetchDirectory() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, last_name, email, position, phone, avatar_url, role, last_seen')
+    .select('id, name, last_name, email, position, phone, avatar_url, role, department_id, last_seen')
     .order('name', { ascending: true });
   if (error) throw error;
   return data || [];
 }
 
 export async function adminUpdateEmployee(userId, patch) {
-  const viewerRole = await getViewerRole();
-  if (!isAdminRole(viewerRole)) throw new Error('Зөвхөн админ засна.');
+  const viewer = await getViewer();
+  // Ахлах ч ажилтнаа засна — гэхдээ зөвхөн ӨӨРИЙН хэлтсийнхээ
+  // (шалгалт нь `canManageProfile` дотор, мөн серверийн RLS дээр).
+  if (!isManagerRole(viewer?.role)) throw new Error('Зөвхөн удирдлага засна.');
 
   if (String(userId).startsWith('pending:')) {
     throw new Error('Энэ Gmail-ээр хэрэглэгч хараахан нэвтрээгүй байна.');
   }
-  const targetRole = await getProfileRole(userId);
-  if (!canManageProfile(viewerRole, targetRole)) {
+  const target = await getTargetProfile(userId);
+  if (!canManageProfile(viewer, target)) {
     throw new Error('Энэ хэрэглэгчийг засах эрхгүй.');
   }
+  const viewerRole = viewer?.role;
 
   const clean = {};
   if (patch.name !== undefined) clean.name = String(patch.name).trim() || null;
@@ -186,19 +209,34 @@ export async function adminUpdateEmployee(userId, patch) {
   if (patch.address !== undefined) clean.address = String(patch.address).trim() || null;
   if (patch.position !== undefined) clean.position = String(patch.position).trim() || null;
   if (patch.phone !== undefined) clean.phone = String(patch.phone).trim() || null;
-  if (patch.role !== undefined) {
-    const nextRole = patch.role === ROLES.ADMIN ? ROLES.ADMIN : patch.role === ROLES.SUPERADMIN ? ROLES.SUPERADMIN : ROLES.EMPLOYEE;
-    if (!allowedAssignRole(viewerRole, nextRole)) {
-      throw new Error('Энэ эрхийг оноох боломжгүй.');
-    }
-    clean.role = nextRole;
-  }
   if (patch.can_take_calls !== undefined) {
     if (!isSuperAdmin(viewerRole)) {
       throw new Error('Дуудлагаар явах эрхийг зөвхөн Хөгжүүлэгч өгнө.');
     }
     clean.can_take_calls = !!patch.can_take_calls;
   }
+
+  // ⚠️ `role` болон `department_id` нь БАГАНА ТҮВШИНД хаалттай
+  //    (20260811110100_profiles_column_grants.sql, 20260817090000_...).
+  //    Шууд `update` хийвэл "permission denied for column" алдаа өгнө.
+  //    Тиймээс security definer RPC-ээр тусад нь солино.
+  if (patch.role !== undefined) {
+    const nextRole = normalizeRole(patch.role);
+    if (!allowedAssignRole(viewerRole, nextRole)) {
+      throw new Error('Энэ эрхийг оноох боломжгүй.');
+    }
+    if (nextRole !== normalizeRole(target?.role)) {
+      await adminSetUserRole(userId, nextRole);
+    }
+  }
+
+  if (patch.department_id !== undefined) {
+    const nextDept = patch.department_id || null;
+    if ((target?.department_id || null) !== nextDept) {
+      await adminSetUserDepartment(userId, nextDept);
+    }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .update(clean)
@@ -209,10 +247,20 @@ export async function adminUpdateEmployee(userId, patch) {
   return data;
 }
 
+/** Хэрэглэгчийг хэлтэст оноох / хэлтсээс хасах (`null`). */
+export async function adminSetUserDepartment(userId, departmentId) {
+  const { data, error } = await supabase.rpc('admin_set_user_department', {
+    target_id: userId,
+    p_department_id: departmentId || null,
+  });
+  if (error) throw new Error(mapDeleteError(error.message));
+  return data;
+}
+
 /** Системийн админ хэрэглэгчийн нууц үг солино */
 export async function adminResetUserPassword(userId, newPassword, forceChange = true) {
-  const viewerRole = await getViewerRole();
-  if (!isSuperAdmin(viewerRole)) {
+  const viewer = await getViewer();
+  if (!isSuperAdmin(viewer?.role)) {
     throw new Error('Зөвхөн системийн админ нууц үг солино.');
   }
   const pw = String(newPassword || '').trim();
@@ -273,12 +321,29 @@ export async function adminSetUserRole(userId, newRole) {
   return data;
 }
 
-// Админ Gmail хаягийг зөвшөөрнө. Хэрэглэгч Google-ээр анх нэвтрэхэд auth user/profile үүснэ.
-export async function adminCreateEmployee({ email, name, last_name, position, phone, address, role = ROLES.EMPLOYEE }) {
-  const viewerRole = await getViewerRole();
-  if (!isAdminRole(viewerRole)) throw new Error('Зөвхөн админ үүсгэнэ.');
-  const safeRole = role === ROLES.ADMIN ? ROLES.ADMIN : role === ROLES.SUPERADMIN ? ROLES.SUPERADMIN : ROLES.EMPLOYEE;
-  if (!allowedAssignRole(viewerRole, safeRole)) {
+/**
+ * Gmail хаягийг зөвшөөрнө. Хэрэглэгч Google-ээр анх нэвтрэхэд auth
+ * user/profile үүснэ.
+ *
+ * ХЭЛТЭС: `department_id` өгөөгүй бол сервер тал ҮҮСГЭГЧИЙН хэлтсийг
+ * автоматаар оноодог — ахлах "хэлтсээ сонгох"-оо мартаад ажилтнаа
+ * харьяалалгүй үлдээх эрсдэлгүй.
+ */
+export async function adminCreateEmployee({
+  email,
+  name,
+  last_name,
+  position,
+  phone,
+  address,
+  role = ROLES.EMPLOYEE,
+  department_id = null,
+}) {
+  const viewer = await getViewer();
+  // Ахлах ч ажилтан нэмнэ — өөрийн хэлтэст, зөвхөн "Ажилтан" эрхтэйгээр.
+  if (!isManagerRole(viewer?.role)) throw new Error('Зөвхөн удирдлага үүсгэнэ.');
+  const safeRole = normalizeRole(role);
+  if (!allowedAssignRole(viewer?.role, safeRole)) {
     throw new Error('Энэ эрхтэй хэрэглэгч үүсгэх боломжгүй.');
   }
   const { data, error } = await supabase.rpc('admin_authorize_gmail', {
@@ -289,7 +354,18 @@ export async function adminCreateEmployee({ email, name, last_name, position, ph
     p_phone: phone?.trim() || null,
     p_address: address?.trim() || null,
     p_role: safeRole,
+    p_department_id: department_id || null,
   });
   if (error) throw error;
+  return data;
+}
+
+/** Хэрэглэгчийн нарийвчилсан эрхийг хадгална — зөвхөн Хөгжүүлэгч. */
+export async function adminSetUserPermissions(userId, permissions) {
+  const { data, error } = await supabase.rpc('admin_set_user_permissions', {
+    target_id: userId,
+    p_permissions: permissions || {},
+  });
+  if (error) throw new Error(mapDeleteError(error.message));
   return data;
 }

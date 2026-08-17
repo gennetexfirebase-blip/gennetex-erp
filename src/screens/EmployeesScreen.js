@@ -11,6 +11,7 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, Button, Field, Badge, ScreenHeader, HeaderButton, EmptyState } from '../components/ui';
 import { spacing, radius } from '../theme';
@@ -21,21 +22,50 @@ import {
   canManageProfile,
   canAssignRoles,
   canDeleteProfile,
+  canManageDepartments,
   deleteBlockedReason,
   assignableRoles,
   isValidRole,
 } from '../lib/roles';
 import * as authApi from '../services/authService';
+import * as deptApi from '../services/departmentService';
+import * as localAccessApi from '../services/localAccessService';
+import { callEdge } from '../lib/edgeFunction';
 
-const EMPTY = { name: '', last_name: '', email: '', position: '', phone: '', address: '', role: 'employee' };
+const EMPTY = {
+  name: '',
+  last_name: '',
+  email: '',
+  position: '',
+  phone: '',
+  address: '',
+  role: 'employee',
+  department_id: null,
+};
 
 export default function EmployeesScreen() {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
-  const { isAdmin, isSuperAdmin: isSuperAdminUser, authProfile, fetchEmployees, adminCreateEmployee, adminUpdateEmployee } = useApp();
+  const navigation = useNavigation();
+  const {
+    isManager,
+    isSuperAdmin: isSuperAdminUser,
+    authProfile,
+    departmentId: myDepartmentId,
+    fetchEmployees,
+    adminCreateEmployee,
+    adminUpdateEmployee,
+  } = useApp();
   const mayAssignRoles = canAssignRoles(authProfile?.role);
-  // Тухайн хүн олгож болох эрхүүд — өөрөөсөө доош зэрэглэлтэй нь
+  // Тухайн хүн олгож болох эрхүүд — админ, ахлах зөвхөн "Ажилтан" нэмнэ
   const assignable = assignableRoles(authProfile?.role);
+  // Хэлтэс үүсгэх нь ЗӨВХӨН хөгжүүлэгчийн эрх — хэлтэс бол эрхийн хил.
+  const mayManageDepartments = canManageDepartments(authProfile?.role);
+  const [departments, setDepartments] = useState([]);
+  // Ажилтан нэмэх цонхон дотроос шинэ хэлтэс үүсгэх түр төлөв
+  const [deptDraft, setDeptDraft] = useState(null); // { name, kind } | null
+  const [deptSaving, setDeptSaving] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
   const [list, setList] = useState([]);
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -44,6 +74,7 @@ export default function EmployeesScreen() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
@@ -52,11 +83,52 @@ export default function EmployeesScreen() {
     } catch (e) {
       setError(e.message);
     }
+    // Хэлтсийн жагсаалт байхгүй ч ажилтны жагсаалт харагдах ёстой —
+    // тиймээс тусад нь, алдааг нь дардаг байдлаар уншина.
+    try {
+      setDepartments(await deptApi.fetchDepartments());
+    } catch (e) {
+      setDepartments([]);
+    }
   }, [fetchEmployees]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Хэлтсийн нэрийг id-аар нь олно (жагсаалт, дэлгэрэнгүйд). */
+  const departmentName = useCallback(
+    (id) => departments.find((d) => d.id === id)?.name || null,
+    [departments]
+  );
+
+  /**
+   * Google Sheet-ээс ажилтныг татаж бүртгэнэ.
+   *
+   * Sheet дээр шинэ мөр нэмэгдмэгц энд дарахад `authorized_users`-д
+   * орж, тэр хүн Google хаягаараа нэвтрэх боломжтой болно.
+   *
+   * ЭРХИЙГ ДАРААХГҮЙ: аппаас админ болгосон хүнийг sheet дээрх хуучин
+   * "Ажилтан" утга буцаагаад доошлуулбал эрх санамсаргүй алдагдана.
+   */
+  const syncFromSheet = async () => {
+    setSyncing(true);
+    try {
+      const { data } = await callEdge('sync-employees-sheet', {});
+      await load();
+      const lines = [
+        `Шинээр нэмэгдсэн: ${data.added}`,
+        `Шинэчлэгдсэн: ${data.updated}`,
+      ];
+      if (data.skipped) lines.push(`Алгасагдсан: ${data.skipped}`);
+      if (data.problems?.length) lines.push('\nАлдаа:\n' + data.problems.join('\n'));
+      Alert.alert('Sheet-ээс татлаа', lines.join('\n'));
+    } catch (e) {
+      Alert.alert('Синхрончлол', e.message || 'Алдаа гарлаа.');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -64,10 +136,70 @@ export default function EmployeesScreen() {
     setRefreshing(false);
   };
 
+  /**
+   * Хөгжүүлэгч: тухайн хүнээс PIN-ээ дахин тохируулахыг шаардах / цуцлах.
+   *
+   * PIN нь утсан дээр л байдаг тул эндээс "шинэ PIN тавьж өгөх" боломжгүй —
+   * зөвхөн хуучныг нь хүчингүй болгож, өөрөөр нь дахин үүсгүүлнэ.
+   */
+  const togglePinReset = async () => {
+    if (!editId || !editTarget) return;
+    const next = !editTarget.pin_reset_required;
+    setPinBusy(true);
+    try {
+      await localAccessApi.requirePinReset(editId, next);
+      setEditTarget((t) => (t ? { ...t, pin_reset_required: next } : t));
+      setList((prev) =>
+        prev.map((p) => (p.id === editId ? { ...p, pin_reset_required: next } : p))
+      );
+      Alert.alert(
+        next ? 'Шаардлаа' : 'Цуцаллаа',
+        next
+          ? 'Хэрэглэгч дараагийн удаа апп нээхэд шинэ PIN үүсгэнэ.'
+          : 'PIN шинэчлэх шаардлагыг цуцаллаа.'
+      );
+    } catch (e) {
+      Alert.alert('Боломжгүй', e.message);
+    } finally {
+      setPinBusy(false);
+    }
+  };
+
+  /**
+   * Ажилтан нэмэх цонхноос ШУУД шинэ хэлтэс үүсгэнэ.
+   *
+   * Хэлтсийг тусад нь дэлгэц дээр үүсгээд, буцаад ажилтан нэмэх рүү
+   * орох нь хоёр алхам болдог. Хөгжүүлэгч энд шууд үүсгээд, тэр
+   * хэлтэс нь сонгогдсон хэвээр үлдэнэ.
+   */
+  const createDepartment = async () => {
+    const name = String(deptDraft?.name || '').trim();
+    if (!name) {
+      setError('Хэлтсийн нэр шаардлагатай.');
+      return;
+    }
+    setDeptSaving(true);
+    try {
+      const created = await deptApi.createDepartment({ name, kind: deptDraft.kind });
+      setDepartments((prev) =>
+        [...prev, created].sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      );
+      setForm((f) => ({ ...f, department_id: created.id }));
+      setDeptDraft(null);
+      setError(null);
+    } catch (e) {
+      setError(deptApi.mapDepartmentError(e.message));
+    } finally {
+      setDeptSaving(false);
+    }
+  };
+
   const openCreate = () => {
     setEditId(null);
     setEditTarget(null);
-    setForm(EMPTY);
+    // Хэлтэстэй удирдагч (ахлах) шинэ ажилтнаа автоматаар өөрийн
+    // хэлтэст нэмнэ — сервер тал ч мөн адил албадана.
+    setForm({ ...EMPTY, department_id: myDepartmentId });
     setError(null);
     setModal(true);
   };
@@ -110,7 +242,8 @@ export default function EmployeesScreen() {
       Alert.alert('Google нэвтрэлт хүлээгдэж байна', 'Хэрэглэгч энэ Gmail хаягаараа анх нэвтэрсний дараа профайлыг засах боломжтой.');
       return;
     }
-    if (!canManageProfile(authProfile?.role, item.role)) {
+    // Бүтэн профайл дамжуулснаар зэрэглэлээс гадна ХЭЛТЭС нь шалгагдана.
+    if (!canManageProfile(authProfile, item)) {
       Alert.alert('Анхаар', 'Энэ хэрэглэгчийг засах эрхгүй.');
       return;
     }
@@ -127,6 +260,7 @@ export default function EmployeesScreen() {
       // employee болгож хаядаг байсан тул нярав, ахлах, захирал зэрэг
       // эрхтэй хүнийг засахад эрх нь ажилтан болж бууж байв.
       role: isValidRole(item.role) ? item.role : ROLES.EMPLOYEE,
+      department_id: item.department_id || null,
     });
     setError(null);
     setModal(true);
@@ -137,6 +271,7 @@ export default function EmployeesScreen() {
     setEditId(null);
     setEditTarget(null);
     setForm(EMPTY);
+    setDeptDraft(null);
     setError(null);
   };
 
@@ -159,6 +294,7 @@ export default function EmployeesScreen() {
           position: form.position.trim(),
           phone: form.phone.trim(),
           address: form.address.trim(),
+          department_id: form.department_id || null,
           ...(mayAssignRoles ? { role: form.role } : {}),
         });
         closeModal();
@@ -174,6 +310,7 @@ export default function EmployeesScreen() {
         phone: form.phone.trim(),
         address: form.address.trim(),
         role: mayAssignRoles ? form.role : ROLES.EMPLOYEE,
+        department_id: form.department_id || null,
       });
       const email = form.email.trim().toLowerCase();
       closeModal();
@@ -189,20 +326,34 @@ export default function EmployeesScreen() {
     }
   };
 
-  if (!isAdmin) {
+  if (!isManager) {
     return (
       <View style={styles.container}>
         <ScreenHeader title="Ажилчид"/>
-        <EmptyState text="Энэ хэсэг зөвхөн админд нээлттэй."/>
+        <EmptyState text="Энэ хэсэг зөвхөн удирдлагад нээлттэй."/>
       </View>
     );
   }
 
+  // Ахлах "миний хэлтэс"-ээ хардаг гэдгээ мэдэж байх ёстой — эс тэгвээс
+  // "яагаад бүх ажилтан харагдахгүй байна вэ" гэсэн эргэлзээ төрнө.
+  const scopeNote = myDepartmentId
+    ? `${departmentName(myDepartmentId) || 'Миний хэлтэс'} · ${list.length} хүн`
+    : `${list.length} бүртгэлтэй`;
+
   return (
     <View style={styles.container}>
       <ScreenHeader title="Ажилчид"
-        subtitle={`${list.length} бүртгэлтэй`}
-        right={<HeaderButton title="Нэмэх" onPress={openCreate} />}
+        subtitle={scopeNote}
+        right={
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <HeaderButton
+              title={syncing ? 'Татаж...' : 'Sheet'}
+              onPress={syncing ? undefined : syncFromSheet}
+            />
+            <HeaderButton title="Нэмэх" onPress={openCreate} />
+          </View>
+        }
       />
       <FlatList
         data={list}
@@ -234,6 +385,11 @@ export default function EmployeesScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{item.name || '—'}</Text>
                 <Text style={styles.sub}>{item.position || 'Ажилтан'} · {item.email}</Text>
+                {item.department_name || departmentName(item.department_id) ? (
+                  <Text style={styles.dept}>
+                    🏢 {item.department_name || departmentName(item.department_id)}
+                  </Text>
+                ) : null}
                 {item.pending ? <Text style={styles.pending}>Google нэвтрэлт хүлээгдэж байна</Text> : null}
                 {item.phone ? <Text style={styles.phone}>{item.phone}</Text> : null}
               </View>
@@ -263,6 +419,126 @@ export default function EmployeesScreen() {
               <Field label="Албан тушаал" value={form.position} onChangeText={(t) => setForm({ ...form, position: t })} />
               <Field label="Утас" keyboardType="phone-pad" value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} />
               <Field label="Хаяг" value={form.address} onChangeText={(t) => setForm({ ...form, address: t })} />
+
+              {/* --- Хэлтэс --- */}
+              {/* Хэлтэс нь эрхийн хил: тухайн хүн зөвхөн энэ хэлтсийн
+                  хүн, бараа, багажийг харна. Харьяалалтай удирдагч
+                  (менежер, ахлах) өөрийнхөөс өөр хэлтэс сонгож чадахгүй.
+                  Шинэ хэлтсийг ЗӨВХӨН хөгжүүлэгч энэ хэсгээс үүсгэнэ. */}
+              <Text style={styles.roleLabel}>Хэлтэс</Text>
+              {myDepartmentId ? (
+                <Text style={styles.otpHint}>
+                  {departmentName(myDepartmentId) || 'Миний хэлтэс'} — та зөвхөн
+                  өөрийн хэлтэст ажилтан нэмнэ.
+                </Text>
+              ) : (
+                <>
+                  {!departments.length && !mayManageDepartments ? (
+                    <Text style={styles.otpHint}>
+                      Хэлтэс бүртгэгдээгүй байна. Хөгжүүлэгч хэлтсийг үүсгэж,
+                      менежерийг нь томилно.
+                    </Text>
+                  ) : (
+                    <View style={styles.chipWrap}>
+                      <TouchableOpacity
+                        style={[styles.chip, !form.department_id && styles.chipOn]}
+                        onPress={() => setForm({ ...form, department_id: null })}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: !form.department_id }}
+                      >
+                        <Text style={[styles.chipText, !form.department_id && styles.chipTextOn]}>
+                          Харьяалалгүй
+                        </Text>
+                      </TouchableOpacity>
+                      {departments.map((d) => {
+                        const on = form.department_id === d.id;
+                        return (
+                          <TouchableOpacity
+                            key={d.id}
+                            style={[styles.chip, on && styles.chipOn]}
+                            onPress={() => setForm({ ...form, department_id: d.id })}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: on }}
+                          >
+                            <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                              {deptApi.kindIcon(d.kind)} {d.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                      {mayManageDepartments && !deptDraft ? (
+                        <TouchableOpacity
+                          style={[styles.chip, styles.chipAdd]}
+                          onPress={() => setDeptDraft({ name: '', kind: 'org' })}
+                          accessibilityRole="button"
+                          accessibilityLabel="Шинэ хэлтэс нэмэх"
+                        >
+                          <Text style={[styles.chipText, styles.chipTextOn]}>+ Шинэ хэлтэс</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  )}
+
+                  {/* Хэлтсийн гишүүд, бараа, багажийг харах */}
+                  {mayManageDepartments && departments.length > 0 && !deptDraft ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        closeModal();
+                        navigation.navigate('Departments');
+                      }}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.deptLink}>Хэлтсүүдийг харах, засах →</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {/* Шинэ хэлтэс — байгууллага эсвэл өрх */}
+                  {deptDraft ? (
+                    <View style={styles.deptBox}>
+                      <Text style={styles.deptBoxTitle}>Шинэ хэлтэс</Text>
+                      <View style={styles.chipWrap}>
+                        {deptApi.DEPARTMENT_KINDS.map((k) => {
+                          const on = deptDraft.kind === k.key;
+                          return (
+                            <TouchableOpacity
+                              key={k.key}
+                              style={[styles.chip, on && styles.chipOn]}
+                              onPress={() => setDeptDraft({ ...deptDraft, kind: k.key })}
+                              accessibilityRole="radio"
+                              accessibilityState={{ selected: on }}
+                            >
+                              <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                                {k.icon} {k.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      <Field
+                        label="Хэлтсийн нэр"
+                        value={deptDraft.name}
+                        onChangeText={(t) => setDeptDraft({ ...deptDraft, name: t })}
+                      />
+                      <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                        <Button
+                          title="Болих"
+                          variant="ghost"
+                          style={{ flex: 1 }}
+                          onPress={() => setDeptDraft(null)}
+                        />
+                        <Button
+                          title="Үүсгэх"
+                          style={{ flex: 1 }}
+                          onPress={createDepartment}
+                          loading={deptSaving}
+                          disabled={deptSaving}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+                </>
+              )}
+
               <Text style={styles.roleLabel}>Эрх</Text>
               {mayAssignRoles ? (
                 // Эрх бүрийг тайлбартай нь жагсаана. Товчны эгнээ болгосон
@@ -290,8 +566,50 @@ export default function EmployeesScreen() {
                   })}
                 </View>
               ) : (
-                <Text style={styles.otpHint}>Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ. Энгийн админ ажилтны мэдээлэл засна.</Text>
+                <Text style={styles.otpHint}>Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ. Админ, ахлах нь ажилтны мэдээлэл засна.</Text>
               )}
+
+              {/* --- Төхөөрөмжийн PIN — зөвхөн Хөгжүүлэгчид --- */}
+              {/* PIN нь хэрэглэгчийн утсанд шифрлэгдэн хадгалагддаг тул
+                  эндээс УНШИХ боломжгүй. Зөвхөн төлөвийг харж, мартсан
+                  тохиолдолд "дахин тохируул" гэж шаардана. */}
+              {editId && isSuperAdminUser && !editTarget?.pending ? (
+                <View style={styles.pinBox}>
+                  <Text style={styles.deptBoxTitle}>Төхөөрөмжийн PIN</Text>
+                  <Text style={styles.pinState}>
+                    {editTarget?.pin_reset_required
+                      ? '⚠️ Дахин тохируулахыг шаардсан. Хэрэглэгч апп нээхэд хуучин PIN нь устаж, шинийг үүсгэнэ.'
+                      : editTarget?.pin_set_at
+                        ? `Тохируулсан · ${new Date(editTarget.pin_set_at).toLocaleDateString('mn-MN')}`
+                        : 'Хараахан PIN тохируулаагүй байна.'}
+                  </Text>
+                  <Button
+                    title={
+                      editTarget?.pin_reset_required
+                        ? 'Шаардлагыг цуцлах'
+                        : 'PIN-ийг дахин тохируулуулах'
+                    }
+                    variant="ghost"
+                    loading={pinBusy}
+                    disabled={pinBusy}
+                    onPress={togglePinReset}
+                  />
+                </View>
+              ) : null}
+
+              {/* Хөгжүүлэгч хүн тус бүрийн эрхийг нэг бүрчлэн нээж, хаана. */}
+              {editId && isSuperAdminUser && !editTarget?.pending ? (
+                <Button
+                  title="Юу хийж чадахыг нь тохируулах"
+                  variant="ghost"
+                  style={{ marginBottom: spacing.md }}
+                  onPress={() => {
+                    const user = editTarget;
+                    closeModal();
+                    navigation.navigate('UserPermissions', { user });
+                  }}
+                />
+              ) : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <View style={styles.actions}>
                 <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={closeModal} />
@@ -350,7 +668,38 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   avatarLetter: { color: colors.primary, fontSize: 18, fontWeight: '800'},
   name: { color: colors.text, fontSize: 16, fontWeight: '800'},
   sub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  dept: { color: colors.primary, fontSize: 12, marginTop: 2, fontWeight: '600' },
   phone: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
+  chipOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  chipAdd: { borderStyle: 'dashed', borderColor: colors.primary },
+  chipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  chipTextOn: { color: colors.primary },
+  deptLink: { color: colors.primary, fontSize: 13, fontWeight: '600', marginBottom: spacing.md },
+  deptBox: {
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+  },
+  deptBoxTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: spacing.sm },
+  pinBox: {
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  pinState: { color: colors.textMuted, fontSize: 12, lineHeight: 18, marginBottom: spacing.sm },
   pending: { color: colors.warning, fontSize: 11, marginTop: 3, fontWeight: '700' },
   overlay: { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end'},
   sheet: {

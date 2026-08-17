@@ -12,7 +12,8 @@ import * as fuelApi from '../services/fuelService';
 import * as serviceCallApi from '../services/serviceCallService';
 import { calculateFuel } from '../lib/fuelCalc';
 import { withoutSampleByName, withoutSampleCalls } from '../lib/sampleNames';
-import { isAdminRole, isSuperAdmin, canTakeServiceCalls } from '../lib/roles';
+import { isAdminRole, isManagerRole, isSuperAdmin, canTakeServiceCalls } from '../lib/roles';
+import { hasPermission } from '../lib/permissions';
 import * as notificationService from '../services/notificationService';
 import * as bgLocation from '../services/backgroundLocationService';
 import * as shiftApi from '../services/shiftService';
@@ -248,6 +249,17 @@ export function AppProvider({ children }) {
 
   const isSuperAdminUser = isSuperAdmin(authProfile?.role);
   const isAdmin = isAdminRole(authProfile?.role);
+  /**
+   * Ахлах (менежер) ба түүнээс дээш.
+   *
+   * `isAdmin`-аас ялгаатай: ахлах багтана. Ахлах ажилтан, агуулахаа
+   * удирдана — гэхдээ ЗӨВХӨН ӨӨРИЙН ХЭЛТСИЙНХЭЭ (шүүлт нь серверийн
+   * RLS болон `roles.js` дээр).
+   */
+  const isManager = isManagerRole(authProfile?.role);
+  const departmentId = authProfile?.department_id || null;
+  /** Нарийвчилсан эрх — түвшний утга + хөгжүүлэгчийн тусгай тохиргоо. */
+  const can = useCallback((key) => hasPermission(authProfile, key), [authProfile]);
   const mustChangePassword = !!authProfile?.must_change_password;
   // Чат/ирцэд ашиглах нэгдсэн хэрэглэгч
   const currentUser = authProfile
@@ -319,27 +331,12 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Бараа олгох (ажилтан авах) — тоо хасаж, лог үүсгэнэ
-  const withdrawItem = async (item, qty, photoUrl) => {
-    const q = Math.max(1, Number(qty) || 0);
-    const newQty = Math.max(0, item.quantity - q);
-    setInventory((prev) => prev.map((it) => (it.id === item.id ? { ...it, quantity: newQty } : it)));
-    if (isSupabaseConfigured) {
-      try {
-        await invApi.withdrawInventory({
-          item,
-          userId: currentUser?.id,
-          userName: currentUser?.name,
-          qty: q,
-          photoUrl,
-        });
-      } catch (e) {
-        setSyncError(e.message);
-      }
-    }
-    return newQty;
-  };
-
+  /**
+   * Бараа/багаж олгох — ЗӨВХӨН админ.
+   *
+   * Ажилтан өөрөө агуулахаас хасах (withdrawItem) зам байсныг санаатай
+   * устгасан: хэн юуг авсныг зөвхөн олгосон админ баталгаажуулна.
+   */
   const giveItemToEmployee = async (item, employee, qty, photoUrl) => {
     const q = Math.max(1, Number(qty) || 0);
     const newQty = Math.max(0, item.quantity - q);
@@ -553,7 +550,10 @@ export function AppProvider({ children }) {
     authLoading,
     authError,
     isAdmin,
+    isManager,
     isSuperAdmin: isSuperAdminUser,
+    departmentId,
+    can,
     mustChangePassword,
     currentUser,
     signIn,
@@ -574,7 +574,6 @@ export function AppProvider({ children }) {
     updateInventoryItem,
     adjustQuantity,
     removeInventoryItem,
-    withdrawItem,
     giveItemToEmployee,
     consumeItem,
     fetchMyStock,

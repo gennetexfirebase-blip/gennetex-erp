@@ -54,22 +54,32 @@ export async function logVisit({
   if (error) throw error;
 }
 
-// Админ: бүх ажилчдын одоогийн байршил (зурагтай)
+/**
+ * Админ: ажилчдын одоогийн байршил (зурагтай).
+ *
+ * Хэлтэстэй удирдагч (ахлах) ЗӨВХӨН өөрийн хэлтсийнхнийг харна —
+ * тиймээс харагчийн болон ажилтнуудын `department_id`-г уншиж,
+ * `filterVisibleProfiles`-д бүтэн профайл дамжуулна.
+ */
 export async function fetchWorkers() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  let viewerRole = null;
+  let viewer = null;
   if (user) {
-    const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    viewerRole = p?.role || null;
+    const { data: p } = await supabase
+      .from('profiles')
+      .select('id, role, department_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    viewer = p || null;
   }
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, role, avatar_url, latitude, longitude, last_seen')
+    .select('id, name, role, avatar_url, latitude, longitude, last_seen, department_id')
     .order('name', { ascending: true });
   if (error) throw error;
-  return filterVisibleProfiles(withoutSampleByName(data || []), viewerRole);
+  return filterVisibleProfiles(withoutSampleByName(data || []), viewer);
 }
 
 export async function fetchVisitLogs(limit = 50) {
