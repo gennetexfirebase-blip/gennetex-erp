@@ -30,6 +30,21 @@ export function navigateFromNotification(data) {
         title: 'Чат',
       });
       break;
+    case 'jitsi_call':
+      /**
+       * Jitsi өрөөгөөр залгасан дуудлага.
+       *
+       * Залгагч тал нь native WebRTC-гүй орчинд (Expo Go) байгаа тул
+       * хоёулаа НЭГ Jitsi өрөөнд уулзана. Мэдэгдэл дарахад чатыг нээж,
+       * дуудлагын цонхыг ШУУД нээнэ — хэрэглэгч дахин товч хайх
+       * шаардлагагүй.
+       */
+      navigationRef.navigate('Conversation', {
+        conversationId: data.room,
+        title: data.callerName || 'Дуудлага',
+        autoJoinCall: true,
+      });
+      break;
     case 'call':
       // Хуучин Jitsi дуудлагын мэдэгдэл — чат руу
       navigationRef.navigate('MainTabs', { screen: 'Chat' });

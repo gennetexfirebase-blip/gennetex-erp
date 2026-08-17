@@ -288,10 +288,34 @@ function Root({ shareRef }) {
     setLocalUnlocked(false);
   }, [session?.user?.id]);
 
+  /**
+   * Ар тал руу орсны дараа хэдийд дахин түгжих вэ.
+   *
+   * ⚠️ ЗАСВАР: урьд нь `background` болмогц ШУУД түгждэг байсан. Гэвч
+   *    камер/микрофоны зөвшөөрлийн цонх, дэлгэц хуваалцах хүсэлт, Jitsi
+   *    зэрэг нь аппыг хормын төдийд ар тал руу гаргадаг. Үүнээс болж
+   *    "Live" эсвэл дуут бичлэг дарахад л PIN дэлгэц үсэрч, ажил
+   *    тасалддаг байв.
+   *
+   *    Одоо ар талд ТОДОРХОЙ ХУГАЦААНААС удаан байсан үед л түгжинэ.
+   *    Аюулгүй байдал хэвээр — утсаа орхиод явбал түгжигдэнэ, харин
+   *    системийн цонх гарч ирээд буцахад түгжихгүй.
+   */
+  const backgroundedAt = useRef(null);
+  const LOCK_AFTER_MS = 60 * 1000;
+
   useEffect(() => {
     if (!session) return undefined;
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'background') setLocalUnlocked(false);
+      if (nextState === 'background') {
+        backgroundedAt.current = Date.now();
+        return;
+      }
+      if (nextState === 'active') {
+        const away = backgroundedAt.current ? Date.now() - backgroundedAt.current : 0;
+        if (away > LOCK_AFTER_MS) setLocalUnlocked(false);
+        backgroundedAt.current = null;
+      }
     });
     return () => subscription.remove();
   }, [session?.user?.id]);

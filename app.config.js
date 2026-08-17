@@ -9,9 +9,19 @@ const isNativeBuild =
   process.env.EXPO_USE_DEV_CLIENT === '1' ||
   process.env.NODE_ENV === 'production';
 
+/**
+ * Expo Go-д ачаалагдахгүй plugin-ууд.
+ *
+ * ⚠️ `react-native-full-screen-notification-incoming-call`-ийг ЭНДЭЭС ХАСЛАА:
+ *    Тэр plugin нь `IncomingCallActivity` зэргийг AndroidManifest-д нэмдэг.
+ *    Шүүгдэж хаягдсан үед `android/` үүссэн тул манифестэд огт ороогүй бөгөөд
+ *    ирэх дуудлагын БҮТЭН ДЭЛГЭЦ хэзээ ч гардаггүй байв.
+ *
+ *    Config plugin нь зөвхөн prebuild үед native төслийг өөрчилдөг — Expo Go
+ *    түүнийг ашигладаггүй тул жагсаалтад үлдээх шаардлагагүй.
+ */
 const NATIVE_ONLY_PLUGINS = new Set([
   'expo-dev-client',
-  'react-native-full-screen-notification-incoming-call',
 ]);
 
 const androidGoogleServices = './google-services.json';
@@ -30,6 +40,26 @@ module.exports = ({ config }) => {
   return {
     ...config,
     plugins,
+    /**
+     * AI түлхүүрүүд.
+     *
+     * ⚠️ ЭНЭ ДУТУУ БАЙСАН: `gennetexAiService` нь түлхүүрээ
+     *    `Constants.expoConfig.extra.geminiApiKey`-ээс уншдаг ч түүнийг
+     *    хаанаас ч бөглөдөггүй байсан тул үргэлж `undefined` буцаж,
+     *    "AI тохируулаагүй байна" гэсэн алдаа гардаг байв.
+     *
+     * ⚠️ НУУЦЛАЛЫН АНХААРУУЛГА: `extra` ч, `EXPO_PUBLIC_*` ч хоёулаа
+     *    APK дотор ИЛ үлддэг. Задалсан хүн түлхүүрийг олж чадна.
+     *    Урт хугацаанд Gemini дуудлагыг Edge Function-оор дамжуулж,
+     *    түлхүүрийг зөвхөн серверт байлгах нь зөв.
+     */
+    extra: {
+      ...(config.extra || {}),
+      geminiApiKey:
+        process.env.EXPO_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || undefined,
+      youtubeApiKey:
+        process.env.EXPO_PUBLIC_YOUTUBE_API_KEY || config.extra?.youtubeApiKey || undefined,
+    },
     android: {
       ...config.android,
       ...(fs.existsSync(androidGoogleServices) ? { googleServicesFile: androidGoogleServices } : {}),

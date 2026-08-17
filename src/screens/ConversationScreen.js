@@ -155,6 +155,11 @@ export default function ConversationScreen() {
   const [text, setText] = useState('');
   const [error, setError] = useState(null);
   const [callVisible, setCallVisible] = useState(false);
+
+  // Мэдэгдэл дарж орж ирсэн бол дуудлагын өрөөг шууд нээнэ.
+  useEffect(() => {
+    if (route.params?.autoJoinCall) setCallVisible(true);
+  }, [route.params?.autoJoinCall]);
   const [uploading, setUploading] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const [voicePreview, setVoicePreview] = useState('');
@@ -431,7 +436,9 @@ export default function ConversationScreen() {
           type: 'call',
           channelId: 'calls',
           sound: 'incoming_call.wav',
-          data: { type: 'chat', room },
+          // `jitsi_call` — хүлээн авагч мэдэгдлээ дармагц ижил Jitsi
+          // өрөөнд шууд орно (src/lib/navigationRef.js).
+          data: { type: 'jitsi_call', room, callerName: me?.name || 'Ажилтан' },
         });
       } catch (e) {
         // Мэдэгдэл явахгүй ч дуудлагын өрөө нээгдэх ёстой.
