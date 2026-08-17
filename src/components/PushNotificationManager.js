@@ -6,6 +6,7 @@ import * as notifyApi from '../services/notificationService';
 import { startIncomingCallAlert, stopIncomingCallAlert } from '../services/callAlertService';
 import { navigateFromNotification } from '../lib/navigationRef';
 import { getActiveChatRoom } from '../lib/chatFocus';
+import { canUseRemotePush } from '../lib/runtimeEnv';
 import { supabase } from '../lib/supabase';
 import { registerBackgroundCallTask } from '../services/incomingCallBackgroundTask';
 import {
@@ -56,7 +57,22 @@ export default function PushNotificationManager() {
         if (!msg || msg.sender_id === currentUser.id) return;
         if (!memberRooms.current.has(msg.room)) return;
         if (msg.room === getActiveChatRoom()) return;
-        if (AppState.currentState !== 'active') return;
+
+        /**
+         * Апп идэвхгүй үед локал мэдэгдэл харуулах эсэх.
+         *
+         * ХУУЧИН ЗАН: `AppState !== 'active'` бол ҮРГЭЛЖ зогсоодог байв.
+         * Учир нь background дээр жинхэнэ FCM push ирэх ёстой, эс тэгвээс
+         * хоёр мэдэгдэл давхарлана.
+         *
+         * АСУУДАЛ: FCM боломжгүй орчинд (Expo Go) background дээр ЮУ Ч
+         * ирэхгүй болно — хэрэглэгч "мэдэгдэл огт ирэхгүй" гэж үзнэ.
+         *
+         * ОДОО: зөвхөн алсын push ЖИНХЭНЭЭР боломжтой үед л зогсооно.
+         * Expo Go дээр апп ар талд байхад ч мэдэгдэл харагдана (процесс
+         * амьд байх хугацаанд — бүрэн хаагдсан үед Realtime тасарна).
+         */
+        if (canUseRemotePush && AppState.currentState !== 'active') return;
 
         const preview =
           msg.content ||

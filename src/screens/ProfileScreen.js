@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
+import { getPushDiagnostics, enablePushForUser } from '../services/notificationService';
 import {
   MODES,
   MODE_OPTIONS,
@@ -55,7 +56,47 @@ export default function ProfileScreen() {
   const [showQr, setShowQr] = useState(false);
   // Гүйцэтгэлийн горим — сул утсанд аппыг хөнгөлнө
   const [perf, setPerf] = useState(() => getPerformanceState());
+  const [pushChecking, setPushChecking] = useState(false);
   useEffect(() => subscribePerformance(setPerf), []);
+
+  /**
+   * Мэдэгдэл яагаад ирэхгүй байгааг шалгаж, ойлгомжтой хариу өгнө.
+   * Алхам бүр (зөвшөөрөл -> Firebase -> token -> сан) тусад нь харагдана.
+   */
+  const checkPush = async () => {
+    if (!authProfile?.id) return;
+    setPushChecking(true);
+    try {
+      const d = await getPushDiagnostics(authProfile.id);
+      const lines = [
+        `Орчин: ${d.environment}`,
+        `Зөвшөөрөл: ${d.permission}`,
+        `Firebase модуль: ${d.firebaseModule ? 'байна' : 'алга'}`,
+        `Token: ${d.token ? d.token.slice(0, 14) + '…' : 'алга'}`,
+        `Санд хадгалагдсан: ${d.savedInDb ? 'тийм' : 'үгүй'}`,
+      ];
+      if (d.problem) lines.push('', `⚠️ ${d.problem}`);
+      else lines.push('', '✅ Бүх шалгалт хэвийн. Апп хаалттай үед мэдэгдэл ирэх ёстой.');
+
+      Alert.alert('Мэдэгдлийн шалгалт', lines.join('\n'), [
+        { text: 'Хаах', style: 'cancel' },
+        {
+          text: 'Дахин бүртгүүлэх',
+          onPress: async () => {
+            const res = await enablePushForUser(authProfile.id);
+            Alert.alert(
+              'Мэдэгдэл',
+              res?.ok ? 'Төхөөрөмж дахин бүртгэгдлээ.' : 'Бүртгэж чадсангүй. Зөвшөөрлөө шалгана уу.'
+            );
+          },
+        },
+      ]);
+    } catch (e) {
+      Alert.alert('Мэдэгдлийн шалгалт', e?.message || 'Шалгахад алдаа гарлаа.');
+    } finally {
+      setPushChecking(false);
+    }
+  };
   const [form, setForm] = useState({
     name: authProfile?.name || '',
     position: authProfile?.position || '',
@@ -289,6 +330,15 @@ export default function ProfileScreen() {
         {/* --- QR --- */}
         {authProfile && !isAdmin ? (
           <>
+            <GroupLabel>Мэдэгдэл</GroupLabel>
+            <ListGroup>
+              <ListRow
+                icon="🔔"
+                label={pushChecking ? 'Шалгаж байна…' : 'Мэдэгдэл ирэхгүй бол шалгах'}
+                onPress={pushChecking ? undefined : checkPush}
+              />
+            </ListGroup>
+
             <GroupLabel>Гүйцэтгэл</GroupLabel>
             <ListGroup>
               {MODE_OPTIONS.map((opt) => (

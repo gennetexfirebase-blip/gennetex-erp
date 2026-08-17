@@ -104,6 +104,80 @@ export async function registerForPushNotificationsAsync() {
   }
 }
 
+/**
+ * Мэдэгдлийн оношилгоо — "яагаад ирэхгүй байна вэ" гэдгийг ХАРУУЛНА.
+ *
+ * Push ирэхгүй байх шалтгаан олон давхар: зөвшөөрөл, Firebase тохиргоо,
+ * token үүсэх, түүнийг санд хадгалах. Аль нь тасарсныг гаднаас таах
+ * боломжгүй тул алхам бүрийг шалгаж, ойлгомжтой хариу буцаана.
+ */
+export async function getPushDiagnostics(userId) {
+  const out = {
+    environment: isExpoGo ? 'Expo Go' : 'APK / development build',
+    remoteSupported: !isExpoGo && Platform.OS !== 'web',
+    isRealDevice: !!Device.isDevice,
+    permission: 'тодорхойгүй',
+    firebaseModule: false,
+    token: null,
+    savedInDb: false,
+    problem: null,
+  };
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    out.permission = status;
+  } catch (e) {
+    out.permission = 'алдаа';
+  }
+
+  if (!out.isRealDevice) {
+    out.problem = 'Симулятор дээр push ажиллахгүй.';
+    return out;
+  }
+  if (isExpoGo) {
+    out.problem = 'Expo Go нь алсын push дэмжихгүй. Апп нээлттэй үед л мэдэгдэл харагдана.';
+    return out;
+  }
+  if (out.permission !== 'granted') {
+    out.problem = 'Мэдэгдлийн зөвшөөрөл өгөөгүй. Тохиргоо → Апп → Мэдэгдэл-ээс асаана уу.';
+    return out;
+  }
+
+  const messaging = nativeMessaging();
+  out.firebaseModule = !!messaging;
+  if (!messaging) {
+    out.problem = 'Firebase модуль ачаалагдсангүй. Шинэ APK (1.0.7+) суулгана уу.';
+    return out;
+  }
+
+  try {
+    await messaging.registerDeviceForRemoteMessages();
+    out.token = await messaging.getToken();
+  } catch (e) {
+    out.problem = `Token авч чадсангүй: ${e?.message || e}`;
+    return out;
+  }
+  if (!out.token) {
+    out.problem = 'Firebase token хоосон буцлаа. google-services.json тохиргоог шалгана уу.';
+    return out;
+  }
+
+  try {
+    const { data } = await supabase
+      .from('push_tokens')
+      .select('token, active')
+      .eq('user_id', userId)
+      .eq('token', out.token)
+      .maybeSingle();
+    out.savedInDb = !!data?.active;
+    if (!out.savedInDb) out.problem = 'Token үүссэн ч санд хадгалагдаагүй байна.';
+  } catch (e) {
+    out.problem = `Санд шалгахад алдаа: ${e?.message || e}`;
+  }
+
+  return out;
+}
+
 export async function enablePushForUser(userId) {
   const token = await registerForPushNotificationsAsync();
   if (!token) return { ok: false, reason: 'permission'};
