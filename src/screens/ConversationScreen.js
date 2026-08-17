@@ -146,7 +146,7 @@ export default function ConversationScreen() {
   const styles = useStyles(makeStyles);
   const { conversationId, title, isGroup, otherUser, memberCount, groupAvatarUrl: initialGroupAvatar } = route.params || {};
   const { currentUser, isCloud } = useApp();
-  const { placeCall } = useCall();
+  const { placeCall, callingAvailable } = useCall();
   const me = currentUser;
   const room = conversationId;
 
@@ -404,6 +404,28 @@ export default function ConversationScreen() {
       Alert.alert('Дуудлага', 'Хэн рүү залгахаа олсонгүй.');
       return;
     }
+
+    /**
+     * Native WebRTC байхгүй үед (Expo Go) — Jitsi өрөөгөөр залгана.
+     *
+     * Групп дуудлага аль хэдийн энэ замаар явдаг бөгөөд WebView дээр
+     * суурилдаг тул Expo Go дээр ч ажилладаг. Өмнө нь 1-1 дуудлага
+     * зөвхөн native замтай байсан тул Expo Go дээр "модуль байхгүй"
+     * гэж мухардаж байв.
+     *
+     * ⚠️ ЯЛГАА: энэ замд ХОНХ дуугарахгүй (native дуудлагын дэлгэц
+     *    гарахгүй). Тиймээс нөгөө талдаа юу хийхийг нь чатаар хэлнэ.
+     *    APK/development build дээр хэвээр native дуудлага ажиллана.
+     */
+    if (!callingAvailable) {
+      setCallVisible(true);
+      await send(
+        `${type === 'audio' ? 'Дуу' : 'Видео'} дуудлага эхэллээ. `
+          + 'Нэгдэхийн тулд энэ чатнаас дуудлагын товчийг дарна уу.'
+      );
+      return;
+    }
+
     await placeCall(
       { id: otherUser.id, name: otherUser.name, avatar: otherUser.avatar_url || null },
       type
