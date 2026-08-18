@@ -119,14 +119,28 @@ function parsePayload(raw) {
   }
 }
 
+/**
+ * ⚠️ ОБЪЕКТ буцаана — ТЭМДЭГТ МӨР БИШ.
+ *
+ * Сан нь native талдаа `foregroundOptions.getMap("payload")` гэж уншдаг
+ * (FullScreenNotificationIncomingCallModule.java:74). Тэмдэгт мөр
+ * дамжуулбал `getMap` нь ClassCastException шидэж, `displayNotification`
+ * бүхэлдээ унана.
+ *
+ * Урьд нь `JSON.stringify(...)` буцаадаг байсан тул дуудлагын дэлгэц
+ * ХЭЗЭЭ Ч гардаггүй байв — апп нээлттэй байсан ч, түгжээтэй байсан ч.
+ *
+ * Буцаж ирэхдээ (`answer`/`endCall` эвэнт) JSON мөр болж ирдэг тул
+ * `parsePayload` нь хоёуланг таньдаг.
+ */
 function buildPayload(call) {
-  return JSON.stringify({
+  return {
     callId: String(call.id || ''),
     room: String(call.room || ''),
     callerId: String(call.caller_id || ''),
     callerName: String(call.caller_name || 'Ажилтан'),
     callType: call.type === 'video' ? 'video' : 'audio',
-  });
+  };
 }
 
 /** Android — утасны системийн дуудлагын дэлгэц (түгжээтэй/background) */
