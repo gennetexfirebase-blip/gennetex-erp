@@ -17,6 +17,8 @@ import {
   openSignaling,
   createCallSession,
   hasTurn,
+  ensureCallPermissions,
+  permissionProblemText,
 } from '../services/webrtcService';
 import { startIncomingCallAlert, stopIncomingCallAlert } from '../services/callAlertService';
 import {
@@ -250,6 +252,16 @@ export function CallProvider({ children }) {
       }
 
       const video = type === 'video';
+
+      // Микрофон/камерын зөвшөөрлийг дуудлага ҮҮСГЭХЭЭС ӨМНӨ авна.
+      // Зөвшөөрөлгүйгээр WebRTC-ийн native дуу авагч эхлэхээ оролдоод
+      // аппыг бүхэлд нь унагадаг (JS try/catch барихгүй).
+      const perm = await ensureCallPermissions(video);
+      if (!perm.ok) {
+        Alert.alert('Дуудлага', permissionProblemText(perm.missing));
+        return;
+      }
+
       let started;
       try {
         started = await voip.startCall(peer.id, type);
@@ -430,6 +442,16 @@ export function CallProvider({ children }) {
       }
 
       const video = target.type === 'video';
+
+      // Хариулах талд ч зөвшөөрлийг ЭХЛЭЭД авна — эс тэгвээс дуудлага
+      // хүлээж авмагц native дуу авагч эхлэхээ оролдоод апп унана.
+      const perm = await ensureCallPermissions(video);
+      if (!perm.ok) {
+        voip.declineCall(target.id).catch(() => {});
+        Alert.alert('Дуудлага', permissionProblemText(perm.missing));
+        return;
+      }
+
       try {
         await voip.acceptCall(target.id);
       } catch (e) {

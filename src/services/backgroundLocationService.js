@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import * as Application from 'expo-application';
 import * as tracking from './trackingService';
 import { isExpoGo } from '../lib/runtimeEnv';
@@ -214,6 +214,52 @@ export async function openBatterySettings() {
 }
 
 /** Арын хяналт яагаад ажиллахгүй байгааг хүнд ойлгомжтой хэлнэ. */
+/**
+ * Байршлын хяналтын оношилгоо — "яагаад зөвхөн апп дотор ажиллаж
+ * байна вэ" гэдгийг ХАРУУЛНА.
+ *
+ * Хамгийн түгээмэл шалтгаан: Android 11-ээс хойш "Байнга зөвшөөрөх"
+ * сонголтыг систем автоматаар асуудаггүй — хэрэглэгч Тохиргоо руу
+ * ороод ГАРААР сонгох ёстой. Зөвхөн "Апп ашиглаж байхад" гэж
+ * сонгосон бол апп хаагдмагц байршил зогсоно.
+ */
+export async function getLocationDiagnostics() {
+  const out = {
+    servicesEnabled: false,
+    foreground: 'тодорхойгүй',
+    background: 'тодорхойгүй',
+    tracking: false,
+    user: null,
+  };
+  try {
+    out.servicesEnabled = await Location.hasServicesEnabledAsync();
+  } catch (e) {}
+  try {
+    out.foreground = (await Location.getForegroundPermissionsAsync()).status;
+  } catch (e) {}
+  try {
+    out.background = (await Location.getBackgroundPermissionsAsync()).status;
+  } catch (e) {}
+  try {
+    out.tracking = await isTracking();
+  } catch (e) {}
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    out.user = raw ? (JSON.parse(raw)?.name || 'бүртгэлтэй') : null;
+  } catch (e) {}
+  return out;
+}
+
+/** Аппын тохиргооны хуудсыг нээнэ — зөвшөөрөл гараар өөрчлөх. */
+export async function openAppSettings() {
+  try {
+    await Linking.openSettings();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function trackingProblemText(reason) {
   switch (reason) {
     case 'no-foreground-permission':

@@ -22,7 +22,16 @@ import {
 import {
   getIncomingCallDiagnostics,
   showNativeIncomingCall,
+  openFullScreenIntentSettings,
+  openPhoneAccountSettings,
+  refreshPhoneAccountState,
 } from '../services/nativeIncomingCallService';
+import {
+  getLocationDiagnostics,
+  openAppSettings,
+  startTracking,
+  trackingProblemText,
+} from '../services/backgroundLocationService';
 import {
   MODES,
   MODE_OPTIONS,
@@ -127,28 +136,56 @@ export default function ProfileScreen() {
    * Энэ товч (а)-г тусад нь шалгана — 3 секундын дараа дуудлага гаргана,
    * тэр хооронд утсаа түгжиж болно.
    */
-  const testIncomingCall = () => {
+  /**
+   * Ирэх дуудлагын дэлгэцийн оношилгоо.
+   *
+   * Хамгийн түгээмэл ХОЁР шалтгаан нь ЗӨВШӨӨРӨЛ бөгөөд хоёулаа код
+   * дотроос асаах боломжгүй — хэрэглэгч тохиргооноос гараар өгнө:
+   *   1. Android 14+ — "Бүтэн дэлгэцийн мэдэгдэл". Хаалттай бол систем
+   *      бүтэн дэлгэцийн оронд энгийн мэдэгдэл харуулна (алдаа гаргахгүй).
+   *   2. Дуудлагын данс (Telecom) — унтраалттай бол системийн дуудлагын
+   *      дэлгэц огт гарахгүй.
+   */
+  const testIncomingCall = async () => {
+    await refreshPhoneAccountState();
     const d = getIncomingCallDiagnostics();
     const lines = [
-      `Платформ: ${d.platform}`,
+      `Платформ: ${d.platform}${d.androidVersion ? ` (API ${d.androidVersion})` : ''}`,
       `Системийн дуудлага: ${d.systemCall ? (d.systemCallReady ? 'бэлэн' : 'тохируулагдаагүй') : 'алга'}`,
+      `Дуудлагын данс: ${
+        d.phoneAccountEnabled === true
+          ? 'идэвхтэй'
+          : d.phoneAccountEnabled === false
+          ? 'УНТРААЛТТАЙ'
+          : 'тодорхойгүй'
+      }`,
       `Нөөц дэлгэц: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
       `Сонсогч бэлэн: ${d.listenersReady ? 'тийм' : 'үгүй'}`,
     ];
     if (d.systemCallError) lines.push(`⚠️ Систем: ${d.systemCallError}`);
     if (d.error) lines.push('', `⚠️ ${d.error}`);
 
-    if (!d.canDisplay && !d.systemCall) {
-      lines.push('', 'Дуудлагын дэлгэц гаргах боломжгүй байна.');
-      Alert.alert('Ирэх дуудлага', lines.join('\n'));
-      return;
+    if (d.phoneAccountEnabled === false) {
+      lines.push('', '⚠️ Дуудлагын данс унтраалттай тул системийн дуудлагын дэлгэц гарахгүй.');
+    }
+    if (Number(d.androidVersion) >= 34) {
+      lines.push(
+        '',
+        'ℹ️ Android 14+ дээр "Бүтэн дэлгэцийн мэдэгдэл" зөвшөөрөл ХААЛТТАЙ ирдэг. ' +
+          'Хаалттай үед дуудлага бүтэн дэлгэцийн оронд энгийн мэдэгдэл болж харагдана.'
+      );
     }
 
-    lines.push('', '3 секундын дараа тест дуудлага гарна. Утсаа түгжиж үзээрэй.');
-    Alert.alert('Ирэх дуудлага', lines.join('\n'), [
-      { text: 'Болих', style: 'cancel' },
-      {
-        text: 'Тест эхлүүлэх',
+    const buttons = [
+      { text: 'Хаах', style: 'cancel' },
+      { text: 'Бүтэн дэлгэц', onPress: () => openFullScreenIntentSettings() },
+    ];
+    if (d.phoneAccountEnabled === false) {
+      buttons.push({ text: 'Дуудлагын данс', onPress: () => openPhoneAccountSettings() });
+    }
+    if (d.canDisplay || d.systemCall) {
+      buttons.push({
+        text: 'Тест (3 сек)',
         onPress: () => {
           setTimeout(() => {
             showNativeIncomingCall({
@@ -158,7 +195,41 @@ export default function ProfileScreen() {
             });
           }, 3000);
         },
-      },
+      });
+    }
+
+    Alert.alert('Ирэх дуудлага', lines.join('\n'), buttons);
+  };
+
+  /**
+   * Байршил зөвхөн апп дотор ажиллаж байгаа шалтгааныг харуулна.
+   *
+   * Android 11+ дээр "Байнга зөвшөөрөх"-ийг систем автоматаар асуудаггүй —
+   * Тохиргооноос гараар сонгох ёстой. Тэрийг сонгоогүй бол апп хаагдмагц
+   * байршил илгээхээ болино.
+   */
+  const checkLocation = async () => {
+    const d = await getLocationDiagnostics();
+    const bgOk = d.background === 'granted';
+    const lines = [
+      `Байршлын үйлчилгээ: ${d.servicesEnabled ? 'асаалттай' : 'унтраалттай'}`,
+      `Апп ашиглаж байхад: ${d.foreground}`,
+      `Байнга (арын): ${d.background}`,
+      `Хяналт идэвхтэй: ${d.tracking ? 'тийм' : 'үгүй'}`,
+    ];
+    if (!bgOk) {
+      lines.push('', `⚠️ ${trackingProblemText('no-background-permission')}`);
+    } else if (!d.tracking) {
+      lines.push('', '⚠️ Зөвшөөрөл бий ч хяналт эхлээгүй байна.');
+    } else {
+      lines.push('', '✅ Апп хаалттай үед ч байршил илгээгдэнэ.');
+    }
+
+    Alert.alert('Байршлын шалгалт', lines.join('\n'), [
+      { text: 'Хаах', style: 'cancel' },
+      ...(bgOk
+        ? [{ text: 'Дахин эхлүүлэх', onPress: () => startTracking(authProfile).catch(() => {}) }]
+        : [{ text: 'Тохиргоо нээх', onPress: () => openAppSettings() }]),
     ]);
   };
 
@@ -445,6 +516,11 @@ export default function ProfileScreen() {
                 icon="📞"
                 label="Ирэх дуудлагын дэлгэц шалгах"
                 onPress={testIncomingCall}
+              />
+              <ListRow
+                icon="📍"
+                label="Байршил хяналт шалгах"
+                onPress={checkLocation}
               />
             </ListGroup>
 

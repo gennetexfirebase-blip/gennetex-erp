@@ -31,6 +31,16 @@ if (Platform.OS === 'ios' || Platform.OS === 'android') {
 }
 
 let ready = false;
+/**
+ * `setup()` бүтэлгүйтсэн шалтгаан.
+ *
+ * ⚠️ Урьд нь `catch (e) { ready = false }` гэж алдааг ХАЯДАГ байсан тул
+ *    "системийн дуудлагын дэлгэц яагаад гарахгүй байна" гэдэг мөрдөх
+ *    боломжгүй байв. Одоо оношилгоонд харагдана.
+ */
+let setupError = null;
+/** Утасны "дуудлагын данс" идэвхтэй эсэх (Android Telecom). */
+let phoneAccountEnabled = null;
 const activeUuids = new Map(); // callId -> uuid
 
 /**
@@ -46,12 +56,70 @@ const activeUuids = new Map(); // callId -> uuid
  *      • io.wazo.callkeep.VoiceConnectionService — манифестэд
  *    Зөвхөн JS тал нь хаалттай байв.
  */
+/**
+ * Android дээр Telecom/ConnectionService замыг АШИГЛАХГҮЙ.
+ *
+ * ⚠️ ЭНЭ НЬ АППЫГ УНАГААДАГ — v1.1.7-д асаасны дараа "Gennetex ERP
+ *    stopped" гарч, дуудлага ирэхэд апп бүхэлдээ хаагддаг болсон.
+ *
+ * ШАЛТГААН (react-native-callkeep 4.3.16, RNCallKeepModule.java):
+ *   • мөр 1195: `hasPhoneAccount()` нь selfManaged горимд ҮРГЭЛЖ `true`
+ *     буцаадаг тул мөр 448 дахь хамгаалалт юу ч хийхгүй.
+ *   • мөр 466: `telecomManager.addNewIncomingCall(handle, extras)` нь
+ *     try/catch-гүй. Telecom нь бүртгэгдээгүй/буруу handle дээр
+ *     `SecurityException` шиднэ.
+ *   • мөр 456: дугаарыг `Uri.fromParts("tel", number, null)` болгодог.
+ *     Бид тийш нь UUID дамжуулдаг байсан — `tel:` схемд тоо биш утга.
+ *   `@ReactMethod` дотор баригдаагүй exception нь JS try/catch-д
+ *   БАРИГДАХГҮЙ, процессыг шууд унагана.
+ *
+ * Android дээр бүтэн дэлгэцийн мэдэгдлийн зам (нөөц зам) найдвартай
+ * ажилладаг тул түүнийг ашиглана. iOS дээр CallKit нь цорын ганц зам
+ * учир хэвээр үлдэнэ.
+ */
+const ANDROID_TELECOM_ENABLED = false;
+
 export function isCallKitAvailable() {
+  if (Platform.OS === 'android' && !ANDROID_TELECOM_ENABLED) return false;
   return !!RNCallKeep;
 }
 
 export function getCallKeepDiagnostics() {
-  return { platform: Platform.OS, moduleLoaded: !!RNCallKeep, ready, error: loadError };
+  return {
+    platform: Platform.OS,
+    moduleLoaded: !!RNCallKeep,
+    ready,
+    phoneAccountEnabled,
+    error: loadError || setupError,
+  };
+}
+
+/**
+ * Утасны "дуудлагын данс" (phone account) идэвхтэй эсэхийг шалгана.
+ *
+ * Android Telecom нь аппыг дуудлагын данс болгож бүртгэдэг. Зарим
+ * үйлдвэрлэгч дээр тэр данс АНХНААСАА унтраалттай ирдэг — тэр үед
+ * `displayIncomingCall` дуудагдсан ч дэлгэц ГАРАХГҮЙ, алдаа ч гарахгүй.
+ */
+export async function refreshPhoneAccountState() {
+  if (!isCallKitAvailable() || Platform.OS !== 'android') return null;
+  try {
+    phoneAccountEnabled = await RNCallKeep.checkPhoneAccountEnabled();
+  } catch (e) {
+    phoneAccountEnabled = null;
+  }
+  return phoneAccountEnabled;
+}
+
+/** Дуудлагын дансны тохиргоог нээнэ — хэрэглэгч гараар асаана. */
+export function openPhoneAccountSettings() {
+  if (!RNCallKeep || Platform.OS !== 'android') return false;
+  try {
+    RNCallKeep.openPhoneAccounts();
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 /** CallKit-ийг нэг л удаа тохируулна. */
@@ -85,8 +153,11 @@ export async function setupCallKit() {
     RNCallKeep.setAvailable(true);
     registerListeners();
     ready = true;
+    setupError = null;
+    refreshPhoneAccountState();
   } catch (e) {
     ready = false;
+    setupError = e?.message || String(e);
   }
   return ready;
 }
@@ -139,12 +210,17 @@ function toUuid(id) {
 
 export function displayIncomingCallKit(call) {
   if (!isCallKitAvailable() || !ready || !call?.id) return false;
+
   const uuid = toUuid(call.id);
   activeUuids.set(String(call.id), uuid);
   try {
+    // ⚠️ `number` нь native талдаа `Uri.fromParts("tel", number, null)`
+    //    болж хувирдаг. UUID зэрэг тоо биш утга өгвөл Telecom алдаа
+    //    шидэж, аппыг унагана. Тиймээс зөвхөн цифр үлдээнэ.
+    const digits = String(call.caller_id || '').replace(/\D/g, '').slice(-15);
     RNCallKeep.displayIncomingCall(
       uuid,
-      String(call.caller_id || 'gennetex'),
+      digits || '0000000000',
       call.caller_name || 'Ажилтан',
       'generic',
       call.type === 'video'

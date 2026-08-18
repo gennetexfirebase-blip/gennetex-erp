@@ -6,6 +6,8 @@ import {
   setupCallKit,
   displayIncomingCallKit,
   endAllCallKit,
+  openPhoneAccountSettings,
+  refreshPhoneAccountState,
 } from './callKitService';
 
 let RNNotificationCall = null;
@@ -26,10 +28,62 @@ if (Platform.OS === 'android') {
   }
 }
 
+/**
+ * Android 14 (API 34)-өөс хойш бүтэн дэлгэцийн мэдэгдлийн ЗӨВШӨӨРӨЛ.
+ *
+ * ⚠️ ЭНЭ Л ХАМГИЙН МАГАДЛАЛТАЙ ШАЛТГААН:
+ *    Android 14-өөс `USE_FULL_SCREEN_INTENT`-ийг зөвхөн утасны дуудлага
+ *    эсвэл сэрүүлгийн ангилалтай апп-д АВТОМАТААР олгодог болсон. Бусад
+ *    апп манифестэд зөвшөөрлөө бичсэн ч ХААЛТТАЙ ирнэ.
+ *
+ *    Хаалттай үед систем алдаа гаргахгүй — бүтэн дэлгэцийн оронд ЭНГИЙН
+ *    дээд талын мэдэгдэл (heads-up banner) харуулна. Яг л хэрэглэгчийн
+ *    зурган дээр харагдсан зүйл.
+ *
+ *    Үүнийг код дотроос асаах БОЛОМЖГҮЙ — хэрэглэгч тохиргооноос гараар
+ *    зөвшөөрөх ёстой. Энэ функц тэр дэлгэцийг шууд нээнэ.
+ */
+export async function openFullScreenIntentSettings() {
+  if (Platform.OS !== 'android') return false;
+  try {
+    // eslint-disable-next-line global-require
+    const IntentLauncher = require('expo-intent-launcher');
+    // eslint-disable-next-line global-require
+    const Application = require('expo-application');
+    const pkg = Application.applicationId || 'com.gennetex.erp';
+    await IntentLauncher.startActivityAsync(
+      'android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT',
+      { data: `package:${pkg}` }
+    );
+    return true;
+  } catch (e) {
+    // Android 13 ба түүнээс доош — энэ дэлгэц байхгүй. Аппын ерөнхий
+    // тохиргоог нээж, мэдэгдлийн хэсэгт орох боломж өгнө.
+    try {
+      // eslint-disable-next-line global-require
+      const IntentLauncher = require('expo-intent-launcher');
+      // eslint-disable-next-line global-require
+      const Application = require('expo-application');
+      const pkg = Application.applicationId || 'com.gennetex.erp';
+      await IntentLauncher.startActivityAsync(
+        'android.settings.APPLICATION_DETAILS_SETTINGS',
+        { data: `package:${pkg}` }
+      );
+      return true;
+    } catch (e2) {
+      return false;
+    }
+  }
+}
+
+export { openPhoneAccountSettings, refreshPhoneAccountState };
+
 export function getIncomingCallDiagnostics() {
   const ck = getCallKeepDiagnostics();
   return {
     platform: Platform.OS,
+    androidVersion: Platform.Version,
+    phoneAccountEnabled: ck.phoneAccountEnabled,
     // Системийн дуудлага (Telecom / CallKit) — Viber маягийн зам
     systemCall: ck.moduleLoaded,
     systemCallReady: ck.ready,

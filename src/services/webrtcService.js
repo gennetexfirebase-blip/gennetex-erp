@@ -57,6 +57,53 @@ export function isWebRtcAvailable() {
   return !!loadRtc();
 }
 
+/**
+ * Микрофон / камерын зөвшөөрлийг `getUserMedia`-с ӨМНӨ авна.
+ *
+ * ⚠️ ЯАГААД ЗААВАЛ ХЭРЭГТЭЙ ВЭ — АПП УНАДАГ:
+ *    `RECORD_AUDIO` олгогдоогүй байхад WebRTC-ийн native дуу авагч
+ *    (`WebRtcAudioRecord` → `AudioRecord`) эхлэхээ оролдоод native
+ *    түвшинд уначихдаг. Тэр нь JS-ийн try/catch-д БАРИГДАХГҮЙ —
+ *    процесс бүхэлдээ унаж "Gennetex ERP stopped" гарч, апп хаагдана.
+ *
+ *    Хурал (MeetingModal) болон Live дээр зөвшөөрөл асуудаг байсан ч
+ *    ДУУДЛАГЫН зам дээр асуудаггүй байсан тул зөвхөн энд унадаг байв.
+ *
+ * @param {boolean} video видео дуудлага эсэх — камер нэмж асууна
+ * @returns {Promise<{ok: boolean, missing?: string}>}
+ */
+export async function ensureCallPermissions(video = false) {
+  try {
+    // eslint-disable-next-line global-require
+    const { Camera } = require('expo-camera');
+
+    const mic = await Camera.requestMicrophonePermissionsAsync();
+    if (mic?.status !== 'granted') return { ok: false, missing: 'microphone' };
+
+    if (video) {
+      const cam = await Camera.requestCameraPermissionsAsync();
+      if (cam?.status !== 'granted') return { ok: false, missing: 'camera' };
+    }
+    return { ok: true };
+  } catch (e) {
+    // Зөвшөөрөл шалгаж чадсангүй — унахаас сэргийлж дуудлагыг зогсооно.
+    return { ok: false, missing: 'unknown' };
+  }
+}
+
+/** Зөвшөөрөл дутсан үед хэрэглэгчид харуулах текст. */
+export function permissionProblemText(missing) {
+  if (missing === 'microphone') {
+    return 'Микрофоны зөвшөөрөл өгөөгүй байна.\n\n'
+      + 'Тохиргоо → Апп → Gennetex ERP → Зөвшөөрөл → Микрофон-ыг асаана уу.';
+  }
+  if (missing === 'camera') {
+    return 'Камерын зөвшөөрөл өгөөгүй байна.\n\n'
+      + 'Тохиргоо → Апп → Gennetex ERP → Зөвшөөрөл → Камер-ыг асаана уу.';
+  }
+  return 'Микрофон/камерын зөвшөөрлийг шалгаж чадсангүй. Тохиргооноос гараар өгнө үү.';
+}
+
 function getRtc() {
   const mod = loadRtc();
   if (!mod) {
@@ -162,6 +209,16 @@ export async function createCallSession({ video = false, signaling, onRemoteStre
   });
 
   // --- Микрофон / камер ---
+  // ⚠️ ЗӨВШӨӨРЛИЙГ ЭНД ДАХИН ШАЛГАНА. Дуудагч/хүлээн авагч аль ч зам
+  //    getUserMedia руу зөвшөөрөлгүй орвол native түвшинд УНАНА. Дээд
+  //    түвшний шалгалт алдагдсан ч энэ хамгаалалт үлдэнэ.
+  const perm = await ensureCallPermissions(video);
+  if (!perm.ok) {
+    const err = new Error(permissionProblemText(perm.missing));
+    err.code = 'permission-denied';
+    throw err;
+  }
+
   // Нягтралыг утасны чадлаар сонгоно: сул утсанд 720p кодлох нь
   // гацаа үүсгэдэг тул 480p/20fps болгож буулгана (src/lib/performanceMode.js).
   const localStream = await mediaDevices.getUserMedia({
