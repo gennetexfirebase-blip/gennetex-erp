@@ -14,6 +14,7 @@ const file = path.join(
 const MARKER = '// RN 0.81+ compatible incoming call UI';
 const SERVICE_MARKER = '// gennetex: safe foreground service start';
 const COLOR_MARKER = '// gennetex: crash-proof color lookup';
+const RINGTONE_MARKER = '// gennetex: ringtone audio stream';
 
 // Засвар БҮРИЙГ тусад нь ажиллуулна. Урьд нь эхний засвар хийгдсэн бол
 // `process.exit(0)` хийж, дараагийнх руу ХҮРДЭГГҮЙ байсан — шинэ засвар
@@ -21,6 +22,7 @@ const COLOR_MARKER = '// gennetex: crash-proof color lookup';
 patchActivity();
 patchModuleStartService();
 patchServiceColorLookup();
+patchRingtoneStream();
 
 function patchActivity() {
   if (!fs.existsSync(file)) {
@@ -256,4 +258,66 @@ function patchServiceColorLookup() {
 
   fs.writeFileSync(serviceFile, src);
   console.log('[patch-incoming-call] patched IncomingCallService.java color lookup');
+}
+
+/**
+ * Дуудлагын хонхыг МЭДЭГДЛИЙН биш, ХОНХНЫ дууны урсгал дээр тоглуулна.
+ *
+ * ⚠️ "Дуудлага ирэхэд зөвхөн чичирдэг" гэдгийн шалтгаан:
+ *
+ *   .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+ *
+ * Энэ нь дууг МЭДЭГДЛИЙН дууны урсгал (STREAM_NOTIFICATION) дээр
+ * тоглуулна. Олон хүн мэдэгдлийн дууг намхан эсвэл бүрмөсөн хааж,
+ * харин хонхны дууг өндөр тавьдаг. Тэр үед дуудлага ирэхэд дуу
+ * сонсогдохгүй, зөвхөн чичиргээ үлдэнэ.
+ *
+ * Ирэх дуудлага бол мэдэгдэл биш — ХОНХ. Тиймээс
+ * `USAGE_NOTIFICATION_RINGTONE` ашиглах ёстой. Энэ нь дууг хонхны
+ * урсгал дээр тоглуулж, "Чимээгүй/Чичиргээ" горимыг ч зөв дагана.
+ *
+ * ⚠️ Суваг нэг удаа үүссэний дараа өөрчлөгдөхгүй тул JS тал дээрх
+ *    CHANNEL_ID-г мөн ахиулсан (v1 -> v2). Эс тэгвээс энэ засвар
+ *    хуучин утсанд огт үйлчлэхгүй.
+ */
+function patchRingtoneStream() {
+  const serviceFile = path.join(
+    __dirname,
+    '../node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/IncomingCallService.java'
+  );
+  if (!fs.existsSync(serviceFile)) {
+    console.log('[patch-incoming-call] service file missing, skip');
+    return;
+  }
+
+  let src = fs.readFileSync(serviceFile, 'utf8');
+  if (src.includes(RINGTONE_MARKER)) {
+    console.log('[patch-incoming-call] ringtone stream already patched');
+    return;
+  }
+
+  const original = `      notificationChannel.setSound(soundUri,
+        new AudioAttributes.Builder()
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+          .build());`;
+
+  if (!src.includes(original)) {
+    console.log('[patch-incoming-call] ringtone pattern not found, skip');
+    return;
+  }
+
+  const replacement = `      ${RINGTONE_MARKER}
+      // USAGE_NOTIFICATION нь мэдэгдлийн дууны урсгалыг ашигладаг тул
+      // мэдэгдлийн дуу намхан хүмүүст зөвхөн чичиргээ үлддэг.
+      // Ирэх дуудлага бол хонх — хонхны урсгал дээр тоглуулна.
+      notificationChannel.setSound(soundUri,
+        new AudioAttributes.Builder()
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+          .build());`;
+
+  src = src.replace(original, replacement);
+  fs.writeFileSync(serviceFile, src);
+  console.log('[patch-incoming-call] patched IncomingCallService.java ringtone stream');
 }

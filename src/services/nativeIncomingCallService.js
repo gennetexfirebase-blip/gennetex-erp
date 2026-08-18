@@ -97,7 +97,21 @@ export function getIncomingCallDiagnostics() {
 }
 
 let initialized = false;
-const CHANNEL_ID = 'gennetex_incoming_call_v1';
+/**
+ * ⚠️ СУВГИЙН ID-Г ӨӨРЧЛӨХ ЁСТОЙ БАЙСАН.
+ *
+ * Android дээр мэдэгдлийн суваг нэг удаа үүссэний дараа ӨӨРЧЛӨГДӨХГҮЙ:
+ * дуу, чичиргээ, ач холбогдол зэргийг дараа нь код дотроос засах
+ * боломжгүй — систем чимээгүй үл тоомсорлоно.
+ *
+ * `..._v1` суваг нь буруу тохиргоотой (дуу нь мэдэгдлийн урсгал дээр)
+ * аль хэдийн үүссэн байсан тул доорх засварууд хуучин утсанд огт
+ * үйлчлэхгүй байв. Тиймээс ШИНЭ ID шаардлагатай.
+ *
+ * Дуудлагын дууны тохиргоог цаашид өөрчлөх бол ЗААВАЛ энэ дугаарыг
+ * дахин ахиулна.
+ */
+const CHANNEL_ID = 'gennetex_incoming_call_v2';
 
 /**
  * Системийн дуудлагын дэлгэц гаргах боломжтой эсэх.
@@ -195,6 +209,18 @@ export function showNativeIncomingCall(call) {
        * app.json-ы expo-notifications тохиргооноос үүсдэг.
        */
       notificationColor: 'notification_icon_color',
+      /**
+       * Дуудлагын хонх — `res/raw/incoming_call.wav`.
+       *
+       * Өргөтгөлгүйгээр бичнэ: сан нь native талдаа ингэж угсардаг
+       * (IncomingCallService.java:270):
+       *
+       *   android.resource://<package>/raw/<notificationSound>
+       *
+       * Урьд нь энэ утгыг ОГТ дамжуулдаггүй байсан тул утасны
+       * анхдагч хонх сонгогддог байв.
+       */
+      notificationSound: 'incoming_call',
       isVideo,
       payload: buildPayload({ ...call, id: callId }),
     });
