@@ -20,7 +20,27 @@ import { incomingCallBridge } from '../lib/incomingCallBridge';
 
 let RNCallKeep = null;
 let loadError = null;
-if (Platform.OS === 'ios' || Platform.OS === 'android') {
+/**
+ * ⚠️ Android дээр `react-native-callkeep`-ийг ОГТ АЧААЛАХГҮЙ.
+ *
+ * Шинэ архитектур (newArchEnabled=true) дээр TurboModule-ийн interop
+ * давхарга нь native модулийн `@ReactMethod` тэмдэглэгээг задалдаг.
+ * `RNCallKeepModule.java` дотор `displayIncomingCall` нь гурван
+ * overload-той (мөр 438, 443, 447) бөгөөд хоёр нь `@ReactMethod`
+ * тэмдэглэгээтэй. Ижил нэртэй хоёр method-ыг interop задалж чаддаггүй:
+ *
+ *   TurboModuleInteropUtils$ParsingException: Unable to parse
+ *   @ReactMethod annotations from native module: RNCallKeep.
+ *   Details: Module exports two methods to JavaScript with the same
+ *   name: "displayIncomingCall"
+ *
+ * Энэ нь `NativeModules.RNCallKeep`-д ХҮРЭХЭД Л шиддэг тул зүгээр
+ * require хийхэд ч гарна. Android дээр Telecom замыг ашиглахгүй болсон
+ * тул ачаалах ямар ч шалтгаангүй.
+ *
+ * iOS дээр native хэсэг нь Objective-C бөгөөд энэ асуудалгүй.
+ */
+if (Platform.OS === 'ios') {
   try {
     // eslint-disable-next-line global-require
     RNCallKeep = require('react-native-callkeep').default;

@@ -12,6 +12,7 @@ const file = path.join(
 );
 
 const MARKER = '// RN 0.81+ compatible incoming call UI';
+const SERVICE_MARKER = '// gennetex: safe foreground service start';
 
 // Засвар БҮРИЙГ тусад нь ажиллуулна. Урьд нь эхний засвар хийгдсэн бол
 // `process.exit(0)` хийж, дараагийнх руу ХҮРДЭГГҮЙ байсан — шинэ засвар
@@ -93,25 +94,60 @@ function patchModuleStartService() {
   }
 
   let mod = fs.readFileSync(moduleFile, 'utf8');
-  if (mod.includes('startForegroundService(intent)')) {
-    console.log('[patch-incoming-call] startForegroundService already patched');
+  if (mod.includes(SERVICE_MARKER)) {
+    console.log('[patch-incoming-call] service start already patched');
     return;
   }
 
-  const oldCall = '    getReactApplicationContext().startService(intent);';
-  if (!mod.includes(oldCall)) {
-    console.log('[patch-incoming-call] startService pattern not found, skip');
-    return;
-  }
-
-  const newCall = `    // Android 8+ дээр апп ард байхад энгийн startService хориотой.
+  // Анхны эх код, эсвэл энэ script-ийн ӨМНӨХ хувилбарын гаргасан блок —
+  // хоёуланг таньж, шинэ аюулгүй хувилбараар солино.
+  const original = '    getReactApplicationContext().startService(intent);';
+  const previous = `    // Android 8+ дээр апп ард байхад энгийн startService хориотой.
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
       getReactApplicationContext().startForegroundService(intent);
     } else {
       getReactApplicationContext().startService(intent);
     }`;
 
-  mod = mod.replace(oldCall, newCall);
+  let target = null;
+  if (mod.includes(previous)) target = previous;
+  else if (mod.includes(original)) target = original;
+
+  if (!target) {
+    console.log('[patch-incoming-call] startService pattern not found, skip');
+    return;
+  }
+
+  const replacement = `    ${SERVICE_MARKER}
+    //
+    // Android 8 (API 26)+ : апп АРД байхад энгийн startService хориотой.
+    // Android 12 (API 31)+: startForegroundService НЬ Ч мөн ард байхад
+    //   хориотой — ForegroundServiceStartNotAllowedException шиднэ.
+    //
+    // Жинхэнэ дуудлагын үед энэ нь асуудалгүй: өндөр ач холбогдолтой
+    // (high priority) FCM мессеж ирэхэд Android аппад богино хугацааны
+    // чөлөөлөлт өгдөг тул foreground service эхлүүлэхийг зөвшөөрнө.
+    //
+    // Харин апп ард байхад ГАРААР дуудвал (жишээ нь оношилгооны тест)
+    // чөлөөлөлт байхгүй тул систем exception шиднэ. Түүнийг бариагүй
+    // бол процесс бүхэлдээ УНАНА. Тиймээс энд заавал барина.
+    try {
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        getReactApplicationContext().startForegroundService(intent);
+      } else {
+        getReactApplicationContext().startService(intent);
+      }
+    } catch (Exception e) {
+      Log.w(TAG, "displayNotification: could not start service", e);
+      // Апп урд талд байвал энгийн startService ажиллаж магадгүй.
+      try {
+        getReactApplicationContext().startService(intent);
+      } catch (Exception ignored) {
+        Log.w(TAG, "displayNotification: fallback startService failed", ignored);
+      }
+    }`;
+
+  mod = mod.replace(target, replacement);
   fs.writeFileSync(moduleFile, mod);
   console.log('[patch-incoming-call] patched FullScreenNotificationIncomingCallModule.java');
 }

@@ -23,8 +23,6 @@ import {
   getIncomingCallDiagnostics,
   showNativeIncomingCall,
   openFullScreenIntentSettings,
-  openPhoneAccountSettings,
-  refreshPhoneAccountState,
 } from '../services/nativeIncomingCallService';
 import {
   getLocationDiagnostics,
@@ -147,27 +145,20 @@ export default function ProfileScreen() {
    *      дэлгэц огт гарахгүй.
    */
   const testIncomingCall = async () => {
-    await refreshPhoneAccountState();
     const d = getIncomingCallDiagnostics();
     const lines = [
       `Платформ: ${d.platform}${d.androidVersion ? ` (API ${d.androidVersion})` : ''}`,
-      `Системийн дуудлага: ${d.systemCall ? (d.systemCallReady ? 'бэлэн' : 'тохируулагдаагүй') : 'алга'}`,
-      `Дуудлагын данс: ${
-        d.phoneAccountEnabled === true
-          ? 'идэвхтэй'
-          : d.phoneAccountEnabled === false
-          ? 'УНТРААЛТТАЙ'
-          : 'тодорхойгүй'
-      }`,
-      `Нөөц дэлгэц: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
+      `Дуудлагын дэлгэц: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
       `Сонсогч бэлэн: ${d.listenersReady ? 'тийм' : 'үгүй'}`,
     ];
+    if (d.platform === 'ios') {
+      lines.push(
+        `CallKit: ${d.systemCall ? (d.systemCallReady ? 'бэлэн' : 'тохируулагдаагүй') : 'алга'}`
+      );
+    }
     if (d.systemCallError) lines.push(`⚠️ Систем: ${d.systemCallError}`);
     if (d.error) lines.push('', `⚠️ ${d.error}`);
 
-    if (d.phoneAccountEnabled === false) {
-      lines.push('', '⚠️ Дуудлагын данс унтраалттай тул системийн дуудлагын дэлгэц гарахгүй.');
-    }
     if (Number(d.androidVersion) >= 34) {
       lines.push(
         '',
@@ -180,20 +171,27 @@ export default function ProfileScreen() {
       { text: 'Хаах', style: 'cancel' },
       { text: 'Бүтэн дэлгэц', onPress: () => openFullScreenIntentSettings() },
     ];
-    if (d.phoneAccountEnabled === false) {
-      buttons.push({ text: 'Дуудлагын данс', onPress: () => openPhoneAccountSettings() });
-    }
     if (d.canDisplay || d.systemCall) {
+      /**
+       * Тест нь ШУУД ажиллана — хүлээгээд утсаа түгжих ЁСГҮЙ.
+       *
+       * ⚠️ Урьд нь 3 секунд хүлээж, "утсаа түгжиж үзээрэй" гэдэг байв.
+       *    Гэтэл Android 12+ дээр апп ард байхад foreground service
+       *    эхлүүлэхийг хориглодог тул тэр яг л бүтэлгүйтэх нөхцөлийг
+       *    үүсгэж байсан — тест нь жинхэнэ дуудлагыг огт төлөөлөхгүй.
+       *
+       *    Жинхэнэ дуудлага нь өндөр ач холбогдолтой FCM мессежээр ирдэг
+       *    бөгөөд Android тэр үед богино чөлөөлөлт өгдөг. Тиймээс
+       *    түгжээтэй үеийн зан төлөвийг зөвхөн БОДИТ дуудлагаар шалгана.
+       */
       buttons.push({
-        text: 'Тест (3 сек)',
+        text: 'Тест',
         onPress: () => {
-          setTimeout(() => {
-            showNativeIncomingCall({
-              id: `test_${Date.now()}`,
-              caller_name: 'Тест дуудлага',
-              type: 'audio',
-            });
-          }, 3000);
+          showNativeIncomingCall({
+            id: `test_${Date.now()}`,
+            caller_name: 'Тест дуудлага',
+            type: 'audio',
+          });
         },
       });
     }
