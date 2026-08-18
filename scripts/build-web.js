@@ -104,7 +104,19 @@ try {
   const appVer = major && minor && patch ? `${major[1]}.${minor[1]}.${patch[1]}` : '';
   const appDir = path.join(dist, 'app');
   fs.mkdirSync(appDir, { recursive: true });
-  const apkUrl = 'https://github.com/ModulesoftLLC/gennetex/releases/latest/download/gennetex.apk';
+  /**
+   * APK татах холбоос.
+   *
+   * ⚠️ Урьд нь `ModulesoftLLC/gennetex` руу зааж байсан — бид тэр repo
+   *    руу release гаргадаггүй тул холбоос 404 буцаадаг байв.
+   *
+   * `releases/latest/download/<нэр>` нь ТОГТМОЛ нэр шаарддаг. Тиймээс
+   * release бүр дээр хувилбартай файлын хажуугаар `gennetex-erp.apk`
+   * гэсэн тогтмол нэртэй хуулбарыг мөн байршуулна — ингэснээр энэ
+   * хуудсыг release бүрд дахин угсрах шаардлагагүй.
+   */
+  const apkUrl =
+    'https://github.com/gennetexfirebase-blip/gennetex-erp/releases/latest/download/gennetex-erp.apk';
   const page = buildAppDownloadPage(appVer, apkUrl);
   fs.writeFileSync(path.join(appDir, 'index.html'), page);
   if (fs.existsSync(logo)) fs.copyFileSync(logo, path.join(appDir, 'logo.png'));
