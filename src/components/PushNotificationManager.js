@@ -103,7 +103,9 @@ export default function PushNotificationManager() {
 
         const preview =
           msg.content ||
-          (msg.attachment_type === 'image'
+          (msg.attachment_type === 'audio'
+            ? 'Дуут мессеж'
+            : msg.attachment_type === 'image'
             ? 'Зураг'
             : msg.attachment_type === 'video'
             ? 'Видео'

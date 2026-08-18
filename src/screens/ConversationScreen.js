@@ -28,6 +28,8 @@ import ActiveTripsBanner from '../components/ActiveTripsBanner';
 import * as chatApi from '../services/chatService';
 import { useCall } from '../context/CallContext';
 import VoiceMessageButton from '../components/VoiceMessageButton';
+import VoiceRecorderBar from '../components/VoiceRecorderBar';
+import VoiceMessageBubble from '../components/VoiceMessageBubble';
 import ChatImagePreview from '../components/ChatImagePreview';
 import ChatVideoPreview from '../components/ChatVideoPreview';
 import { setActiveChatRoom } from '../lib/chatFocus';
@@ -162,6 +164,8 @@ export default function ConversationScreen() {
   }, [route.params?.autoJoinCall]);
   const [uploading, setUploading] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
+  // WeChat маягийн 'Дарж хэлнэ үү' горим — текстийн оронд дуут мессеж
+  const [holdToTalk, setHoldToTalk] = useState(false);
   const [voicePreview, setVoicePreview] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
@@ -383,6 +387,43 @@ export default function ConversationScreen() {
       });
     }
   };
+
+  /**
+   * Дуут мессеж илгээх.
+   *
+   * Бичлэгийг storage руу байршуулаад `attachment_type: 'audio'` гэж
+   * илгээнэ. Үргэлжлэх хугацааг мессежийн текстэд нуулгүй, `content`-д
+   * секундээр бичнэ — жагсаалт, мэдэгдэл дээр "Дуут мессеж 0:07" гэж
+   * ойлгомжтой харагдана.
+   */
+  const sendVoiceClip = useCallback(
+    async ({ uri, durationMs }) => {
+      if (!uri || !me?.id) return;
+      setUploading(true);
+      try {
+        const url = await chatApi.uploadChatFile(uri, {
+          room,
+          mimeType: 'audio/m4a',
+          name: `voice_${Date.now()}.m4a`,
+        });
+        const seconds = Math.max(1, Math.round((durationMs || 0) / 1000));
+        await chatApi.sendMessage({
+          room,
+          senderId: me.id,
+          senderName: me.name,
+          content: '',
+          attachmentUrl: url,
+          attachmentType: 'audio',
+          attachmentName: `${seconds}`,
+        });
+      } catch (e) {
+        Alert.alert('Дуут мессеж', e?.message || 'Илгээж чадсангүй.');
+      } finally {
+        setUploading(false);
+      }
+    },
+    [room, me?.id, me?.name]
+  );
 
   const chooseAttachment = () => {
     Alert.alert('Хавсаргах', 'Юу илгээх вэ?', [
@@ -633,6 +674,7 @@ export default function ConversationScreen() {
             const hasImage = item.attachment_type === 'image' && item.attachment_url;
             const hasVideo = item.attachment_type === 'video' && item.attachment_url;
             const hasFile = item.attachment_type === 'file' && item.attachment_url;
+            const hasAudio = item.attachment_type === 'audio' && item.attachment_url;
             const mediaOnly = (hasImage || hasVideo) && !item.content && !hasFile;
             const prev = messages[index - 1];
             const next = messages[index + 1];
@@ -728,6 +770,13 @@ export default function ConversationScreen() {
                           ) : null}
                         </View>
                       ) : null}
+                      {hasAudio ? (
+                        <VoiceMessageBubble
+                          uri={item.attachment_url}
+                          durationMs={Number(item.attachment_name || 0) * 1000}
+                          mine={mine}
+                        />
+                      ) : null}
                       {hasFile ? (
                         <TouchableOpacity
                           style={[styles.fileChip, mine && styles.fileChipMine]}
@@ -802,7 +851,21 @@ export default function ConversationScreen() {
               <Text style={styles.voiceHint}>Суллана</Text>
             </View>
           ) : null}
+          {holdToTalk ? (
+            <VoiceRecorderBar
+              disabled={uploading}
+              onSwitchToKeyboard={() => setHoldToTalk(false)}
+              onSend={sendVoiceClip}
+            />
+          ) : (
           <View style={styles.inputRow}>
+            <TouchableOpacity
+              style={styles.toolBtn}
+              onPress={() => setHoldToTalk(true)}
+              accessibilityLabel="Дуут мессеж бичих"
+            >
+              <Ionicons name="mic-outline" size={24} color={colors.textMuted} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toolBtn, (uploading || voiceActive) && styles.toolBtnDisabled]}
               onPress={chooseAttachment}
@@ -848,6 +911,7 @@ export default function ConversationScreen() {
               />
             )}
           </View>
+          )}
         </SafeAreaView>
       </KeyboardAvoidingView>
 

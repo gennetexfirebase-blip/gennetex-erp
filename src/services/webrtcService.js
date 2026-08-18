@@ -1,6 +1,7 @@
 import { NativeModules } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { videoConstraints } from '../lib/performanceMode';
+import { isExpoGo } from '../lib/runtimeEnv';
 
 /**
  * WebRTC холболт — жинхэнэ дуу/дүрсийг энэ дамжуулна.
@@ -34,6 +35,12 @@ let rtc;          // undefined = хараахан шалгаагүй, null = б�
  */
 function loadRtc() {
   if (rtc !== undefined) return rtc;
+  // Expo Go дээр native хэсэг нь БАЙХГҮЙ нь тодорхой. Оролдох нь
+  // import-ийн үед Invariant Violation үүсгэж, лог бохирдуулна.
+  if (isExpoGo) {
+    rtc = null;
+    return rtc;
+  }
   try {
     // eslint-disable-next-line global-require
     const mod = require('react-native-webrtc');

@@ -427,7 +427,9 @@ export async function notifyChatMembers(conversationId, senderId, { senderName, 
   const recipients = (members || []).map((m) => m.user_id).filter((id) => id && id !== senderId);
   const preview =
     content ||
-    (attachmentType === 'image'
+    (attachmentType === 'audio'
+      ? 'Дуут мессеж илгээлээ'
+      : attachmentType === 'image'
       ? 'Зураг илгээлээ'
       : attachmentType === 'video'
       ? 'Видео илгээлээ'
