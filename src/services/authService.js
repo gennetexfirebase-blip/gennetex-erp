@@ -356,7 +356,7 @@ export async function adminCreateEmployee({
     p_role: safeRole,
     p_department_id: department_id || null,
   });
-  if (error) throw error;
+  if (error) throw new Error(mapDeleteError(error.message));
   return data;
 }
 

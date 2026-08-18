@@ -328,6 +328,15 @@ export function mapDeleteError(message = '') {
   if (/not_authenticated|no_profile/.test(m)) return 'Дахин нэвтэрнэ үү.';
   if (/invalid_role/.test(m)) return 'Ийм эрх байхгүй байна.';
   if (/department_forbidden/.test(m)) return 'Зөвхөн өөрийн хэлтэс дээр үйлдэл хийнэ.';
+  // Хэлтэс/эрх дутуу — хөгжүүлэгч оноож өгөх ёстой. Ойлгомжтой хэлж
+  // өгөхгүй бол админ "яагаад болдоггүй юм бол" гэж эргэлзэнэ.
+  if (/department_required/.test(m)) {
+    return 'Танд хэлтэс оноогоогүй байна. Хөгжүүлэгчээр хэлтэст харьяалуулна уу.';
+  }
+  if (/permission_denied/.test(m)) {
+    return 'Танд ажилтан удирдах эрх олгогдоогүй байна. Хөгжүүлэгчид хандана уу.';
+  }
+  if (/role_forbidden/.test(m)) return 'Зөвхөн "Ажилтан" эрхтэй хүн нэмэх боломжтой.';
   if (/department_not_found/.test(m)) return 'Хэлтэс олдсонгүй.';
   if (/forbidden/.test(m)) return 'Танд устгах эрх байхгүй.';
   return m || 'Устгах үед алдаа гарлаа.';

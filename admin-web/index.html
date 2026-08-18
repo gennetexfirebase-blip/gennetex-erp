@@ -759,6 +759,30 @@
     const ERP_NOT_FOUND='ERP-аас олдсонгүй';
     const searchEmpty=(q,def)=>String(q||'').trim()?ERP_NOT_FOUND:def;
     const isSuperAdmin=r=>r==='superadmin';
+
+    /**
+     * Серверийн алдааг ойлгомжтой болгоно.
+     *
+     * Сервер нь `permission_denied`, `department_required` гэх мэт богино
+     * код буцаадаг. Түүнийг шууд харуулбал админ "яагаад болдоггүй юм бол"
+     * гэж эргэлзэнэ — юу хийхийг нь хэлж өгөх ёстой.
+     */
+    const rpcErr=(m='')=>{
+      const t=String(m||'');
+      if(/permission_denied/.test(t)) return 'Танд ажилтан удирдах эрх олгогдоогүй байна. Хөгжүүлэгчид хандана уу.';
+      if(/department_required/.test(t)) return 'Танд хэлтэс оноогоогүй байна. Хөгжүүлэгчээр хэлтэст харьяалуулна уу.';
+      if(/department_forbidden/.test(t)) return 'Зөвхөн өөрийн хэлтсийн ажилтныг удирдана.';
+      if(/department_not_found/.test(t)) return 'Хэлтэс олдсонгүй.';
+      if(/role_forbidden/.test(t)) return 'Зөвхөн "Ажилтан" эрхтэй хүн нэмэх боломжтой.';
+      if(/forbidden_target/.test(t)) return 'Танд энэ хэрэглэгчийг удирдах эрх байхгүй.';
+      if(/already_linked/.test(t)) return 'Энэ хэрэглэгч аль хэдийн нэвтэрсэн байна.';
+      if(/target_not_found/.test(t)) return 'Хэрэглэгч олдсонгүй.';
+      if(/invalid_email/.test(t)) return 'Имэйл буруу байна.';
+      if(/name_required/.test(t)) return 'Нэр оруулна уу.';
+      if(/invalid_role/.test(t)) return 'Ийм эрх байхгүй байна.';
+      if(/forbidden/.test(t)) return 'Танд энэ үйлдэл хийх эрх байхгүй.';
+      return t||'Алдаа гарлаа.';
+    };
     const isAdminRole=r=>r==='admin' ||r==='superadmin';
     const roleLabel=r=>r==='superadmin' ?'Хөгжүүлэгч':r==='admin' ?'Админ':r==='menejer' ?'Менежер':r==='ahlah' ?'Ахлах':'Ажилтан';
     const visibleWorkers=()=>{
@@ -3742,7 +3766,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           await sb.from('employee_break_schedules').delete().eq('user_id',uid);
           if(rows.length){
             const {error}=await sb.from('employee_break_schedules').insert(rows);
-            if(error){ mErr(error.message); return false; }
+            if(error){ mErr(rpcErr(error.message)); return false; }
           }
           closeModal(); toast('Амралтын өдөр хадгалагдлаа'); loadAll(); return false;
         });
@@ -3766,7 +3790,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             location_id:$('sh_loc').value||null,note:$('sh_note').value.trim()||null,created_by:me.id};
           const {data:ex}=await sb.from('employee_shifts').select('id').eq('user_id',uid).eq('shift_date',row.shift_date).maybeSingle();
           const q=ex?.id?sb.from('employee_shifts').update(row).eq('id',ex.id):sb.from('employee_shifts').insert(row);
-          const {error}=await q; if(error){ mErr(error.message); return false; }
+          const {error}=await q; if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Хуваарь хадгалагдлаа'); loadAll(); return false;
         });
     };
@@ -3797,7 +3821,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           if(!Number.isFinite(lat)||!Number.isFinite(lng)){ mErr('Эхлээд GPS авах дарна уу'); return false; }
           const row={name,latitude:lat,longitude:lng,radius_m:Number($('al_rad').value)||200,wifi_gateway_ip:wifi,active:true};
           const {error}=await sb.from('attendance_locations').insert(row);
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Байршил нэмэгдлээ'); loadAll(); return false;
         });
     };
@@ -3816,7 +3840,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             radius_m:Number($('al_rad').value)||200,wifi_gateway_ip:$('al_wifi').value.trim()||null};
           if(!row.name){ mErr('Нэр оруулна уu'); return false; }
           const {error}=await sb.from('attendance_locations').update(row).eq('id',id);
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Байршил шинэчлэгдлээ'); loadAll(); return false;
         });
     };
@@ -3840,7 +3864,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             location_name:locRow?.name||null,latitude:locRow?.latitude??null,longitude:locRow?.longitude??null,
             note:`[Админ: ${adminName}] ${note}`};
           const {error}=await sb.from('attendance').insert(row);
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Ирц бүртгэгдлээ'); loadAll(); return false;
         });
     };
@@ -3932,7 +3956,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             p_address:$('e_addr').value.trim()||null,
             p_role:isSuperAdmin(me.role)?$('e_role').value:'employee'
           });
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Мэдээлэл шинэчлэгдлээ'); loadAll(); return false;
         });
     };
@@ -3943,7 +3967,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const w=(data.workers||[]).find(x=>x.id===id);
       if(!w){ toast('Хэрэглэгч олдсонгүй'); return; }
       const {error}=await sb.rpc('admin_authorize_gmail',{p_email:w.email,p_name:w.name,p_last_name:w.last_name||null,p_position:w.position||null,p_phone:w.phone||null,p_address:w.address||null,p_role:nr});
-      if(error){toast(error.message);return;} toast('Эрх өөрчлөгдлөө'); loadAll();
+      if(error){toast(rpcErr(error.message));return;} toast('Эрх өөрчлөгдлөө'); loadAll();
     };
     window.empModal = ()=>{
       const roleField=isSuperAdmin(me.role)
@@ -3963,7 +3987,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           if(!name||!email){ mErr('Нэр, имэйл шаардлагатай'); return false; }
           const newRole=isSuperAdmin(me.role)?($('m_role')?.value||'employee'):'employee';
           const { error }=await sb.rpc('admin_authorize_gmail',{p_email:email,p_name:name,p_last_name:last_name||null,p_position:$('m_pos').value.trim()||null,p_phone:$('m_phone').value.trim()||null,p_address:null,p_role:newRole});
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal();
           openModal('Gmail зөвшөөрөгдлөө',`<div class="card" style="padding:16px"><b>Нэр:</b> ${[last_name,name].filter(Boolean).join(' ')||name}<br><b>Gmail:</b> ${email}</div><p class="muted" style="font-size:13px">Хэрэглэгч mobile app эсвэл admin web дээр Google-ээр шууд нэвтэрнэ.</p>`,'Ойлголоо',()=>{closeModal();loadAll();return true;});
           return false;
@@ -4173,7 +4197,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         'Үүсгэх + QR', async ()=>{
           const plate=formatPlateInput($('v_plate').value.trim()); if(!plate){ mErr('Улсын дугаар оруулна уу'); return false; }
           const { data:saved, error } = await sb.from('vehicles').insert({code:$('v_code').value.trim(),plate_number:plate,liters_per_100km:Number($('v_lit').value)||12,tank_capacity_liters:Number($('v_tank').value)||60,driver_name:$('v_drv').value.trim()||null}).select().single();
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); loadAll(); qrModal(saved); return false;
         });
       bindPlateInputPreview();
