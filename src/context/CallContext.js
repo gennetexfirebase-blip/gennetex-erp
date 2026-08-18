@@ -532,11 +532,18 @@ export function CallProvider({ children }) {
        * (Expo Go) байгаа тул WebRTC сесс огт байхгүй. Хариулбал зүгээр
        * ижил Jitsi өрөө рүү оруулна.
        */
-      if (data?.jitsiRoom && !data?.callId) {
+      /**
+       * ⚠️ `jitsiRoom` нь native дэлгэцийн payload-д ҮЛДДЭГГҮЙ:
+       *    `buildPayload()` нь зөвхөн callId, room, callerId, callerName,
+       *    callType-ийг дамжуулдаг. Тиймээс `room`-оор ч шалгана.
+       */
+      const jitsiRoom = data?.jitsiRoom || data?.room;
+      const hasRealCall = data?.callId && !String(data.callId).startsWith('tmp_');
+      if (jitsiRoom && !hasRealCall) {
         hideNativeIncomingCall();
         if (type === 'answer') {
           navigationRef.navigate('Conversation', {
-            conversationId: data.jitsiRoom,
+            conversationId: jitsiRoom,
             title: data.callerName || 'Дуудлага',
             autoJoinCall: true,
           });

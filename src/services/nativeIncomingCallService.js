@@ -8,14 +8,36 @@ import {
 } from './callKitService';
 
 let RNNotificationCall = null;
+/**
+ * Модуль ачаалахад гарсан алдаа — оношилгоонд харуулна.
+ *
+ * ⚠️ Урьд нь `catch (e) {}` дотор чимээгүй алга болдог байсан тул
+ *    "яагаад дуудлагын дэлгэц гардаггүй юм бол" гэдэг хэзээ ч
+ *    харагддаггүй байв.
+ */
+let loadError = null;
+
 if (Platform.OS === 'android') {
   try {
     RNNotificationCall = require('react-native-full-screen-notification-incoming-call').default;
-  } catch (e) {}
+  } catch (e) {
+    loadError = e?.message || String(e);
+  }
 }
 
-const CHANNEL_ID = 'gennetex_incoming_call_v1';
+export function getIncomingCallDiagnostics() {
+  return {
+    platform: Platform.OS,
+    moduleLoaded: !!RNNotificationCall,
+    canDisplay: !!RNNotificationCall?.displayNotification,
+    callKit: isCallKitAvailable(),
+    listenersReady: initialized,
+    error: loadError,
+  };
+}
+
 let initialized = false;
+const CHANNEL_ID = 'gennetex_incoming_call_v1';
 
 /**
  * Системийн дуудлагын дэлгэц гаргах боломжтой эсэх.

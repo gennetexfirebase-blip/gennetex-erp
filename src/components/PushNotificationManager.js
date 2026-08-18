@@ -208,6 +208,27 @@ export default function PushNotificationManager() {
       })
       .subscribe();
 
+    /**
+     * FOREGROUND дахь DATA-ONLY мессеж.
+     *
+     * ⚠️ ЭНЭ ДУТУУ БАЙСАН: дуудлагын push нь одоо data-only тул
+     *    expo-notifications-ийн `addNotificationReceivedListener` руу
+     *    ОГТ ОРДОГГҮЙ (тэр нь зөвхөн харагдсан мэдэгдлийг сонсдог).
+     *    Апп нээлттэй үед дуудлага ирвэл ямар ч UI гардаггүй байв.
+     *
+     *    `listenForForegroundFcm` нь экспортлогдсон боловч хэн ч
+     *    дууддаггүй байсан — энд холбов.
+     */
+    const fcmUnsub = notifyApi.listenForForegroundFcm(async (message) => {
+      const data = message?.data;
+      if (!data || (data.type !== 'incoming_call' && data.type !== 'call')) return;
+      if (isNativeIncomingCallAvailable()) {
+        showNativeIncomingCallFromPush(data);
+      } else {
+        await startIncomingCallAlert(data.callerName || 'Ажилтан');
+      }
+    });
+
     receivedSub.current = Notifications.addNotificationReceivedListener(async (notification) => {
       const data = notification.request.content.data;
       if (data?.type === 'call' || data?.type === 'incoming_call') {
@@ -236,6 +257,7 @@ export default function PushNotificationManager() {
     return () => {
       active = false;
       appStateSub?.remove?.();
+      fcmUnsub?.();
       receivedSub.current?.remove();
       responseSub.current?.remove();
       tokenRefreshSub.current?.();

@@ -20,6 +20,10 @@ import {
   sendPushToUser,
 } from '../services/notificationService';
 import {
+  getIncomingCallDiagnostics,
+  showNativeIncomingCall,
+} from '../services/nativeIncomingCallService';
+import {
   MODES,
   MODE_OPTIONS,
   getPerformanceState,
@@ -113,6 +117,48 @@ export default function ProfileScreen() {
     } finally {
       setPushTesting(false);
     }
+  };
+
+  /**
+   * Ирэх дуудлагын дэлгэцийг СЕРВЕРГҮЙГЭЭР шалгана.
+   *
+   * Push ирж байгаа ч дэлгэц гарахгүй байвал асуудал хоёрын аль нэгэнд:
+   *   (а) native модуль/зөвшөөрөл  (б) push-ийн зам
+   * Энэ товч (а)-г тусад нь шалгана — 3 секундын дараа дуудлага гаргана,
+   * тэр хооронд утсаа түгжиж болно.
+   */
+  const testIncomingCall = () => {
+    const d = getIncomingCallDiagnostics();
+    const lines = [
+      `Платформ: ${d.platform}`,
+      `Модуль ачаалсан: ${d.moduleLoaded ? 'тийм' : 'үгүй'}`,
+      `Дэлгэц гаргах: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
+      `Сонсогч бэлэн: ${d.listenersReady ? 'тийм' : 'үгүй'}`,
+    ];
+    if (d.error) lines.push('', `⚠️ ${d.error}`);
+
+    if (!d.canDisplay) {
+      lines.push('', 'Дуудлагын дэлгэц гаргах боломжгүй байна.');
+      Alert.alert('Ирэх дуудлага', lines.join('\n'));
+      return;
+    }
+
+    lines.push('', '3 секундын дараа тест дуудлага гарна. Утсаа түгжиж үзээрэй.');
+    Alert.alert('Ирэх дуудлага', lines.join('\n'), [
+      { text: 'Болих', style: 'cancel' },
+      {
+        text: 'Тест эхлүүлэх',
+        onPress: () => {
+          setTimeout(() => {
+            showNativeIncomingCall({
+              id: `test_${Date.now()}`,
+              caller_name: 'Тест дуудлага',
+              type: 'audio',
+            });
+          }, 3000);
+        },
+      },
+    ]);
   };
 
   const checkPush = async () => {
@@ -393,6 +439,11 @@ export default function ProfileScreen() {
                 icon="📨"
                 label={pushTesting ? 'Илгээж байна…' : 'Тест мэдэгдэл илгээх'}
                 onPress={pushTesting ? undefined : testPush}
+              />
+              <ListRow
+                icon="📞"
+                label="Ирэх дуудлагын дэлгэц шалгах"
+                onPress={testIncomingCall}
               />
             </ListGroup>
 
