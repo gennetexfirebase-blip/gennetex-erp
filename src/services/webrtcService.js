@@ -77,12 +77,42 @@ export async function ensureCallPermissions(video = false) {
     // eslint-disable-next-line global-require
     const { Camera } = require('expo-camera');
 
-    const mic = await Camera.requestMicrophonePermissionsAsync();
-    if (mic?.status !== 'granted') return { ok: false, missing: 'microphone' };
+    /**
+     * ⚠️ ЭХЛЭЭД ШАЛГАНА, ЗӨВХӨН ДУТУУ ҮЕД АСУУНА.
+     *
+     * Урьд нь `request*`-ыг БОЛЗОЛГҮЙГЭЭР дууддаг байсан. Зөвшөөрөл
+     * аль хэдийн олгогдсон байсан ч зарим үйлдвэрлэгч (Transsion/HiOS)
+     * дээр систем зөвшөөрлийн цонх гаргаж, буруу үр дүн буцаадаг байв.
+     *
+     * Дуудлага ХАРИУЛАХ агшинд энэ нь ялангуяа хортой: цонх дуудлагын
+     * дэлгэц дээр давхарлаж гарч, үр дүн нь `denied` болоод дуудлага
+     * автоматаар таслагдаж байв (утаснаас баталсан — GrantPermissions
+     * цонх гарсан секундэд дуудлага `declined` болсон).
+     *
+     * Шалгах нь цонх гаргахгүй тул хариулах урсгалыг тасалдуулахгүй.
+     */
+    const askIfNeeded = async (getFn, requestFn) => {
+      const current = await getFn();
+      if (current?.status === 'granted') return true;
+      // `canAskAgain === false` бол систем дахин асуухгүй — цонх
+      // гаргахыг оролдох нь утгагүй, шууд тохиргоо руу чиглүүлнэ.
+      if (current?.canAskAgain === false) return false;
+      const asked = await requestFn();
+      return asked?.status === 'granted';
+    };
+
+    const micOk = await askIfNeeded(
+      Camera.getMicrophonePermissionsAsync,
+      Camera.requestMicrophonePermissionsAsync
+    );
+    if (!micOk) return { ok: false, missing: 'microphone' };
 
     if (video) {
-      const cam = await Camera.requestCameraPermissionsAsync();
-      if (cam?.status !== 'granted') return { ok: false, missing: 'camera' };
+      const camOk = await askIfNeeded(
+        Camera.getCameraPermissionsAsync,
+        Camera.requestCameraPermissionsAsync
+      );
+      if (!camOk) return { ok: false, missing: 'camera' };
     }
     return { ok: true };
   } catch (e) {

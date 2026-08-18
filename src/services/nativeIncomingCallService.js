@@ -157,9 +157,40 @@ function buildPayload(call) {
   };
 }
 
+/**
+ * Одоо харуулж буй дуудлага — ДАВХАРДЛААС СЭРГИЙЛНЭ.
+ *
+ * ⚠️ ЭНЭ НЬ "ХОНХ ДУУГАРАХГҮЙ"-Н ШАЛТГААН БАЙВ:
+ *
+ *   Нэг дуудлагыг ОЛОН зам зэрэг харуулах гэж оролддог:
+ *     • index.js — FCM background handler
+ *     • PushNotificationManager — foreground FCM сонсогч
+ *     • PushNotificationManager — expo-notifications сонсогч
+ *     • CallContext — Supabase realtime
+ *     • incomingCallBackgroundTask
+ *
+ *   Мэдэгдэл бүр ижил id-тай тул шинэ нь хуучныг ОРЛУУЛДАГ. Орлуулах
+ *   бүрд систем эхэлж байсан хонх, чичиргээг ТАСАЛЖ дахин эхлүүлнэ.
+ *   Логоос харахад чичиргээ 50мс-ийн дараа `CANCELLED_BY_USER` болж
+ *   байсан — дуу дуугарч амждаггүй байв.
+ *
+ *   Мөн энэ нь "дуудлага 1-3 секундын зайтай давтагдана" гэдгийн ч
+ *   шалтгаан байсан.
+ */
+let shownCallId = null;
+let shownAt = 0;
+/** Ижил дуудлагыг дахин харуулахыг үл тоомсорлох хугацаа. */
+const DUPLICATE_WINDOW_MS = 60_000;
+
 /** Android — утасны системийн дуудлагын дэлгэц (түгжээтэй/background) */
 export function showNativeIncomingCall(call) {
   if (!call) return false;
+
+  const id = String(call.id || '');
+  if (id && shownCallId === id && Date.now() - shownAt < DUPLICATE_WINDOW_MS) {
+    // Аль хэдийн харагдаж байна — дахин харуулбал хонх тасарна.
+    return true;
+  }
 
   /**
    * 1) СИСТЕМИЙН дуудлагын дэлгэц (iOS CallKit / Android Telecom).
@@ -167,7 +198,11 @@ export function showNativeIncomingCall(call) {
    *    дэлгэц гарч, түгжээтэй дэлгэц дээр ч ажиллана, дуудлагын түүхэнд
    *    бүртгэгдэнэ. Нэмэлт зөвшөөрөл (full-screen intent) шаардахгүй.
    */
-  if (isCallKitAvailable() && displayIncomingCallKit(call)) return true;
+  if (isCallKitAvailable() && displayIncomingCallKit(call)) {
+    shownCallId = id || null;
+    shownAt = Date.now();
+    return true;
+  }
 
   // 2) НӨӨЦ: Android дээрх бүтэн дэлгэцийн мэдэгдэл.
   if (Platform.OS !== 'android') return false;
@@ -224,6 +259,8 @@ export function showNativeIncomingCall(call) {
       isVideo,
       payload: buildPayload({ ...call, id: callId }),
     });
+    shownCallId = String(callId);
+    shownAt = Date.now();
     return true;
   } catch (e) {
     return false;
@@ -247,6 +284,9 @@ export function showNativeIncomingCallFromPush(data) {
 }
 
 export function hideNativeIncomingCall() {
+  // Дуудлага дууслаа — дараагийнхыг харуулах боломжтой болгоно.
+  shownCallId = null;
+  shownAt = 0;
   // Хоёр замыг ч хаана — аль нь ажилласан нь мэдэгдэхгүй байж болно.
   if (isCallKitAvailable()) endAllCallKit();
   if (Platform.OS !== 'android') return;

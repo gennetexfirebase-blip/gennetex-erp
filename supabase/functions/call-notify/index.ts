@@ -80,16 +80,63 @@ async function sendExpoPush(tokens: string[], payload: Record<string, unknown>) 
  *
  * PENDING EXTERNAL CONFIG: FIREBASE_SERVICE_ACCOUNT нэмэгдсэн үед идэвхжинэ.
  */
-async function sendFcmDataMessage(tokens: string[], data: Record<string, string>) {
+/**
+ * Firebase-ийн итгэмжлэлийг уншина.
+ *
+ * ⚠️ ЭНЭ ФУНКЦ ЯАГААД ХЭРЭГТЭЙ ВЭ — ДУУДЛАГЫН PUSH ХЭЗЭЭ Ч ИЛГЭЭГДЭЭГҮЙ:
+ *
+ *   Урьд нь энэ файл ЗӨВХӨН `FIREBASE_SERVICE_ACCOUNT` (бүтэн JSON)-ыг
+ *   хайдаг байсан. Гэтэл `_shared/push.ts` нь ГУРВАН тусдаа утга
+ *   (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`,
+ *   `FIREBASE_PRIVATE_KEY`) ашигладаг бөгөөд төсөлд тэдгээр нь л
+ *   тохируулагдсан байв.
+ *
+ *   Үр дүнд нь: чат мэдэгдэл ирдэг (push.ts ажилладаг), харин дуудлагын
+ *   push эхний мөрөндөө зогсоод чимээгүй `{sent: 0}` буцаадаг байлаа.
+ *   Апп нээлттэй үед Realtime дуудлагыг харуулдаг тул асуудал
+ *   мэдэгддэггүй, харин апп хаагдмагц дуудлага огт ирэхгүй болдог байв.
+ *
+ * Одоо хоёр хэлбэрийг ч хүлээж авна — нэг нь тохируулагдсан бол хангалттай.
+ */
+function firebaseServiceAccount(): { project_id: string; client_email: string; private_key: string } | null {
   const raw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
-  if (!raw) return { sent: 0, reason: 'FIREBASE_SERVICE_ACCOUNT тохируулаагүй' };
+  if (raw) {
+    try {
+      const sa = JSON.parse(raw);
+      if (sa?.project_id && sa?.client_email && sa?.private_key) {
+        return { ...sa, private_key: String(sa.private_key).replace(/\\n/g, '\n') };
+      }
+    } catch (_e) {
+      // JSON биш бол доорх тусдаа утгууд руу шилжинэ
+    }
+  }
+
+  const project_id = Deno.env.get('FIREBASE_PROJECT_ID');
+  const client_email = Deno.env.get('FIREBASE_CLIENT_EMAIL');
+  const private_key = Deno.env.get('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
+  if (project_id && client_email && private_key) {
+    return { project_id, client_email, private_key };
+  }
+  return null;
+}
+
+async function sendFcmDataMessage(tokens: string[], data: Record<string, string>) {
+  const sa = firebaseServiceAccount();
+  if (!sa) {
+    return {
+      sent: 0,
+      reason:
+        'Firebase нууц утга алга (FIREBASE_SERVICE_ACCOUNT эсвэл '
+        + 'FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY)',
+    };
+  }
   const fcmTokens = tokens.filter((t) => !t.startsWith('Expo'));
   if (!fcmTokens.length) return { sent: 0, reason: 'FCM token алга' };
 
   try {
-    const sa = JSON.parse(raw);
     const token = await getGoogleAccessToken(sa);
     let sent = 0;
+    const errors: string[] = [];
     for (const to of fcmTokens) {
       const res = await fetch(
         `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
@@ -110,9 +157,18 @@ async function sendFcmDataMessage(tokens: string[], data: Record<string, string>
           }),
         }
       );
-      if (res.ok) sent += 1;
+      if (res.ok) {
+        sent += 1;
+      } else {
+        // ⚠️ Урьд нь алдааг ЧИМЭЭГҮЙ хаядаг байсан (`if (res.ok) sent += 1`
+        //    гэхээс өөр юу ч хийхгүй). Ингэснээр буруу token, хүчингүй
+        //    итгэмжлэл зэрэг ноцтой асуудал огт харагдахгүй, дуудлага
+        //    зүгээр л "ирэхгүй" байдаг байв.
+        const body = await res.text().catch(() => '');
+        errors.push(`${res.status}: ${body.slice(0, 200)}`);
+      }
     }
-    return { sent };
+    return errors.length ? { sent, failed: errors.length, errors } : { sent };
   } catch (e) {
     return { sent: 0, reason: String((e as Error)?.message || e) };
   }
