@@ -19,11 +19,13 @@ import { incomingCallBridge } from '../lib/incomingCallBridge';
  */
 
 let RNCallKeep = null;
-if (Platform.OS === 'ios') {
+let loadError = null;
+if (Platform.OS === 'ios' || Platform.OS === 'android') {
   try {
     // eslint-disable-next-line global-require
     RNCallKeep = require('react-native-callkeep').default;
   } catch (e) {
+    loadError = e?.message || String(e);
     RNCallKeep = null;
   }
 }
@@ -31,8 +33,25 @@ if (Platform.OS === 'ios') {
 let ready = false;
 const activeUuids = new Map(); // callId -> uuid
 
+/**
+ * Системийн дуудлагын дэлгэц ашиглах боломжтой эсэх.
+ *
+ * ⚠️ ӨӨРЧЛӨЛТ: урьд нь ЗӨВХӨН iOS дээр асаадаг байсан. Гэтэл
+ *    `react-native-callkeep` нь Android дээр ч ажилладаг — тэнд
+ *    Telecom/ConnectionService-ээр дамжуулж УТАСНЫ ЖИНХЭНЭ дуудлагын
+ *    дэлгэцийг гаргадаг. Viber, WhatsApp яг үүнийг ашигладаг.
+ *
+ *    Шаардлагатай зүйлс аль хэдийн бэлэн байсан:
+ *      • MANAGE_OWN_CALLS, READ_PHONE_STATE зөвшөөрөл — манифестэд
+ *      • io.wazo.callkeep.VoiceConnectionService — манифестэд
+ *    Зөвхөн JS тал нь хаалттай байв.
+ */
 export function isCallKitAvailable() {
-  return Platform.OS === 'ios' && !!RNCallKeep;
+  return !!RNCallKeep;
+}
+
+export function getCallKeepDiagnostics() {
+  return { platform: Platform.OS, moduleLoaded: !!RNCallKeep, ready, error: loadError };
 }
 
 /** CallKit-ийг нэг л удаа тохируулна. */
@@ -47,7 +66,21 @@ export async function setupCallKit() {
         maximumCallsPerCallGroup: '1',
         includesCallsInRecents: true,
       },
-      android: { alertTitle: '', alertDescription: '', cancelButton: '', okButton: '' },
+      android: {
+        alertTitle: 'Дуудлагын зөвшөөрөл',
+        alertDescription: 'Дуудлага хүлээн авахын тулд Gennetex ERP-д зөвшөөрөл өгнө үү.',
+        cancelButton: 'Болих',
+        okButton: 'За',
+        // `selfManaged` — апп өөрөө дуудлагаа удирдана (Viber, WhatsApp-тай
+        // адил). Ингэснээр хэрэглэгч утасны тохиргооноос "дуудлагын данс"
+        // сонгох шаардлагагүй, системийн дуудлагын дэлгэц шууд гарна.
+        selfManaged: true,
+        foregroundService: {
+          channelId: 'gennetex_call_service',
+          channelName: 'Дуудлага',
+          notificationTitle: 'Дуудлага үргэлжилж байна',
+        },
+      },
     });
     RNCallKeep.setAvailable(true);
     registerListeners();
@@ -89,9 +122,24 @@ function registerListeners() {
  * `callId` нь UUID тул CallKit-д шууд өгч болно — тусад нь буулгалт
  * хийх шаардлагагүй, ингэснээр хоёр талын ID үргэлж таарна.
  */
+/**
+ * Android-ийн Telecom нь ЖИНХЭНЭ UUID шаарддаг. Манай дуудлагын id нь
+ * заримдаа `tmp_1712...` хэлбэртэй байдаг тул тэрийг UUID болгож хувиргана.
+ */
+function toUuid(id) {
+  const raw = String(id || '');
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) return raw;
+  let h = 0;
+  for (let i = 0; i < raw.length; i += 1) h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0;
+  const hex = (n) => Math.abs(n).toString(16).padStart(8, '0').slice(0, 8);
+  const a = hex(h);
+  const b = hex(h * 7 + raw.length);
+  return `${a}-${b.slice(0, 4)}-4${b.slice(4, 7)}-8${a.slice(0, 3)}-${a}${b.slice(0, 4)}`;
+}
+
 export function displayIncomingCallKit(call) {
   if (!isCallKitAvailable() || !ready || !call?.id) return false;
-  const uuid = String(call.id);
+  const uuid = toUuid(call.id);
   activeUuids.set(String(call.id), uuid);
   try {
     RNCallKeep.displayIncomingCall(

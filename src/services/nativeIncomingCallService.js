@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { incomingCallBridge } from '../lib/incomingCallBridge';
 import {
+  getCallKeepDiagnostics,
   isCallKitAvailable,
   setupCallKit,
   displayIncomingCallKit,
@@ -26,11 +27,16 @@ if (Platform.OS === 'android') {
 }
 
 export function getIncomingCallDiagnostics() {
+  const ck = getCallKeepDiagnostics();
   return {
     platform: Platform.OS,
+    // Системийн дуудлага (Telecom / CallKit) — Viber маягийн зам
+    systemCall: ck.moduleLoaded,
+    systemCallReady: ck.ready,
+    systemCallError: ck.error,
+    // Нөөц зам — бүтэн дэлгэцийн мэдэгдэл
     moduleLoaded: !!RNNotificationCall,
     canDisplay: !!RNNotificationCall?.displayNotification,
-    callKit: isCallKitAvailable(),
     listenersReady: initialized,
     error: loadError,
   };
@@ -72,7 +78,17 @@ function buildPayload(call) {
 /** Android — утасны системийн дуудлагын дэлгэц (түгжээтэй/background) */
 export function showNativeIncomingCall(call) {
   if (!call) return false;
-  if (Platform.OS === 'ios') return displayIncomingCallKit(call);
+
+  /**
+   * 1) СИСТЕМИЙН дуудлагын дэлгэц (iOS CallKit / Android Telecom).
+   *    Viber, WhatsApp яг үүнийг ашигладаг: утасны жинхэнэ дуудлагын
+   *    дэлгэц гарч, түгжээтэй дэлгэц дээр ч ажиллана, дуудлагын түүхэнд
+   *    бүртгэгдэнэ. Нэмэлт зөвшөөрөл (full-screen intent) шаардахгүй.
+   */
+  if (isCallKitAvailable() && displayIncomingCallKit(call)) return true;
+
+  // 2) НӨӨЦ: Android дээрх бүтэн дэлгэцийн мэдэгдэл.
+  if (Platform.OS !== 'android') return false;
   if (!isNativeIncomingCallAvailable()) return false;
   const callId = String(call.id || `tmp_${Date.now()}`);
   const callerName = call.caller_name || 'Ажилтан';
@@ -116,10 +132,9 @@ export function showNativeIncomingCallFromPush(data) {
 }
 
 export function hideNativeIncomingCall() {
-  if (Platform.OS === 'ios') {
-    endAllCallKit();
-    return;
-  }
+  // Хоёр замыг ч хаана — аль нь ажилласан нь мэдэгдэхгүй байж болно.
+  if (isCallKitAvailable()) endAllCallKit();
+  if (Platform.OS !== 'android') return;
   if (!isNativeIncomingCallAvailable()) return;
   try {
     RNNotificationCall.hideNotification();
@@ -128,12 +143,21 @@ export function hideNativeIncomingCall() {
 
 export function initNativeIncomingCallListeners() {
   if (initialized) return;
+
+  // Системийн дуудлагыг эхлээд тохируулна. Android дээр энэ нь
+  // ConnectionService-ийг бүртгэдэг — Viber маягийн дуудлагын дэлгэц.
   if (isCallKitAvailable()) {
-    initialized = true;
     setupCallKit();
+  }
+
+  // ⚠️ Бүтэн дэлгэцийн сонсогчийг МӨН бүртгэнэ: CallKeep тохируулга
+  //    бүтэхгүй бол (зарим OEM дээр тохиолддог) нөөц зам ажиллах ёстой.
+  //    Урьд нь CallKeep байвал энд `return` хийж, нөөц замыг бүрмөсөн
+  //    хааж байсан.
+  if (Platform.OS !== 'android' || !isNativeIncomingCallAvailable()) {
+    initialized = true;
     return;
   }
-  if (!isNativeIncomingCallAvailable()) return;
   initialized = true;
 
   RNNotificationCall.addEventListener('answer', (event) => {

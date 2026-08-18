@@ -131,13 +131,14 @@ export default function ProfileScreen() {
     const d = getIncomingCallDiagnostics();
     const lines = [
       `Платформ: ${d.platform}`,
-      `Модуль ачаалсан: ${d.moduleLoaded ? 'тийм' : 'үгүй'}`,
-      `Дэлгэц гаргах: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
+      `Системийн дуудлага: ${d.systemCall ? (d.systemCallReady ? 'бэлэн' : 'тохируулагдаагүй') : 'алга'}`,
+      `Нөөц дэлгэц: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
       `Сонсогч бэлэн: ${d.listenersReady ? 'тийм' : 'үгүй'}`,
     ];
+    if (d.systemCallError) lines.push(`⚠️ Систем: ${d.systemCallError}`);
     if (d.error) lines.push('', `⚠️ ${d.error}`);
 
-    if (!d.canDisplay) {
+    if (!d.canDisplay && !d.systemCall) {
       lines.push('', 'Дуудлагын дэлгэц гаргах боломжгүй байна.');
       Alert.alert('Ирэх дуудлага', lines.join('\n'));
       return;
