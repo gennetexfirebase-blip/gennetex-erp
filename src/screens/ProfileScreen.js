@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as Notifications from 'expo-notifications';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
 import {
@@ -146,11 +147,38 @@ export default function ProfileScreen() {
    */
   const testIncomingCall = async () => {
     const d = getIncomingCallDiagnostics();
+
+    /**
+     * ⚠️ МЭДЭГДЛИЙН ЗӨВШӨӨРӨЛ нь дуудлагын дэлгэцийн УРЬДЧИЛСАН НӨХЦӨЛ.
+     *
+     * Бүтэн дэлгэц нь мэдэгдлийн `fullScreenIntent`-ээр гардаг. Android
+     * 13-аас хойш POST_NOTIFICATIONS олгогдоогүй бол апп ямар ч мэдэгдэл
+     * гаргаж чадахгүй тул дуудлагын дэлгэц ч ГАРАХГҮЙ.
+     *
+     * Хэрэглэгч нэг удаа татгалзсан бол Android дахин асуудаггүй —
+     * зөвхөн Тохиргооноос гараар асаана. Тиймээс энд тодорхой хэлж,
+     * шууд тохиргоо руу аваачна.
+     */
+    let notifStatus = 'тодорхойгүй';
+    try {
+      notifStatus = (await Notifications.getPermissionsAsync()).status;
+    } catch (e) {}
+    const notifOk = notifStatus === 'granted';
+
     const lines = [
       `Платформ: ${d.platform}${d.androidVersion ? ` (API ${d.androidVersion})` : ''}`,
+      `Мэдэгдлийн зөвшөөрөл: ${notifStatus}`,
       `Дуудлагын дэлгэц: ${d.canDisplay ? 'боломжтой' : 'боломжгүй'}`,
       `Сонсогч бэлэн: ${d.listenersReady ? 'тийм' : 'үгүй'}`,
     ];
+    if (!notifOk) {
+      lines.push(
+        '',
+        '⚠️ Мэдэгдлийн зөвшөөрөл ОЛГОГДООГҮЙ байна. Дуудлагын бүтэн '
+          + 'дэлгэц нь мэдэгдлээр гардаг тул энэ зөвшөөрөлгүйгээр ГАРАХГҮЙ. '
+          + 'Мөн апп хаалттай үед ямар ч мэдэгдэл ирэхгүй.'
+      );
+    }
     if (d.platform === 'ios') {
       lines.push(
         `CallKit: ${d.systemCall ? (d.systemCallReady ? 'бэлэн' : 'тохируулагдаагүй') : 'алга'}`
@@ -169,8 +197,11 @@ export default function ProfileScreen() {
 
     const buttons = [
       { text: 'Хаах', style: 'cancel' },
-      { text: 'Бүтэн дэлгэц', onPress: () => openFullScreenIntentSettings() },
     ];
+    if (!notifOk) {
+      buttons.push({ text: 'Мэдэгдэл асаах', onPress: () => openAppSettings() });
+    }
+    buttons.push({ text: 'Бүтэн дэлгэц', onPress: () => openFullScreenIntentSettings() });
     if (d.canDisplay || d.systemCall) {
       /**
        * Тест нь ШУУД ажиллана — хүлээгээд утсаа түгжих ЁСГҮЙ.

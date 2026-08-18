@@ -173,7 +173,28 @@ export function showNativeIncomingCall(call) {
       notificationBody: isVideo ? 'Видео дуудлага ирлээ' : 'Дуут дуудлага ирлээ',
       answerText: 'Хариулах',
       declineText: 'Татгалзах',
-      notificationColor: '#16a34a',
+      /**
+       * ⚠️ ӨНГӨНИЙ RESOURCE НЭР — HEX КОД БИШ.
+       *
+       * Сан нь native талдаа үүнийг ингэж уншдаг
+       * (IncomingCallService.java:369):
+       *
+       *   int colorId = res.getIdentifier(colorPath, "color", packageName);
+       *   ContextCompat.getColor(context, colorId);
+       *
+       * Өөрөөр хэлбэл `res/values/colors.xml` доторх өнгөний НЭР
+       * шаардана. Урьд нь `'#16a34a'` гэж hex дамжуулдаг байсан тул
+       * `getIdentifier` нь 0 буцааж, `getColor(0)` нь
+       * `Resources$NotFoundException: Resource ID #0x0` шидэж,
+       * IncomingCallService БҮХЭЛДЭЭ уначихдаг байв.
+       *
+       * Үр дүнд нь дуудлагын дэлгэц гарахын оронд апп унадаг байсан
+       * ("Gennetex ERP stopped"). Логоос баталсан.
+       *
+       * `notification_icon_color` нь colors.xml дотор байгаа (#0099db) —
+       * app.json-ы expo-notifications тохиргооноос үүсдэг.
+       */
+      notificationColor: 'notification_icon_color',
       isVideo,
       payload: buildPayload({ ...call, id: callId }),
     });

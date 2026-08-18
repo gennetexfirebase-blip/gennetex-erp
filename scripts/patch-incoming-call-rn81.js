@@ -13,12 +13,14 @@ const file = path.join(
 
 const MARKER = '// RN 0.81+ compatible incoming call UI';
 const SERVICE_MARKER = '// gennetex: safe foreground service start';
+const COLOR_MARKER = '// gennetex: crash-proof color lookup';
 
 // Засвар БҮРИЙГ тусад нь ажиллуулна. Урьд нь эхний засвар хийгдсэн бол
 // `process.exit(0)` хийж, дараагийнх руу ХҮРДЭГГҮЙ байсан — шинэ засвар
 // нэмэхэд чимээгүй алгасагдана.
 patchActivity();
 patchModuleStartService();
+patchServiceColorLookup();
 
 function patchActivity() {
   if (!fs.existsSync(file)) {
@@ -150,4 +152,108 @@ function patchModuleStartService() {
   mod = mod.replace(target, replacement);
   fs.writeFileSync(moduleFile, mod);
   console.log('[patch-incoming-call] patched FullScreenNotificationIncomingCallModule.java');
+}
+
+/**
+ * `getColorForResourceName` нь өнгө олдохгүй үед аппыг унагадаг.
+ *
+ * ⚠️ ЭНЭ НЬ ДУУДЛАГЫН ДЭЛГЭЦ ГАРАХГҮЙ БАЙСНЫ ЖИНХЭНЭ ШАЛТГААН БАЙВ:
+ *
+ *   int colorId = res.getIdentifier(colorPath, "color", packageName);
+ *   int desiredColor = ContextCompat.getColor(context, colorId);
+ *
+ * Нэр олдохгүй бол `getIdentifier` нь 0 буцаана. `getColor(0)` нь
+ * `Resources$NotFoundException: Resource ID #0x0` шидэж, IncomingCallService
+ * бүхэлдээ унана — мэдэгдэл ч, бүтэн дэлгэц ч гарахгүй, апп "stopped"
+ * болно. Утасны logcat-аас баталсан.
+ *
+ * Дуудлагын дэлгэцийн ӨНГӨ нь чухал зүйл биш — түүнээс болж бүх зүйл
+ * унах ёсгүй. Тиймээс:
+ *   • hex код (#RRGGBB) өгсөн бол шууд задалж авна
+ *   • resource нэр олдвол түүнийг ашиглана
+ *   • аль нь ч болохгүй бол өнгө тавихгүй өнгөрнө
+ */
+function patchServiceColorLookup() {
+  const serviceFile = path.join(
+    __dirname,
+    '../node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/IncomingCallService.java'
+  );
+  if (!fs.existsSync(serviceFile)) {
+    console.log('[patch-incoming-call] service file missing, skip');
+    return;
+  }
+
+  let src = fs.readFileSync(serviceFile, 'utf8');
+  if (src.includes(COLOR_MARKER)) {
+    console.log('[patch-incoming-call] color lookup already patched');
+    return;
+  }
+
+  const original = `  private int getColorForResourceName(Context context, String colorPath) {
+    // java
+    Resources res = context.getResources();
+    String packageName = context.getPackageName();
+
+    int colorId = res.getIdentifier(colorPath, "color", packageName);
+    int desiredColor = ContextCompat.getColor(context, colorId);
+
+    return desiredColor;
+  }`;
+
+  if (!src.includes(original)) {
+    console.log('[patch-incoming-call] color lookup pattern not found, skip');
+    return;
+  }
+
+  const replacement = `  ${COLOR_MARKER}
+  // 0 = "олдсонгүй". getColor(0) нь Resources$NotFoundException шидэж
+  // аппыг унагадаг тул хэзээ ч тэр рүү оруулж болохгүй.
+  private int getColorForResourceName(Context context, String colorPath) {
+    if (colorPath == null) {
+      return 0;
+    }
+
+    // "#RRGGBB" хэлбэрээр өгсөн бол шууд задална.
+    if (colorPath.startsWith("#")) {
+      try {
+        return android.graphics.Color.parseColor(colorPath);
+      } catch (IllegalArgumentException e) {
+        return 0;
+      }
+    }
+
+    Resources res = context.getResources();
+    String packageName = context.getPackageName();
+    int colorId = res.getIdentifier(colorPath, "color", packageName);
+    if (colorId == 0) {
+      return 0;
+    }
+
+    try {
+      return ContextCompat.getColor(context, colorId);
+    } catch (Resources.NotFoundException e) {
+      return 0;
+    }
+  }`;
+
+  src = src.replace(original, replacement);
+
+  // Өнгө 0 (олдсонгүй) бол setColor огт дуудахгүй.
+  const applyOld = `    String notificationColor = bundle.getString("notificationColor");
+    if (notificationColor != null) {
+      notificationBuilder.setColor(getColorForResourceName(context, notificationColor));
+    }`;
+  const applyNew = `    String notificationColor = bundle.getString("notificationColor");
+    if (notificationColor != null) {
+      int resolved = getColorForResourceName(context, notificationColor);
+      if (resolved != 0) {
+        notificationBuilder.setColor(resolved);
+      }
+    }`;
+  if (src.includes(applyOld)) {
+    src = src.replace(applyOld, applyNew);
+  }
+
+  fs.writeFileSync(serviceFile, src);
+  console.log('[patch-incoming-call] patched IncomingCallService.java color lookup');
 }
