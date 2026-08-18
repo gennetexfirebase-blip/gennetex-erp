@@ -139,8 +139,24 @@ export async function startTracking(user) {
   try {
     await Location.startLocationUpdatesAsync(LOCATION_TASK, {
       accuracy: Location.Accuracy.High,
-      timeInterval: 15000,
-      distanceInterval: 30,
+      /**
+       * ⚠️ `distanceInterval` 0 БАЙХ ЁСТОЙ.
+       *
+       * Урьд нь `distanceInterval: 30` байсан. Энэ нь "30 метр хөдөлтөл
+       * шинэ цэг илгээхгүй" гэсэн үг. Ажилтан оффис, айлын байранд суугаа
+       * үед 30 метр хөдөлдөггүй тул цэг ОГТ үүсдэггүй байв.
+       *
+       * Үр дүнд нь админы карт дээр байршил хэдэн арван минутаар
+       * шинэчлэгдэхгүй үлдэж, "байршил зогссон", "апп хаагдахаар ирэхээ
+       * больсон" мэт харагддаг байсан. Өгөгдлөөс 28 минутын тасалдал
+       * ажиглагдсан.
+       *
+       * Одоо 0 болгосон тул хөдөлж байгаа эсэхээс үл хамааран цаг
+       * тутамдаа цэг ирнэ — админ ажилтан ажил дээрээ байгааг байнга
+       * харна.
+       */
+      timeInterval: 60000,
+      distanceInterval: 0,
       // Зогссон үед OS түр зогсоовол дахин эхлэхгүй байх эрсдэлтэй
       pausesUpdatesAutomatically: false,
       // Утас дахин асаасны дараа автоматаар сэргэнэ
@@ -248,6 +264,41 @@ export async function getLocationDiagnostics() {
     out.user = raw ? (JSON.parse(raw)?.name || 'бүртгэлтэй') : null;
   } catch (e) {}
   return out;
+}
+
+/**
+ * "Байнга зөвшөөрөх"-ийг сануулах цаг болсон эсэх.
+ *
+ * ЯАГААД САНУУЛАХ ХЭРЭГТЭЙ ВЭ:
+ *   Android 11-ээс хойш арын байршлын зөвшөөрлийг системийн энгийн
+ *   цонхоор олгох БОЛОМЖГҮЙ — хэрэглэгч Тохиргоо руу ороод "Байнга
+ *   зөвшөөрөх" гэж ГАРААР сонгох ёстой. Ихэнх хэрэглэгч үүнийг мэдэхгүй.
+ *
+ *   Үр дүнд нь: апп нээлттэй байхад байршил явж байдаг тул бүх зүйл
+ *   хэвийн мэт харагдана. Гэтэл апп хаагдмагц байршил зогсоно —
+ *   ажилтан ч, админ ч яагаад гэдгийг мэдэхгүй.
+ *
+ * ЯАГААД ХЯЗГААРТАЙ ВЭ:
+ *   Нээх бүрд сануулга гаргавал хэрэглэгч залхаж, уншихаа болино.
+ *   Тиймээс хоногт нэгээс илүүгүй удаа харуулна.
+ */
+const BG_PROMPT_KEY = '@bg_location_prompt_at';
+const BG_PROMPT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+export async function shouldPromptBackgroundPermission() {
+  try {
+    const raw = await AsyncStorage.getItem(BG_PROMPT_KEY);
+    if (!raw) return true;
+    return Date.now() - Number(raw) > BG_PROMPT_INTERVAL_MS;
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function markBackgroundPromptShown() {
+  try {
+    await AsyncStorage.setItem(BG_PROMPT_KEY, String(Date.now()));
+  } catch (e) {}
 }
 
 /** Аппын тохиргооны хуудсыг нээнэ — зөвшөөрөл гараар өөрчлөх. */

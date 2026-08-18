@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Alert, AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
 import * as tracking from '../services/trackingService';
@@ -52,12 +53,38 @@ export default function LocationTracker() {
         // Апп хаагдсан/дэлгэц түгжигдсэн ч байршил үргэлжлүүлэхийн тулд
         // OS түвшний арын task бүртгэнэ. watchPositionAsync нь зөвхөн апп
         // нээлттэй байхад ажилладаг тул ганцаараа хангалтгүй.
-        bgLocation.startTracking(currentUser).then((res) => {
-          if (!res.ok && active) {
-            setTrackingState?.({ active: true, background: false, reason: res.reason });
-          } else if (active) {
+        bgLocation.startTracking(currentUser).then(async (res) => {
+          if (!active) return;
+          if (res.ok) {
             setTrackingState?.({ active: true, background: true });
+            return;
           }
+          setTrackingState?.({ active: true, background: false, reason: res.reason });
+
+          /**
+           * "Байнга зөвшөөрөх" дутуу бол ХЭРЭГЛЭГЧИД ХЭЛНЭ.
+           *
+           * Android 11-ээс хойш үүнийг системийн цонхоор олгох боломжгүй —
+           * Тохиргоо руу ороод гараар сонгох ёстой. Сануулахгүй бол апп
+           * нээлттэй үед байршил явдаг тул бүх зүйл хэвийн мэт харагдаж,
+           * апп хаагдмагц чимээгүй зогсоно.
+           *
+           * Хоногт нэг удаа л сануулна — эс тэгвээс залхааж, уншихаа болино.
+           */
+          if (res.reason !== 'no-background-permission') return;
+          if (!(await bgLocation.shouldPromptBackgroundPermission())) return;
+          if (!active) return;
+          await bgLocation.markBackgroundPromptShown();
+
+          Alert.alert(
+            'Байршил апп хаагдахад зогсоно',
+            bgLocation.trackingProblemText('no-background-permission')
+              + '\n\nОдоо апп нээлттэй үед л байршил илгээгдэж байна.',
+            [
+              { text: 'Дараа', style: 'cancel' },
+              { text: 'Тохиргоо нээх', onPress: () => bgLocation.openAppSettings() },
+            ]
+          );
         });
 
         // Эхлэнгүүт шууд нэг удаа байршил илгээх (хөдлөхийг хүлээхгүй)
@@ -122,8 +149,32 @@ export default function LocationTracker() {
       }
     };
 
+    /**
+     * Тохиргооноос буцаж ирэхэд ДАХИН оролдоно.
+     *
+     * ⚠️ ЭНЭ ДУТУУ БАЙСАН:
+     *   Зөвшөөрлийг зөвхөн нэвтрэх үед НЭГ УДАА шалгадаг байв. Ажилтан
+     *   Тохиргоо руу ороод "Байнга зөвшөөрөх" гэж сонгоод буцаж ирэхэд
+     *   апп түүнийг мэдэхгүй хэвээр үлдэж, байршил апп хаагдмагц
+     *   зогссоор байв. Аппыг бүрэн хааж дахин нээх хүртэл засрахгүй.
+     *
+     *   Одоо апп идэвхжих бүрд шалгаж, зөвшөөрөл олгогдсон бол ШУУД
+     *   арын хяналтыг эхлүүлнэ — хэрэглэгч юу ч хийх шаардлагагүй.
+     */
+    const appStateSub = AppState.addEventListener('change', async (next) => {
+      if (next !== 'active' || !active) return;
+      if (await bgLocation.isTracking()) return;
+
+      const res = await bgLocation.startTracking(currentUser);
+      if (!active) return;
+      if (res.ok) {
+        setTrackingState?.((prev) => ({ ...prev, active: true, background: true, reason: null }));
+      }
+    });
+
     return () => {
       active = false;
+      appStateSub?.remove?.();
       if (watchRef.current) {
         watchRef.current.remove();
         watchRef.current = null;
