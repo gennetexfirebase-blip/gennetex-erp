@@ -83,6 +83,7 @@
     },
     "plugins": [
       "./plugins/withFirebaseManifestFix",
+      "./plugins/withIncomingCallManifest",
       "@react-native-firebase/app",
       [
         "expo-location",
