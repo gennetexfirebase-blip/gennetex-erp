@@ -104,6 +104,24 @@ export async function ensureChannels() {
     bypassDnd: true,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
+
+  /**
+   * Хуучирсан дуудлагын сувгуудыг устгана.
+   *
+   * Android дээр мэдэгдлийн суваг үүссэний дараа дуу/чичиргээ нь код
+   * дотроос ӨӨРЧЛӨГДӨХГҮЙ тул тохиргоо засах бүрд ШИНЭ ID авах
+   * шаардлагатай болдог (src/services/nativeIncomingCallService.js).
+   *
+   * Хуучин ID-г устгахгүй бол хэрэглэгчийн "Мэдэгдэл" тохиргоонд
+   * ажиллахаа больсон сувгууд хуримтлагдаж, аль нь идэвхтэйг нь
+   * ялгах боломжгүй болно.
+   */
+  const RETIRED_CALL_CHANNELS = ['gennetex_incoming_call_v1'];
+  await Promise.all(
+    RETIRED_CALL_CHANNELS.map((id) =>
+      Notifications.deleteNotificationChannelAsync(id).catch(() => {})
+    )
+  );
 }
 
 async function getDeviceId() {
