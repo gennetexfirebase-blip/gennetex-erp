@@ -865,8 +865,12 @@ ${qty} ${giveItem.unit} → ${employee.name}
               />
             ) : (
               <>
-                {/* Код/хайрцгийн QR уншиж олгох нь одоо АДМИНы үйлдэл */}
-                <HeaderButton title="Унших" onPress={openScan} />
+                {/* Код/хайрцгийн QR уншиж олгох нь одоо АДМИНы үйлдэл.
+
+                    Хангамж (хувцас, гутал) дээр QR БАЙХГҮЙ: тэдгээр нь
+                    размераар ялгагддаг бөгөөд бар код наагддаггүй. Уншуулах
+                    товч харагдвал ажилтан юу уншуулахаа хайж цаг алдана. */}
+                {!isSupply ? <HeaderButton title="Унших" onPress={openScan} /> : null}
                 <HeaderButton
                   title="Хэн авсан"
                   onPress={() => navigation.navigate('ToolAllocation', { category })}

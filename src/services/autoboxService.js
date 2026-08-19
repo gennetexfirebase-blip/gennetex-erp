@@ -56,7 +56,21 @@ export async function fetchAutoboxVehicle(plate) {
     try {
       return await fetchViaProxy(q);
     } catch (proxyErr) {
-      throw new Error(directErr.message || proxyErr.message || 'Машины мэдээлэл татахад алдаа');
+      /**
+       * ⚠️ ЭХНИЙХИЙН БИШ, ПРОКСИЙН алдааг харуулна.
+       *
+       * Урьд нь `directErr.message` давамгайлдаг байсан. Утаснаас
+       * autobox.mn руу ШУУД хандах нь ихэвчлэн бүтдэггүй тул хэрэглэгч
+       * үргэлж "Network request failed" гэдгийг л хардаг байв — тэр нь
+       * ХҮЛЭЭГДСЭН зүйл бөгөөд жинхэнэ шалтгаан биш.
+       *
+       * Жинхэнэ шалтгаан нь нөөц зам буюу проксид байдаг (жишээ нь
+       * функц deploy хийгдээгүй бол 404). Түүнийг нуувал асуудлыг
+       * олоход хэцүү болно.
+       */
+      const proxyMsg = proxyErr?.message || '';
+      const directMsg = directErr?.message || '';
+      throw new Error(proxyMsg || directMsg || 'Машины мэдээлэл татахад алдаа');
     }
   }
 }
