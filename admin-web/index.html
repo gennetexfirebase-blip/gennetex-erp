@@ -2,7 +2,7 @@
 <html lang="mn">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="admin-build-version" content="1.2.6"/>
+  <meta name="admin-build-version" content="1.2.7"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ЖЕННЕТЕКС — Admin Panel</title>
   <link rel="icon" href="/gennetex/admin/logo.png"/>
@@ -696,7 +696,7 @@
           <button class="btn btn-ghost btn-sm" id="logoutBtnSide" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
             <span class="material-symbols-outlined" style="font-size:18px">logout</span> Гарах
           </button>
-          <span id="appVersionFoot">ЖЕННЕТЕКС v1.2.6</span>
+          <span id="appVersionFoot">ЖЕННЕТЕКС v1.2.7</span>
         </div>
       </aside>
       <div class="main">
@@ -3929,9 +3929,45 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         <div class="card-b" style="padding:0"><table><thead><tr><th>Ажилтан</th><th>Имэйл</th><th>Утас</th><th>Хаяг</th><th>Эрх</th><th></th></tr></thead>
         <tbody>${list.map(w=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${w.avatar_url?`<img class="av-id" src="${w.avatar_url}" alt="">`:`<span class="av-sm av-ph">${(w.name||' ?').charAt(0).toUpperCase()}</span>`}<div><b>${empDisplayName(w)}</b>${w.position?`<br><span class=muted style="font-size:12px">${w.position}</span>`:''}${w.pending?'<br><span class="muted" style="font-size:11px;color:#b45309">Google нэвтрэлт хүлээгдэж байна</span>':''}</div></div></td><td class=muted>${w.email||'—'}</td><td class=muted>${w.phone||'—'}</td><td class=muted>${w.address||'—'}</td>
           <td>${empRolePill(w)}</td>
-          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${w.pending?'':`<button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button>`}<button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${w.id===me.id?'':`<button class="btn btn-ghost btn-sm" onclick="setEmployment('${String(w.email||'').replace(/'/g,"&#39;")}',${w.active===false})">${w.active===false?'Буцааж авах':'Ажлаас гаргах'}</button>`}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${w.pending?'':`<button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button>`}<button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${w.id===me.id?'':`<button class="btn btn-ghost btn-sm" onclick="setEmployment('${String(w.email||'').replace(/'/g,"&#39;")}',${w.active===false})">${w.active===false?'Буцааж авах':'Ажлаас гаргах'}</button>`}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin'?`<button class="btn btn-danger btn-sm" onclick='deleteEmp(${JSON.stringify(w.id)},${JSON.stringify(w.email||"")},${JSON.stringify(empDisplayName(w))})'>Устгах</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
     }
     window.empTab=(showFormer)=>{ empShowFormer=!!showFormer; loadAll(); };
+
+    /**
+     * Ажилтныг БҮРМӨСӨН устгах — зөвхөн Хөгжүүлэгчид.
+     *
+     * ⚠️ ЭРГЭЛТ БУЦАЛТГҮЙ: ирц, байршил, багажны олголт, чат бүгд алга
+     *    болно. Ихэнх тохиолдолд "Ажлаас гаргах" нь зөв сонголт —
+     *    түүх нь хадгалагдаж, дахин ажилд орвол сэргэнэ.
+     *
+     * Тиймээс баталгаажуулалт нь ХОЁР шаттай: эхлээд юу болохыг хэлж,
+     * дараа нь нэрийг нь бичүүлнэ. Санамсаргүй дарахаас сэргийлнэ.
+     *
+     * Google-ээр нэвтрээгүй хүнд `auth.users` мөр байхгүй тул устгахын
+     * оронд зөвшөөрлийг нь цуцална — мобайл апп ч мөн адил ажилладаг.
+     */
+    window.deleteEmp=async (id,email,name)=>{
+      const label=name||email||'энэ хэрэглэгч';
+      if(!confirm(
+        `${label}-ийг БҮРМӨСӨН устгах уу?\n\n`
+        +'• Ирц, байршил, багажны олголт, чат бүгд АЛГА БОЛНО\n'
+        +'• Сэргээх боломжгүй\n\n'
+        +'Түүхийг нь хадгалахыг хүсвэл "Ажлаас гаргах" ашиглана уу.'
+      )) return;
+      const typed=prompt(`Баталгаажуулахын тулд нэрийг нь бичнэ үү:\n${label}`);
+      if(typed===null) return;
+      if(String(typed).trim()!==String(label).trim()){ toast('Нэр таарсангүй — устгасангүй'); return; }
+
+      let error;
+      if(String(id).startsWith('pending:')){
+        ({ error }=await sb.rpc('admin_revoke_authorization',{ p_email:String(id).slice(8) }));
+      } else {
+        ({ error }=await sb.rpc('admin_delete_user',{ target_id:id }));
+      }
+      if(error){ toast(rpcErr(error.message)); return; }
+      toast('Устгагдлаа');
+      loadAll();
+    };
 
     /**
      * Ажлаас гаргах / буцааж авах.
