@@ -89,7 +89,11 @@ const UNITS = [
 const CAT_META = {
   material: { label: 'Бараа материал', empty: 'Бараа материал бүртгэгдээгүй байна.', lowLabel: 'бараа' },
   tool: { label: 'Багаж', empty: 'Багаж бүртгэгдээгүй байна.', lowLabel: 'багаж' },
+  supply: { label: 'Хангамж', empty: 'Хангамж бүртгэгдээгүй байна.', lowLabel: 'хангамж' },
 };
+
+/** Хүчинтэй төрлүүд — route-оор ирсэн утгыг шалгахад ашиглана. */
+const CATEGORIES = Object.keys(CAT_META);
 
 const LOW_STOCK = 5;
 
@@ -126,7 +130,9 @@ export default function InventoryScreen() {
   const route = useRoute();
   const { colors, shadow } = useTheme();
   const styles = useStyles(makeStyles);
-  const category = route.params?.category === 'tool' ? 'tool' : 'material';
+  // Route-оор ирсэн төрлийг шалгана. Танихгүй утга ирвэл бараа материал.
+  const routeCategory = route.params?.category;
+  const category = CATEGORIES.includes(routeCategory) ? routeCategory : 'material';
   const meta = CAT_META[category];
 
   const {
@@ -591,7 +597,7 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
     }
     const itemCat = item.category || 'material';
     if (itemCat !== category) {
-      const where = itemCat === 'tool' ? 'Багаж' : 'Бараа материал';
+      const where = CAT_META[itemCat]?.label || 'Бараа материал';
       Alert.alert('Буруу ангилал', `Энэ код "${where}" хэсэгт бүртгэгдсэн.`);
       return;
     }
@@ -1511,9 +1517,7 @@ ${qty} ${giveItem.unit} → ${employee.name}
         onScanned={handleScanned}
         title={
           scanMode === 'take'
-            ? category === 'tool'
-              ? 'Багажийн бар код'
-              : 'Барааны бар код'
+            ? `${meta.label} — бар код`
             : 'Бар код унших'
         }
         hint="QR эсвэл EAN/Code128 зураасан код"

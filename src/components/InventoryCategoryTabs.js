@@ -7,6 +7,7 @@ const TABS = [
   { key: 'all', label: 'Бүгд' },
   { key: 'material', label: 'Бараа материал' },
   { key: 'tool', label: 'Багаж' },
+  { key: 'supply', label: 'Хангамж' },
 ];
 
 export default function InventoryCategoryTabs({ value = 'all', onChange, style }) {

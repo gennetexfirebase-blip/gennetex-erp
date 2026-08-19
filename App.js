@@ -19,6 +19,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import OnboardingPermissionsScreen from './src/screens/OnboardingPermissionsScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
+import ToolsHubScreen from './src/screens/ToolsHubScreen';
 import FuelScreen from './src/screens/FuelScreen';
 import FleetFuelScreen from './src/screens/FleetFuelScreen';
 import LiveLocationScreen from './src/screens/LiveLocationScreen';
@@ -172,6 +173,9 @@ function AppStack() {
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Inventory" component={InventoryScreen} initialParams={{ category: 'material', mode: 'manage' }} />
       <Stack.Screen name="Tools" component={InventoryScreen} initialParams={{ category: 'tool', mode: 'manage' }} />
+      {/* "Багаж, хангамж" төв цэс — Багаж / Хангамж / Бараа материал руу сална. */}
+      <Stack.Screen name="ToolsHub" component={ToolsHubScreen} />
+      <Stack.Screen name="Supplies" component={InventoryScreen} initialParams={{ category: 'supply', mode: 'manage' }} />
       <Stack.Screen name="Fuel" component={FuelScreen} />
       <Stack.Screen name="FleetFuel" component={FleetFuelScreen} />
       <Stack.Screen name="Live" component={LiveLocationScreen} />

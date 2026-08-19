@@ -74,8 +74,10 @@ const ADMIN_MODULES = [
   { key: 'VehicleSpecs', label: 'Машины оншилгоо', icon: 'vehicle', accent: 'amber', need: 'employees' },
   { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber', need: 'employees' },
   { key: 'Live', label: 'Байршил хяналт', icon: 'location', accent: 'green', need: 'approve' },
-  { key: 'Inventory', label: 'Бараа материал', icon: 'inventory', accent: 'brand', need: 'inventory' },
-  { key: 'Tools', label: 'Багаж', icon: 'tools', accent: 'brand', need: 'inventory'},
+  // Багаж, хангамж, бараа материалыг НЭГ хавтанд нэгтгэв. Урьд нь хоёр
+  // тусдаа хавтан байсан бөгөөд хангамж нэмэгдэхэд гурав болж, нүүр
+  // ижил төрлийн зүйлсээр тарж байрлах байв.
+  { key: 'ToolsHub', label: 'Багаж, хангамж', icon: 'tools', accent: 'brand', need: 'inventory' },
   { key: 'ToolAllocation', label: 'Ажилтны үлдэгдэл', icon: 'allocation', accent: 'brand', need: 'inventory' },
   // --- Enhancements (additive) ---
   { key: 'LiveOps', label: 'Live Ops', icon: 'location', accent: 'green', need: 'approve' },
