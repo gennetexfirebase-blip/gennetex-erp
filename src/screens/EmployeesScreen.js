@@ -283,6 +283,9 @@ export default function EmployeesScreen() {
             try {
               await authApi.adminDeleteUser(item.id);
               setList((prev) => prev.filter((p) => p.id !== item.id));
+              // Засах цонхноос устгасан бол түүнийг хаана — эс тэгвээс
+              // аль хэдийн устсан хүний маягт нээлттэй үлдэнэ.
+              closeModal();
             } catch (e) {
               Alert.alert('Устгаж чадсангүй', e.message);
             }
@@ -475,7 +478,33 @@ export default function EmployeesScreen() {
                 {item.pending ? <Text style={styles.pending}>Google нэвтрэлт хүлээгдэж байна</Text> : null}
                 {item.phone ? <Text style={styles.phone}>{item.phone}</Text> : null}
               </View>
-              <Badge text={roleLabel(item.role)} color={item.role === ROLES.ADMIN || item.role === ROLES.SUPERADMIN ? colors.accent : colors.primary} />
+              <View style={styles.rowRight}>
+                <Badge text={roleLabel(item.role)} color={item.role === ROLES.ADMIN || item.role === ROLES.SUPERADMIN ? colors.accent : colors.primary} />
+                {/*
+                  Ажлаас гаргах товч нь МӨР дээр шууд байна.
+
+                  Урьд нь зөвхөн засах цонхны доод хэсэгт байсан бөгөөд тэр
+                  цонх нь Google-ээр нэвтрээгүй ажилтан дээр ОГТ нээгддэггүй
+                  (`openEdit` нь `pending` үед зогсоодог). Тиймээс тэдгээрийг
+                  ажлаас гаргах ямар ч зам байхгүй байв.
+                */}
+                {canManageProfile(authProfile, item) && item.id !== authProfile?.id ? (
+                  <TouchableOpacity
+                    style={[styles.rowAction, item.active === false && styles.rowActionBack]}
+                    onPress={() => toggleEmployment(item)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.rowActionText,
+                        item.active === false && styles.rowActionTextBack,
+                      ]}
+                    >
+                      {item.active === false ? 'Буцааж авах' : 'Ажлаас гаргах'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </Card>
           </TouchableOpacity>
         )}
@@ -712,6 +741,29 @@ export default function EmployeesScreen() {
                     disabled={employmentBusy}
                     onPress={() => toggleEmployment(editTarget)}
                   />
+
+                  {/*
+                    БҮР МӨСӨН УСТГАХ.
+
+                    Урьд нь зөвхөн жагсаалт дээр УДААН ДАРЖ устгадаг байсан
+                    бөгөөд тэр нь ил биш — хэн ч мэдэхгүй. Одоо энд ил байна.
+
+                    Ажлаас гаргахаас ЯЛГААТАЙ нь тодорхой харагдах ёстой тул
+                    доор нь тайлбар бичив.
+                  */}
+                  {canDeleteProfile(authProfile, editTarget) ? (
+                    <>
+                      <Text style={styles.deleteNote}>
+                        Устгавал ирц, байршил, багажны олголт бүгд алга болно.
+                        Сэргээх боломжгүй.
+                      </Text>
+                      <Button
+                        title="Бүр мөсөн устгах"
+                        variant="ghost"
+                        onPress={() => confirmDelete(editTarget)}
+                      />
+                    </>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -805,6 +857,20 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   pinState: { color: colors.textMuted, fontSize: 12, lineHeight: 18, marginBottom: spacing.sm },
+  deleteNote: { color: colors.textMuted, fontSize: 11, lineHeight: 16 },
+  // --- Мөр дээрх үйлдэл ---
+  rowRight: { alignItems: 'flex-end', gap: 6 },
+  rowAction: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.danger + '12',
+  },
+  rowActionBack: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  rowActionText: { color: colors.danger, fontSize: 11, fontWeight: '800' },
+  rowActionTextBack: { color: colors.primary },
   // --- Ажилчид / Ажлаас гарсан таб ---
   tabRow: {
     flexDirection: 'row',
