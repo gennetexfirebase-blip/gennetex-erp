@@ -322,6 +322,7 @@ export function mapDeleteError(message = '') {
   const m = String(message || '');
   if (/forbidden_target/.test(m)) return 'Танд энэ хэрэглэгчийг устгах эрх байхгүй.';
   if (/cannot_delete_self/.test(m)) return 'Өөрийгөө устгах боломжгүй.';
+  if (/cannot_change_self/.test(m)) return 'Өөрийгөө ажлаас гаргах боломжгүй.';
   if (/last_superadmin/.test(m)) return 'Сүүлчийн хөгжүүлэгчийг устгах боломжгүй.';
   if (/target_not_found/.test(m)) return 'Хэрэглэгч олдсонгүй.';
   if (/already_linked/.test(m)) return 'Энэ хэрэглэгч аль хэдийн нэвтэрсэн байна.';

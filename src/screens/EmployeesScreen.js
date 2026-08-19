@@ -67,6 +67,15 @@ export default function EmployeesScreen() {
   const [deptSaving, setDeptSaving] = useState(false);
   const [pinBusy, setPinBusy] = useState(false);
   const [list, setList] = useState([]);
+  /**
+   * "Ажилд байгаа" / "Ажлаас гарсан" хоёр хэсэг.
+   *
+   * Ажлаас гарсан ажилтныг УСТГАХГҮЙ — зөвхөн нуух. Дахин ажилд орвол
+   * буцааж авахад ирц, байршил, багажны олголт зэрэг бүх түүх нь хэвээр
+   * сэргэнэ. Устгасан бол сэргээх боломжгүй болно.
+   */
+  const [showFormer, setShowFormer] = useState(false);
+  const [employmentBusy, setEmploymentBusy] = useState(false);
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
   // Устгах эрхийг шалгахад бүтэн мөр хэрэгтэй тул editId-аас гадна өөрийг нь хадгална.
@@ -142,6 +151,52 @@ export default function EmployeesScreen() {
    * PIN нь утсан дээр л байдаг тул эндээс "шинэ PIN тавьж өгөх" боломжгүй —
    * зөвхөн хуучныг нь хүчингүй болгож, өөрөөр нь дахин үүсгүүлнэ.
    */
+  /**
+   * Ажлаас гаргах / буцааж авах.
+   *
+   * Устгахгүй гэдгийг хэрэглэгчид ТОДОРХОЙ хэлнэ — "гаргах" гэдэг үг
+   * устгахтай андуурагдвал админ айж дарахгүй байх эрсдэлтэй.
+   */
+  const toggleEmployment = (target) => {
+    if (!target?.email) return;
+    const goingOut = target.active !== false;
+    Alert.alert(
+      goingOut ? 'Ажлаас гаргах' : 'Буцааж авах',
+      goingOut
+        ? `${target.name || target.email} ажлаас гарна.\n\n`
+          + '• Апп руу нэвтэрч чадахгүй болно\n'
+          + '• Мэдээлэл нь УСТАХГҮЙ — ирц, байршил, багажны олголт хэвээр\n'
+          + '• Дахин ажилд орвол буцааж авахад бүгд сэргэнэ'
+        : `${target.name || target.email} дахин ажилд орно.\n\n`
+          + 'Өмнөх бүх мэдээлэл нь хэвээр сэргэж, апп руу нэвтрэх боломжтой болно.',
+      [
+        { text: 'Болих', style: 'cancel' },
+        {
+          text: goingOut ? 'Ажлаас гаргах' : 'Буцааж авах',
+          style: goingOut ? 'destructive' : 'default',
+          onPress: async () => {
+            setEmploymentBusy(true);
+            try {
+              await authApi.setEmployment(target.email, !goingOut);
+              closeModal();
+              await load();
+              Alert.alert(
+                goingOut ? 'Ажлаас гарлаа' : 'Буцаж орлоо',
+                goingOut
+                  ? `${target.name || target.email} "Ажлаас гарсан" хэсэгт шилжлээ.`
+                  : `${target.name || target.email} дахин ажилд орлоо.`
+              );
+            } catch (e) {
+              Alert.alert('Алдаа', e.message);
+            } finally {
+              setEmploymentBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const togglePinReset = async () => {
     if (!editId || !editTarget) return;
     const next = !editTarget.pin_reset_required;
@@ -337,14 +392,19 @@ export default function EmployeesScreen() {
 
   // Ахлах "миний хэлтэс"-ээ хардаг гэдгээ мэдэж байх ёстой — эс тэгвээс
   // "яагаад бүх ажилтан харагдахгүй байна вэ" гэсэн эргэлзээ төрнө.
+  // Ажилд байгаа / ажлаас гарсан гэж хоёр тийш салгана.
+  const activeList = list.filter((e) => e.active !== false);
+  const formerList = list.filter((e) => e.active === false);
+  const visibleList = showFormer ? formerList : activeList;
+
   const scopeNote = myDepartmentId
-    ? `${departmentName(myDepartmentId) || 'Миний хэлтэс'} · ${list.length} хүн`
-    : `${list.length} бүртгэлтэй`;
+    ? `${departmentName(myDepartmentId) || 'Миний хэлтэс'} · ${activeList.length} хүн`
+    : `${activeList.length} бүртгэлтэй`;
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Ажилчид"
-        subtitle={scopeNote}
+        subtitle={showFormer ? `Ажлаас гарсан · ${formerList.length}` : scopeNote}
         right={
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <HeaderButton
@@ -355,8 +415,30 @@ export default function EmployeesScreen() {
           </View>
         }
       />
+      {/* Ажлаас гарсан ажилтан устгагдахгүй — энэ хэсгээс буцааж авна. */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, !showFormer && styles.tabOn]}
+          onPress={() => setShowFormer(false)}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.tabText, !showFormer && styles.tabTextOn]}>
+            Ажилчид ({activeList.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, showFormer && styles.tabOn]}
+          onPress={() => setShowFormer(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.tabText, showFormer && styles.tabTextOn]}>
+            Ажлаас гарсан ({formerList.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={list}
+        data={visibleList}
         keyExtractor={(e) => e.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
@@ -610,6 +692,29 @@ export default function EmployeesScreen() {
                   }}
                 />
               ) : null}
+              {/* --- Ажлаас гаргах / буцааж авах ---
+                  Ажилтныг устгахгүй. Ажлаас гарсан үед апп руу нэвтэрч
+                  чадахгүй болох боловч ирц, байршил, багажны олголт зэрэг
+                  бүх түүх нь хэвээр үлдэнэ. Буцааж авахад тэр чигээрээ
+                  сэргэнэ. */}
+              {editId && editTarget && canManageProfile(authProfile, editTarget) ? (
+                <View style={styles.employmentBox}>
+                  <Text style={styles.deptBoxTitle}>Ажлын байдал</Text>
+                  <Text style={styles.employmentNote}>
+                    {editTarget.active === false
+                      ? 'Ажлаас гарсан. Энэ хүн апп руу нэвтэрч чадахгүй.'
+                      : 'Ажилд байна.'}
+                  </Text>
+                  <Button
+                    title={editTarget.active === false ? 'Буцааж авах' : 'Ажлаас гаргах'}
+                    variant={editTarget.active === false ? 'primary' : 'ghost'}
+                    loading={employmentBusy}
+                    disabled={employmentBusy}
+                    onPress={() => toggleEmployment(editTarget)}
+                  />
+                </View>
+              ) : null}
+
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <View style={styles.actions}>
                 <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={closeModal} />
@@ -700,6 +805,35 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   pinState: { color: colors.textMuted, fontSize: 12, lineHeight: 18, marginBottom: spacing.sm },
+  // --- Ажилчид / Ажлаас гарсан таб ---
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  tabText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  tabTextOn: { color: colors.primary },
+  employmentBox: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: 8,
+  },
+  employmentNote: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   pending: { color: colors.warning, fontSize: 11, marginTop: 3, fontWeight: '700' },
   overlay: { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end'},
   sheet: {

@@ -157,6 +157,9 @@ export async function fetchEmployees() {
     id: item.record_id,
     pending: !item.registered,
     permissions: item.permissions || {},
+    // Ажлаас гарсан хүн ч жагсаалтад ирнэ — буцааж авах боломжтой байх
+    // ёстой. Хуучин сервер энэ талбарыг буцаахгүй тул анхдагчаар идэвхтэй.
+    active: item.active !== false,
   }));
   // Сервер аль хэдийн зэрэглэл, хэлтсээр шүүсэн. Энд давхар шүүх нь
   // зөвхөн UI-г цэгцлэх зорилготой (жишээ нь migration ажиллаагүй
@@ -355,6 +358,25 @@ export async function adminCreateEmployee({
     p_address: address?.trim() || null,
     p_role: safeRole,
     p_department_id: department_id || null,
+  });
+  if (error) throw new Error(mapDeleteError(error.message));
+  return data;
+}
+
+/**
+ * Ажлаас гаргах / буцааж авах.
+ *
+ * Ажилтныг УСТГАХГҮЙ — зөвхөн "ажилд байгаа" тугийг сольно. Ирц, байршил,
+ * багажны олголт зэрэг бүх түүх хэвээр үлдэж, буцааж авахад тэр чигээрээ
+ * сэргэнэ.
+ *
+ * Ажлаас гарсан үед тэр хүн апп руу нэвтэрч чадахгүй болно —
+ * `claim_authorized_profile` нь энэ тугийг шалгадаг.
+ */
+export async function setEmployment(email, active) {
+  const { data, error } = await supabase.rpc('admin_set_employment', {
+    p_email: email,
+    p_active: !!active,
   });
   if (error) throw new Error(mapDeleteError(error.message));
   return data;
