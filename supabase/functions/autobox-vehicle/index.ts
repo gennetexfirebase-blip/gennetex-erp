@@ -30,6 +30,79 @@ function extractTableAfterLabel(html: string, label: string): string | null {
   return sanitizeTableHtml(html.slice(tableStart, tableEnd + 8));
 }
 
+/** HTML-д тааруулж тэмдэгт мөрийг аюулгүй болгоно. */
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+type Penalty = {
+  location?: string;
+  reason?: string;
+  amount?: string;
+  date?: string;
+  statusText?: string;
+  isPaid?: boolean;
+};
+
+/**
+ * Торгуулийн хоосон `<tbody>`-г жинхэнэ мөрүүдээр дүүргэнэ.
+ *
+ * Autobox нь торгуулийг тусдаа JSON хаягаас өгдөг (хуудасны JS түүнийг
+ * дуудаж нөхдөг). Бид ижил хаяг руу хандаж, мөрүүдийг нь өөрсдөө
+ * бүтээнэ — ингэснээр клиент тал ямар ч өөрчлөлтгүйгээр хүснэгтийг
+ * хэвээр нь харуулна.
+ *
+ * Алдаа гарвал хоосон хүснэгтийг нь буцаана — торгуулийн мэдээлэл
+ * ирээгүйгээс болж машины бусад мэдээлэл алдагдах ёсгүй.
+ */
+async function fillPenaltyRows(
+  shell: string | null,
+  plateNo: string,
+): Promise<string | null> {
+  if (!shell) return shell;
+  try {
+    const api =
+      `https://www.autobox.mn/api/services/app/Xyp/GetAutoboxPenalty?plateNo=${
+        encodeURIComponent(plateNo)
+      }`;
+    const res = await fetch(api, {
+      headers: { "User-Agent": "GennetexERP/1.0", Accept: "application/json" },
+    });
+    if (!res.ok) return shell;
+
+    const json = await res.json();
+    const items: Penalty[] = json?.result?.items ?? [];
+    if (!items.length) return shell;
+
+    const rows = items
+      .map((p) =>
+        `<tr>` +
+        `<td>${esc(plateNo)}</td>` +
+        `<td>${esc(p.location)}</td>` +
+        `<td>${esc(p.reason)}</td>` +
+        `<td>${esc(p.amount)}</td>` +
+        `<td>${esc(p.date)}</td>` +
+        `<td>${esc(p.statusText)}</td>` +
+        `</tr>`
+      )
+      .join("");
+
+    // Хоосон tbody-г мөрүүдээр солино. Хуудасны бүтэц өөрчлөгдвөл
+    // тааруулалт бүтэхгүй — тэр үед хоосон хүснэгтээ буцаана.
+    const filled = shell.replace(
+      /(<tbody[^>]*>)([\s\S]*?)(<\/tbody>)/i,
+      `$1${rows}$3`,
+    );
+    return filled;
+  } catch (_e) {
+    return shell;
+  }
+}
+
 function extractTabTable(html: string, tabId: string): string | null {
   const idx = html.indexOf(`id="${tabId}"`);
   if (idx < 0) return null;
@@ -98,7 +171,21 @@ Deno.serve(async (req) => {
     const general = extractTableAfterLabel(html, "Ерөнхий мэдээлэл");
     const technical = extractTableAfterLabel(html, "Техникийн мэдээлэл");
     const diagnosis = extractTabTable(html, "diagnosisTab");
-    const fines = extractTabTable(html, "fineTab");
+    /**
+     * Торгуулийн мөрүүд HTML дотор БАЙДАГГҮЙ.
+     *
+     * Autobox-ийн хуудсанд торгуулийн хүснэгт нь ХООСОН `<tbody>`-тэй
+     * ирдэг бөгөөд мөрүүдийг нь хуудасны JavaScript дараа нь тусдаа
+     * хаягаас татаж нөхдөг:
+     *
+     *   GET /api/services/app/Xyp/GetAutoboxPenalty?plateNo=...
+     *
+     * Тиймээс зөвхөн HTML-ийг задалбал торгуулийн хэсэг үргэлж хоосон
+     * харагдана. Энд тэр хаяг руу нэмж хандаж, мөрүүдийг нь өөрсдөө
+     * бөглөнө.
+     */
+    const finesShell = extractTabTable(html, "fineTab");
+    const fines = await fillPenaltyRows(finesShell, plateNo);
     const header = extractHeader(html);
     const hash = await hashContent([general, technical, diagnosis, fines]);
 
