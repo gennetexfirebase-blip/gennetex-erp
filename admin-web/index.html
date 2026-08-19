@@ -2,7 +2,7 @@
 <html lang="mn">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="admin-build-version" content="1.2.5"/>
+  <meta name="admin-build-version" content="1.2.6"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ЖЕННЕТЕКС — Admin Panel</title>
   <link rel="icon" href="/gennetex/admin/logo.png"/>
@@ -696,7 +696,7 @@
           <button class="btn btn-ghost btn-sm" id="logoutBtnSide" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
             <span class="material-symbols-outlined" style="font-size:18px">logout</span> Гарах
           </button>
-          <span id="appVersionFoot">ЖЕННЕТЕКС v1.2.5</span>
+          <span id="appVersionFoot">ЖЕННЕТЕКС v1.2.6</span>
         </div>
       </aside>
       <div class="main">
@@ -791,7 +791,19 @@
       if(isSuperAdmin(me?.role)) return list;
       return list.filter(w=>w.role!=='superadmin');
     };
-    const fieldWorkers=()=>visibleWorkers().filter(w=>w.role==='employee');
+    const fieldWorkers=()=>visibleWorkers().filter(w=>w.role==='employee'&&w.active!==false);
+    /**
+     * Ажилд байгаа / ажлаас гарсан.
+     *
+     * Ажлаас гарсан ажилтан УСТГАГДАХГҮЙ — зөвхөн нуугдана. Дахин ажилд
+     * орвол буцааж авахад ирц, байршил, багажны олголт зэрэг бүх түүх нь
+     * хэвээр сэргэнэ.
+     *
+     * Хуучин сервер `active` талбар буцаахгүй тул `!==false` гэж шалгана.
+     */
+    const activeWorkers=()=>visibleWorkers().filter(w=>w.active!==false);
+    const formerWorkers=()=>visibleWorkers().filter(w=>w.active===false);
+    let empShowFormer=false;
     // Дуудлага авах: ажилтан болон админ admin эрхээрээ; системийн админ (Хөгжүүлэгч) хамаарахгүй
     const callTakers=()=>visibleWorkers().filter(w=>w.role!=='superadmin');
 
@@ -3903,16 +3915,46 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       return '<span class="pill emp">Ажилтан</span>';
     }
     function renderEmployees(c){
-      const list=visibleWorkers();
+      const actives=activeWorkers();
+      const formers=formerWorkers();
+      const list=empShowFormer?formers:actives;
       const loadErr=data.loadErrors?.workers;
-      c.innerHTML=`<div class="card"><div class="card-h"><h3>Ажилчид (${list.length})</h3>
-        <button class="btn btn-primary btn-sm" onclick="empModal()"> Ажилтан нэмэх</button></div>
+      c.innerHTML=`<div class="card"><div class="card-h"><h3>${empShowFormer?'Ажлаас гарсан':'Ажилчид'} (${list.length})</h3>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn ${empShowFormer?'btn-ghost':'btn-primary'} btn-sm" onclick="empTab(false)">Ажилчид (${actives.length})</button>
+          <button class="btn ${empShowFormer?'btn-primary':'btn-ghost'} btn-sm" onclick="empTab(true)">Ажлаас гарсан (${formers.length})</button>
+          ${empShowFormer?'':'<button class="btn btn-primary btn-sm" onclick="empModal()"> Ажилтан нэмэх</button>'}
+        </div></div>
         ${loadErr?`<div class="card-b" style="padding:12px 16px"><p class="err" style="margin:0">Ажилчид ачаалахад алдаа: ${String(loadErr).replace(/</g,'&lt;')}</p></div>`:''}
         <div class="card-b" style="padding:0"><table><thead><tr><th>Ажилтан</th><th>Имэйл</th><th>Утас</th><th>Хаяг</th><th>Эрх</th><th></th></tr></thead>
         <tbody>${list.map(w=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${w.avatar_url?`<img class="av-id" src="${w.avatar_url}" alt="">`:`<span class="av-sm av-ph">${(w.name||' ?').charAt(0).toUpperCase()}</span>`}<div><b>${empDisplayName(w)}</b>${w.position?`<br><span class=muted style="font-size:12px">${w.position}</span>`:''}${w.pending?'<br><span class="muted" style="font-size:11px;color:#b45309">Google нэвтрэлт хүлээгдэж байна</span>':''}</div></div></td><td class=muted>${w.email||'—'}</td><td class=muted>${w.phone||'—'}</td><td class=muted>${w.address||'—'}</td>
           <td>${empRolePill(w)}</td>
-          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${w.pending?'':`<button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button>`}<button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${w.pending?'':`<button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button>`}<button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${w.id===me.id?'':`<button class="btn btn-ghost btn-sm" onclick="setEmployment('${String(w.email||'').replace(/'/g,"&#39;")}',${w.active===false})">${w.active===false?'Буцааж авах':'Ажлаас гаргах'}</button>`}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
     }
+    window.empTab=(showFormer)=>{ empShowFormer=!!showFormer; loadAll(); };
+
+    /**
+     * Ажлаас гаргах / буцааж авах.
+     *
+     * Ажилтныг УСТГАХГҮЙ — зөвхөн "ажилд байгаа" тугийг сольно. Ирц,
+     * байршил, багажны олголт зэрэг бүх түүх хэвээр үлдэж, буцааж авахад
+     * тэр чигээрээ сэргэнэ.
+     *
+     * Ажлаас гарсан үед тэр хүн апп руу нэвтэрч чадахгүй болно —
+     * `claim_authorized_profile` нь энэ тугийг шалгадаг.
+     */
+    window.setEmployment=async (email,bringBack)=>{
+      if(!email) return;
+      const msg=bringBack
+        ? 'Дахин ажилд авах уу?\n\nӨмнөх бүх мэдээлэл нь хэвээр сэргэж, апп руу нэвтрэх боломжтой болно.'
+        : 'Ажлаас гаргах уу?\n\n• Апп руу нэвтэрч чадахгүй болно\n• Мэдээлэл нь УСТАХГҮЙ — ирц, байршил, багажны олголт хэвээр\n• Дахин ажилд орвол буцааж авахад бүгд сэргэнэ';
+      if(!confirm(msg)) return;
+      const { error }=await sb.rpc('admin_set_employment',{ p_email:email, p_active:!!bringBack });
+      if(error){ toast(rpcErr(error.message)); return; }
+      toast(bringBack?'Дахин ажилд орлоо':'Ажлаас гарлаа');
+      loadAll();
+    };
+
     window.openEmpStockModal=(w)=>{
       const items=computeStockBalances(data.movements,{userId:w.id});
       const mat=items.filter(it=>it.category!=='tool');
