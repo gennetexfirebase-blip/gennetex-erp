@@ -38,9 +38,16 @@ import { imageQuality, listPerfProps } from '../lib/performanceMode';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
+import { SIZE_KINDS, sizeKind, detectSizeKind } from '../lib/supplySizes';
+
 const EMPTY_FORM = {
   name: '',
   unit: 'ширхэг',
+  // Хангамжийн размер. `sizeKind` = none | clothing | shoes.
+  // `sizeQty` нь { XL: '15', XXL: '5' } хэлбэрээр размер бүрийн тоог хадгална.
+  sizeKind: 'none',
+  sizeQty: {},
+  size_group: null,
   quantity: '',
   price: '',
   barcode: '',
@@ -270,6 +277,14 @@ export default function InventoryScreen() {
   );
 
   const showPrice = category === 'tool';
+  /**
+   * Хангамж дээр ЗӨВХӨН хувцас, гутал бүртгэнэ.
+   *
+   * Тиймээс нэгж (үргэлж ширхэг), MAC/SN, SKU, байршил, нийлүүлэгч,
+   * хайрцаг зэрэг талбар хэрэггүй — маягтыг цэвэр байлгана. Илүү талбар
+   * харагдвал бөглөх ёстой юм шиг санагдаж, ажил удаашруулна.
+   */
+  const isSupply = category === 'supply';
   // Ажилтан өөрөө авахгүй тул "Бараа авах" гэсэн гарчиг байхаа больсон —
   // харагдах бол зөвхөн агуулахын үлдэгдлийг ХАРАХ жагсаалт.
   const screenTitle = meta.label;
@@ -334,7 +349,14 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
     setEditingId(null);
     // Хэлтэстэй удирдагчийн бүртгэсэн зүйл автоматаар түүний хэлтэст
     // орно — эс тэгвээс бүртгээд л өөрөө нь харахаа болино (RLS).
-    setForm({ ...EMPTY_FORM, category, department_id: myDepartmentId });
+    setForm({
+      ...EMPTY_FORM,
+      category,
+      department_id: myDepartmentId,
+      // Хангамж = хувцас, гутал. Размергүй хувилбар байхгүй тул шууд
+      // хувцас дээр тохируулна — нэг товшилт хэмнэнэ.
+      sizeKind: category === 'supply' ? 'clothing' : 'none',
+    });
   };
 
   const closeFormModal = () => {
@@ -406,7 +428,10 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
       Alert.alert('Анхаар', 'Барааны нэр оруулна уу.');
       return;
     }
-    const qty = parseQty(form.quantity);
+    // Хангамж дээр тоо хэмжээг размер бүрээр нь оруулдаг тул нэгдсэн
+    // "Тоо хэмжээ" талбар байхгүй — шалгалтыг доор, размерын хэсэгт хийнэ.
+    const usesSizes = isSupply && form.sizeKind !== 'none';
+    const qty = usesSizes ? 0 : parseQty(form.quantity);
     if (qty === null) {
       Alert.alert('Анхаар', 'Тоо хэмжээ нь 0 буюу түүнээс их тоо байх ёстой.');
       return;
@@ -463,7 +488,46 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
         note: form.note.trim() || null,
         department_id: form.department_id || null,
       };
-      if (editingId) {
+      /**
+       * ХАНГАМЖ — размер бүрийг ТУСДАА мөр болгож бүртгэнэ.
+       *
+       * "Ажлын хантааз XL 15ш" ба "Ажлын хантааз XXL 5ш" нь хоёр өөр
+       * мөр болно. Тус бүр өөрийн үлдэгдэлтэй тул ажилтанд XL олгоход
+       * зөвхөн XL хасагдана.
+       *
+       * `size_group` нь тэдгээрийг холбож, жагсаалтад нэг бараа мэт
+       * бүлэглэн харуулах боломж өгнө.
+       */
+      if (isSupply && form.sizeKind !== 'none') {
+        const entries = Object.entries(form.sizeQty || {})
+          .map(([sz, v]) => [sz, Number(v)])
+          .filter(([, n]) => Number.isFinite(n) && n > 0);
+
+        if (!entries.length) {
+          Alert.alert('Размер дутуу', 'Дор хаяж нэг размерын тоог оруулна уу.');
+          setSaving(false);
+          return;
+        }
+
+        // Засварлаж байгаа бол хуучин бүлгээ хадгална — эс тэгвээс
+        // засах бүрд шинэ бүлэг үүсч, хуучин размерууд тасарна.
+        const groupId = form.size_group || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        for (const [sz, n] of entries) {
+          await addInventoryItem({
+            ...payload,
+            unit: 'ширхэг',
+            quantity: n,
+            size: sz,
+            size_group: groupId,
+            barcode: null,
+          });
+        }
+        Alert.alert(
+          'Нэмэгдлээ',
+          `${payload.name} — ${entries.length} размер бүртгэгдлээ.`
+        );
+      } else if (editingId) {
         await updateInventoryItem(editingId, payload);
         Alert.alert('Хадгалагдлаа', `${payload.name} шинэчлэгдлээ.`);
       } else {
@@ -887,6 +951,8 @@ ${qty} ${giveItem.unit} → ${employee.name}
               {/* Хэмжих нэгж — бичихгүй, сонгоно.
                   Гараар бичихэд "ширхэг", "Ширхэг", "ш", "шир" гэх мэт
                   олон хувилбар үүсч, тайлан нэгтгэхэд тохирохгүй болдог. */}
+              {!isSupply ? (
+              <>
               <Text style={styles.fieldLabel}>Хэмжих нэгж</Text>
               <View style={styles.unitRow}>
                 {UNITS.map((u) => {
@@ -908,6 +974,71 @@ ${qty} ${giveItem.unit} → ${employee.name}
               <Text style={styles.unitHint}>
                 {UNITS.find((u) => u.key === form.unit)?.hint || ''}
               </Text>
+              </>
+              ) : null}
+
+              {/*
+                РАЗМЕР — зөвхөн хангамж дээр.
+
+                Хангамжид хувцас, гутал байнга ордог бөгөөд эдгээрийг
+                размергүйгээр бүртгэвэл "Ажлын гутал 20ш" гэж л харагдана.
+                Аль размер нь дууссаныг мэдэх боломжгүй болно.
+
+                Размер бүрийг ТУСДАА мөр болгож хадгална — тус бүр өөрийн
+                үлдэгдэлтэй. Ажилтанд XL олгоход зөвхөн XL хасагдана.
+              */}
+              {category === 'supply' ? (
+                <>
+                  <Text style={styles.fieldLabel}>Размерын төрөл</Text>
+                  <View style={styles.unitRow}>
+                    {SIZE_KINDS.filter((k) => k.key !== 'none').map((k) => {
+                      const active = form.sizeKind === k.key;
+                      return (
+                        <TouchableOpacity
+                          key={k.key}
+                          style={[styles.unitChip, active && styles.unitChipOn]}
+                          onPress={() => setForm({ ...form, sizeKind: k.key, sizeQty: {} })}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.unitChipText, active && styles.unitChipTextOn]}>
+                            {k.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.unitHint}>{sizeKind(form.sizeKind).hint}</Text>
+                </>
+              ) : null}
+
+              {category === 'supply' && form.sizeKind !== 'none' ? (
+                <View style={styles.sizeBox}>
+                  <Text style={styles.fieldLabel}>Размер бүрийн тоо</Text>
+                  {sizeKind(form.sizeKind).sizes.map((sz) => (
+                    <View key={sz} style={styles.sizeRow}>
+                      <Text style={styles.sizeLabel}>{sz}</Text>
+                      <TextInput
+                        style={styles.sizeInput}
+                        placeholder="0"
+                        placeholderTextColor={colors.textFaint}
+                        keyboardType="numeric"
+                        value={form.sizeQty?.[sz] || ''}
+                        onChangeText={(t) =>
+                          setForm((f) => ({ ...f, sizeQty: { ...(f.sizeQty || {}), [sz]: t } }))
+                        }
+                      />
+                    </View>
+                  ))}
+                  <Text style={styles.unitHint}>
+                    Нийт{' '}
+                    {Object.values(form.sizeQty || {}).reduce(
+                      (sum, v) => sum + (Number(v) || 0),
+                      0
+                    )}{' '}
+                    ширхэг. Тоо оруулаагүй размер бүртгэгдэхгүй.
+                  </Text>
+                </View>
+              ) : (
               <View style={styles.twoCol}>
                 <Field
                   label="Тоо хэмжээ"
@@ -930,6 +1061,7 @@ ${qty} ${giveItem.unit} → ${employee.name}
                   style={styles.col}
                 />
               </View>
+              )}
 
               {showPrice ? (
                 <Field
@@ -941,6 +1073,7 @@ ${qty} ${giveItem.unit} → ${employee.name}
                 />
               ) : null}
 
+              {!isSupply ? (
               <View style={styles.barcodeRow}>
                 <Field
                   label="MAC / SN"
@@ -964,12 +1097,15 @@ ${qty} ${giveItem.unit} → ${employee.name}
                   }}
                 />
               </View>
+              ) : null}
 
               {/* --- Хайрцаг ---
                   Бараа нь ямар хайрцагт, хэдэн ширхэг байгааг энд заана.
                   Тусдаа "Хайрцаг" цэс рүү орох шаардлагагүй — бараа
-                  бүртгэхтэй нэг урсгалд байх нь байгалийн. */}
-              {isAdmin && isCloud ? (
+                  бүртгэхтэй нэг урсгалд байх нь байгалийн.
+
+                  Хангамж (хувцас, гутал) хайрцаглагддаггүй тул тэнд харагдахгүй. */}
+              {isAdmin && isCloud && !isSupply ? (
                 <View style={styles.boxSection}>
                   <Text style={styles.boxSectionTitle}>Хайрцаг</Text>
                   <TouchableOpacity
@@ -1043,6 +1179,8 @@ ${qty} ${giveItem.unit} → ${employee.name}
                 </View>
               ) : null}
 
+              {!isSupply ? (
+              <>
               <View style={styles.twoCol}>
                 <Field
                   label="Дотоод код (SKU)"
@@ -1087,6 +1225,8 @@ ${qty} ${giveItem.unit} → ${employee.name}
                 numberOfLines={3}
                 inputStyle={{ minHeight: 76, textAlignVertical: 'top' }}
               />
+              </>
+              ) : null}
 
               {/* --- Хэлтэс --- */}
               {/* Хэлтэс сонговол ЗӨВХӨН тэр хэлтсийнхэн харна. Сонгохгүй
@@ -1737,6 +1877,41 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   unitChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   unitChipText: { color: colors.text, fontSize: 13.5, fontWeight: '600' },
   unitChipTextOn: { color: colors.onPrimary },
+  // --- Размерын хүснэгт (зөвхөн хангамж) ---
+  sizeBox: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: 6,
+  },
+  sizeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  sizeLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    minWidth: 48,
+  },
+  sizeInput: {
+    flex: 1,
+    maxWidth: 110,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: colors.text,
+    fontSize: 15,
+    textAlign: 'right',
+  },
   unitHint: {
     color: colors.textFaint,
     fontSize: 12,

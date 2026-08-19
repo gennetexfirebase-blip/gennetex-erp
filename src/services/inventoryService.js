@@ -62,6 +62,10 @@ export async function insertInventory(item) {
       // `null` = НИЙТИЙН бараа (бүх хэлтэс харна). Хэлтэс сонгосон бол
       // зөвхөн тэр хэлтсийнхэнд харагдана — шүүлт нь RLS дээр.
       department_id: item.department_id || null,
+      // Хангамжийн размер. Размер бүр тусдаа мөр — тус бүр өөрийн
+      // үлдэгдэлтэй. `size_group` нь тэдгээрийг нэг бараа болгож холбоно.
+      size: item.size || null,
+      size_group: item.size_group || null,
     })
     .select()
     .single();
