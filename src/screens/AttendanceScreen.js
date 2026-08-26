@@ -378,7 +378,8 @@ export default function AttendanceScreen() {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    if (isAdmin || !isCloud) return;
+    // Админ ч өөрийн (ЗӨВХӨН ӨӨРИЙНХӨӨ, бусдын биш) байршлыг харна.
+    if (!isCloud) return;
     let sub;
     let cancelled = false;
     (async () => {
@@ -1259,6 +1260,17 @@ export default function AttendanceScreen() {
     );
   }
 
+  // Админы ӨӨРИЙНХ нь одоогийн байршил — бусад ажилтны байршлыг энд ХАРУУЛАХГҮЙ.
+  const adminNearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
+  const adminLocationLabel =
+    liveLocation?.latitude == null
+      ? 'Байршил тодорхойгүй байна'
+      : locations.length === 0
+        ? 'Байршил тохируулаагүй байна'
+        : adminNearest.within
+          ? `Таны байршил: ${adminNearest.name} цэгийн ойролцоо`
+          : `Таны байршил: ${adminNearest.name || 'бүртгэлтэй цэг'}-ээс ~${adminNearest.distance}м зайд`;
+
   // ---- Admin dark dashboard header (dashboard-only, dashFilters/dayRows-той) ----
   const adminHeader = (
     <View>
@@ -1303,6 +1315,9 @@ export default function AttendanceScreen() {
             onPress={() => startCheck('check_out')}
           />
         </View>
+        <Text style={{ color: adminColors.textFaint, fontSize: 12, marginTop: 8 }}>
+          📍 {adminLocationLabel}
+        </Text>
       </View>
 
       <View style={{ marginTop: spacing.lg }}>
