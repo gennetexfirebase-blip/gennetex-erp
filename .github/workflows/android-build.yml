@@ -43,13 +43,14 @@ jobs:
       - name: Android SDK бэлдэх
         uses: android-actions/setup-android@v3
 
-      - name: Хамаарлууд суулгах
-        run: npm ci
-
       # ── Нууц тохиргоонууд ─────────────────────────────────────────
       # `.env` болон `google-services.json` нь git-д ОРДОГГҮЙ тул
       # GitHub Secrets-ээс сэргээнэ. Байхгүй бол build-ыг эрт зогсоож,
       # алдаатай APK гаргахаас сэргийлнэ.
+      #
+      # ⚠️ Эдгээрийг `npm ci`-ЭЭС ӨМНӨ үүсгэнэ: postinstall дээр
+      # `sync-google-services.js` ажилладаг тул файл нь тэр үед бэлэн
+      # байх ёстой.
       - name: .env үүсгэх
         env:
           SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
@@ -78,9 +79,23 @@ jobs:
           echo "$GS" | base64 -d > google-services.json
           node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8')); console.log('google-services.json хүчинтэй')"
 
+      - name: Хамаарлууд суулгах
+        run: npm ci
+
       # ── Native төсөл үүсгэх ───────────────────────────────────────
       - name: Prebuild (android/ үүсгэх)
         run: npx expo prebuild --platform android --no-install
+
+      # `expo prebuild` нь `android/`-ыг ШИНЭЭР үүсгэдэг тул native
+      # засварууд (patch) болон google-services хуулалт дахин хэрэгтэй.
+      # Энэ нь `eas-build-post-install` script-тэй ижил алхам.
+      - name: Prebuild-ийн дараах засварууд
+        run: |
+          node scripts/patch-incoming-call-rn81.js
+          node scripts/sync-google-services.js
+          test -f android/app/google-services.json \
+            && echo "android/app/google-services.json бэлэн" \
+            || { echo "::error::android/app/google-services.json үүсээгүй"; exit 1; }
 
       # ── Release гарын үсэг (зөвхөн variant=release үед) ───────────
       - name: Release keystore тавих
