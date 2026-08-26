@@ -20,7 +20,8 @@ export default function App() {
           <Route path="/home" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
 
-          <Route path="/report/daily" element={<Placeholder title="Тайлан — Өдрөөр" />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/report/daily" element={<AttendancePage />} />
           <Route path="/report/employee" element={<Placeholder title="Тайлан — Ажилтнаар" />} />
           <Route path="/report/general" element={<AttendancePage />} />
 

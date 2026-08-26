@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { MapPin, Search, Users, Radius } from 'lucide-react';
-import { PageHeader, Card, Input, EmptyState, Loading, ErrorState, Button } from '../components/ui';
+import { MapPin, Search, Radius } from 'lucide-react';
+import { PageHeader, Card, Input, EmptyState, Loading, ErrorState } from '../components/ui';
 import { fetchAttendanceLocations, useAsync } from '../lib/data';
 
 type Loc = {

@@ -29,7 +29,11 @@ export default function HomePage() {
     [today],
     []
   );
-  const { data: requests } = useAsync<any[]>(() => fetchAttendanceRequests('pending'), [], []);
+  const { data: requests, error: requestsError } = useAsync<any[]>(
+    () => fetchAttendanceRequests('pending'),
+    [],
+    []
+  );
 
   const slices = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -131,7 +135,9 @@ export default function HomePage() {
           icon={<Bell size={17} />}
           actions={requests.length ? <Badge tone="brand">{requests.length}</Badge> : null}
         >
-          {requests.length === 0 ? (
+          {requestsError ? (
+            <EmptyState text={requestsError} />
+          ) : requests.length === 0 ? (
             <EmptyState text="Өнөөдөр хүсэлт байхгүй" />
           ) : (
             <ul className="space-y-3">

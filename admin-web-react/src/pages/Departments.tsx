@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Building2, Users } from 'lucide-react';
-import { PageHeader, Card, Badge, EmptyState, Loading, ErrorState, Button } from '../components/ui';
+import { PageHeader, Card, Badge, EmptyState, Loading, ErrorState } from '../components/ui';
 import { fetchDepartments, fetchEmployees, useAsync, type Employee } from '../lib/data';
 
 type Dept = { id: string; name: string; kind: string; parent_id: string | null };

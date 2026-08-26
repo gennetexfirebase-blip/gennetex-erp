@@ -1,6 +1,7 @@
 import {
   Home,
   LayoutDashboard,
+  ClipboardCheck,
   FileText,
   Clock,
   Users,
@@ -32,6 +33,9 @@ export type NavItem = {
 export const NAV: NavItem[] = [
   { label: 'Нүүр', to: '/home', icon: Home },
   { label: 'Хянах самбар', to: '/dashboard', icon: LayoutDashboard, isNew: true },
+  // Ирц бүртгэл — өдөр тутам хамгийн их ашиглагддаг хэсэг тул
+  // Тайлангийн дэд цэсэнд нуухгүй, үндсэн цэсэнд байрлуулав.
+  { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardCheck },
   {
     label: 'Тайлан',
     icon: FileText,

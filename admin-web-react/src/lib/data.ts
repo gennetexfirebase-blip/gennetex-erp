@@ -97,6 +97,15 @@ export async function fetchDepartments() {
   return data || [];
 }
 
+/**
+ * Тухайн өдрийн бүх ажилтны ирц.
+ *
+ * Үндсэн зам нь `fetch_department_attendance_today` RPC. Гэвч migration
+ * хараахан ажиллуулаагүй байхад RPC олдохгүй бөгөөд өмнө нь хоосон
+ * массив буцаадаг байсан тул дэлгэц ХООСОН харагдаж, шалтгаан нь
+ * ойлгомжгүй байв. Одоо `profiles` + `attendance`-аас клиент талдаа
+ * жагсаалтыг угсарч, ядаж хэн ирсэн/ирээгүйг харуулна.
+ */
 export async function fetchAttendanceToday(
   date: string,
   departmentId: string | null = null
@@ -107,7 +116,74 @@ export async function fetchAttendanceToday(
   });
   if (!error) return (data || []) as AttendanceRow[];
   if (!isMissing(error)) throw error;
-  return [];
+  return fallbackAttendance(date, departmentId);
+}
+
+async function fallbackAttendance(
+  date: string,
+  departmentId: string | null
+): Promise<AttendanceRow[]> {
+  const start = new Date(`${date}T00:00:00`);
+  const end = new Date(`${date}T23:59:59.999`);
+
+  let people = supabase
+    .from('profiles')
+    .select('id, name, avatar_url, department_id, role')
+    .neq('role', 'superadmin')
+    .order('name');
+  if (departmentId) people = people.eq('department_id', departmentId);
+
+  const [{ data: profiles, error: pErr }, { data: rows, error: aErr }] = await Promise.all([
+    people,
+    supabase
+      .from('attendance')
+      .select('*')
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString()),
+  ]);
+  if (pErr) throw pErr;
+  if (aErr) throw aErr;
+
+  const valid = (rows || []).filter((r) => r.status !== 'rejected');
+  return (profiles || []).map((p) => {
+    const mine = valid.filter((r) => String(r.staff_id) === String(p.id));
+    const inRow = mine.find((r) => r.type === 'check_in') || null;
+    const outRow = mine.find((r) => r.type === 'check_out') || null;
+    return {
+      employee_id: p.id,
+      employee_name: p.name,
+      avatar_url: p.avatar_url,
+      department_id: p.department_id,
+      department_name: null,
+      shift_start: null,
+      shift_end: null,
+      check_in_at: inRow?.created_at || null,
+      check_out_at: outRow?.created_at || null,
+      is_remote: mine.some((r) => r.is_remote),
+      // Хуваарь мэдэхгүй тул хоцролтыг ТААМАГЛАХГҮЙ.
+      late_minutes: 0,
+      early_leave_minutes: 0,
+      worked_minutes:
+        inRow && outRow
+          ? Math.round(
+              (new Date(outRow.created_at).getTime() - new Date(inRow.created_at).getTime()) / 60000
+            )
+          : null,
+      status: inRow ? 'on_time' : 'not_scheduled',
+    } as AttendanceRow;
+  });
+}
+
+/** Migration ажиллуулаагүйг тодорхой хэлэх алдаа. */
+export class MigrationMissingError extends Error {
+  constructor(what: string) {
+    super(
+      `"${what}" хүснэгт/функц Supabase дээр байхгүй байна. ` +
+        'supabase/migrations доторх шинэ migration-уудыг ажиллуулна уу ' +
+        '(supabase db push эсвэл SQL Editor).'
+    );
+    this.name = 'MigrationMissingError';
+  }
 }
 
 export async function fetchAttendanceRequests(status: string | null = 'pending') {
@@ -119,7 +195,9 @@ export async function fetchAttendanceRequests(status: string | null = 'pending')
   if (status && status !== 'all') q = q.eq('status', status);
   const { data, error } = await q;
   if (error) {
-    if (isMissing(error)) return [];
+    // Чимээгүй хоосон буцаахгүй — хэрэглэгч "хүсэлт алга" гэж
+    // буруу ойлгохоос сэргийлж шалтгааныг нь хэлнэ.
+    if (isMissing(error)) throw new MigrationMissingError('attendance_requests');
     throw error;
   }
   return data || [];
