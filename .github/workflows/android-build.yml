@@ -1,0 +1,161 @@
+name: Android APK build
+
+# Гараар ажиллуулна (Actions → Android APK build → Run workflow).
+# EAS ашиглахгүй — GitHub-ийн runner дээр Gradle-ээр шууд барина.
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Build төрөл (debug = хуучин суулгацтай гарын үсэг таарна)'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+      release_tag:
+        description: 'GitHub Release-ийн tag (ж: v1.3.0). Хоосон бол release үүсгэхгүй.'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Кодоо татах
+        uses: actions/checkout@v4
+
+      - name: Node суулгах
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Java (JDK 17) суулгах
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Android SDK бэлдэх
+        uses: android-actions/setup-android@v3
+
+      - name: Хамаарлууд суулгах
+        run: npm ci
+
+      # ── Нууц тохиргоонууд ─────────────────────────────────────────
+      # `.env` болон `google-services.json` нь git-д ОРДОГГҮЙ тул
+      # GitHub Secrets-ээс сэргээнэ. Байхгүй бол build-ыг эрт зогсоож,
+      # алдаатай APK гаргахаас сэргийлнэ.
+      - name: .env үүсгэх
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          DEVELOPER_EMAIL: ${{ secrets.EXPO_PUBLIC_DEVELOPER_EMAIL }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY secret тохируулаагүй байна."
+            exit 1
+          fi
+          {
+            echo "EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL"
+            echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+            echo "EXPO_PUBLIC_DEVELOPER_EMAIL=$DEVELOPER_EMAIL"
+          } > .env
+          echo ".env үүслээ ($(wc -l < .env) мөр)"
+
+      - name: google-services.json сэргээх
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GS" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON secret алга (Firebase мэдэгдэл ажиллахгүй)."
+            exit 1
+          fi
+          echo "$GS" | base64 -d > google-services.json
+          node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8')); console.log('google-services.json хүчинтэй')"
+
+      # ── Native төсөл үүсгэх ───────────────────────────────────────
+      - name: Prebuild (android/ үүсгэх)
+        run: npx expo prebuild --platform android --no-install
+
+      # ── Release гарын үсэг (зөвхөн variant=release үед) ───────────
+      - name: Release keystore тавих
+        if: ${{ inputs.variant == 'release' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::release build-д ANDROID_KEYSTORE_BASE64 ба ANDROID_KEYSTORE_PASSWORD secret шаардлагатай."
+            exit 1
+          fi
+          mkdir -p credentials
+          echo "$KEYSTORE_B64" | base64 -d > credentials/gennetex-release.keystore
+          printf '%s' "$KEYSTORE_PASSWORD" > credentials/.keystore-password.txt
+          node scripts/setup-release-signing.js
+
+      # ── Барих ─────────────────────────────────────────────────────
+      - name: APK барих
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          if [ "${{ inputs.variant }}" = "release" ]; then
+            ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+          else
+            ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
+          fi
+
+      - name: APK-г нэрлэх
+        id: apk
+        run: |
+          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
+          SRC=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          if [ -z "$SRC" ]; then
+            echo "::error::APK олдсонгүй."
+            exit 1
+          fi
+          OUT="gennetex-erp-${VERSION}.apk"
+          cp "$SRC" "$OUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
+          echo "size=$(stat -c%s "$OUT")" >> "$GITHUB_OUTPUT"
+          ls -lh "$OUT"
+
+      - name: Artifact болгон хадгалах
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.path }}
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 30
+
+      # ── GitHub Release руу байршуулах ─────────────────────────────
+      - name: Release үүсгэж APK хавсаргах
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${{ steps.apk.outputs.path }}" --clobber
+          else
+            gh release create "$TAG" "${{ steps.apk.outputs.path }}" \
+              --title "Gennetex ERP $TAG" \
+              --notes "Хувилбар ${{ steps.apk.outputs.version }} · ${{ inputs.variant }} build"
+          fi
+          echo "Татах холбоос:"
+          echo "https://github.com/${{ github.repository }}/releases/download/$TAG/${{ steps.apk.outputs.path }}"
+
+      - name: Дүгнэлт
+        run: |
+          {
+            echo "### APK бэлэн боллоо"
+            echo ""
+            echo "- Хувилбар: **${{ steps.apk.outputs.version }}**"
+            echo "- Төрөл: **${{ inputs.variant }}**"
+            echo "- Хэмжээ: **$(( ${{ steps.apk.outputs.size }} / 1048576 )) MB**"
+            echo "- sizeBytes (latest.json-д хэрэгтэй): \`${{ steps.apk.outputs.size }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
