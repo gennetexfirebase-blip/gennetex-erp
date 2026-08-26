@@ -1,6 +1,9 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Нэвтрэлтийн token-ыг AsyncStorage-д ЭНГИЙН ТЕКСТЭЭР хадгалдаг байсныг
+// Keychain / Android Keystore руу шилжүүлэв. Шалтгаан ба шилжилтийн
+// логикийг `secureSessionStorage.js`-ийн толгойд бичсэн.
+import { secureSessionStorage } from './secureSessionStorage';
 
 // Тохиргоог .env файлаас уншина (EXPO_PUBLIC_ угтвартай хувьсагчид client талд ажиллана).
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -12,7 +15,7 @@ export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 export const supabase = isSupabaseConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        storage: AsyncStorage,
+        storage: secureSessionStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,

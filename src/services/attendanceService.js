@@ -121,6 +121,22 @@ export async function insertAttendanceLocation(loc) {
   return data;
 }
 
+export async function updateAttendanceLocation(id, patch) {
+  const { data, error } = await supabase
+    .from('attendance_locations')
+    .update({
+      name: patch.name,
+      latitude: patch.latitude,
+      longitude: patch.longitude,
+      radius_m: patch.radius_m,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteAttendanceLocation(id) {
   const { error } = await supabase.from('attendance_locations').delete().eq('id', id);
   if (error) throw error;
@@ -161,6 +177,107 @@ export async function fetchAttendance(limit = 50) {
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchAttendanceInRange(fromIso, toIso, limit = 1000) {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .gte('created_at', fromIso)
+    .lte('created_at', toIso)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+// ---- Нэгдсэн тооцоолол (server-side, нэг эх сурвалж) ----
+export async function fetchAttendanceSummary(employeeId, start, end) {
+  const { data, error } = await supabase.rpc('fetch_attendance_summary', {
+    p_employee_id: employeeId,
+    p_start: start,
+    p_end: end,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchDepartmentAttendanceToday(departmentId = null, date = null) {
+  const params = { p_department_id: departmentId };
+  if (date) params.p_date = date;
+  const { data, error } = await supabase.rpc('fetch_department_attendance_today', params);
+  if (error) throw error;
+  return data || [];
+}
+
+// ---- Wi-Fi-ээр ирц баталгаажуулах тохиргоо ----
+export async function fetchAttendanceWifi() {
+  const { data, error } = await supabase
+    .from('attendance_wifi')
+    .select('*, attendance_locations(name)')
+    .eq('active', true)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((w) => ({ ...w, location_name: w.attendance_locations?.name || null }));
+}
+
+export async function insertAttendanceWifi({ name, ssid, bssid, locationId, description, createdBy }) {
+  const { data, error } = await supabase
+    .from('attendance_wifi')
+    .insert({
+      name,
+      ssid,
+      bssid: bssid || null,
+      location_id: locationId || null,
+      description: description || null,
+      created_by: createdBy || null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteAttendanceWifi(id) {
+  const { error } = await supabase.from('attendance_wifi').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchWifiEmployeeIds(wifiId) {
+  const { data, error } = await supabase
+    .from('attendance_wifi_employees')
+    .select('employee_id')
+    .eq('wifi_id', wifiId);
+  if (error) throw error;
+  return (data || []).map((r) => r.employee_id);
+}
+
+export async function setWifiEmployees(wifiId, employeeIds) {
+  await supabase.from('attendance_wifi_employees').delete().eq('wifi_id', wifiId);
+  const rows = (employeeIds || []).map((employee_id) => ({ wifi_id: wifiId, employee_id }));
+  if (!rows.length) return [];
+  const { data, error } = await supabase.from('attendance_wifi_employees').insert(rows).select();
+  if (error) throw error;
+  return data || [];
+}
+
+// ---- Геофенс байршил → ажилтан оноолт ----
+export async function fetchLocationEmployeeIds(locationId) {
+  const { data, error } = await supabase
+    .from('attendance_location_employees')
+    .select('employee_id')
+    .eq('location_id', locationId);
+  if (error) throw error;
+  return (data || []).map((r) => r.employee_id);
+}
+
+export async function setLocationEmployees(locationId, employeeIds) {
+  await supabase.from('attendance_location_employees').delete().eq('location_id', locationId);
+  const rows = (employeeIds || []).map((employee_id) => ({ location_id: locationId, employee_id }));
+  if (!rows.length) return [];
+  const { data, error } = await supabase.from('attendance_location_employees').insert(rows).select();
   if (error) throw error;
   return data || [];
 }

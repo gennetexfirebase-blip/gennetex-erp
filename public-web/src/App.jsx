@@ -10,6 +10,8 @@ import CareersPage from './pages/CareersPage';
 // Microsoft Teams App-д шаардлагатай public хуудсууд. Нэвтрэлт шаардахгүй.
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
+// Google Play-ийн Data safety шаарддаг, нэвтрэлт шаардахгүй устгах хуудас.
+import DeleteAccountPage from './pages/DeleteAccountPage';
 
 export default function App() {
   return (
@@ -25,6 +27,7 @@ export default function App() {
           <Route path="/careers" element={<CareersPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/delete-account" element={<DeleteAccountPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

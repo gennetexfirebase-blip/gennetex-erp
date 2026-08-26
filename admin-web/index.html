@@ -661,6 +661,7 @@
           <div class="grp">Үндсэн</div>
           <a data-view="dashboard" class="active"><span class="material-symbols-outlined">dashboard</span><span class="t">Хяналт</span></a>
           <a data-view="employees"><span class="material-symbols-outlined">group</span><span class="t">Ажилчид</span></a>
+          <a data-view="workperformance"><span class="material-symbols-outlined">insights</span><span class="t">Ажилчдын гүйцэтгэл</span></a>
           <a data-view="reports"><span class="material-symbols-outlined">description</span><span class="t">Тайлан</span></a>
           <a data-view="feedback"><span class="material-symbols-outlined">forum</span><span class="t">Санал гомдол</span></a>
           <a data-view="applications"><span class="material-symbols-outlined">assignment</span><span class="t">Ажлын байрны анкет</span></a>
@@ -741,6 +742,9 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Excel-д ЖИНХЭНЭ график суулгах (SheetJS үүнийг чаддаггүй). Мобайл апп
+       мөн ЯГ ЭНЭ файлыг ашигладаг — тайлан хоёр талд ижил гарна. -->
+  <script src="xlsx-chart.js"></script>
   <script src="job-application-paper.js"></script>
   <script src="public-site-content.js"></script>
   <script>
@@ -1185,7 +1189,7 @@
 
     // ===== Navigation =====
     document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.view));
-    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
+    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',workperformance:'Ажилчдын гүйцэтгэл',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
     let activityFilter={year:new Date().getFullYear(),month:0,day:0,user:''};
     const ACTION_LABEL={login:'Нэвтрэлт',leave_request:'Чөлөө хүсэлт',screen:'Дэлгэц нээсэн',tap:'Даралт',location:'Байршил',face_enroll:'Царай бүртгэл',attendance:'Ирц',inventory:'Бараа/багаж',visit:'Айлд очсон',site_work:'Ажлын байр',service_call:'Дуудлага',other:'Бусад'};
     const fmtLogTime=ts=>{
@@ -1194,7 +1198,7 @@
       const p=n=>String(n).padStart(2,'0');
       return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     };
-    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
+    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',workperformance:'Хэдэн баг · өдөрт хэдэн айл · хэр хугацаанд',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
     function go(v){
       if(view==='vehicles'&&v!=='vehicles'){ stopVehicleQrScan(); stopAutoboxPoll(); }
       view=v;
@@ -1391,8 +1395,15 @@
       // Байршлын дэлгэцээс гарахад realtime сувгийг хаана — эс тэгвээс
       // цэс солих бүрд шинэ суваг нэмэгдэж, нээлттэй холболт хуримтлагдана.
       if(view!=='location' && view!=='dashboard') stopLocationRealtime();
+      // Гүйцэтгэлийн графикууд DOM-оос салахад Chart.js обьект нь үлддэг —
+      // цэс солиход шууд устгана.
+      if(view!=='workperformance' && Object.keys(wpCharts).length){
+        Object.values(wpCharts).forEach(ch=>{ try{ch.destroy();}catch(e){} });
+        wpCharts={};
+      }
       if(view==='dashboard') return renderDashboard(c);
       if(view==='employees') return renderEmployees(c);
+      if(view==='workperformance'){ renderWorkPerformance(c); return; }
       if(view==='reports') return renderReports(c);
       if(view==='feedback') return renderFeedback(c);
       if(view==='applications') return renderApplications(c);
@@ -2320,7 +2331,7 @@
     const EXCEL_CAT_LABEL={
       irts:'Ирц',ocson_log:'Очсон лог',ajlyn_bair:'Ажлын байр',ayalal:'Аялал',
       baraa_hereglee:'Барааны хэрэглээ',hamt_yvaa_bag:'Хамт яваа баг',negtgesen:'Нэгтгэсэн',
-      niit_log:'Нийт лог',
+      niit_log:'Нийт лог',ajilchdyn_guitsetgel:'Ажилчдын гүйцэтгэл',
     };
     const ymdFromDate=(v)=>{
       const d=v?new Date(v):new Date();
@@ -2342,14 +2353,24 @@
       }catch(e){ excelArchives=[]; }
     }
 
-    async function exportAndArchive({category,title,filename,sheets}){
+    /**
+     * Excel татаж, ижил файлыг архивт хадгална.
+     *
+     * `charts` дамжуулбал SheetJS-ийн оронд `xlsx-chart.js`-ээр угсарна —
+     * учир нь SheetJS ГРАФИК бичиж чаддаггүй. Бусад тайлангийн хувьд
+     * (charts байхгүй) хуучин зам хэвээрээ.
+     */
+    async function exportAndArchive({category,title,filename,sheets,charts}){
       if(typeof XLSX==='undefined'){ toast('Excel сан ачаалагдаагүй байна'); return; }
+      const withCharts=!!(charts&&charts.length&&window.XlsxChart);
+      if(charts&&charts.length&&!window.XlsxChart) toast('Графикийн сан ачаалагдаагүй — зөвхөн хүснэгт татагдана');
       const now=new Date();
       const y=now.getFullYear(),m=now.getMonth()+1,day=now.getDate();
       const wb=XLSX.utils.book_new();
       const sheetNames=[];
       const sheetCounts={};
       let rowCount=0;
+      if(withCharts){ sheetNames.push('График'); sheetCounts['График']=0; }
       (sheets||[]).forEach((sh,i)=>{
         const name=(sh.name||`Sheet${i+1}`).slice(0,31);
         const rows=sh.rows||[[]];
@@ -2357,15 +2378,25 @@
         sheetNames.push(name);
         sheetCounts[name]=body;
         rowCount+=body;
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name);
+        if(!withCharts) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name);
       });
       const stamp=`${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const fileBase=`${filename}_${stamp}`;
       const localName=`${fileBase}.xlsx`;
-      XLSX.writeFile(wb,localName);
+      const MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      // Графиктай файлыг өөрсдөө угсарна — SheetJS график бичиж чаддаггүй.
+      const bytes=withCharts?XlsxChart.build({sheets,charts,chartSheetName:'График'}):null;
+      if(withCharts){
+        const url=URL.createObjectURL(new Blob([bytes],{type:MIME}));
+        const a=document.createElement('a');
+        a.href=url; a.download=localName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      } else XLSX.writeFile(wb,localName);
       try{
-        const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-        const blob=new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const blob=withCharts
+          ? new Blob([bytes],{type:MIME})
+          : new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:MIME});
         const storagePath=`${y}/${String(m).padStart(2,'0')}/${String(day).padStart(2,'0')}/${fileBase}_${Date.now()}.xlsx`;
         const {error:upErr}=await sb.storage.from('excel-exports').upload(storagePath,blob,{
           contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -4587,6 +4618,673 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         ${delBtn}
       `,'Хаах',()=>false);
     };
+
+    // ===== Ажилчдын гүйцэтгэл =====
+    // Багийн ӨДРИЙН үзүүлэлт: нийт хэдэн баг · өдөрт хэдэн айл · нийт хэр
+    // хугацаанд хийсэн · 1 баг өдөрт хэдэн айл.
+    //
+    // ХЭМЖИХ НЭГЖ НЬ «БАГ × ӨДӨР». Ажилтан тус бүрээр бодвол хосоороо
+    // явсан хоёр инженерийн ажил хоёр дахин тоологдоно.
+    //
+    // ⚠️ Томьёо нь src/services/teamPerformanceService.js-тэй ЯГ ИЖИЛ.
+    //    Энэ файл build-гүй тул тэр модулийг import хийж чадахгүй. Аль
+    //    нэгийг засвал НӨГӨӨГ НЬ ДАГУУЛЖ засна — эс тэгвээс апп ба вэб
+    //    дээр ижил тайлан өөр тоо харуулна.
+    const WP_DONE='Дууссан';
+    const WP_HEADER=['Огноо','Баг','Гишүүд','Айл','Байгууллага','Хугацаа (мин)','Тайлбар'];
+    const WP_HINTS=['YYYY-MM-DD','Багийн нэр','Нэрсийг таслалаар','Тоо','Тоо','Тоо','Заавал биш'];
+    // Шүүлт нь ӨДӨР · САР · ЖИЛ. Сонгосон горим нь татах мужийг ба
+    // графикийн баганыг зэрэг шийднэ (өдөр→баг, сар→өдөр, жил→сар).
+    const WP_MODES=[{key:'day',label:'Өдөр'},{key:'month',label:'Сар'},{key:'year',label:'Жил'}];
+    const WP_MONTHS=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
+    const WP_CHART_SHEET='График өгөгдөл', WP_TEAM_SHEET='Багаар';
+    // Графикт хэт олон багана орвол уншигдахгүй болно.
+    const WP_MAX_CHART_POINTS=31;
+    // Дуудлага мужаас өмнө үүсээд мужид хаагдсан байж болно.
+    const WP_CREATED_BUFFER_DAYS=45;
+    let wpMode='month', wpAnchor=null, wpTab='teams',
+        wpData=null, wpLoading=false, wpError=null, wpPending=null, wpCharts={};
+
+    const wpClean=v=>String(v==null?'':v).replace(/\s+/g,' ').trim();
+    const wpDay=d=>{const x=new Date(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;};
+    const wpMin=ms=>Math.round((ms||0)/60000);
+    const wpOne=n=>(Math.round((Number(n)||0)*10)/10).toFixed(1);
+    // admin-web-ийн formatDuration нь СЕКУНД авдаг, тооцоо нь ms.
+    const wpDur=ms=>formatDuration(Math.round((ms||0)/1000));
+    const wpEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    /** Багийн түлхүүр — гишүүдийн нэрийн эрэмбэлсэн бүрдэл (дараалал хамаагүй). */
+    function wpTeamKey(names){
+      const u=[...new Set((names||[]).map(wpClean).filter(Boolean).map(n=>n.toLowerCase()))];
+      return u.length?u.sort().join('|'):'—';
+    }
+    function wpTeamLabel(names){
+      const seen=new Map();
+      (names||[]).forEach(n=>{const c=wpClean(n); if(c&&!seen.has(c.toLowerCase())) seen.set(c.toLowerCase(),c);});
+      const l=[...seen.values()];
+      return l.length?l.join(' + '):'Тодорхойгүй';
+    }
+    const wpSplitMembers=t=>String(t||'').split(/[,;+/]/).map(wpClean).filter(Boolean);
+    const wpClosedAt=c=>(c&&c.close_meta&&c.close_meta.closed_at)||c?.updated_at||c?.created_at||null;
+    function wpCallLeadMs(c){
+      const end=wpClosedAt(c);
+      if(!c?.created_at||!end) return 0;
+      const ms=new Date(end)-new Date(c.created_at);
+      return ms>0?ms:0;
+    }
+    function wpSessionMs(s){
+      if(!s?.arrived_at) return 0;
+      const end=s.departed_at?new Date(s.departed_at):(s.status==='on_site'?new Date():null);
+      if(!end) return 0;
+      const ms=end-new Date(s.arrived_at);
+      return ms>0?ms:0;
+    }
+    /** Ажлын байрны бүртгэл байвал ТЭР нь үнэн, үгүй бол дуудлагын хугацаа. */
+    function wpDurationMs(r){
+      if(r.onSiteMs>0) return r.onSiteMs;
+      if(r.importedMs>0) return r.importedMs;
+      return r.leadMs;
+    }
+    function wpDurationSource(r){
+      if(r.onSiteMs>0) return 'Ажлын байр';
+      if(r.importedMs>0) return 'Импорт';
+      if(r.leadMs>0) return 'Дуудлагын хугацаа';
+      return '—';
+    }
+
+    // ---- Огнооны шүүлт: өдөр · сар · жил -------------------------------
+    const wpMonthLabel=k=>WP_MONTHS[Number(String(k).slice(5,7))-1]||k;
+
+    /** Тухайн горимын «одоо» цэг: 2026-08-21 / 2026-08 / 2026 */
+    function wpCurrentAnchor(mode){
+      const k=wpDay(new Date());
+      return mode==='year'?k.slice(0,4):mode==='month'?k.slice(0,7):k;
+    }
+    /** Горим солиход тулгуурыг тухайн горимын урт руу тааруулна. */
+    function wpNormalizeAnchor(mode,anchor){
+      const a=String(anchor||'');
+      const fb=wpCurrentAnchor(mode);
+      if(mode==='year') return /^\d{4}/.test(a)?a.slice(0,4):fb;
+      if(mode==='month') return /^\d{4}-\d{2}/.test(a)?a.slice(0,7):fb;
+      return /^\d{4}-\d{2}-\d{2}/.test(a)?a.slice(0,10):fb;
+    }
+    /** Өмнөх/дараах өдөр · сар · жил рүү шилжинэ. */
+    function wpShiftAnchor(mode,anchor,delta){
+      const a=wpNormalizeAnchor(mode,anchor);
+      if(mode==='year') return String(Number(a.slice(0,4))+delta);
+      if(mode==='month'){
+        const d=new Date(Number(a.slice(0,4)),Number(a.slice(5,7))-1+delta,1);
+        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      }
+      const d=new Date(a+'T12:00:00');
+      d.setDate(d.getDate()+delta);
+      return wpDay(d);
+    }
+    const wpAtLatest=()=>wpNormalizeAnchor(wpMode,wpAnchor)>=wpCurrentAnchor(wpMode);
+
+    /** Горим + тулгуур → татах муж ба гарчиг. */
+    function wpRangeDates(){
+      const a=wpNormalizeAnchor(wpMode,wpAnchor);
+      wpAnchor=a;
+      if(wpMode==='year') return {from:a+'-01-01',to:a+'-12-31',label:a+' он'};
+      if(wpMode==='month'){
+        const y=Number(a.slice(0,4)), m=Number(a.slice(5,7));
+        const last=new Date(y,m,0).getDate();
+        return {from:a+'-01',to:a+'-'+String(last).padStart(2,'0'),label:y+' оны '+wpMonthLabel(a+'-01')};
+      }
+      return {from:a,to:a,label:a};
+    }
+
+    async function wpFetch(from,to){
+      const createdFrom=new Date(from+'T00:00:00');
+      createdFrom.setDate(createdFrom.getDate()-WP_CREATED_BUFFER_DAYS);
+      const endIso=new Date(to+'T23:59:59.999').toISOString();
+      const [callsRes,sessRes,impRes]=await Promise.all([
+        sb.from('service_calls')
+          .select('id,site_kind,status,engineer_name,partner_engineer_name,team_name,close_meta,created_at,updated_at')
+          .gte('created_at',createdFrom.toISOString()).lte('created_at',endIso).limit(5000),
+        sb.from('field_site_sessions')
+          .select('id,driver_name,passengers,arrived_at,departed_at,status')
+          .gte('arrived_at',new Date(from+'T00:00:00').toISOString()).lte('arrived_at',endIso).limit(5000),
+        sb.from('team_performance_entries').select('*').gte('work_date',from).lte('work_date',to).limit(5000)
+      ]);
+      if(callsRes.error) throw callsRes.error;
+      if(sessRes.error) throw sessRes.error;
+      return {
+        calls:callsRes.data||[], sessions:sessRes.data||[],
+        // Импортын хүснэгт хараахан үүсээгүй бол тайлан унахгүй.
+        imported:impRes.error?[]:(impRes.data||[]),
+        importError:impRes.error?impRes.error.message:null
+      };
+    }
+
+    function wpTouch(map,dayK,members,source,keyOverride){
+      const teamKey=keyOverride||wpTeamKey(members);
+      const k=dayK+'|'+teamKey;
+      if(!map[k]) map[k]={key:k,dayKey:dayK,teamKey,members:[...members],teamLabel:wpTeamLabel(members),
+        ail:0,baiguulga:0,calls:0,sessions:0,onSiteMs:0,leadMs:0,importedMs:0,sources:[]};
+      const row=map[k];
+      members.forEach(m=>{ if(m&&!row.members.some(x=>x.toLowerCase()===m.toLowerCase())) row.members.push(m); });
+      row.teamLabel=wpTeamLabel(row.members);
+      if(!row.sources.includes(source)) row.sources.push(source);
+      return row;
+    }
+
+    function wpBuildRows(raw,from,to){
+      const map={};
+      const inRange=d=>(!from||d>=from)&&(!to||d<=to);
+      (raw.calls||[]).forEach(c=>{
+        if(c?.status!==WP_DONE) return;
+        const closed=wpClosedAt(c); if(!closed) return;
+        const dayK=wpDay(new Date(closed)); if(!inRange(dayK)) return;
+        let members=[c.engineer_name,c.partner_engineer_name].map(wpClean).filter(Boolean);
+        if(!members.length) members=['Тодорхойгүй'];
+        const row=wpTouch(map,dayK,members,'system');
+        row.calls+=1;
+        if((c.site_kind||'ail')==='baiguulga') row.baiguulga+=1; else row.ail+=1;
+        row.leadMs+=wpCallLeadMs(c);
+      });
+      (raw.sessions||[]).forEach(s=>{
+        if(!s?.arrived_at) return;
+        const dayK=wpDay(new Date(s.arrived_at)); if(!inRange(dayK)) return;
+        let members=[s.driver_name].concat(Array.isArray(s.passengers)?s.passengers.map(p=>p&&p.name):[])
+          .map(wpClean).filter(Boolean);
+        if(!members.length) members=['Тодорхойгүй'];
+        const row=wpTouch(map,dayK,members,'system');
+        row.sessions+=1;
+        row.onSiteMs+=wpSessionMs(s);
+      });
+      (raw.imported||[]).forEach(e=>{
+        const dayK=String(e?.work_date||'').slice(0,10);
+        if(!dayK||!inRange(dayK)) return;
+        const members=wpSplitMembers(e.members);
+        const keyOverride=members.length?null:('import:'+wpClean(e.team_name).toLowerCase());
+        const row=wpTouch(map,dayK,members.length?members:[wpClean(e.team_name)],'import',keyOverride);
+        if(wpClean(e.team_name)) row.teamLabel=wpClean(e.team_name);
+        row.ail+=Number(e.ail_count)||0;
+        row.baiguulga+=Number(e.baiguulga_count)||0;
+        row.importedMs+=(Number(e.duration_minutes)||0)*60000;
+      });
+      return Object.values(map)
+        .map(r=>Object.assign({},r,{durationMs:wpDurationMs(r),durationSource:wpDurationSource(r)}))
+        .filter(r=>r.ail||r.baiguulga||r.sessions||r.durationMs)
+        .sort((a,b)=>a.dayKey===b.dayKey?a.teamLabel.localeCompare(b.teamLabel):b.dayKey.localeCompare(a.dayKey));
+    }
+
+    function wpSummarize(rows){
+      const teams=new Set(), days=new Set();
+      let ail=0,baiguulga=0,durationMs=0,sessions=0;
+      rows.forEach(r=>{ teams.add(r.teamKey); days.add(r.dayKey); ail+=r.ail; baiguulga+=r.baiguulga; durationMs+=r.durationMs; sessions+=r.sessions; });
+      const teamDays=rows.length;
+      return {teams:teams.size,days:days.size,teamDays,ail,baiguulga,total:ail+baiguulga,sessions,durationMs,
+        ailPerDay:days.size?ail/days.size:0,
+        ailPerTeamDay:teamDays?ail/teamDays:0,
+        msPerAil:ail?durationMs/ail:0};
+    }
+    function wpGroupByTeam(rows){
+      const map={};
+      rows.forEach(r=>{
+        if(!map[r.teamKey]) map[r.teamKey]={teamKey:r.teamKey,teamLabel:r.teamLabel,members:[...r.members],days:0,ail:0,baiguulga:0,durationMs:0,lastDay:r.dayKey};
+        const t=map[r.teamKey];
+        t.days+=1; t.ail+=r.ail; t.baiguulga+=r.baiguulga; t.durationMs+=r.durationMs;
+        if(r.dayKey>t.lastDay) t.lastDay=r.dayKey;
+        if(r.teamLabel.length>t.teamLabel.length) t.teamLabel=r.teamLabel;
+      });
+      return Object.values(map)
+        .map(t=>Object.assign({},t,{ailPerDay:t.days?t.ail/t.days:0,msPerAil:t.ail?t.durationMs/t.ail:0}))
+        .sort((a,b)=>b.ail-a.ail||b.days-a.days);
+    }
+    /** Хугацааны нэгжээр (өдөр/сар) нэгтгэнэ. */
+    function wpGroupByPeriod(rows,unit){
+      const map={};
+      rows.forEach(r=>{
+        const key=unit==='month'?r.dayKey.slice(0,7):r.dayKey;
+        if(!map[key]) map[key]={key,teams:new Set(),days:new Set(),teamDays:0,ail:0,baiguulga:0,durationMs:0};
+        const g=map[key];
+        g.teams.add(r.teamKey); g.days.add(r.dayKey);
+        // Мөр бүр нь НЭГ баг × НЭГ өдөр — шууд тоолж болно.
+        g.teamDays+=1;
+        g.ail+=r.ail; g.baiguulga+=r.baiguulga; g.durationMs+=r.durationMs;
+      });
+      return Object.values(map)
+        .map(g=>({key:g.key,label:unit==='month'?wpMonthLabel(g.key):g.key,
+          teams:g.teams.size,days:g.days.size,teamDays:g.teamDays,
+          ail:g.ail,baiguulga:g.baiguulga,durationMs:g.durationMs,
+          ailPerTeam:g.teamDays?g.ail/g.teamDays:0,
+          msPerAil:g.ail?g.durationMs/g.ail:0}))
+        .sort((a,b)=>b.key.localeCompare(a.key));
+    }
+    function wpGroupByDay(rows){ return wpGroupByPeriod(rows,'day').map(g=>Object.assign({},g,{dayKey:g.key})); }
+    function wpGroupByMonth(rows){ return wpGroupByPeriod(rows,'month').map(g=>Object.assign({},g,{monthKey:g.key})); }
+
+    /**
+     * Графикийн багануудыг бэлдэнэ. Горим бүр өөр асуултад хариулна:
+     *   өдөр — «энэ өдөр аль баг хэдэн айл хийв»
+     *   сар  — «сарын дотор өдөр бүр хэд хийв»
+     *   жил  — «жилийн дотор сар бүр хэд хийв»
+     */
+    function wpBuildChartData(res,mode){
+      if(mode==='day'){
+        const points=(res.teams||[]).slice(0,12).map(t=>({label:t.teamLabel,ail:t.ail,baiguulga:t.baiguulga,
+          perTeam:Math.round((t.ailPerDay||0)*10)/10,minPerAil:wpMin(t.msPerAil)}));
+        return {kind:'team',unitLabel:'Баг',points};
+      }
+      const groups=mode==='year'?(res.months||[]):(res.days||[]);
+      // Хүснэгт нь шинэ→хуучин, график нь ЗҮҮНЭЭС БАРУУН ТИЙШ.
+      const asc=groups.slice().sort((a,b)=>a.key.localeCompare(b.key)).slice(-WP_MAX_CHART_POINTS);
+      return {kind:mode==='year'?'month':'day',unitLabel:mode==='year'?'Сар':'Өдөр',
+        points:asc.map(g=>({label:mode==='year'?g.label:g.key.slice(8),fullLabel:g.key,
+          ail:g.ail,baiguulga:g.baiguulga,perTeam:Math.round((g.ailPerTeam||0)*10)/10,minPerAil:wpMin(g.msPerAil)}))};
+    }
+
+    /** Excel-ийн хуудсууд — мобайл аппын татдагтай ижил бүтэц. */
+    function wpBuildSheets(res){
+      const s=res.summary;
+      const chart=res.chart||wpBuildChartData(res,res.mode||'month');
+      return [
+        {name:'Нэгтгэл',rows:[
+          ['Үзүүлэлт','Утга'],
+          ['Хугацааны муж',res.from+' — '+res.to],
+          ['Нийт баг',s.teams],
+          ['Ажилласан өдөр',s.days],
+          ['Баг × өдөр',s.teamDays],
+          ['Нийт айл',s.ail],
+          ['Нийт байгууллага',s.baiguulga],
+          ['Нийт ажил',s.total],
+          ['Өдөрт дундаж айл',Number(wpOne(s.ailPerDay))],
+          ['1 баг өдөрт дундаж айл',Number(wpOne(s.ailPerTeamDay))],
+          ['Нийт хугацаа (мин)',wpMin(s.durationMs)],
+          ['Нийт хугацаа (цаг)',Number(wpOne(s.durationMs/3600000))],
+          ['1 айлд ногдох дундаж (мин)',wpMin(s.msPerAil)]
+        ]},
+        {name:WP_TEAM_SHEET,rows:[
+          ['Баг','Гишүүд','Ажилласан өдөр','Айл','Байгууллага','Өдөрт дундаж айл','Нийт хугацаа (мин)','1 айлын дундаж (мин)','Сүүлд ажилласан'],
+          ...res.teams.map(t=>[t.teamLabel,t.members.join(', '),t.days,t.ail,t.baiguulga,Number(wpOne(t.ailPerDay)),wpMin(t.durationMs),wpMin(t.msPerAil),t.lastDay])
+        ]},
+        {name:'Өдрөөр',rows:[
+          ['Огноо','Идэвхтэй баг','Айл','Байгууллага','1 баг өдөрт айл','Нийт хугацаа (мин)'],
+          ...res.days.map(d=>[d.dayKey,d.teams,d.ail,d.baiguulga,Number(wpOne(d.ailPerTeam)),wpMin(d.durationMs)])
+        ]},
+        {name:'Баг-өдөр дэлгэрэнгүй',rows:[
+          ['Огноо','Баг','Гишүүд','Айл','Байгууллага','Дуудлага','Ажлын байр (тоо)','Хугацаа (мин)','Хугацааны эх сурвалж'],
+          ...res.rows.map(r=>[r.dayKey,r.teamLabel,r.members.join(', '),r.ail,r.baiguulga,r.calls,r.sessions,wpMin(r.durationMs),r.durationSource])
+        ]},
+        // ГРАФИКИЙН эх өгөгдөл. Excel доторх график ЯГ энэ хуудсан руу
+        // заана — тоог нь засвал график шууд дагаж өөрчлөгдөнө.
+        {name:WP_CHART_SHEET,rows:[
+          [chart.unitLabel,'Айл','Байгууллага','1 баг өдөрт айл','1 айлын дундаж (мин)'],
+          ...chart.points.map(p=>[p.label,p.ail,p.baiguulga,p.perTeam,p.minPerAil])
+        ]},
+        // Энэ хуудсыг бөглөөд ШУУД буцааж импортлож болно.
+        {name:'Импорт загвар',rows:[
+          WP_HEADER,
+          ...res.rows.map(r=>[r.dayKey,r.teamLabel,r.members.join(', '),r.ail,r.baiguulga,wpMin(r.durationMs),''])
+        ]}
+      ];
+    }
+
+    /**
+     * Excel файлд суулгах ГРАФИКУУД. `xlsx-chart.js` эдгээрийг Excel-ийн
+     * жинхэнэ график болгоно. `sheet`/`col` нь дээрх хуудсуудтай ЯГ таарна.
+     */
+    function wpBuildCharts(res){
+      const chart=res.chart||wpBuildChartData(res,res.mode||'month');
+      return [
+        {title:chart.unitLabel+' тус бүрийн ажил — айл ба байгууллага',type:'bar',sheet:WP_CHART_SHEET,catCol:0,
+          series:[{col:1,name:'Айл',color:'0099DB'},{col:2,name:'Байгууллага',color:'0B7A44'}]},
+        {title:'1 баг өдөрт хэдэн айл',type:'line',sheet:WP_CHART_SHEET,catCol:0,
+          series:[{col:3,name:'1 баг өдөрт айл',color:'6D4AA8'}]},
+        {title:'1 айлд ногдох дундаж хугацаа (мин)',type:'line',sheet:WP_CHART_SHEET,catCol:0,
+          series:[{col:4,name:'Минут',color:'B45309'}]},
+        {title:'Багууд — нийт хийсэн ажил',type:'bar',sheet:WP_TEAM_SHEET,catCol:0,
+          series:[{col:3,name:'Айл',color:'0099DB'},{col:4,name:'Байгууллага',color:'0B7A44'}]}
+      ];
+    }
+
+    // ---- Импорт --------------------------------------------------------
+    function wpHeaderIndex(cells){
+      const norm=v=>wpClean(v).toLowerCase().replace(/\(.*?\)/g,'').trim();
+      const c=(cells||[]).map(norm);
+      const find=(...al)=>c.findIndex(x=>al.some(a=>x===a||x.startsWith(a)));
+      return {work_date:find('огноо','date','өдөр'),team_name:find('баг','team'),members:find('гишүүд','гишүүн','member'),
+        ail_count:find('айл','ail'),baiguulga_count:find('байгууллага','baiguulga'),
+        duration_minutes:find('хугацаа','минут','duration'),note:find('тайлбар','note')};
+    }
+    function wpDateCell(v){
+      if(v==null||v==='') return null;
+      if(v instanceof Date&&!isNaN(v.getTime())) return wpDay(v);
+      const s=wpClean(v);
+      if(/^\d{5}$/.test(s)){
+        const d=new Date(Date.UTC(1899,11,30)+Number(s)*86400000);
+        return isNaN(d.getTime())?null:wpDay(d);
+      }
+      let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+      if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+      m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+      if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+      const d=new Date(s);
+      return isNaN(d.getTime())?null:wpDay(d);
+    }
+    function wpNumCell(v){
+      const n=Number(String(v==null?'':v).replace(/[^\d.,-]/g,'').replace(',','.'));
+      return isFinite(n)&&n>0?Math.round(n):0;
+    }
+    function wpParseMatrix(matrix){
+      const grid=(matrix||[]).filter(r=>Array.isArray(r)&&r.some(c=>wpClean(c)));
+      if(!grid.length) return {rows:[],errors:['Файл хоосон байна.'],skipped:0};
+      const idx=wpHeaderIndex(grid[0]);
+      if(idx.work_date<0||idx.team_name<0)
+        return {rows:[],errors:['Толгой мөр таарахгүй байна. Багана: '+WP_HEADER.join(' · ')],skipped:0};
+      const errors=[], byKey={};
+      let skipped=0;
+      grid.slice(1).forEach((cells,i)=>{
+        const lineNo=i+2;
+        const workDate=wpDateCell(cells[idx.work_date]);
+        const teamName=wpClean(cells[idx.team_name]);
+        if(!workDate&&!teamName) return;
+        if(!workDate){ errors.push(lineNo+'-р мөр: огноо буруу ('+(wpClean(cells[idx.work_date])||'хоосон')+')'); skipped+=1; return; }
+        if(!teamName){ errors.push(lineNo+'-р мөр: багийн нэр хоосон'); skipped+=1; return; }
+        const row={work_date:workDate,team_name:teamName,
+          members:idx.members>=0?(wpClean(cells[idx.members])||null):null,
+          ail_count:idx.ail_count>=0?wpNumCell(cells[idx.ail_count]):0,
+          baiguulga_count:idx.baiguulga_count>=0?wpNumCell(cells[idx.baiguulga_count]):0,
+          duration_minutes:idx.duration_minutes>=0?wpNumCell(cells[idx.duration_minutes]):0,
+          note:idx.note>=0?(wpClean(cells[idx.note])||null):null};
+        // Нэг файлд нэг өдөр·баг хоёр удаа байвал НЭМЖ нэгтгэнэ — үгүй бол
+        // upsert дээр эхнийх нь чимээгүй алга болно.
+        const key=row.work_date+'|'+row.team_name.toLowerCase();
+        if(byKey[key]){
+          byKey[key].ail_count+=row.ail_count;
+          byKey[key].baiguulga_count+=row.baiguulga_count;
+          byKey[key].duration_minutes+=row.duration_minutes;
+        } else byKey[key]=row;
+      });
+      const rows=Object.values(byKey).sort((a,b)=>a.work_date.localeCompare(b.work_date));
+      if(!rows.length&&!errors.length) errors.push('Хадгалах мөр олдсонгүй.');
+      return {rows,errors,skipped};
+    }
+    function wpUuid(){
+      if(window.crypto&&crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-axxx-xxxxxxxxxxxx'.replace(/x/g,()=>Math.floor(Math.random()*16).toString(16));
+    }
+
+    window.wpPickImport=()=>{ const el=$('wpFile'); if(el) el.click(); };
+    window.wpFileChosen=async(input)=>{
+      const file=input.files&&input.files[0];
+      input.value='';
+      if(!file) return;
+      if(typeof XLSX==='undefined'&&!window.XlsxChart){ toast('Excel сан ачаалагдаагүй байна'); return; }
+      try{
+        const buf=await file.arrayBuffer();
+        // Бидний татсан файлыг буцааж оруулбал «Импорт загвар» хуудас нь
+        // зөв бүтэцтэй — түүнийг эхэлж хайна.
+        const prefer=/импорт|загвар|import/i;
+        let matrix, name;
+        // .xlsx-ийг өөрсдийн уншигчаар — мобайл апптай ЯГ ижил зам.
+        if(/\.xlsx$/i.test(file.name)&&window.XlsxChart){
+          const sheet=XlsxChart.readSheetMatrix(new Uint8Array(buf),{prefer});
+          matrix=sheet.matrix; name=sheet.sheetName;
+        } else {
+          const wb=XLSX.read(buf,{type:'array',cellDates:true});
+          name=wb.SheetNames.find(n=>prefer.test(n))||wb.SheetNames[0];
+          matrix=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});
+        }
+        const parsed=wpParseMatrix(matrix);
+        if(!parsed.rows.length){ toast('Импорт: '+(parsed.errors[0]||'мөр олдсонгүй')); return; }
+        wpPending={rows:parsed.rows,fileName:file.name};
+        const preview=parsed.rows.slice(0,10).map(r=>
+          `<tr><td>${wpEsc(r.work_date)}</td><td>${wpEsc(r.team_name)}</td><td>${wpEsc(r.members||'—')}</td><td>${r.ail_count}</td><td>${r.baiguulga_count}</td><td>${r.duration_minutes}</td></tr>`).join('');
+        const errs=parsed.errors.length
+          ? `<p class="muted" style="margin-top:12px;color:#b45309"><b>Алгассан ${parsed.skipped} мөр:</b><br>${parsed.errors.slice(0,8).map(wpEsc).join('<br>')}</p>`
+          : '';
+        openModal('Импортлох уу?',`
+          <p style="margin:0 0 8px"><b>${wpEsc(file.name)}</b> — хуудас "${wpEsc(name)}" · <b>${parsed.rows.length}</b> мөр</p>
+          <div style="max-height:320px;overflow:auto"><table>
+            <thead><tr><th>Огноо</th><th>Баг</th><th>Гишүүд</th><th>Айл</th><th>Байг.</th><th>Мин</th></tr></thead>
+            <tbody>${preview}</tbody></table></div>
+          ${parsed.rows.length>10?'<p class="muted" style="margin-top:8px">… эхний 10 мөрийг харууллаа</p>':''}
+          ${errs}
+          <p class="muted" style="margin-top:12px">Нэг өдөр · нэг багийн хуучин мөр байвал <b>дарагдана</b> (давхардахгүй).</p>
+        `,'Импортлох',wpDoImport,{wide:true});
+      }catch(e){ toast('Файл уншихад алдаа: '+(e.message||e)); }
+    };
+    async function wpDoImport(){
+      if(!wpPending?.rows?.length){ toast(ERP_NOT_FOUND); return false; }
+      const batchId=wpUuid();
+      const payload=wpPending.rows.map(r=>Object.assign({},r,{
+        batch_id:batchId,batch_name:wpPending.fileName||null,
+        created_by:me?.id||null,created_by_name:me?.name||null,
+        updated_at:new Date().toISOString()}));
+      try{
+        const {data,error}=await sb.from('team_performance_entries')
+          .upsert(payload,{onConflict:'work_date,team_name'}).select('id');
+        if(error) throw error;
+        toast((data?data.length:payload.length)+' мөр хадгалагдлаа');
+        wpPending=null;
+        wpData=null;
+        render();
+        return true;
+      }catch(e){
+        toast(String(e.message||'').includes('team_performance_entries')
+          ? 'Импортын хүснэгт алга — 20260821090000_team_performance.sql ажиллуулна уу'
+          : 'Хадгалахад алдаа: '+(e.message||e));
+        return false;
+      }
+    }
+
+    window.wpDownloadTemplate=()=>{
+      if(typeof XLSX==='undefined'){ toast('Excel сан ачаалагдаагүй байна'); return; }
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+        WP_HEADER,WP_HINTS,[wpDay(new Date()),'Баг 1','Болд, Дорж',5,1,420,'Жишээ мөр — устгаад бөглөнө үү']
+      ]),'Импорт загвар');
+      XLSX.writeFile(wb,'ajilchdyn_guitsetgel_zagvar.xlsx');
+    };
+    window.exportWorkPerformance=()=>{
+      if(!wpData?.rows.length){ toast('Татах мэдээлэл алга'); return; }
+      exportAndArchive({category:'ajilchdyn_guitsetgel',title:'Ажилчдын гүйцэтгэл',
+        filename:'ajilchdyn_guitsetgel',sheets:wpBuildSheets(wpData),charts:wpBuildCharts(wpData)});
+    };
+    window.wpRefresh=()=>{ wpData=null; render(); };
+    window.setWorkPerfMode=k=>{
+      wpAnchor=wpNormalizeAnchor(k,wpAnchor);
+      wpMode=k;
+      // Жилийн горимд өдрийн дэлгэрэнгүй хэт урт болно.
+      if(wpTab==='detail'&&k==='year') wpTab='days';
+      wpData=null; render();
+    };
+    window.wpShift=d=>{ wpAnchor=wpShiftAnchor(wpMode,wpAnchor,d); wpData=null; render(); };
+    window.wpNow=()=>{ wpAnchor=wpCurrentAnchor(wpMode); wpData=null; render(); };
+    /** Огнооны сонголтоос (<input type=date|month|number>) шууд үсрэх. */
+    window.wpPickAnchor=v=>{ if(!v) return; wpAnchor=wpNormalizeAnchor(wpMode,String(v)); wpData=null; render(); };
+    window.setWorkPerfTab=k=>{ wpTab=k; render(); };
+
+    async function renderWorkPerformance(c){
+      const r=wpRangeDates();
+      if(!wpData||wpData.from!==r.from||wpData.to!==r.to||wpData.mode!==wpMode){
+        if(wpLoading) return;
+        wpLoading=true; wpError=null;
+        c.innerHTML=renderSkeleton();
+        try{
+          const raw=await wpFetch(r.from,r.to);
+          const rows=wpBuildRows(raw,r.from,r.to);
+          wpData={from:r.from,to:r.to,mode:wpMode,rows,summary:wpSummarize(rows),teams:wpGroupByTeam(rows),
+            days:wpGroupByDay(rows),months:wpGroupByMonth(rows),importError:raw.importError};
+        }catch(e){
+          wpError=e.message||String(e);
+          wpData={from:r.from,to:r.to,mode:wpMode,rows:[],summary:wpSummarize([]),teams:[],days:[],months:[],importError:null};
+        }finally{ wpLoading=false; }
+        wpData.chart=wpBuildChartData(wpData,wpMode);
+        if(view!=='workperformance') return;
+      }
+      const d=wpData, s=d.summary;
+      const msym=(n,col)=>`<span class="material-symbols-outlined" style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:${col}18;color:${col};font-size:22px">${n}</span>`;
+      const stats=[
+        {ic:msym('groups','#007cb4'),v:s.teams,l:`Нийт баг · ${s.days} өдөр`},
+        {ic:msym('home_pin','#0b7a44'),v:wpOne(s.ailPerDay),l:`Өдөрт айл · нийт ${s.ail}`},
+        {ic:msym('speed','#6d4aa8'),v:wpOne(s.ailPerTeamDay),l:`1 баг өдөрт айл · ${s.teamDays} баг×өдөр`},
+        {ic:msym('schedule','#b45309'),v:wpDur(s.durationMs),l:`Нийт хугацаа · 1 айлд ${wpDur(s.msPerAil)}`},
+        {ic:msym('apartment','#0f766e'),v:s.baiguulga,l:`Байгууллага · нийт ажил ${s.total}`}
+      ];
+      const chip=(k,label)=>`<button class="btn btn-sm ${wpMode===k?'btn-primary':'btn-ghost'}" onclick="setWorkPerfMode('${k}')">${label}</button>`;
+      const tab=(k,label)=>`<button class="btn btn-sm ${wpTab===k?'btn-primary':'btn-ghost'}" onclick="setWorkPerfTab('${k}')">${label}</button>`;
+
+      // Огноо шууд сонгох талбар — горим бүрт өөр төрөл.
+      const anchorInput=wpMode==='year'
+        ? `<input type="number" min="2020" max="2100" step="1" value="${wpAnchor}" style="width:96px" onchange="wpPickAnchor(this.value)"/>`
+        : wpMode==='month'
+          ? `<input type="month" value="${wpAnchor}" onchange="wpPickAnchor(this.value)"/>`
+          : `<input type="date" value="${wpAnchor}" onchange="wpPickAnchor(this.value)"/>`;
+
+      // Жилийн горимд өдрийн жагсаалт 365 мөр болно — сараар харуулна.
+      const periodRows=wpMode==='year'?(d.months||[]):(d.days||[]);
+      const periodLabel=wpMode==='year'?'Сараар':'Өдрөөр';
+
+      let head,body,colCount;
+      if(wpTab==='teams'){
+        head=['Баг','Гишүүд','Ажилласан өдөр','Айл','Байгууллага','Өдөрт дундаж айл','Нийт хугацаа','1 айлын дундаж','Сүүлд'];
+        colCount=head.length;
+        body=d.teams.map(t=>`<tr><td><b>${wpEsc(t.teamLabel)}</b></td><td class=muted>${wpEsc(t.members.join(', '))}</td>
+          <td>${t.days}</td><td><b>${t.ail}</b></td><td>${t.baiguulga}</td><td><b>${wpOne(t.ailPerDay)}</b></td>
+          <td class=muted>${wpDur(t.durationMs)}</td><td class=muted>${wpDur(t.msPerAil)}</td><td class=muted>${t.lastDay}</td></tr>`).join('');
+      } else if(wpTab==='days'){
+        head=[wpMode==='year'?'Сар':'Огноо','Идэвхтэй баг','Ажилласан өдөр','Айл','Байгууллага','1 баг өдөрт айл','Нийт хугацаа'];
+        colCount=head.length;
+        body=periodRows.map(x=>`<tr><td><b>${wpEsc(x.label)}</b></td><td>${x.teams}</td><td>${x.days}</td><td><b>${x.ail}</b></td>
+          <td>${x.baiguulga}</td><td><b>${wpOne(x.ailPerTeam)}</b></td><td class=muted>${wpDur(x.durationMs)}</td></tr>`).join('');
+      } else {
+        head=['Огноо','Баг','Гишүүд','Айл','Байгууллага','Дуудлага','Ажлын байр','Хугацаа','Эх сурвалж'];
+        colCount=head.length;
+        body=d.rows.map(x=>`<tr><td>${x.dayKey}</td><td><b>${wpEsc(x.teamLabel)}</b></td><td class=muted>${wpEsc(x.members.join(', '))}</td>
+          <td><b>${x.ail}</b></td><td>${x.baiguulga}</td><td>${x.calls}</td><td>${x.sessions}</td>
+          <td class=muted>${wpDur(x.durationMs)}</td><td class=muted>${wpEsc(x.durationSource)}</td></tr>`).join('');
+      }
+
+      const warn=wpError
+        ? `<p style="margin:8px 0 0;color:#d92d20;font-size:13px">Алдаа: ${wpEsc(wpError)}</p>`
+        : (d.importError
+          ? `<p style="margin:8px 0 0;color:#b45309;font-size:13px">Импортын хүснэгт бэлэн биш — <b>20260821090000_team_performance.sql</b> ажиллуулна уу.</p>`
+          : '');
+
+      c.innerHTML=`
+        <div class="stats animate-chart-entry" style="margin-bottom:20px">
+          ${stats.map(x=>`<div class="stat stat-card">${x.ic}<div><div class="v">${x.v}</div><div class="l">${x.l}</div></div></div>`).join('')}
+        </div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-h"><h3>${wpEsc(r.label)}</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              ${WP_MODES.map(p=>chip(p.key,p.label)).join('')}
+              <button class="btn btn-ghost btn-sm" onclick="wpShift(-1)" title="Өмнөх">‹</button>
+              ${anchorInput}
+              <button class="btn btn-ghost btn-sm" ${wpAtLatest()?'disabled':''} onclick="wpShift(1)" title="Дараах">›</button>
+              ${wpAtLatest()?'':`<button class="btn btn-ghost btn-sm" onclick="wpNow()">Одоо</button>`}
+            </div>
+          </div>
+          <div class="card-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+            <div style="height:260px;position:relative"><canvas id="wpChartWork"></canvas></div>
+            <div style="height:260px;position:relative"><canvas id="wpChartRate"></canvas></div>
+            <div style="height:260px;position:relative"><canvas id="wpChartTeams"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Ажилчдын гүйцэтгэл</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="exportWorkPerformance()">Excel + график татах</button>
+              <button class="btn btn-ghost btn-sm" onclick="wpPickImport()">Excel импорт</button>
+              <button class="btn btn-ghost btn-sm" onclick="wpDownloadTemplate()">Загвар</button>
+              <button class="btn btn-ghost btn-sm" onclick="wpRefresh()">Шинэчлэх</button>
+            </div>
+          </div>
+          <div class="card-b" style="padding:12px 16px">
+            <p class="muted" style="margin:0;font-size:13px">
+              <b>${d.from} — ${d.to}</b>. Нэг баг = хамт ажилласан хүмүүсийн бүрдэл (инженер + хамтрагч,
+              эсвэл ажлын байрны жолооч + хамт явагчид). Хийсэн ажлыг <b>дууссан</b> дуудлагаар,
+              хугацааг ажлын байрны ирсэн/явсан бүртгэлээр — байхгүй бол дуудлага үүсэхээс хаагдтал
+              хугацаагаар тооцов. Excel-ээр оруулсан мөр мөн нэгтгэлд орно.
+            </p>
+            ${warn}
+          </div>
+          <div class="card-b" style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap">
+            ${tab('teams','Багаар ('+d.teams.length+')')}${tab('days',periodLabel+' ('+periodRows.length+')')}${tab('detail','Дэлгэрэнгүй ('+d.rows.length+')')}
+          </div>
+          <div class="card-b" style="padding:0"><table>
+            <thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+            <tbody>${body||`<tr><td colspan=${colCount} class=empty>Энэ хугацаанд бүртгэгдсэн ажил алга</td></tr>`}</tbody>
+          </table></div>
+        </div>
+        <input type="file" id="wpFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="wpFileChosen(this)"/>`;
+
+      wpDrawCharts(d);
+    }
+
+    /** Дэлгэц дээрх гурван график. innerHTML тавьсны ДАРАА дуудагдана. */
+    function wpDrawCharts(d){
+      Object.values(wpCharts).forEach(ch=>{ try{ch.destroy();}catch(e){} });
+      wpCharts={};
+      if(typeof Chart==='undefined') return;
+      const chart=d.chart||wpBuildChartData(d,d.mode||'month');
+      const pts=chart.points||[];
+      const grid=chartGridColor();
+      const base={responsive:true,maintainAspectRatio:false};
+
+      const workCtx=$('wpChartWork');
+      if(workCtx&&pts.length){
+        wpCharts.work=new Chart(workCtx.getContext('2d'),{
+          type:'bar',
+          data:{labels:pts.map(p=>p.label),datasets:[
+            {label:'Айл',data:pts.map(p=>p.ail),backgroundColor:'#0099db',borderRadius:6},
+            {label:'Байгууллага',data:pts.map(p=>p.baiguulga),backgroundColor:'#0b7a44',borderRadius:6}
+          ]},
+          options:Object.assign({},base,{
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+              title:{display:true,text:chart.unitLabel+' тус бүрийн ажил'}},
+            scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:grid},ticks:{precision:0}}}
+          })
+        });
+      }
+
+      const rateCtx=$('wpChartRate');
+      if(rateCtx&&pts.length){
+        wpCharts.rate=new Chart(rateCtx.getContext('2d'),{
+          type:'line',
+          data:{labels:pts.map(p=>p.label),datasets:[
+            {label:'1 баг өдөрт айл',data:pts.map(p=>p.perTeam),borderColor:'#6d4aa8',backgroundColor:'#6d4aa833',
+              borderWidth:2,tension:.3,pointRadius:3,yAxisID:'y'},
+            {label:'1 айлын дундаж (мин)',data:pts.map(p=>p.minPerAil),borderColor:'#b45309',backgroundColor:'#b4530933',
+              borderWidth:2,tension:.3,pointRadius:3,yAxisID:'y1'}
+          ]},
+          options:Object.assign({},base,{
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+              title:{display:true,text:'Хурд ба хугацаа'}},
+            scales:{x:{grid:{display:false}},
+              y:{position:'left',grid:{color:grid},title:{display:true,text:'айл'}},
+              y1:{position:'right',grid:{display:false},title:{display:true,text:'мин'}}}
+          })
+        });
+      }
+
+      const teamRows=(d.teams||[]).slice(0,10);
+      const teamsCtx=$('wpChartTeams');
+      if(teamsCtx&&teamRows.length){
+        wpCharts.teams=new Chart(teamsCtx.getContext('2d'),{
+          type:'bar',
+          data:{labels:teamRows.map(t=>t.teamLabel),datasets:[
+            {label:'Айл',data:teamRows.map(t=>t.ail),backgroundColor:'#0099db',borderRadius:6},
+            {label:'Байгууллага',data:teamRows.map(t=>t.baiguulga),backgroundColor:'#0b7a44',borderRadius:6}
+          ]},
+          options:Object.assign({},base,{
+            indexAxis:'y',
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+              title:{display:true,text:'Багууд — хийсэн ажил'},
+              tooltip:{callbacks:{afterBody:items=>{
+                const t=teamRows[items[0].dataIndex];
+                return `${t.days} өдөр · өдөрт ${wpOne(t.ailPerDay)} айл · 1 айлд ${wpDur(t.msPerAil)}`;
+              }}}},
+            scales:{x:{stacked:true,grid:{color:grid},ticks:{precision:0}},y:{stacked:true,grid:{display:false}}}
+          })
+        });
+      }
+    }
 
     // ===== Барааны хэрэглээ / үлдэгдэл =====
     function renderUsage(c){

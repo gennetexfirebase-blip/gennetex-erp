@@ -1,4 +1,31 @@
 {
+  // Зөвхөн МОБАЙЛ АППЫН кодыг шалгана.
+  //
+  // Өмнө нь `include` заагаагүй тул `tsc --noEmit` нь төслийн БҮХ .ts файлыг
+  // (Deno дээр ажилладаг Supabase Edge Function-ууд, түүнчлэн `fix-frontend/`,
+  // `temp-redeploy-main/` зэрэг хуучин хуулбар хавтаснууд) шалгаж 100 гаруй
+  // худал алдаа өгдөг байв ("Cannot find name 'Deno'"). Тэр чимээ шуугианаас
+  // болж бодит алдаа анзаарагдахгүй байсан.
+  //
+  // Edge Function-ууд нь Deno-гийн өөрийнх нь шалгагчаар шалгагдана:
+  //   npx supabase functions serve  /  deno check supabase/functions/**
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  "include": ["src/**/*", "App.js", "index.js", "*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-web",
+    "android",
+    "ios",
+    "public-web",
+    "admin-web",
+    "supabase/functions",
+    "fix-frontend",
+    "fix-public-site",
+    "sitecontent-fallback",
+    "temp-redeploy-main",
+    "test",
+    "tmp"
+  ]
 }

@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../context/AppContext';
+import { friendlyError } from '../lib/erpMessages';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import VideoCallModal from '../components/VideoCallModal';
 import { sendPushToUser } from '../services/notificationService';
@@ -243,7 +244,7 @@ export default function ConversationScreen() {
           setMessages((prev) => prev.map((m) => (m.id === editingId ? updated : m)));
         } catch (e) {
           setError(e.message);
-          Alert.alert('Алдаа', e.message);
+          Alert.alert('Алдаа', friendlyError(e));
         }
         return;
       }
@@ -282,7 +283,7 @@ export default function ConversationScreen() {
               if (editingId === item.id) cancelEdit();
             } catch (e) {
               setError(e.message);
-              Alert.alert('Алдаа', e.message);
+              Alert.alert('Алдаа', friendlyError(e));
             }
           },
         },
@@ -314,7 +315,7 @@ export default function ConversationScreen() {
         await chatApi.sendMessage({ room, senderId: me.id, senderName: me.name, content: body });
       } catch (e) {
         setError(e.message);
-        Alert.alert('Алдаа', e.message);
+        Alert.alert('Алдаа', friendlyError(e));
       }
     },
     [me, room]
@@ -336,7 +337,7 @@ export default function ConversationScreen() {
       });
     } catch (e) {
       setError(e.message);
-      Alert.alert('Алдаа', e.message);
+      Alert.alert('Алдаа', friendlyError(e));
     } finally {
       setUploading(false);
     }
@@ -528,7 +529,7 @@ export default function ConversationScreen() {
       await chatApi.updateConversation(room, { avatar_url: url });
       setGroupAvatarUrl(url);
     } catch (e) {
-      Alert.alert('Алдаа', e.message);
+      Alert.alert('Алдаа', friendlyError(e));
     } finally {
       setUploadingAvatar(false);
     }

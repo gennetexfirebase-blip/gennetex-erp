@@ -7,8 +7,10 @@ const TABLE = 'leave_requests';
 
 export const LEAVE_KINDS = [
   { key: 'coloo', label: 'Чөлөө' },
+  { key: 'sick', label: 'Өвчтэй' },
   { key: 'amralt', label: 'Амралт' },
-  { key: 'other', label: 'Бусад' },
+  { key: 'overtime', label: 'Илүү цагийн амралт' },
+  { key: 'other', label: 'Ажилтны бусад хүсэлт' },
 ];
 
 export const LEAVE_STATUSES = {
@@ -97,6 +99,14 @@ export async function fetchMyLeaveRequests(userId, limit = 30) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchLeaveRequests({ status = null, limit = 100 } = {}) {
+  let q = supabase.from(TABLE).select('*').order('created_at', { ascending: false }).limit(limit);
+  if (status && status !== 'all') q = q.eq('status', status);
+  const { data, error } = await q;
   if (error) throw error;
   return data || [];
 }

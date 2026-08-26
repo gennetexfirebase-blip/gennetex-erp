@@ -576,3 +576,27 @@ export async function notifyLeaveRequestToAdmins({ userName, dateRange, reason, 
     channelId: 'default',
   });
 }
+
+/** Цагийн хүсэлт (зайнаас/нөхөж бүртгүүлэх гэх мэт) — админуудад. */
+export async function notifyAttendanceRequestToAdmins({ userName, typeLabel, requestId } = {}) {
+  return sendPushToRole('admin', {
+    title: 'Цагийн шинэ хүсэлт',
+    body: `${userName || 'Ажилтан'}: ${typeLabel || 'Хүсэлт'}`,
+    data: { type: 'admin', screen: 'AttendanceRequests', entityId: requestId },
+    channelId: 'default',
+  });
+}
+
+/** Админ цагийн хүсэлтийг зөвшөөрсөн/татгалзсан үед — ажилтанд. */
+export async function notifyAttendanceRequestDecision(userId, { typeLabel, status, rejectionReason, requestId } = {}) {
+  await notifyUsers([userId], {
+    title: status === 'approved' ? 'Хүсэлт зөвшөөрөгдлөө' : 'Хүсэлт татгалзлаа',
+    body:
+      status === 'approved'
+        ? `${typeLabel || 'Хүсэлт'} зөвшөөрөгдлөө`
+        : `${typeLabel || 'Хүсэлт'}${rejectionReason ? `: ${rejectionReason}` : ''}`,
+    data: { type: 'attendance_request_decision', requestId, status },
+    channelId: 'default',
+    priority: 'high',
+  });
+}

@@ -63,6 +63,9 @@ const ADMIN_MODULES = [
   { key: 'AdminApplications', label: 'Ажлын байрны анкет', icon: 'employees', accent: 'indigo', need: 'employees'},
   { key: 'AdminContracts', label: 'Хөдөлмөрийн гэрээ', icon: 'report', accent: 'indigo', need: 'employees'},
   { key: 'AdminReports', label: 'Тайлан', icon: 'report', accent: 'slate', need: 'employees'},
+  // Багийн ӨДРИЙН гүйцэтгэл: хэдэн баг · өдөрт хэдэн айл · хэр хугацаанд.
+  // Компанийн хэмжээний дүн тул `adminOnly` — ахлах, менежерт харагдахгүй.
+  { key: 'AdminWorkPerformance', label: 'Ажилчдын гүйцэтгэл', icon: 'report', accent: 'green', need: 'employees', adminOnly: true },
   { key: 'Payroll', label: 'Цалин тооцоо', icon: 'report', accent: 'indigo', need: 'payroll' },
   { key: 'AdminFeedback', label: 'Санал гомдол', icon: 'report', accent: 'rose', need: 'employees'},
   { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', accent: 'indigo', need: 'employees'},
@@ -223,9 +226,13 @@ export default function HomeScreen() {
 
   // Чадвараар шүүнэ. `adminModules`-аас ХОЙШ байх ёстой — эс бөгөөс
   // тодорхойлогдохоос өмнө уншиж TDZ алдаа өгнө.
+  //
+  // `adminOnly` нь чадвараас ДЭЭГҮҮР: тухайн модуль компанийн хэмжээний
+  // мэдээлэл харуулдаг тул зөвхөн админ, хөгжүүлэгчид нээгдэнэ (ахлах,
+  // менежер нь `employees` чадвартай ч болохгүй).
   const adminVisibleModules = useMemo(
-    () => adminModules.filter((m) => !m.need || capabilities[m.need]),
-    [adminModules, capabilities]
+    () => adminModules.filter((m) => (!m.need || capabilities[m.need]) && (!m.adminOnly || isAdmin)),
+    [adminModules, capabilities, isAdmin]
   );
 
   // ---------------------------------------------------------------------

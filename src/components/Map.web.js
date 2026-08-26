@@ -11,6 +11,10 @@ export function Marker() {
   return null;
 }
 
+export function Circle() {
+  return null;
+}
+
 const MapView = React.forwardRef(function MapView({ children, style }, ref) {
   const styles = useStyles(makeStyles);
   React.useImperativeHandle(ref, () => ({

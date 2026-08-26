@@ -32,6 +32,11 @@ import BoxesScreen from './src/screens/BoxesScreen';
 import BoxDetailScreen from './src/screens/BoxDetailScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import MyShiftScreen from './src/screens/MyShiftScreen';
+import AttendanceRequestFormScreen from './src/screens/AttendanceRequestFormScreen';
+import AttendanceMonthlySummaryScreen from './src/screens/AttendanceMonthlySummaryScreen';
+import AttendanceHistoryScreen from './src/screens/AttendanceHistoryScreen';
+import AttendanceDetailScreen from './src/screens/AttendanceDetailScreen';
+import AttendanceRequestsScreen from './src/screens/AttendanceRequestsScreen';
 import PayrollAdminScreen from './src/screens/PayrollAdminScreen';
 import MyPayrollScreen from './src/screens/MyPayrollScreen';
 import ChatScreen from './src/screens/ChatScreen';
@@ -59,6 +64,7 @@ import EmployeeReportScreen from './src/screens/EmployeeReportScreen';
 import RequisitionScreen from './src/screens/RequisitionScreen';
 import AdminReportsScreen from './src/screens/AdminReportsScreen';
 import AdminPerformanceScreen from './src/screens/AdminPerformanceScreen';
+import AdminWorkPerformanceScreen from './src/screens/AdminWorkPerformanceScreen';
 import AdminAppUsageScreen from './src/screens/AdminAppUsageScreen';
 import AdminFeedbackScreen from './src/screens/AdminFeedbackScreen';
 import AdminOhaabScreen from './src/screens/AdminOhaabScreen';
@@ -212,12 +218,18 @@ function AppStack() {
       <Stack.Screen name="EmployeeReport" component={EmployeeReportScreen} />
       <Stack.Screen name="Requisition" component={RequisitionScreen} />
       <Stack.Screen name="MyShift" component={MyShiftScreen} />
+      <Stack.Screen name="AttendanceRequestForm" component={AttendanceRequestFormScreen} />
+      <Stack.Screen name="AttendanceMonthlySummary" component={AttendanceMonthlySummaryScreen} />
+      <Stack.Screen name="AttendanceHistory" component={AttendanceHistoryScreen} />
+      <Stack.Screen name="AttendanceDetail" component={AttendanceDetailScreen} />
+      <Stack.Screen name="AttendanceRequests" component={AttendanceRequestsScreen} />
       <Stack.Screen name="Payroll" component={PayrollAdminScreen} options={{ title: 'Цалин' }} />
       <Stack.Screen name="MyPayroll" component={MyPayrollScreen} options={{ title: 'Миний цалин' }} />
       <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
       <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
       <Stack.Screen name="AdminOhaab" component={AdminOhaabScreen} />
       <Stack.Screen name="AdminPerformance" component={AdminPerformanceScreen} />
+      <Stack.Screen name="AdminWorkPerformance" component={AdminWorkPerformanceScreen} />
       <Stack.Screen name="AdminAppUsage" component={AdminAppUsageScreen} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
       <Stack.Screen name="Ohaab" component={OhaabScreen} />

@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
 import { supabase } from '../lib/supabase';
+import { friendlyError } from '../lib/erpMessages';
 
 /**
  * Нууцлал ба бүртгэл устгах.
@@ -18,6 +19,13 @@ import { supabase } from '../lib/supabase';
  * Энэ дэлгэц нь ажилтанд "миний юуг хэн харж байна вэ" гэсэн асуултад
  * бүрэн хариулна — reviewer ч мөн үүнийг хайдаг.
  */
+
+/**
+ * Нийтийн вэб сайт — нууцлалын бодлого, үйлчилгээний нөхцөл, бүртгэл
+ * устгах хуудсууд энд байрлана. Домэйн солигдвол `.env` дотор
+ * `EXPO_PUBLIC_SITE_URL` тохируулна.
+ */
+const PUBLIC_SITE = (process.env.EXPO_PUBLIC_SITE_URL || 'https://gennetex.mn').replace(/\/+$/, '');
 
 const COLLECTED = [
   {
@@ -101,7 +109,7 @@ export default function PrivacyScreen() {
         'Устгах',
         /last_superadmin/.test(m)
           ? 'Та системийн цорын ганц дээд админ тул устгах боломжгүй. Эхлээд өөр админ томилно уу.'
-          : m || 'Алдаа гарлаа.'
+          : friendlyError(e)
       );
     } finally {
       setBusy(false);
@@ -134,6 +142,29 @@ export default function PrivacyScreen() {
             Групп видео хурал нь гуравдагч талын нээлттэй сервер (Jitsi) дээр явагддаг.
             Хоёр хүний дуудлага нь шууд төхөөрөмж хооронд холбогдоно.
           </Text>
+        </Card>
+
+        {/*
+          Apple App Review 5.1.1 — нууцлалын бодлого нь аппын ДОТРООС
+          хүрэхүйц байх ёстой (зөвхөн App Store Connect дээрх холбоос
+          хангалтгүй). Google Play мөн адил шаарддаг.
+        */}
+        <Card style={styles.card}>
+          <Text style={styles.h2}>Албан ёсны баримт</Text>
+          <Text style={styles.p}>
+            Бүрэн эхийг вэб хуудаснаас уншина уу.
+          </Text>
+          <Button
+            title="Нууцлалын бодлого нээх"
+            variant="ghost"
+            onPress={() => Linking.openURL(`${PUBLIC_SITE}/privacy`)}
+          />
+          <View style={{ height: spacing.sm }} />
+          <Button
+            title="Үйлчилгээний нөхцөл"
+            variant="ghost"
+            onPress={() => Linking.openURL(`${PUBLIC_SITE}/terms`)}
+          />
         </Card>
 
         <Card style={styles.card}>

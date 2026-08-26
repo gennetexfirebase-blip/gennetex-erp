@@ -27,6 +27,37 @@ const NATIVE_ONLY_PLUGINS = new Set([
 const androidGoogleServices = './google-services.json';
 const iosGoogleServices = './GoogleService-Info.plist';
 
+/**
+ * Google Maps түлхүүр.
+ *
+ * ⚠️ ӨМНӨ НЬ `app.json` дотор `AIzaSyAOVY…3lLao` гэж ХАТУУ бичигдсэн байв.
+ *    Тэр нь Google өөрийн баримт бичигтээ жишээ болгон нийтэлсэн ОЛОН
+ *    НИЙТИЙН түлхүүр — мянга мянган төсөл түүнийг хуулсан бөгөөд танай
+ *    төслийн Android аппад ажиллахгүй (Maps SDK нь түлхүүрийг
+ *    аппын SHA-1 гарын үсэгтэй уядаг). Тиймээс газрын зураг хоосон саарал
+ *    дэлгэц болж харагдана.
+ *
+ * ЗӨВ ЗАМ:
+ *   Google Cloud Console → APIs & Services → Credentials → API key үүсгээд
+ *   заавал ХЯЗГААРЛАНА:
+ *     Android — package `com.gennetex.erp` + release SHA-1
+ *     iOS     — bundle id `com.gennetex.erp`
+ *   Дараа нь `.env` дотор:
+ *     EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIza...
+ *
+ * Түлхүүр нь аппын багц дотор ил үлддэг (үүнээс зайлсхийх боломжгүй) тул
+ * дээрх хязгаарлалт нь цорын ганц бодит хамгаалалт юм.
+ */
+const mapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+if (!mapsApiKey && process.env.EAS_BUILD) {
+  // Build-ийг зогсоохгүй — газрын зураггүйгээр аппын бусад хэсэг ажиллана.
+  console.warn(
+    '[app.config] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY тохируулаагүй байна — ' +
+      'Android дээр газрын зураг хоосон харагдана.'
+  );
+}
+
 module.exports = ({ config }) => {
   const plugins = (config.plugins || []).filter((plugin) => {
     const name = Array.isArray(plugin) ? plugin[0] : plugin;
@@ -63,10 +94,12 @@ module.exports = ({ config }) => {
     android: {
       ...config.android,
       ...(fs.existsSync(androidGoogleServices) ? { googleServicesFile: androidGoogleServices } : {}),
+      ...(mapsApiKey ? { config: { ...(config.android?.config || {}), googleMaps: { apiKey: mapsApiKey } } } : {}),
     },
     ios: {
       ...config.ios,
       ...(fs.existsSync(iosGoogleServices) ? { googleServicesFile: iosGoogleServices } : {}),
+      ...(mapsApiKey ? { config: { ...(config.ios?.config || {}), googleMapsApiKey: mapsApiKey } } : {}),
     },
   };
 };

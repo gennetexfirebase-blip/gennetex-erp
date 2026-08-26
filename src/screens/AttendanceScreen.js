@@ -15,11 +15,12 @@ import { useNavigation } from '@react-navigation/native';
 import { useFaceDetection } from '../lib/faceDetection';
 import * as faceCloud from '../services/faceCloudService';
 import * as faceEdge from '../services/faceEdgeService';
+import { friendlyError } from '../lib/erpMessages';
 import * as deviceApi from '../services/deviceAuthService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
-import { Card, Button, Field, Badge, ScreenHeader, SectionTitle, EmptyState } from '../components/ui';
+import { Card, Button, Field, SectionTitle, EmptyState } from '../components/ui';
 import TimeSelect from '../components/TimeSelect';
 import SelfieCamera from '../components/SelfieCamera';
 import ProfileSetup from '../components/ProfileSetup';
@@ -27,6 +28,7 @@ import * as attApi from '../services/attendanceService';
 import * as faceApi from '../services/faceService';
 import * as shiftApi from '../services/shiftService';
 import * as notifyApi from '../services/notificationService';
+import { playCheckInSound, playCheckOutSound } from '../services/attendanceSoundService';
 import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
   WEEKDAYS,
@@ -38,7 +40,19 @@ import {
 } from '../lib/breakSchedule';
 import { distanceMeters } from '../lib/geo';
 import { spacing, radius } from '../theme';
+import { colors as employeeColors } from '../theme/attendanceLight';
+import { colors as adminColors } from '../theme/attendanceDark';
 import { useTheme, useStyles } from '../context/ThemeContext';
+import EmployeeAttendanceMap from '../components/EmployeeAttendanceMap';
+import GeofenceStatusBanner from '../components/GeofenceStatusBanner';
+import MapControlButton from '../components/MapControlButton';
+import AttendanceActionButton from '../components/AttendanceActionButton';
+import AttendanceBottomPanel from '../components/AttendanceBottomPanel';
+import ChatAvatar from '../components/ChatAvatar';
+import SummaryStatCards from '../components/SummaryStatCards';
+import DateRangeFilterBar from '../components/DateRangeFilterBar';
+import AttendanceFilterSheet from '../components/AttendanceFilterSheet';
+import * as deptApi from '../services/departmentService';
 
 /**
  * Царай таниулт бүтэлгүйтсэн ШАЛТГААНЫГ хэрэглэгчид тодорхой хэлнэ.
@@ -134,6 +148,8 @@ export default function AttendanceScreen() {
   // Зайнаас хүсэлтийн modal
   const [remoteModal, setRemoteModal] = useState(false);
   const [remoteReason, setRemoteReason] = useState('');
+  // true = quickAttendance (камергүй) нээсэн remoteModal, false = startCheck (царайтай)
+  const [quickFlow, setQuickFlow] = useState(false);
   // Байршил тохируулах modal (admin)
   const [locModal, setLocModal] = useState(false);
   const [locForm, setLocForm] = useState({ name: '', radius: '200'});
@@ -160,6 +176,59 @@ export default function AttendanceScreen() {
   });
   const shiftAlertSent = useRef(false);
   const [employees, setEmployees] = useState([]);
+
+  // ---- Admin dashboard (шинэ dark UI) ----
+  const [dashboardDate, setDashboardDate] = useState(dayKey());
+  const [dayRows, setDayRows] = useState([]);
+  const [dayRowsLoading, setDayRowsLoading] = useState(false);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [dashFilters, setDashFilters] = useState({
+    departmentId: null,
+    status: 'all',
+    locationId: null,
+    employeeQuery: '',
+  });
+  const [departments, setDepartments] = useState([]);
+
+  const loadDayRows = useCallback(async () => {
+    if (!isCloud || !isAdmin) return;
+    setDayRowsLoading(true);
+    try {
+      const data = await attApi.fetchDepartmentAttendanceToday(dashFilters.departmentId, dashboardDate);
+      setDayRows(data || []);
+    } catch (e) {
+    } finally {
+      setDayRowsLoading(false);
+    }
+  }, [isCloud, isAdmin, dashFilters.departmentId, dashboardDate]);
+
+  useEffect(() => {
+    loadDayRows();
+  }, [loadDayRows]);
+
+  useEffect(() => {
+    if (!isCloud || !isAdmin) return;
+    deptApi.fetchDepartments({ kind: 'org' }).then(setDepartments).catch(() => {});
+  }, [isCloud, isAdmin]);
+
+  const filteredDayRows = dayRows.filter((r) => {
+    if (dashFilters.status !== 'all' && r.status !== dashFilters.status) return false;
+    if (
+      dashFilters.employeeQuery &&
+      !String(r.employee_name || '').toLowerCase().includes(dashFilters.employeeQuery.toLowerCase())
+    )
+      return false;
+    return true;
+  });
+
+  const dayStatCards = [
+    { key: 'all', label: 'Бүгд', value: dayRows.length },
+    { key: 'absent', label: 'Тасалсан', value: dayRows.filter((r) => r.status === 'absent').length },
+    { key: 'late', label: 'Хоцорсон', value: dayRows.filter((r) => r.status === 'late').length },
+    { key: 'on_time', label: 'Ирсэн', value: dayRows.filter((r) => r.status === 'on_time').length },
+    { key: 'leave', label: 'Чөлөөтэй', value: dayRows.filter((r) => r.status === 'leave').length },
+    { key: 'early_leave', label: 'Эрт явсан', value: dayRows.filter((r) => r.status === 'early_leave').length },
+  ];
 
   const loadEmployees = useCallback(async () => {
     if (!isCloud || !isAdmin) return;
@@ -208,7 +277,6 @@ export default function AttendanceScreen() {
   const loadRecords = useCallback(async () => {
     if (!isCloud || !isAdmin) return;
     try {
-      setRecords(await attApi.fetchAttendance());
       setPending(await attApi.fetchPendingAttendance());
       await loadTodayShifts();
       await loadBreakSchedules();
@@ -302,6 +370,35 @@ export default function AttendanceScreen() {
       return {};
     }
   };
+
+  // Ажилтны Map дэлгэц дээр амьд байршил харуулах — check-in/out дээрх
+  // нэг удаагийн `getLocation()`-оос ТУСДАА, зөвхөн ДЭЛГЭЦИЙН зурагт зориулав.
+  // Одоо байгаа ирц бүртгэх логикт нөлөөлөхгүй.
+  const [liveLocation, setLiveLocation] = useState(null);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    if (isAdmin || !isCloud) return;
+    let sub;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, timeInterval: 8000, distanceInterval: 15 },
+          (pos) => {
+            if (cancelled) return;
+            setLiveLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+          }
+        );
+      } catch (e) {}
+    })();
+    return () => {
+      cancelled = true;
+      sub?.remove?.();
+    };
+  }, [isAdmin, isCloud]);
 
   // Одоогийн байршлыг зөвшөөрөгдсөн цэгүүдтэй харьцуулна
   /**
@@ -541,6 +638,7 @@ export default function AttendanceScreen() {
       } else {
         setPendingRemote(true);
         setRemoteReason('');
+        setQuickFlow(false);
         setRemoteModal(true);
       }
     } catch (e) {
@@ -551,9 +649,99 @@ export default function AttendanceScreen() {
     }
   };
 
-  const submitRemote = () => {
+  const submitRemote = async () => {
     setRemoteModal(false);
-    setCameraVisible(true);
+    if (quickFlow) {
+      setBusy(true);
+      try {
+        await finalizeQuickAttendance(pendingType, capturedLoc, true, pendingDistance, capturedLoc?.locationName, remoteReason.trim());
+      } catch (e) {
+        Alert.alert('Алдаа', friendlyError(e));
+      } finally {
+        setBusy(false);
+      }
+    } else {
+      setCameraVisible(true);
+    }
+  };
+
+  /**
+   * Царайгүй, шууд ирц бүртгэх (Map screen-ийн том "Ирлээ/Явлаа" товч).
+   *
+   * Хэрэглэгчийн тусгай хүсэлтээр: энэ товч дарахад selfie/царай таних
+   * АЛГА, шууд бүртгэнэ. Байршил, төхөөрөмжийн баталгаажуулалт хэвээр
+   * хамгаалалт болно; зөвхөн камерын алхмыг л алгасна.
+   */
+  const finalizeQuickAttendance = async (type, loc, isRemote, distance, locationName, reason = null) => {
+    const dev = bypassDeviceApproval
+      ? { verified: true, deviceId: null, reason: null }
+      : await deviceApi.verifyDeviceForAttendance(profile.id);
+    const status = isRemote || !dev.verified ? 'pending' : 'approved';
+    const deviceNote = dev.verified ? null : `Төхөөрөмж баталгаажаагүй (${dev.reason})`;
+    await attApi.insertAttendance({
+      staffId: profile.id,
+      staffName: profile.name,
+      type,
+      photoUrl: null,
+      status,
+      isRemote,
+      distanceM: distance,
+      note: [reason, deviceNote].filter(Boolean).join(' · ') || null,
+      locationName: locationName || null,
+      latitude: loc?.latitude,
+      longitude: loc?.longitude,
+    });
+    await loadMyDay();
+    await refreshShiftStatus();
+    if (isRemote) {
+      Alert.alert('Хүсэлт илгээгдлээ', 'Зайнаас бүртгүүлэх хүсэлт админд илгээгдлээ. Зөвшөөрөхийг хүлээнэ үү.');
+    } else {
+      // "Ирц бүртгэл амжилттай" гэсэн бичвэрийн оронд дуу хоолойгоор мэдэгдэнэ.
+      if (type === 'check_in') playCheckInSound();
+      else playCheckOutSound();
+    }
+  };
+
+  const quickAttendance = async (type) => {
+    if (facePreparing || busy) return;
+    if (type === 'check_in' && shiftStatus.checkedIn) {
+      Alert.alert('Аль хэдийн бүртгэгдсэн', 'Өнөөдөр та ирснээ бүртгүүлсэн байна.');
+      return;
+    }
+    if (type === 'check_out') {
+      if (!shiftStatus.checkedIn) {
+        Alert.alert('Эхлээд ирснээ бүртгүүлнэ үү', 'Ирсэн бүртгэлгүйгээр явсан гэж бүртгэх боломжгүй.');
+        return;
+      }
+      if (shiftStatus.checkedOut) {
+        Alert.alert('Аль хэдийн бүртгэгдсэн', 'Өнөөдөр та явсанаа бүртгүүлсэн байна.');
+        return;
+      }
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const loc = await getLocation();
+      const { mode, distance, locationName } = evaluateLocation(loc);
+      setPendingType(type);
+      setPendingDistance(distance);
+      setCapturedLoc({ ...loc, locationName });
+
+      if (type === 'check_in' && mode !== 'onsite') {
+        setPendingRemote(true);
+        setRemoteReason('');
+        setQuickFlow(true);
+        setRemoteModal(true);
+        return;
+      }
+
+      await finalizeQuickAttendance(type, loc, mode !== 'onsite', distance, locationName);
+    } catch (e) {
+      setError(e.message);
+      Alert.alert('Алдаа', friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   // Царай бүртгэх — эгц, хажуу, инээмсэглэл гэсэн 3 чанартай template.
@@ -644,7 +832,7 @@ export default function AttendanceScreen() {
       );
     } catch (e) {
       setError(e.message);
-      Alert.alert('Алдаа', e.message);
+      Alert.alert('Алдаа', friendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -763,7 +951,7 @@ export default function AttendanceScreen() {
       );
     } catch (e) {
       setError(e.message);
-      Alert.alert('Алдаа', e.message);
+      Alert.alert('Алдаа', friendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -775,7 +963,7 @@ export default function AttendanceScreen() {
       await attApi.setAttendanceStatus(id, status);
       await loadRecords();
     } catch (e) {
-      Alert.alert('Алдаа', e.message);
+      Alert.alert('Алдаа', friendlyError(e));
     }
   };
 
@@ -802,7 +990,7 @@ export default function AttendanceScreen() {
       await loadLocations();
       Alert.alert('Хадгаллаа', 'Бүртгэлийн байршил нэмэгдлээ.');
     } catch (e) {
-      Alert.alert('Алдаа', e.message);
+      Alert.alert('Алдаа', friendlyError(e));
     }
   };
 
@@ -886,7 +1074,7 @@ export default function AttendanceScreen() {
               setEnrolled(false);
               Alert.alert('Бэлэн', 'Дараагийн ирц дээр царайгаа шинээр бүртгүүлнэ үү.');
             } catch (e) {
-              Alert.alert('Алдаа', e.message);
+              Alert.alert('Алдаа', friendlyError(e));
             }
           },
         },
@@ -902,22 +1090,205 @@ export default function AttendanceScreen() {
     );
   }
 
-  const header = (
-    <View>
-      <Card style={styles.heroCard}>
-        <View style={styles.heroTop}>
-          <View style={styles.faceCircle}>
-            <Text style={{ fontSize: 30 }}></Text>
+  if (!isAdmin) {
+    // Ажлын байрны цэг: миний хуваарьт онооcон байршил байвал түүнийг,
+    // үгүй бол хамгийн ойрхон тохируулсан цэгийг харуулна.
+    const shiftLocation = myShift?.location_id
+      ? locations.find((l) => l.id === myShift.location_id)
+      : null;
+    const nearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
+    const workplace = shiftLocation || nearest.location || locations[0] || null;
+
+    let geofenceStatus = null;
+    if (locations.length > 0 && liveLocation?.latitude != null) {
+      geofenceStatus = nearest.within ? 'inside' : 'outside';
+    }
+
+    const canCheckIn =
+      !shiftStatus.checkedIn && (geofenceStatus === 'inside' || locations.length === 0);
+    const canCheckOut = shiftStatus.checkedIn && !shiftStatus.checkedOut;
+    const actionMode = shiftStatus.checkedIn && !shiftStatus.checkedOut ? 'check_out' : 'check_in';
+    const actionEnabled = actionMode === 'check_in' ? canCheckIn : canCheckOut;
+
+    const scheduleLabel = todayIsRest
+      ? 'Хуваарьгүй · Амралт'
+      : myShift
+        ? `${myShift.start_time} – ${myShift.end_time}`
+        : 'Хуваарьгүй';
+    const weekdayLabels = ['Ням', 'Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям'];
+    const dateLabel = `${dayKey()}(${weekdayLabels[new Date().getDay()]})`;
+
+    return (
+      <View style={{ flex: 1, backgroundColor: employeeColors.background }}>
+        <EmployeeAttendanceMap
+          mapRef={mapRef}
+          employeeLocation={liveLocation}
+          workplace={workplace}
+          profileUri={profile?.avatar_url}
+          profileName={profile?.name}
+        />
+
+        <SafeAreaView style={styles.mapTopBar} edges={['top']} pointerEvents="box-none">
+          <View style={styles.mapTopRow}>
+            <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={40} />
+            <View style={[styles.orgPill, { backgroundColor: employeeColors.surface }]}>
+              <Text style={{ color: employeeColors.text, fontWeight: '700', fontSize: 14 }}>
+                ЖЕННЕТЕКС ХХК
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.bellBtn, { backgroundColor: employeeColors.surface }]}
+              onPress={() => navigation.navigate('Notifications')}
+              accessibilityRole="button"
+              accessibilityLabel="Мэдэгдэл"
+            >
+              <Text style={{ fontSize: 18 }}>🔔</Text>
+            </TouchableOpacity>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>Царайгаар ирц бүртгэх</Text>
-            <Text style={styles.cardSub}>Урд камераар selfie авч баталгаажуулна.</Text>
-          </View>
+          <GeofenceStatusBanner
+            status={geofenceStatus}
+            colors={employeeColors}
+            style={{ marginTop: 10, alignSelf: 'center' }}
+          />
+        </SafeAreaView>
+
+        <View style={styles.mapControls} pointerEvents="box-none">
+          <MapControlButton
+            icon="📍"
+            colors={employeeColors}
+            accessibilityLabel="Миний байршил руу төвлөрөх"
+            onPress={() =>
+              liveLocation?.latitude != null &&
+              mapRef.current?.animateToRegion(
+                { ...liveLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+                400
+              )
+            }
+          />
+          <MapControlButton
+            icon="🏢"
+            colors={employeeColors}
+            accessibilityLabel="Ажлын байршил руу төвлөрөх"
+            onPress={() =>
+              workplace?.latitude != null &&
+              mapRef.current?.animateToRegion(
+                { latitude: workplace.latitude, longitude: workplace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+                400
+              )
+            }
+          />
+          <MapControlButton
+            icon="🕘"
+            colors={employeeColors}
+            accessibilityLabel="Өдрийн түүх"
+            onPress={() => navigation.navigate('AttendanceHistory')}
+          />
         </View>
+
+        <View style={styles.actionBtnWrap} pointerEvents="box-none">
+          <AttendanceActionButton
+            mode={actionMode}
+            enabled={actionEnabled}
+            loading={busy}
+            colors={employeeColors}
+            onPress={() => quickAttendance(actionMode)}
+          />
+        </View>
+
+        <AttendanceBottomPanel
+          colors={employeeColors}
+          dateLabel={dateLabel}
+          scheduleLabel={scheduleLabel}
+          onPressSummary={() => navigation.navigate('AttendanceMonthlySummary')}
+          onPressRequest={() => navigation.navigate('AttendanceRequestForm')}
+        />
+
+        <SelfieCamera
+          visible={cameraVisible}
+          busy={busy}
+          auto
+          autoDelayMs={enrolling ? 1200 : 2000}
+          progressText={
+            enrolling
+              ? `Царай бүртгэж байна: ${enrollCount}/${faceApi.ENROLL_TARGET}`
+              : verificationStep === 1
+              ? 'Амьд хөдөлгөөн шалгаж байна: 2/2'
+              : 'Царай таньж байна: 1/2'
+          }
+          hint={
+            enrolling
+              ? faceApi.getEnrollmentPose(enrollCount).label
+              : verificationStep === 1
+              ? livenessChallenge?.label
+              : 'Камер руу эгц харна уу'
+          }
+          onClose={() => {
+            setCameraVisible(false);
+            setEnrolling(false);
+            setVerificationStep(0);
+            setLivenessChallenge(null);
+          }}
+          onCapture={handleCapture}
+          profileUri={profile?.avatar_url || null}
+          profileName={profile?.name || null}
+        />
+
+        <Modal visible={remoteModal} transparent animationType="fade">
+          <View style={styles.warnOverlay}>
+            <View style={[styles.warnModal, { backgroundColor: employeeColors.surface }]}>
+              <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 8 }}>⚠️</Text>
+              <Text style={[styles.warnTitle, { color: employeeColors.text }]}>Анхааруулга</Text>
+              <Text style={[styles.warnMessage, { color: employeeColors.textMuted }]}>
+                Та цаг бүртгэх байршилд ороогүй байна
+                {pendingDistance != null ? ` (~${pendingDistance}м зайд)` : ''}.{'\n'}
+                Шалтгаанаа бичээд хүсэлт илгээнэ үү.
+              </Text>
+              <Field
+                placeholder="Шалтгаан бичнэ үү"
+                value={remoteReason}
+                onChangeText={setRemoteReason}
+              />
+              <View style={styles.btnRow}>
+                <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={() => setRemoteModal(false)} />
+                <Button title="Хүсэлт илгээх" style={{ flex: 1 }} onPress={submitRemote} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  // ---- Admin dark dashboard header (dashboard-only, dashFilters/dayRows-той) ----
+  const adminHeader = (
+    <View>
+      <View style={dashStyles.topRow}>
+        <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={44} />
+        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+          <Text style={{ color: adminColors.text, fontSize: 16, fontWeight: '800' }}>{profile?.name}</Text>
+          <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>ЖЕННЕТЕКС ХХК</Text>
+        </View>
+        <TouchableOpacity
+          style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer }]}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Text style={{ fontSize: 16 }}>🔔</Text>
+          {pending.length > 0 ? (
+            <View style={dashStyles.badgeDot}>
+              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{pending.length}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      </View>
+
+      {/* Миний ирц — админ ч ажилтан шиг ирц бүртгүүлэх боломжтой хэвээр */}
+      <View style={[dashStyles.selfCard, { backgroundColor: adminColors.surfaceContainer }]}>
+        <Text style={{ color: adminColors.textMuted, fontSize: 12, marginBottom: 8 }}>Миний ирц</Text>
         <View style={styles.btnRow}>
           <Button
             title={shiftStatus.checkedIn ? 'Ирсэн ✓' : 'Ирсэн'}
             variant="success"
+            size="sm"
             style={{ flex: 1 }}
             loading={facePreparing}
             disabled={shiftStatus.checkedIn}
@@ -926,167 +1297,55 @@ export default function AttendanceScreen() {
           <Button
             title={shiftStatus.checkedOut ? 'Явсан ✓' : 'Явсан'}
             variant="danger"
+            size="sm"
             style={{ flex: 1 }}
             disabled={facePreparing || !shiftStatus.checkedIn || shiftStatus.checkedOut}
             onPress={() => startCheck('check_out')}
           />
         </View>
-        {/* Байршил хянах төлөв — ажилтан юу болж байгааг мэдэж байх ёстой */}
-        {isCloud && !isAdmin ? (
-          <View style={styles.trackRow}>
-            <View
-              style={[
-                styles.trackDot,
-                { backgroundColor: shiftStatus.onShift ? colors.success : colors.textFaint },
-              ]}
-            />
-            <Text style={styles.trackText}>
-              {shiftStatus.onShift
-                ? 'Ажил дээр · байршил хянагдаж байна'
-                : shiftStatus.checkedOut
-                  ? 'Ажил дууссан · байршил хянахыг зогсоов'
-                  : 'Ирснээ бүртгүүлбэл байршил хянаж эхэлнэ'}
-            </Text>
-          </View>
-        ) : null}
-        {isCloud && locations.length > 0 ? (
-          <Text style={styles.geoHint}>
-             {locations.map((l) => l.name).join(', ')} цэгийн ойролцоо байх шаардлагатай. Гадуур бол зайнаас хүсэлт илгээнэ.
-          </Text>
-        ) : null}
-        {isCloud && faceBackendReady === false ? (
-          <Text style={styles.enrollHint}>
-            Царай таних энэ төхөөрөмж дээр ажиллахгүй байна. Ирц нь байршил,
-            төхөөрөмж, selfie-гээр бүртгэгдэж админы баталгаажуулалтад орно.
-            {'\n'}Бүрэн ажиллуулах: development build (npx expo run:android) эсвэл APK.
-          </Text>
-        ) : isCloud && !enrolled ? (
-          <Text style={styles.enrollHint}>
-             Анх удаа: царайгаа 3 зааврын дагуу бүртгүүлнэ ({enrollCount}/
-            {faceApi.ENROLL_TARGET}).
-          </Text>
-        ) : isCloud ? (
-          <View>
-            <Text style={styles.geoHint}> Царай бүртгэгдсэн. Эгц зураг + санамсаргүй хөдөлгөөнөөр ирцийг батална.</Text>
-            {faceApi.isNativeFaceAvailable() ? (
-              <Button title="Царай дахин бүртгэх" variant="ghost" size="sm" onPress={resetMyFace} />
-            ) : null}
-          </View>
-        ) : null}
-      </Card>
+      </View>
 
-      {/* Ажилтан: хуваарь харах */}
-      {!isAdmin && isCloud ? (
-        <Card style={{ marginTop: spacing.sm }}>
-          <Text style={styles.blockTitle}> Хуваарь харах</Text>
-          <Text style={styles.privacyText}>
-            Ажлын хуваарь, амралтын өдөр, нийт ажилласан цагаа харна.
-          </Text>
-          <TouchableOpacity
-            style={styles.hoursTap}
-            onPress={() => navigation.navigate('MyShift')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.hoursLabel}>Өнөөдөр</Text>
-            <Text style={styles.hoursValue}>
-              {todayIsRest ? 'Амралт' : myShift ? `${myShift.start_time} – ${myShift.end_time}` : 'Хуваарьгүй'}
-            </Text>
-            <Text style={styles.hoursHint}>
-              Ажилласан: {todayIsRest ? '—' : formatDuration(workSummary.netMs)} · Дэлгэрэнгүй →
-            </Text>
-          </TouchableOpacity>
-        </Card>
-      ) : null}
+      <View style={{ marginTop: spacing.lg }}>
+        <SummaryStatCards
+          items={dayStatCards}
+          colors={adminColors}
+          activeKey={dashFilters.status}
+          onSelect={(key) => setDashFilters((f) => ({ ...f, status: key }))}
+        />
+      </View>
+
+      <View style={{ marginTop: spacing.md }}>
+        <DateRangeFilterBar
+          fromLabel={dashboardDate}
+          toLabel={dashboardDate}
+          colors={adminColors}
+          onPressDate={() => {
+            const d = new Date(dashboardDate);
+            d.setDate(d.getDate() - 1);
+            setDashboardDate(dayKey(d));
+          }}
+          onPressFilter={() => setFilterSheetVisible(true)}
+        />
+      </View>
 
       {migrationHint ? (
         <Card style={{ marginTop: spacing.sm, borderColor: colors.warning, borderWidth: 1 }}>
           <Text style={styles.note}>{migrationHint}</Text>
         </Card>
       ) : null}
-
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!isCloud ? (
-        <Text style={styles.note}>
-           Supabase холбогдоогүй тул ирц зөвхөн энэ утсанд хадгалагдана.
-        </Text>
+        <Text style={styles.note}> Supabase холбогдоогүй тул ирц зөвхөн энэ утсанд хадгалагдана.</Text>
       ) : null}
 
-      {/* Админ: хуваарь оноох */}
-      {isAdmin && isCloud ? (
-        <Card style={{ marginTop: spacing.sm }}>
-          <View style={styles.locHead}>
-            <Text style={styles.blockTitle}> Ажилтны хуваарь</Text>
-            <Button title="Хуваарь оноох" size="sm" onPress={() => setShiftModal(true)} />
-          </View>
-          {todayShifts.length === 0 ? (
-            <Text style={styles.privacyText}>Өнөөдрийн хуваарь алга.</Text>
-          ) : (
-            todayShifts.map((s) => (
-              <View key={s.id} style={styles.locRow}>
-                <Text style={styles.locName}>{s.user_name}</Text>
-                <Text style={styles.locRadius}>
-                  {s.start_time}–{s.end_time}
-                  {s.location_name ? ` · ${s.location_name}` : ''}
-                </Text>
-              </View>
-            ))
-          )}
-        </Card>
-      ) : null}
-
-      {/* Админ: амралтын өдөр */}
-      {isAdmin && isCloud ? (
-        <Card style={{ marginTop: spacing.sm }}>
-          <View style={styles.locHead}>
-            <Text style={styles.blockTitle}> Амралтын өдөр</Text>
-            <Button title="Өдөр сонгох" size="sm" onPress={openBreakModal} />
-          </View>
-          {Object.keys(breakSchedulesByUser).length === 0 ? (
-            <Text style={styles.privacyText}>Даваа–Ням гаригт амралтын өдөр тохируулаагүй.</Text>
-          ) : (
-            Object.values(breakSchedulesByUser).map((item) => (
-              <View key={item.user_id} style={styles.locRow}>
-                <Text style={styles.locName}>{item.user_name}</Text>
-                <Text style={styles.locRadius}>
-                  {item.days.map((d) => weekdayLabel(d)).join(', ')}
-                </Text>
-              </View>
-            ))
-          )}
-        </Card>
-      ) : null}
-
-      {/* Админ: бүртгэлийн байршлын тохиргоо */}
-      {isAdmin && isCloud ? (
-        <Card style={{ marginTop: spacing.sm }}>
-          <View style={styles.locHead}>
-            <Text style={styles.blockTitle}> Бүртгэлийн байршил</Text>
-            <Button title="Одоогийн газар нэмэх" size="sm" onPress={() => setLocModal(true)} />
-          </View>
-          {locations.length === 0 ? (
-            <Text style={styles.privacyText}>Байршил тохируулаагүй бол хаанаас ч бүртгэнэ.</Text>
-          ) : (
-            locations.map((l) => (
-              <View key={l.id} style={styles.locRow}>
-                <Text style={styles.locName}>{l.name}</Text>
-                <Text style={styles.locRadius}>{l.radius_m}м</Text>
-                <TouchableOpacity onPress={() => removeLocation(l.id, l.name)} hitSlop={8}>
-                  <Text style={styles.delete}>Устгах</Text>
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
-        </Card>
-      ) : null}
-
-      {/* Админ: зайнаас бүртгүүлэх хүсэлтүүд */}
-      {isAdmin && pending.length > 0 ? (
+      {/* Зайнаас бүртгүүлэх хүсэлтүүд */}
+      {pending.length > 0 ? (
         <View>
-          <SectionTitle style={{ marginTop: spacing.md }}>
+          <SectionTitle style={{ marginTop: spacing.md, color: adminColors.text }}>
              Зайнаас бүртгүүлэх хүсэлт ({pending.length})
           </SectionTitle>
           {pending.map((item) => (
-            <Card key={item.id} style={styles.pendCard}>
+            <Card key={item.id} style={[styles.pendCard, { backgroundColor: adminColors.surfaceContainer }]}>
               <View style={styles.recordRow}>
                 {item.photo_url ? (
                   <Image source={{ uri: item.photo_url }} style={styles.avatar} />
@@ -1096,25 +1355,13 @@ export default function AttendanceScreen() {
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.recordName}>{item.staff_name}</Text>
-                  <Text style={styles.recordDate}>
+                  <Text style={[styles.recordName, { color: adminColors.text }]}>{item.staff_name}</Text>
+                  <Text style={[styles.recordDate, { color: adminColors.textMuted }]}>
                     {item.type === 'check_in' ? 'Ирсэн' : 'Явсан'} ·{' '}
                     {new Date(item.created_at).toLocaleString('mn-MN')}
                   </Text>
                   {item.distance_m != null ? (
-                    <Text style={styles.recordDate}> Цэгээс ~{item.distance_m}м зайд</Text>
-                  ) : null}
-                  {item.location_name ? (
-                    <Text style={styles.recordDate}> Бүртгсэн: {item.location_name}</Text>
-                  ) : null}
-                  {item.latitude != null && item.longitude != null ? (
-                    <TouchableOpacity
-                      onPress={() => openOnMap(item)}
-                      accessibilityRole="link"
-                      accessibilityLabel="Байршлыг газрын зураг дээр харах"
-                    >
-                      <Text style={styles.mapLink}>Газрын зураг дээр харах</Text>
-                    </TouchableOpacity>
+                    <Text style={[styles.recordDate, { color: adminColors.textMuted }]}> Цэгээс ~{item.distance_m}м зайд</Text>
                   ) : null}
                   {item.note ? <Text style={styles.noteText}>{item.note}</Text> : null}
                 </View>
@@ -1128,80 +1375,149 @@ export default function AttendanceScreen() {
         </View>
       ) : null}
 
-      {isAdmin ? (
-        <SectionTitle style={{ marginTop: spacing.md }}> Бүх ажилчдын ирц</SectionTitle>
-      ) : (
-        <Card style={{ marginTop: spacing.sm }}>
-          <Text style={styles.privacyText}>
-             Таны ирцийн бүртгэлийг зөвхөн админ харна. Дээрх товчоор ирцээ бүртгүүлээрэй.
-          </Text>
-        </Card>
-      )}
+      {/* Хуваарь / Амралт / Байршил — одоо байгаа удирдлагууд, dark карт дотор хэвээр */}
+      <Card style={{ marginTop: spacing.md, backgroundColor: adminColors.surfaceContainer }}>
+        <View style={styles.locHead}>
+          <Text style={[styles.blockTitle, { color: adminColors.text }]}> Ажилтны хуваарь</Text>
+          <Button title="Хуваарь оноох" size="sm" onPress={() => setShiftModal(true)} />
+        </View>
+        {todayShifts.length === 0 ? (
+          <Text style={[styles.privacyText, { color: adminColors.textMuted }]}>Өнөөдрийн хуваарь алга.</Text>
+        ) : (
+          todayShifts.map((s) => (
+            <View key={s.id} style={styles.locRow}>
+              <Text style={[styles.locName, { color: adminColors.text }]}>{s.user_name}</Text>
+              <Text style={[styles.locRadius, { color: adminColors.textMuted }]}>
+                {s.start_time}–{s.end_time}
+                {s.location_name ? ` · ${s.location_name}` : ''}
+              </Text>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Card style={{ marginTop: spacing.sm, backgroundColor: adminColors.surfaceContainer }}>
+        <View style={styles.locHead}>
+          <Text style={[styles.blockTitle, { color: adminColors.text }]}> Амралтын өдөр</Text>
+          <Button title="Өдөр сонгох" size="sm" onPress={openBreakModal} />
+        </View>
+        {Object.keys(breakSchedulesByUser).length === 0 ? (
+          <Text style={[styles.privacyText, { color: adminColors.textMuted }]}>Даваа–Ням гаригт амралтын өдөр тохируулаагүй.</Text>
+        ) : (
+          Object.values(breakSchedulesByUser).map((item) => (
+            <View key={item.user_id} style={styles.locRow}>
+              <Text style={[styles.locName, { color: adminColors.text }]}>{item.user_name}</Text>
+              <Text style={[styles.locRadius, { color: adminColors.textMuted }]}>
+                {item.days.map((d) => weekdayLabel(d)).join(', ')}
+              </Text>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Card style={{ marginTop: spacing.sm, backgroundColor: adminColors.surfaceContainer }}>
+        <View style={styles.locHead}>
+          <Text style={[styles.blockTitle, { color: adminColors.text }]}> Бүртгэлийн байршил</Text>
+          <Button title="Одоогийн газар нэмэх" size="sm" onPress={() => setLocModal(true)} />
+        </View>
+        {locations.length === 0 ? (
+          <Text style={[styles.privacyText, { color: adminColors.textMuted }]}>Байршил тохируулаагүй бол хаанаас ч бүртгэнэ.</Text>
+        ) : (
+          locations.map((l) => (
+            <View key={l.id} style={styles.locRow}>
+              <Text style={[styles.locName, { color: adminColors.text }]}>{l.name}</Text>
+              <Text style={[styles.locRadius, { color: adminColors.textMuted }]}>{l.radius_m}м</Text>
+              <TouchableOpacity onPress={() => removeLocation(l.id, l.name)} hitSlop={8}>
+                <Text style={styles.delete}>Устгах</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Text style={{ color: adminColors.text, fontSize: 15, fontWeight: '700', marginTop: spacing.lg, marginBottom: 8 }}>
+        {dashboardDate}   {dayRowsLoading ? '· ачаалж байна...' : ''}
+      </Text>
+      <View style={dashStyles.tableHeadRow}>
+        <Text style={[dashStyles.tableHeadCell, { flex: 2, color: adminColors.textMuted }]}>Ажилтан</Text>
+        <Text style={[dashStyles.tableHeadCell, { color: adminColors.textMuted }]}>Ирсэн</Text>
+        <Text style={[dashStyles.tableHeadCell, { color: adminColors.textMuted }]}>Явсан</Text>
+        <Text style={[dashStyles.tableHeadCell, { color: adminColors.textMuted }]}>Хоц/Эрт</Text>
+      </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader
-        back={false} title="Ирцийн бүртгэл"
-        subtitle={`${isCloud ? 'Supabase' : 'Локал'} · ${profile?.name || ''}`}
-      />
+    <View style={{ flex: 1, backgroundColor: adminColors.background }}>
       <FlatList
-        data={isAdmin ? records.filter((r) => r.status !== 'pending') : []}
-        keyExtractor={(r) => r.id}
-        ListHeaderComponent={header}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
+        data={filteredDayRows}
+        keyExtractor={(r) => r.employee_id}
+        ListHeaderComponent={adminHeader}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}
+        ListEmptyComponent={!dayRowsLoading ? <EmptyState text="Ирцийн бүртгэл олдсонгүй" /> : null}
         renderItem={({ item }) => (
-          <Card>
-            <View style={styles.recordRow}>
-              {item.photo_url ? (
-                <Image source={{ uri: item.photo_url }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarEmpty]}>
-                  <Text style={{ fontSize: 22 }}></Text>
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.recordName}>{item.staff_name}</Text>
-                <Text style={styles.recordDate}>
-                  {new Date(item.created_at).toLocaleString('mn-MN')}
-                </Text>
-                {item.location_name ? (
-                  <Text style={styles.recordDate}>{item.location_name}</Text>
-                ) : item.is_remote && item.distance_m != null ? (
-                  <Text style={styles.recordDate}> Цэгээс ~{item.distance_m}м зайд</Text>
-                ) : null}
-                {/* Ирц бүртгүүлсэн байршил — БҮХ ажилтанд харагдана.
-                    Өмнө нь зөвхөн админы "зөвшөөрөх" жагсаалт дээр байсан
-                    тул энгийн ажилтан өөрийнхөө ирц хаана бүртгэгдсэнийг
-                    шалгах боломжгүй байв. */}
-                {item.latitude != null && item.longitude != null ? (
-                  <TouchableOpacity
-                    onPress={() => openOnMap(item)}
-                    accessibilityRole="link"
-                    accessibilityLabel="Ирц бүртгүүлсэн байршлыг газрын зураг дээр харах"
-                    hitSlop={6}
-                  >
-                    <Text style={styles.mapLink}>Газрын зураг дээр харах</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <View style={styles.tagRow}>
-                  {item.is_remote ? <Badge text="Зайнаас" color={colors.accent} /> : null}
-                  {item.status === 'rejected' ? <Badge text="Татгалзсан" color={colors.danger} /> : null}
-                </View>
-              </View>
-              <Badge
-                text={item.type === 'check_in' ? 'Ирсэн' : 'Явсан'}
-                color={item.type === 'check_in' ? colors.success : colors.danger}
-              />
+          <TouchableOpacity
+            style={dashStyles.tableRow}
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate('AttendanceDetail', {
+                employeeId: item.employee_id,
+                employeeName: item.employee_name,
+                avatarUrl: item.avatar_url,
+                date: dashboardDate,
+                row: item,
+              })
+            }
+          >
+            <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ChatAvatar name={item.employee_name} uri={item.avatar_url} size={30} />
+              <Text style={{ color: adminColors.text, fontSize: 13 }} numberOfLines={1}>
+                {item.employee_name}
+              </Text>
             </View>
-          </Card>
+            <Text style={{ flex: 1, color: adminColors.text, fontSize: 13 }}>
+              {item.check_in_at ? new Date(item.check_in_at).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+            </Text>
+            <Text style={{ flex: 1, color: adminColors.text, fontSize: 13 }}>
+              {item.check_out_at ? new Date(item.check_out_at).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+            </Text>
+            <Text style={{ flex: 1, color: item.late_minutes > 0 ? '#ff6b60' : adminColors.textMuted, fontSize: 13 }}>
+              {item.late_minutes > 0 ? `${item.late_minutes}м` : item.early_leave_minutes > 0 ? `-${item.early_leave_minutes}м` : '--'}
+            </Text>
+          </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          isAdmin ? <EmptyState text="Ирц бүртгэгдээгүй байна."/> : null
-        }
       />
 
+      {/* Floating sub-nav — зөвхөн энэ Ирц tab-ийн доторх дэд навигаци, гадаад Tab.Navigator-т нөлөөгүй */}
+      <View style={dashStyles.subNav}>
+        <View style={[dashStyles.subNavPill, { backgroundColor: adminColors.surfaceContainerHigh }]}>
+          <View style={[dashStyles.subNavItem, dashStyles.subNavItemActive, { backgroundColor: adminColors.primary }]}>
+            <Text style={{ fontSize: 16 }}>⏱️</Text>
+            <Text style={{ color: adminColors.onPrimary, fontSize: 11, fontWeight: '700' }}>Ирц</Text>
+          </View>
+          <TouchableOpacity style={dashStyles.subNavItem} onPress={() => navigation.navigate('AttendanceRequests')}>
+            <Text style={{ fontSize: 16 }}>📨</Text>
+            <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Хүсэлт</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={dashStyles.subNavItem} onPress={() => navigation.navigate('Employees')}>
+            <Text style={{ fontSize: 16 }}>👥</Text>
+            <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Ажилтан</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <AttendanceFilterSheet
+        visible={filterSheetVisible}
+        onClose={() => setFilterSheetVisible(false)}
+        onApply={(f) => {
+          setDashFilters(f);
+          setFilterSheetVisible(false);
+        }}
+        departments={departments}
+        locations={locations}
+        colors={adminColors}
+        initial={dashFilters}
+      />
       <SelfieCamera
         visible={cameraVisible}
         busy={busy}
@@ -1443,8 +1759,90 @@ export default function AttendanceScreen() {
   );
 }
 
+const dashStyles = StyleSheet.create({
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
+  bellBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#ff6b60',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  selfCard: { borderRadius: 16, padding: spacing.md, marginBottom: spacing.sm },
+  tableHeadRow: { flexDirection: 'row', paddingHorizontal: 4, marginBottom: 6 },
+  tableHeadCell: { flex: 1, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4 },
+  subNav: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
+  subNavPill: {
+    flexDirection: 'row',
+    borderRadius: 28,
+    padding: 6,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  subNavItem: { alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 22, gap: 2 },
+  subNavItemActive: {},
+});
+
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+
+  // ---- Ажилтны map-first Ирц дэлгэц ----
+  mapTopBar: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.lg },
+  mapTopRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  orgPill: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  bellBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  mapControls: { position: 'absolute', right: spacing.lg, top: '32%' },
+  actionBtnWrap: { position: 'absolute', left: 0, right: 0, bottom: 210, alignItems: 'center' },
+  warnOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(23,23,23,0.48)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  warnModal: { width: '100%', borderRadius: 22, padding: spacing.xl },
+  warnTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
+  warnMessage: { fontSize: 14, textAlign: 'center', marginBottom: spacing.lg, lineHeight: 20 },
+
   heroCard: { marginTop: spacing.lg },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
   faceCircle: {

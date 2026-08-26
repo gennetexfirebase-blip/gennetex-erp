@@ -21,6 +21,11 @@ export default function Footer() {
           <Link to="/terms" className="transition-colors hover:text-graphite-200">
             Үйлчилгээний нөхцөл
           </Link>
+          {/* Google Play Data safety — устгах зам олдоц сайтай байх ёстой */}
+          <span aria-hidden className="h-3 w-px bg-graphite-800" />
+          <Link to="/delete-account" className="transition-colors hover:text-graphite-200">
+            Бүртгэл устгах
+          </Link>
         </nav>
         <p className="text-sm text-gray-500">{formatCopyright(footer.copyright)}</p>
       </div>

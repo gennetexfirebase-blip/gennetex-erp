@@ -4,6 +4,8 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { supabase } from '../lib/supabase';
+import { callEdge } from '../lib/edgeFunction';
 
 const STORAGE_KEY = '@gennetex_gemini_api_key';
 const YT_STORAGE_KEY = '@gennetex_youtube_api_key';
@@ -37,9 +39,72 @@ function youtubeFromExpoConfig() {
   return cleanEnv(extra.youtubeApiKey || process.env.EXPO_PUBLIC_YOUTUBE_API_KEY);
 }
 
-/** Синхрон шалгалт (.env / app.config) */
+/**
+ * AI ашиглах боломжтой эсэх.
+ *
+ * Supabase холбогдсон бол `gemini-proxy` Edge Function-оор дамжуулах зам
+ * нээлттэй тул түлхүүр аппад байх шаардлагагүй.
+ */
 export function isGennetexAiConfigured() {
-  return Boolean(keyFromExpoConfig());
+  return Boolean(keyFromExpoConfig()) || Boolean(supabase);
+}
+
+// ---------------------------------------------------------------------------
+// Gemini рүү хандах НЭГ цэг
+// ---------------------------------------------------------------------------
+
+/**
+ * Прокси ажиллаж байгаа эсэх (нэг session-д нэг л удаа тогтооно).
+ *   null  — хараахан оролдоогүй
+ *   true  — Edge Function ажиллаж байна
+ *   false — deploy хийгээгүй / түлхүүр серверт алга → төхөөрөмжийн түлхүүр
+ */
+let proxyState = null;
+
+/** Прокси байхгүй үед л хэрэглэгчээс түлхүүр шаардана. */
+const NO_KEY_MESSAGE =
+  'Gemini API түлхүүр олдсонгүй.\n\n' +
+  'Сервер тал дээр тохируулах нь зөв: supabase secrets set GEMINI_API_KEY=… ' +
+  'дараа нь supabase functions deploy gemini-proxy.\n\n' +
+  'Түр зуур энэ төхөөрөмж дээр түлхүүрээ оруулж болно.';
+
+/**
+ * Gemini-ийн `generateContent`-ыг дуудна.
+ *
+ * ЭХЛЭЭД сервер прокси (түлхүүр серверт үлдэнэ), тэр боломжгүй бол хуучин
+ * шууд зам (төхөөрөмж дэх түлхүүр). Ингэснээр прокси deploy хийгдэх хүртэл
+ * юу ч эвдрэхгүй.
+ *
+ * @returns {Promise<{ok: boolean, status: number, data: any}>}
+ */
+async function generateContent(model, body) {
+  if (supabase && proxyState !== false) {
+    try {
+      const { data } = await callEdge('gemini-proxy', { model, body });
+      proxyState = true;
+      return {
+        ok: data?.ok !== false,
+        status: Number(data?.status) || 200,
+        data: data?.data || {},
+      };
+    } catch (e) {
+      // `callEdge` нь функц deploy хийгдээгүй (404) эсвэл серверт түлхүүр
+      // алга (501) үед л алдаа шидэж энд ирнэ — тэгвэл хуучин зам руу.
+      proxyState = false;
+    }
+  }
+
+  const apiKey = await getGeminiKeyAsync();
+  if (!apiKey) throw new Error(NO_KEY_MESSAGE);
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
 }
 
 /** Апп дотор хадгалсан түлхүүр + .env */
@@ -120,7 +185,7 @@ function extractJson(text) {
   return null;
 }
 
-async function callGeminiOnce(model, apiKey, userText, history) {
+async function callGeminiOnce(model, userText, history) {
   const contents = [];
   (history || []).slice(-8).forEach((m) => {
     if (!m?.content) return;
@@ -130,8 +195,6 @@ async function callGeminiOnce(model, apiKey, userText, history) {
     });
   });
   contents.push({ role: 'user', parts: [{ text: userText }] });
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   const bodies = [
     {
@@ -148,16 +211,11 @@ async function callGeminiOnce(model, apiKey, userText, history) {
 
   let lastErr = null;
   for (const body of bodies) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      lastErr = data?.error?.message || `Gemini алдаа (${res.status})`;
+    const { ok, status, data } = await generateContent(model, body);
+    if (!ok) {
+      lastErr = data?.error?.message || `Gemini алдаа (${status})`;
       // model олдсонгүй бол дараагийн модель руу
-      if (res.status === 404 || /not found|not supported/i.test(lastErr)) break;
+      if (status === 404 || /not found|not supported/i.test(lastErr)) break;
       continue;
     }
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
@@ -178,19 +236,10 @@ async function callGeminiOnce(model, apiKey, userText, history) {
 }
 
 async function callGemini(userText, history = []) {
-  const apiKey = await getGeminiKeyAsync();
-  if (!apiKey) {
-    throw new Error(
-      'Gemini API түлхүүр олдсонгүй. Доорх талбарт түлхүүрээ оруулна уу.\n\n' +
-        'Тайлбар: аюулгүйн шалтгаанаар түлхүүрийг аппын кодод шигтгэдэггүй — ' +
-        'APK задалсан хэн ч уншиж чадах тул. Түлхүүр зөвхөн энэ төхөөрөмж дээр хадгалагдана.'
-    );
-  }
-
   let lastErr = null;
   for (const model of MODELS) {
     try {
-      return await callGeminiOnce(model, apiKey, userText, history);
+      return await callGeminiOnce(model, userText, history);
     } catch (e) {
       lastErr = e.message || String(e);
       if (/API key|invalid|PERMISSION|403|401/i.test(lastErr)) throw new Error(lastErr);
@@ -201,10 +250,6 @@ async function callGemini(userText, history = []) {
 
 /** Ерөнхий Gemini дуудлага (гүйцэтгэлийн шинжилгээ гэх мэт) */
 export async function callGeminiText(systemText, userText, { json = false } = {}) {
-  const apiKey = await getGeminiKeyAsync();
-  if (!apiKey) {
-    throw new Error('Gemini API түлхүүр олдсонгүй (.env эсвэл Gennetex AI дээр түлхүүр оруулна уу).');
-  }
   const sys = String(systemText || '').trim();
   const usr = String(userText || '').trim();
   if (!usr) throw new Error('Оролт хоосон байна');
@@ -212,7 +257,6 @@ export async function callGeminiText(systemText, userText, { json = false } = {}
   let lastErr = null;
   for (const model of MODELS) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const body = {
         ...(sys ? { systemInstruction: { parts: [{ text: sys }] } } : {}),
         contents: [{ role: 'user', parts: [{ text: usr }] }],
@@ -222,15 +266,10 @@ export async function callGeminiText(systemText, userText, { json = false } = {}
           ...(model.includes('2.5-flash') ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       };
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        lastErr = data?.error?.message || `Gemini алдаа (${res.status})`;
-        if (res.status === 404 || /not found|not supported/i.test(lastErr)) break;
+      const { ok, status, data } = await generateContent(model, body);
+      if (!ok) {
+        lastErr = data?.error?.message || `Gemini алдаа (${status})`;
+        if (status === 404 || /not found|not supported/i.test(lastErr)) break;
         continue;
       }
       const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
