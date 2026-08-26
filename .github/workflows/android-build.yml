@@ -23,6 +23,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Release үүсгэж APK хавсаргахад бичих эрх шаардлагатай.
+    # Эс бөгөөс `gh release create` нь HTTP 403 өгнө.
+    permissions:
+      contents: write
 
     steps:
       - name: Кодоо татах
