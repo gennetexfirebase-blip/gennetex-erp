@@ -17,6 +17,7 @@ const STATUS_LABEL = {
   leave: 'Чөлөөтэй',
   rest: 'Амралт',
   upcoming: 'Ирээгүй',
+  not_scheduled: 'Хуваарьгүй',
 };
 
 const STATUS_TONE = {
@@ -27,6 +28,7 @@ const STATUS_TONE = {
   leave: 'info',
   rest: 'neutral',
   upcoming: 'neutral',
+  not_scheduled: 'neutral',
 };
 
 function defaultRange() {

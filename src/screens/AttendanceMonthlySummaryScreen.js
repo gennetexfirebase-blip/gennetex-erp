@@ -57,7 +57,8 @@ export default function AttendanceMonthlySummaryScreen() {
     let expectedMinutes = 0;
     let absentDays = 0;
     rows.forEach((r) => {
-      if (r.status === 'rest' || r.status === 'leave' || r.status === 'upcoming') return;
+      // Амралт, чөлөө, ирээгүй, ХУВААРЬГҮЙ өдрийг тооцоонд оруулахгүй.
+      if (['rest', 'leave', 'upcoming', 'not_scheduled'].includes(r.status)) return;
       if (r.shift_start && r.shift_end) {
         const [sh, sm] = r.shift_start.split(':').map(Number);
         const [eh, em] = r.shift_end.split(':').map(Number);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
   Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -42,7 +43,6 @@ import { distanceMeters } from '../lib/geo';
 import { spacing, radius } from '../theme';
 import { colors as employeeColors } from '../theme/attendanceLight';
 import { colors as adminColors } from '../theme/attendanceDark';
-import { useTheme, useStyles } from '../context/ThemeContext';
 import EmployeeAttendanceMap from '../components/EmployeeAttendanceMap';
 import GeofenceStatusBanner from '../components/GeofenceStatusBanner';
 import MapControlButton from '../components/MapControlButton';
@@ -52,6 +52,7 @@ import ChatAvatar from '../components/ChatAvatar';
 import SummaryStatCards from '../components/SummaryStatCards';
 import DateRangeFilterBar from '../components/DateRangeFilterBar';
 import AttendanceFilterSheet from '../components/AttendanceFilterSheet';
+import DateRangeSheet from '../components/DateRangeSheet';
 import * as deptApi from '../services/departmentService';
 
 /**
@@ -102,8 +103,15 @@ function describeFaceFailure(result, ownerName) {
 export default function AttendanceScreen() {
   const navigation = useNavigation();
   const faceDetector = useFaceDetection();
-  const { colors } = useTheme();
-  const styles = useStyles(makeStyles);
+  // ⚠️ Энэ дэлгэц нь аппын Dark/Light СОНГОЛТООС ХАМААРАХГҮЙ:
+  //   • ажилтны тал — үргэлж ЦАЙВАР (`employeeColors`)
+  //   • админы тал  — үргэлж БАРААН (`adminColors`)
+  // Доорх `styles`-ийг зөвхөн АДМИН тал өнгөтэйгөөр ашигладаг тул
+  // `useTheme()`-ийн оронд бараан палитрыг шууд өгнө. Эс бөгөөс утас
+  // цайвар горимд байхад админы modal-ууд цагаан болж, эргэн тойрны
+  // бараан самбартай зөрчилдөнө.
+  const colors = adminColors;
+  const styles = useMemo(() => makeStyles({ colors: adminColors }), []);
   const { currentUser, isCloud, isAdmin, fetchEmployees, shiftStatus, refreshShiftStatus } = useApp();
   const profile = currentUser;
   const developerEmail = String(process.env.EXPO_PUBLIC_DEVELOPER_EMAIL || '').trim().toLowerCase();
@@ -182,6 +190,7 @@ export default function AttendanceScreen() {
   const [dayRows, setDayRows] = useState([]);
   const [dayRowsLoading, setDayRowsLoading] = useState(false);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [dateSheetVisible, setDateSheetVisible] = useState(false);
   const [dashFilters, setDashFilters] = useState({
     departmentId: null,
     status: 'all',
@@ -377,6 +386,9 @@ export default function AttendanceScreen() {
   const [liveLocation, setLiveLocation] = useState(null);
   const mapRef = useRef(null);
 
+  // 'granted' | 'denied' | null (хараахан шалгаагүй)
+  const [locationPermission, setLocationPermission] = useState(null);
+
   useEffect(() => {
     // Админ ч өөрийн (ЗӨВХӨН ӨӨРИЙНХӨӨ, бусдын биш) байршлыг харна.
     if (!isCloud) return;
@@ -385,7 +397,9 @@ export default function AttendanceScreen() {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted' || cancelled) return;
+        if (cancelled) return;
+        setLocationPermission(status === 'granted' ? 'granted' : 'denied');
+        if (status !== 'granted') return;
         sub = await Location.watchPositionAsync(
           { accuracy: Location.Accuracy.Balanced, timeInterval: 8000, distanceInterval: 15 },
           (pos) => {
@@ -393,13 +407,15 @@ export default function AttendanceScreen() {
             setLiveLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
           }
         );
-      } catch (e) {}
+      } catch (e) {
+        if (!cancelled) setLocationPermission('denied');
+      }
     })();
     return () => {
       cancelled = true;
       sub?.remove?.();
     };
-  }, [isAdmin, isCloud]);
+  }, [isCloud]);
 
   // Одоогийн байршлыг зөвшөөрөгдсөн цэгүүдтэй харьцуулна
   /**
@@ -1105,8 +1121,14 @@ export default function AttendanceScreen() {
       geofenceStatus = nearest.within ? 'inside' : 'outside';
     }
 
-    const canCheckIn =
-      !shiftStatus.checkedIn && (geofenceStatus === 'inside' || locations.length === 0);
+    // Товчийг ХААХ нь зөвхөн "аль хэдийн бүртгүүлсэн" тохиолдолд.
+    //
+    // ⚠️ Байршил хараахан ирээгүй (`geofenceStatus === null`) байхад товчийг
+    // хаах нь БУРУУ байсан: `quickAttendance()` өөрөө шинээр `getLocation()`
+    // дуудаж, бүсээс гадуур бол хүсэлтийн цонх гаргадаг. Тиймээс GPS
+    // хүлээж байхад ч дарж болно — эс бөгөөс апп нээгээд эхний хэдэн
+    // секундэд товч ямар ч шалтгаангүй унтарсан харагдана.
+    const canCheckIn = !shiftStatus.checkedIn;
     const canCheckOut = shiftStatus.checkedIn && !shiftStatus.checkedOut;
     const actionMode = shiftStatus.checkedIn && !shiftStatus.checkedOut ? 'check_out' : 'check_in';
     const actionEnabled = actionMode === 'check_in' ? canCheckIn : canCheckOut;
@@ -1146,11 +1168,27 @@ export default function AttendanceScreen() {
               <Text style={{ fontSize: 18 }}>🔔</Text>
             </TouchableOpacity>
           </View>
-          <GeofenceStatusBanner
-            status={geofenceStatus}
-            colors={employeeColors}
-            style={{ marginTop: 10, alignSelf: 'center' }}
-          />
+          {locationPermission === 'denied' ? (
+            <View style={[styles.permBanner, { backgroundColor: employeeColors.surface }]}>
+              <Text style={{ color: employeeColors.danger, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+                Ирц бүртгэхийн тулд байршлын зөвшөөрөл шаардлагатай
+              </Text>
+              <TouchableOpacity
+                style={[styles.permBtn, { backgroundColor: employeeColors.primary }]}
+                onPress={() => Linking.openSettings()}
+              >
+                <Text style={{ color: employeeColors.onPrimary, fontWeight: '700', fontSize: 13 }}>
+                  Тохиргоо нээх
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <GeofenceStatusBanner
+              status={geofenceStatus}
+              colors={employeeColors}
+              style={{ marginTop: 10, alignSelf: 'center' }}
+            />
+          )}
         </SafeAreaView>
 
         <View style={styles.mapControls} pointerEvents="box-none">
@@ -1341,11 +1379,7 @@ export default function AttendanceScreen() {
           fromLabel={dashboardDate}
           toLabel={dashboardDate}
           colors={adminColors}
-          onPressDate={() => {
-            const d = new Date(dashboardDate);
-            d.setDate(d.getDate() - 1);
-            setDashboardDate(dayKey(d));
-          }}
+          onPressDate={() => setDateSheetVisible(true)}
           onPressFilter={() => setFilterSheetVisible(true)}
         />
       </View>
@@ -1476,6 +1510,16 @@ export default function AttendanceScreen() {
         keyExtractor={(r) => r.employee_id}
         ListHeaderComponent={adminHeader}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={dayRowsLoading}
+            onRefresh={() => {
+              loadDayRows();
+              loadRecords();
+            }}
+            tintColor={adminColors.primary}
+          />
+        }
         ListEmptyComponent={!dayRowsLoading ? <EmptyState text="Ирцийн бүртгэл олдсонгүй" /> : null}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -1528,6 +1572,14 @@ export default function AttendanceScreen() {
         </View>
       </View>
 
+      <DateRangeSheet
+        visible={dateSheetVisible}
+        current={dashboardDate}
+        colors={adminColors}
+        onClose={() => setDateSheetVisible(false)}
+        onSelect={(d) => setDashboardDate(d)}
+      />
+
       <AttendanceFilterSheet
         visible={filterSheetVisible}
         onClose={() => setFilterSheetVisible(false)}
@@ -1573,10 +1625,10 @@ export default function AttendanceScreen() {
       {/* Зайнаас бүртгүүлэх хүсэлт */}
       <Modal visible={remoteModal} transparent animationType="slide">
         <View style={styles.overlay}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { backgroundColor: adminColors.surface }]}>
             <View style={styles.handle} />
-            <Text style={styles.sheetTitle}> Зайнаас бүртгүүлэх</Text>
-            <Text style={styles.sheetSub}>
+            <Text style={[styles.sheetTitle, { color: adminColors.text }]}> Зайнаас бүртгүүлэх</Text>
+            <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>
               Та бүртгэлтэй байршлаас
               {pendingDistance != null ? ` ~${pendingDistance}м` : ''} гадуур байна. Шалтгаанаа бичээд selfie
               авснаар админд хүсэлт илгээгдэнэ.
@@ -1598,11 +1650,11 @@ export default function AttendanceScreen() {
       {/* Админ: байршил нэмэх */}
       <Modal visible={locModal} transparent animationType="slide">
         <View style={styles.overlay}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { backgroundColor: adminColors.surface }]}>
             <View style={styles.handle} />
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.sheetTitle}> Бүртгэлийн байршил нэмэх</Text>
-              <Text style={styles.sheetSub}>Таны одоо байгаа GPS цэгийг хадгална.</Text>
+              <Text style={[styles.sheetTitle, { color: adminColors.text }]}> Бүртгэлийн байршил нэмэх</Text>
+              <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>Таны одоо байгаа GPS цэгийг хадгална.</Text>
               <Field
                 label="Нэр"
                 placeholder="Ж: Төв оффис"
@@ -1628,9 +1680,9 @@ export default function AttendanceScreen() {
       {/* Ажилласан цагийн дэлгэрэнгүй */}
       <Modal visible={hoursModal} transparent animationType="slide">
         <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Нийт ажилласан цаг</Text>
-            <Text style={styles.sheetSub}>{dayKey()} · {profile?.name}</Text>
+          <View style={[styles.sheet, { backgroundColor: adminColors.surface }]}>
+            <Text style={[styles.sheetTitle, { color: adminColors.text }]}>Нийт ажилласан цаг</Text>
+            <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>{dayKey()} · {profile?.name}</Text>
             {todayIsRest ? (
               <Text style={styles.restBadge}> Өнөөдөр амралтын өдөр</Text>
             ) : null}
@@ -1663,10 +1715,10 @@ export default function AttendanceScreen() {
       {isAdmin ? (
       <Modal visible={breakModal} transparent animationType="slide">
         <View style={styles.overlay}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { backgroundColor: adminColors.surface }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.sheetTitle}> Амралтын өдөр</Text>
-              <Text style={styles.sheetSub}>
+              <Text style={[styles.sheetTitle, { color: adminColors.text }]}> Амралтын өдөр</Text>
+              <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>
                 Даваа гарагаас Ням гариг хүртэл аль өдөр амралттайг сонгоно.
               </Text>
               <Text style={styles.fieldLabel}>Ажилтан</Text>
@@ -1711,10 +1763,10 @@ export default function AttendanceScreen() {
       {/* Админ: хуваарь оноох */}
       <Modal visible={shiftModal} transparent animationType="slide">
         <View style={styles.overlay}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { backgroundColor: adminColors.surface }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.sheetTitle}> Хуваарь оноох</Text>
-              <Text style={styles.sheetSub}>Ажилтанд өдрийн эхлэх/дуусах цаг болон байршил онооно.</Text>
+              <Text style={[styles.sheetTitle, { color: adminColors.text }]}> Хуваарь оноох</Text>
+              <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>Ажилтанд өдрийн эхлэх/дуусах цаг болон байршил онооно.</Text>
               <Field
                 label="Огноо (YYYY-MM-DD)"
                 value={shiftForm.shiftDate}
@@ -1852,6 +1904,20 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
+  permBanner: {
+    marginTop: 10,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  permBtn: { borderRadius: 12, paddingVertical: 8, paddingHorizontal: 18 },
   mapControls: { position: 'absolute', right: spacing.lg, top: '32%' },
   actionBtnWrap: { position: 'absolute', left: 0, right: 0, bottom: 210, alignItems: 'center' },
   warnOverlay: {

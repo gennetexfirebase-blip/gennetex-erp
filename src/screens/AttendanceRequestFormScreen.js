@@ -47,6 +47,9 @@ export default function AttendanceRequestFormScreen() {
 
   const meta = type ? attendanceRequestTypeMeta(type) : null;
   const isRemoteKind = type === 'remote_check_in' || type === 'remote_check_out';
+  // Ирэх/Явах сонголт хэрэгтэй төрлүүд: зайнаас бүртгүүлэх (төрөл нь өөрөө
+  // хоёр хуваагддаг) болон ирц засуулах (`direction` багана руу бичнэ).
+  const needsDirection = isRemoteKind || !!meta?.needsDirection;
 
   const effectiveType = isRemoteKind
     ? direction === 'check_in'
@@ -81,6 +84,7 @@ export default function AttendanceRequestFormScreen() {
         type: effectiveType,
         requestedDate: dayKey(),
         requestedTime: meta?.needsTimeRange ? requestedTime : null,
+        direction: needsDirection ? direction : null,
         reason,
         attachments,
       });
@@ -109,7 +113,7 @@ export default function AttendanceRequestFormScreen() {
           </Text>
         </TouchableOpacity>
 
-        {isRemoteKind ? (
+        {needsDirection ? (
           <View style={[styles.segmentRow, { borderColor: colors.border }]}>
             {['check_in', 'check_out'].map((d) => {
               const active = direction === d;

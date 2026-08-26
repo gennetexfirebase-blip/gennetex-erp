@@ -55,8 +55,18 @@ begin
     worked := round(extract(epoch from (p_check_out - p_check_in)) / 60)::int;
   end if;
 
+  -- ⚠️ ХУВААРЬГҮЙ ӨДРИЙГ "ТАСАЛСАН" ГЭЖ ҮЗЭХГҮЙ.
+  --
+  -- Энэ системд хуваарь нь ажилтан бүрт ӨДӨР ТУТАМ гараар оногддог
+  -- (`employee_shifts`). Тиймээс хуваарь оноогоогүй өдөр нь "ажиллах
+  -- ёстой байсан" гэсэн үг БИШ. Хуваарьгүй өдрийг таслалт гэж тоолвол
+  -- админы "Тасалсан" тоо болон ажилтны сарын дүн бодит бус болно.
   if p_check_in is null then
-    st := 'absent';
+    if expected_start is null then
+      st := 'not_scheduled';   -- хуваарьгүй бөгөөд ирээгүй → тооцохгүй
+    else
+      st := 'absent';          -- хуваарьтай атлаа ирээгүй → тасалсан
+    end if;
   elsif late > 0 then
     st := 'late';
   elsif early > 0 then

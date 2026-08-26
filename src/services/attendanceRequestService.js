@@ -26,6 +26,7 @@ export async function submitAttendanceRequest({
   type,
   requestedDate,
   requestedTime,
+  direction,
   reason,
   attachments = [],
 }) {
@@ -35,6 +36,7 @@ export async function submitAttendanceRequest({
     type,
     requested_date: requestedDate,
     requested_time: requestedTime || null,
+    direction: direction || null,
     reason: reason ? String(reason).trim() : null,
     attachments,
     status: 'pending',

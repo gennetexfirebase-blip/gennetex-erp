@@ -85,6 +85,10 @@ export default function DepartmentsScreen() {
   };
 
   // Мод хэлбэр: эцэг хэлтэс, дараа нь түүний хүүхдүүд нь дор нь.
+  //
+  // ⚠️ ГҮНИЙГ ХЯЗГААРЛАХГҮЙ: өмнө нь зөвхөн НЭГ шат (root → хүүхэд) задалдаг
+  // байсан тул ач хүү хэлтэс жагсаалтаас ЧИМЭЭГҮЙ АЛГА БОЛДОГ байв.
+  // Мөн мөчлөг (a→b→a) үүссэн тохиолдолд давталтад орохоос сэргийлнэ.
   const shown = useMemo(() => {
     const kindList = list.filter((d) => d.kind === kind);
     const byParent = {};
@@ -93,10 +97,23 @@ export default function DepartmentsScreen() {
       if (!byParent[key]) byParent[key] = [];
       byParent[key].push(d);
     });
+
     const ordered = [];
-    (byParent.root || []).forEach((root) => {
-      ordered.push({ ...root, depth: 0 });
-      (byParent[root.id] || []).forEach((child) => ordered.push({ ...child, depth: 1 }));
+    const seen = new Set();
+    const walk = (parentKey, depth) => {
+      (byParent[parentKey] || []).forEach((node) => {
+        if (seen.has(node.id)) return; // мөчлөгөөс хамгаална
+        seen.add(node.id);
+        ordered.push({ ...node, depth });
+        walk(node.id, depth + 1);
+      });
+    };
+    walk('root', 0);
+
+    // Мөчлөгт баригдсанаас болж гараагүй мөр үлдвэл эцэст нь нэмнэ —
+    // юу ч харагдахгүй байснаас дээр.
+    kindList.forEach((d) => {
+      if (!seen.has(d.id)) ordered.push({ ...d, depth: 0 });
     });
     return ordered;
   }, [list, kind]);
@@ -179,7 +196,7 @@ export default function DepartmentsScreen() {
         accessibilityLabel={`${item.name}, ${tally.members} хүн`}
         accessibilityHint={mayManage ? 'Дэлгэрэнгүй харах бол дарна. Засах бол удаан дарна.' : undefined}
       >
-        <Card style={[styles.row, item.depth ? { marginLeft: spacing.xl } : null]}>
+        <Card style={[styles.row, item.depth ? { marginLeft: spacing.xl * Math.min(item.depth, 3) } : null]}>
           <View style={styles.iconWrap}>
             <Text style={styles.icon}>{deptApi.kindIcon(item.kind)}</Text>
           </View>
@@ -278,7 +295,20 @@ export default function DepartmentsScreen() {
                   <Text style={[styles.parentChipText, !form.parentId && styles.parentChipTextOn]}>Байхгүй</Text>
                 </TouchableOpacity>
                 {list
-                  .filter((d) => d.kind === form.kind && d.id !== editId)
+                  .filter((d) => {
+                    if (d.kind !== form.kind || d.id === editId) return false;
+                    // Өөрийнхөө УДАМ (хүүхэд/ач) хэлтсийг эцэг болгож
+                    // сонговол мөчлөг үүсэх тул хасна.
+                    if (!editId) return true;
+                    let cur = d;
+                    const guard = new Set();
+                    while (cur?.parent_id && !guard.has(cur.id)) {
+                      guard.add(cur.id);
+                      if (cur.parent_id === editId) return false;
+                      cur = list.find((x) => x.id === cur.parent_id);
+                    }
+                    return true;
+                  })
                   .map((d) => (
                     <TouchableOpacity
                       key={d.id}

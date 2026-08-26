@@ -46,6 +46,9 @@ export const ATTENDANCE_REQUEST_TYPES = [
     category: 'remote',
     needsTimeRange: true,
     needsAttachment: true,
+    // Аль цагийг (ирсэн/явсан) засахыг заавал сонгуулна — эс бөгөөс
+    // зөвшөөрөх үед аль мөрийг засахыг backend мэдэхгүй.
+    needsDirection: true,
   },
   {
     key: 'late_explanation',

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import ChatAvatar from './ChatAvatar';
 
@@ -21,6 +21,16 @@ export default function EmployeeSelectSheet({
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('employee'); // 'employee' | 'department'
   const [selected, setSelected] = useState(new Set(initialSelected));
+
+  // `initialSelected` нь ихэвчлэн ASYNC ирдэг (жишээ нь байршил засах үед
+  // `fetchLocationEmployeeIds` дуудлагын дараа). `useState` нь зөвхөн
+  // MOUNT үед л анхны утгыг авдаг тул тэр үед хоосон массив хөлддөг байв
+  // — үүнээс болж хуучин оноолт нь харагдахгүй, хадгалахад ЧИМЭЭГҮЙ
+  // УСТДАГ байсан. Тиймээс sheet нээгдэх бүрд дахин ижилтгэнэ.
+  useEffect(() => {
+    if (visible) setSelected(new Set(initialSelected));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, initialSelected]);
 
   const registered = useMemo(() => employees.filter((e) => e.user_id), [employees]);
 

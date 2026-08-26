@@ -38,6 +38,9 @@ create table if not exists public.attendance_requests (
                      )),
   requested_date    date not null,
   requested_time    text,               -- 'HH:MM', employee_shifts-тэй ижил хэлбэр
+  -- Аль цагийг хөндөж буй вэ (ирсэн үү, явсан уу). "Ирц засуулах" гэх мэт
+  -- төрөл дээр ЗААВАЛ хэрэгтэй — эс бөгөөс аль мөрийг засахыг мэдэхгүй.
+  direction         text check (direction in ('check_in', 'check_out')),
   reason            text,
   attachments       jsonb not null default '[]'::jsonb,
   status            text not null default 'pending'
@@ -127,7 +130,7 @@ declare
   actor_name text;
   req        public.attendance_requests%rowtype;
   att_type   text;
-  att_status text;
+  target_ts  timestamptz;
 begin
   if actor_id is null then raise exception 'not_authenticated'; end if;
   if not public.is_admin_user() then raise exception 'forbidden'; end if;
@@ -155,26 +158,46 @@ begin
       when 'remote_check_out' then 'check_out'
       when 'makeup_check_in'  then 'check_in'
       when 'makeup_check_out' then 'check_out'
+      -- "Ирц засуулах" нь аль цагийг засахыг `direction`-оор заана.
+      when 'attendance_correction' then req.direction
       else null
     end;
 
     if att_type is not null then
-      insert into public.attendance (
-        staff_id, staff_name, type, status, is_remote, note, location_name, created_at
-      ) values (
-        req.employee_id::text,
-        req.employee_name,
-        att_type,
-        'approved',
-        true,
-        coalesce(req.reason, ''),
-        null,
-        (
-          (req.requested_date::text || ' ' || coalesce(req.requested_time, '09:00'))::timestamp
-          at time zone 'Asia/Ulaanbaatar'
+      target_ts := (
+        (req.requested_date::text || ' ' || coalesce(req.requested_time, '09:00'))::timestamp
+        at time zone 'Asia/Ulaanbaatar'
+      );
+
+      -- Тухайн өдрийн ижил төрлийн мөр АЛЬ ХЭДИЙН байвал ЗАСНА, эс бөгөөс
+      -- шинээр үүсгэнэ. Өмнө нь зөвхөн `insert ... on conflict do nothing`
+      -- байсан тул "Ирц засуулах"/"нөхөж бүртгүүлэх" нь мөр аль хэдийн
+      -- байхад ЧИМЭЭГҮЙ юу ч хийхгүй өнгөрдөг байв.
+      update public.attendance a
+         set created_at = target_ts,
+             status = 'approved',
+             note = trim(both ' · ' from coalesce(a.note, '') || ' · ' ||
+                    'Админ засав: ' || coalesce(req.reason, req.type))
+       where a.staff_id = req.employee_id::text
+         and a.type = att_type
+         and a.status <> 'rejected'
+         and (a.created_at at time zone 'Asia/Ulaanbaatar')::date = req.requested_date;
+
+      if not found then
+        insert into public.attendance (
+          staff_id, staff_name, type, status, is_remote, note, location_name, created_at
+        ) values (
+          req.employee_id::text,
+          req.employee_name,
+          att_type,
+          'approved',
+          true,
+          coalesce(req.reason, ''),
+          null,
+          target_ts
         )
-      )
-      on conflict do nothing;
+        on conflict do nothing;
+      end if;
     end if;
   end if;
 

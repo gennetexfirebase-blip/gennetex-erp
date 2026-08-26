@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, StyleSheet } from 'react-native';
 import {
   ATTENDANCE_REQUEST_TYPES,
@@ -23,6 +23,15 @@ export default function RequestTypeSheet({ visible, onClose, onSelect, selectedK
   }, [query]);
 
   const [pending, setPending] = useState(selectedKey || null);
+
+  // Sheet дахин нээгдэхэд одоогийн сонголтыг тусгана (эс бөгөөс анх
+  // mount хийгдсэн үеийн хуучин утга үлдэнэ).
+  useEffect(() => {
+    if (visible) {
+      setPending(selectedKey || null);
+      setQuery('');
+    }
+  }, [visible, selectedKey]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

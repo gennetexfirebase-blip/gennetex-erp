@@ -88,7 +88,10 @@ export async function insertAttendance(record) {
       await notifyApi.notifyOffSiteCheckIn({
         staffName: record.staffName,
         locationName: record.locationName,
-        distanceM: record.distance_m,
+        // Дуудагчид `distanceM` (camelCase) өгдөг — өмнө нь `record.distance_m`
+        // гэж уншиж байсан тул үргэлж undefined болж, мэдэгдэл дээр зай
+        // харагдахгүй байв. Аль алиныг нь дэмжинэ.
+        distanceM: record.distanceM ?? record.distance_m,
       });
     } catch (e) {}
   }
