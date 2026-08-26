@@ -184,6 +184,27 @@ export async function fetchAttendance(limit = 50) {
   return data || [];
 }
 
+/**
+ * Нэг ажилтны тухайн өдрийн ирцийн БҮХ мөр (байршилтай нь).
+ *
+ * `fetch_department_attendance_today` RPC нь зөвхөн нэгтгэсэн цагийг
+ * буцаадаг бөгөөд lat/lng агуулдаггүй. Тиймээс газрын зураг дээр
+ * "хэзээ, хаанаас" бүртгүүлснийг харуулахад энэ функцээр тусад нь авна.
+ */
+export async function fetchEmployeeDayAttendance(employeeId, date) {
+  const start = new Date(`${date}T00:00:00`);
+  const end = new Date(`${date}T23:59:59.999`);
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('staff_id', employeeId)
+    .gte('created_at', start.toISOString())
+    .lte('created_at', end.toISOString())
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function fetchAttendanceInRange(fromIso, toIso, limit = 1000) {
   const { data, error } = await supabase
     .from(TABLE)
@@ -241,10 +262,10 @@ async function fallbackDayRows(departmentId, date) {
   const start = new Date(`${day}T00:00:00`);
   const end = new Date(`${day}T23:59:59.999`);
 
+  // Эрхээр шүүхгүй — систем админ/хөгжүүлэгчийн ирц ч бусад админд харагдана.
   let profileQuery = supabase
     .from('profiles')
     .select('id, name, avatar_url, department_id, role')
-    .neq('role', 'superadmin')
     .order('name', { ascending: true });
   if (departmentId) profileQuery = profileQuery.eq('department_id', departmentId);
 
@@ -260,7 +281,20 @@ async function fallbackDayRows(departmentId, date) {
   if (aErr) throw aErr;
 
   const valid = (rows || []).filter((r) => r.status !== 'rejected');
-  return (people || []).map((p) => {
+
+  // Профайл + ИРЦТЭЙ хүн бүрийн нэгдэл. Зөвхөн `profiles`-оос гаргавал
+  // тэнд ороогүй хүн ирцээ бүртгүүлсэн ч жагсаалтаас алга болно.
+  const merged = [...(people || [])];
+  const known = new Set(merged.map((p) => String(p.id)));
+  valid.forEach((r) => {
+    const id = String(r.staff_id || '');
+    if (id && !known.has(id)) {
+      known.add(id);
+      merged.push({ id, name: r.staff_name || 'Ажилтан', avatar_url: null, department_id: null });
+    }
+  });
+
+  return merged.map((p) => {
     const mine = valid.filter((r) => String(r.staff_id) === String(p.id));
     const inRow = mine.find((r) => r.type === 'check_in') || null;
     const outRow = mine.find((r) => r.type === 'check_out') || null;

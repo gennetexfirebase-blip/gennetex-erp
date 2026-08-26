@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Calendar, Filter, RotateCw } from 'lucide-react';
 import { PageHeader, Card, Button, Input, Select, Avatar, EmptyState, Loading, ErrorState, Badge } from '../components/ui';
 import { fetchAttendanceToday, fetchDepartments, useAsync, type AttendanceRow } from '../lib/data';
+import AttendanceDetailDrawer from '../components/AttendanceDetailDrawer';
 
 const STATUS_LABEL: Record<string, string> = {
   on_time: 'Ирсэн',
@@ -36,6 +37,7 @@ export default function AttendancePage() {
   const [deptId, setDeptId] = useState<string>('');
   const [status, setStatus] = useState<string>('all');
   const [query, setQuery] = useState('');
+  const [detail, setDetail] = useState<AttendanceRow | null>(null);
 
   const { data: departments } = useAsync(fetchDepartments, [], [] as any[]);
   const { data: rows, loading, error, reload } = useAsync<AttendanceRow[]>(
@@ -165,7 +167,12 @@ export default function AttendancePage() {
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.employee_id} className="border-b border-line text-[13px] hover:bg-hover">
+                  <tr
+                    key={r.employee_id}
+                    onClick={() => setDetail(r)}
+                    title="Дэлгэрэнгүй — хэзээ, хаанаас бүртгүүлснийг газрын зураг дээр харах"
+                    className="cursor-pointer border-b border-line text-[13px] hover:bg-hover"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <Avatar name={r.employee_name} src={r.avatar_url} size={30} />
@@ -201,6 +208,8 @@ export default function AttendancePage() {
           </div>
         )}
       </Card>
+
+      <AttendanceDetailDrawer row={detail} date={date} onClose={() => setDetail(null)} />
     </>
   );
 }

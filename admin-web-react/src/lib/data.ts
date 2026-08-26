@@ -126,10 +126,10 @@ async function fallbackAttendance(
   const start = new Date(`${date}T00:00:00`);
   const end = new Date(`${date}T23:59:59.999`);
 
+  // Эрхээр шүүхгүй — систем админ/хөгжүүлэгчийн ирц ч харагдана.
   let people = supabase
     .from('profiles')
     .select('id, name, avatar_url, department_id, role')
-    .neq('role', 'superadmin')
     .order('name');
   if (departmentId) people = people.eq('department_id', departmentId);
 
@@ -145,8 +145,28 @@ async function fallbackAttendance(
   if (aErr) throw aErr;
 
   const valid = (rows || []).filter((r) => r.status !== 'rejected');
-  return (profiles || []).map((p) => {
-    const mine = valid.filter((r) => String(r.staff_id) === String(p.id));
+
+  // Профайлын жагсаалт + ИРЦТЭЙ хүн бүрийн нэгдэл.
+  // Зөвхөн `profiles`-оос гаргавал тэнд ороогүй (эсвэл хэлтсийн шүүлтэд
+  // тохирохгүй) хүн ирцээ бүртгүүлсэн ч алга болно.
+  const byId = new Map<string, { id: string; name: string | null; avatar_url: string | null; department_id: string | null }>();
+  (profiles || []).forEach((p) =>
+    byId.set(String(p.id), {
+      id: String(p.id),
+      name: p.name,
+      avatar_url: p.avatar_url,
+      department_id: p.department_id,
+    })
+  );
+  valid.forEach((r) => {
+    const id = String(r.staff_id || '');
+    if (id && !byId.has(id)) {
+      byId.set(id, { id, name: r.staff_name || 'Ажилтан', avatar_url: null, department_id: null });
+    }
+  });
+
+  return Array.from(byId.values()).map((p) => {
+    const mine = valid.filter((r) => String(r.staff_id) === p.id);
     const inRow = mine.find((r) => r.type === 'check_in') || null;
     const outRow = mine.find((r) => r.type === 'check_out') || null;
     return {
@@ -172,6 +192,26 @@ async function fallbackAttendance(
       status: inRow ? 'on_time' : 'not_scheduled',
     } as AttendanceRow;
   });
+}
+
+/**
+ * Нэг ажилтны тухайн өдрийн ирцийн БҮХ мөр (байршилтай нь).
+ *
+ * Жагсаалтын RPC нь зөвхөн нэгтгэсэн цагийг буцаадаг тул газрын зураг
+ * дээр харуулах lat/lng-ийг эндээс тусад нь авна.
+ */
+export async function fetchEmployeeDayAttendance(employeeId: string, date: string) {
+  const start = new Date(`${date}T00:00:00`);
+  const end = new Date(`${date}T23:59:59.999`);
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('*')
+    .eq('staff_id', employeeId)
+    .gte('created_at', start.toISOString())
+    .lte('created_at', end.toISOString())
+    .order('created_at');
+  if (error) throw error;
+  return data || [];
 }
 
 /** Migration ажиллуулаагүйг тодорхой хэлэх алдаа. */
