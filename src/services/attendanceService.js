@@ -207,12 +207,85 @@ export async function fetchAttendanceSummary(employeeId, start, end) {
   return data || [];
 }
 
+/** RPC хараахан суулгаагүй (migration ажиллуулаагүй) эсэхийг таних. */
+export function isMissingRpc(error) {
+  const msg = String(error?.message || error || '').toLowerCase();
+  return (
+    error?.code === 'PGRST202' ||
+    msg.includes('could not find the function') ||
+    msg.includes('does not exist') ||
+    msg.includes('schema cache')
+  );
+}
+
+/**
+ * Тухайн өдрийн бүх ажилтны ирэц.
+ *
+ * Үндсэн зам нь `fetch_department_attendance_today` RPC (сервер тал дээр
+ * хоцролт/эрт явалтыг НЭГ эх сурвалжаас тооцдог). Гэвч migration хараахан
+ * ажиллаагүй байхад дэлгэц ХООСОН харагдаж, "ажилчид ороогүй байна" гэж
+ * ойлгогдох тул тэр тохиолдолд `profiles` + `attendance`-аас клиент талдаа
+ * жагсаалтыг угсарч, ядаж хэн ирсэн/яваагүйг харуулна.
+ */
 export async function fetchDepartmentAttendanceToday(departmentId = null, date = null) {
   const params = { p_department_id: departmentId };
   if (date) params.p_date = date;
   const { data, error } = await supabase.rpc('fetch_department_attendance_today', params);
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+  if (!isMissingRpc(error)) throw error;
+  return fallbackDayRows(departmentId, date);
+}
+
+async function fallbackDayRows(departmentId, date) {
+  const day = date || new Date().toISOString().slice(0, 10);
+  const start = new Date(`${day}T00:00:00`);
+  const end = new Date(`${day}T23:59:59.999`);
+
+  let profileQuery = supabase
+    .from('profiles')
+    .select('id, name, avatar_url, department_id, role')
+    .neq('role', 'superadmin')
+    .order('name', { ascending: true });
+  if (departmentId) profileQuery = profileQuery.eq('department_id', departmentId);
+
+  const [{ data: people, error: pErr }, { data: rows, error: aErr }] = await Promise.all([
+    profileQuery,
+    supabase
+      .from(TABLE)
+      .select('*')
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString()),
+  ]);
+  if (pErr) throw pErr;
+  if (aErr) throw aErr;
+
+  const valid = (rows || []).filter((r) => r.status !== 'rejected');
+  return (people || []).map((p) => {
+    const mine = valid.filter((r) => String(r.staff_id) === String(p.id));
+    const inRow = mine.find((r) => r.type === 'check_in') || null;
+    const outRow = mine.find((r) => r.type === 'check_out') || null;
+    const workedMinutes =
+      inRow && outRow
+        ? Math.round((new Date(outRow.created_at) - new Date(inRow.created_at)) / 60000)
+        : null;
+    return {
+      employee_id: p.id,
+      employee_name: p.name,
+      avatar_url: p.avatar_url,
+      department_id: p.department_id,
+      department_name: null,
+      shift_start: null,
+      shift_end: null,
+      check_in_at: inRow?.created_at || null,
+      check_out_at: outRow?.created_at || null,
+      is_remote: mine.some((r) => r.is_remote),
+      // Хуваарь мэдэхгүй тул хоцролтыг ТААМАГЛАХГҮЙ — 0 гэж үзнэ.
+      late_minutes: 0,
+      early_leave_minutes: 0,
+      worked_minutes: workedMinutes,
+      status: inRow ? 'on_time' : 'not_scheduled',
+    };
+  });
 }
 
 // ---- Wi-Fi-ээр ирц баталгаажуулах тохиргоо ----

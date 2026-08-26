@@ -199,13 +199,20 @@ export default function AttendanceScreen() {
   });
   const [departments, setDepartments] = useState([]);
 
+  const [dayRowsError, setDayRowsError] = useState(null);
+
   const loadDayRows = useCallback(async () => {
     if (!isCloud || !isAdmin) return;
     setDayRowsLoading(true);
+    setDayRowsError(null);
     try {
       const data = await attApi.fetchDepartmentAttendanceToday(dashFilters.departmentId, dashboardDate);
       setDayRows(data || []);
     } catch (e) {
+      // Алдааг ЧИМЭЭГҮЙ залгихгүй — өмнө нь залгидаг байсан тул жагсаалт
+      // хоосон харагдахад шалтгаан нь ойлгомжгүй байв.
+      setDayRows([]);
+      setDayRowsError(e?.message || 'Ирцийн жагсаалт ачаалж чадсангүй');
     } finally {
       setDayRowsLoading(false);
     }
@@ -1338,29 +1345,99 @@ export default function AttendanceScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Миний ирц — админ ч ажилтан шиг ирц бүртгүүлэх боломжтой хэвээр */}
-      <View style={[dashStyles.selfCard, { backgroundColor: adminColors.surfaceContainer }]}>
-        <Text style={{ color: adminColors.textMuted, fontSize: 12, marginBottom: 8 }}>Миний ирц</Text>
-        <View style={styles.btnRow}>
-          <Button
-            title={shiftStatus.checkedIn ? 'Ирсэн ✓' : 'Ирсэн'}
-            variant="success"
-            size="sm"
-            style={{ flex: 1 }}
-            loading={facePreparing}
-            disabled={shiftStatus.checkedIn}
-            onPress={() => startCheck('check_in')}
-          />
-          <Button
-            title={shiftStatus.checkedOut ? 'Явсан ✓' : 'Явсан'}
-            variant="danger"
-            size="sm"
-            style={{ flex: 1 }}
-            disabled={facePreparing || !shiftStatus.checkedIn || shiftStatus.checkedOut}
-            onPress={() => startCheck('check_out')}
-          />
+      {/* ── МИНИЙ ИРЦ ─────────────────────────────────────────────────
+          Админ ч ажилтан адил ирцээ бүртгүүлнэ. Ажилтны талтай ИЖИЛ
+          `quickAttendance` урсгалыг ашиглана — царай таниулахгүй, шууд
+          бүртгэнэ (байршил + төхөөрөмжийн шалгалт хэвээр). */}
+      <View style={[dashStyles.heroCard, { backgroundColor: adminColors.surfaceContainer }]}>
+        <View style={dashStyles.heroTopRow}>
+          <View>
+            <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Миний ирц</Text>
+            <Text style={{ color: adminColors.text, fontSize: 26, fontWeight: '800', marginTop: 2 }}>
+              {shiftStatus.checkedIn
+                ? new Date(shiftStatus.checkInAt || Date.now()).toLocaleTimeString('mn-MN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '--:--'}
+            </Text>
+          </View>
+          <View
+            style={[
+              dashStyles.statusPill,
+              {
+                backgroundColor: shiftStatus.checkedOut
+                  ? 'rgba(160,160,168,0.18)'
+                  : shiftStatus.checkedIn
+                    ? 'rgba(63,207,142,0.18)'
+                    : 'rgba(245,181,68,0.18)',
+              },
+            ]}
+          >
+            <Text
+              style={{
+                color: shiftStatus.checkedOut ? '#a0a0a8' : shiftStatus.checkedIn ? '#3fcf8e' : '#f5b544',
+                fontSize: 12,
+                fontWeight: '700',
+              }}
+            >
+              {shiftStatus.checkedOut ? 'Ажил дууссан' : shiftStatus.checkedIn ? 'Ажил дээр' : 'Бүртгүүлээгүй'}
+            </Text>
+          </View>
         </View>
-        <Text style={{ color: adminColors.textFaint, fontSize: 12, marginTop: 8 }}>
+
+        <View style={dashStyles.heroBtnRow}>
+          <TouchableOpacity
+            style={[
+              dashStyles.heroBtn,
+              {
+                backgroundColor: shiftStatus.checkedIn ? adminColors.surfaceContainerHigh : adminColors.primary,
+                opacity: shiftStatus.checkedIn || busy ? 0.55 : 1,
+              },
+            ]}
+            disabled={shiftStatus.checkedIn || busy}
+            onPress={() => quickAttendance('check_in')}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={{
+                color: shiftStatus.checkedIn ? adminColors.textMuted : adminColors.onPrimary,
+                fontWeight: '800',
+                fontSize: 15,
+              }}
+            >
+              {shiftStatus.checkedIn ? 'Ирсэн ✓' : 'Ирлээ'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              dashStyles.heroBtn,
+              {
+                backgroundColor:
+                  !shiftStatus.checkedIn || shiftStatus.checkedOut
+                    ? adminColors.surfaceContainerHigh
+                    : '#ff6b60',
+                opacity: !shiftStatus.checkedIn || shiftStatus.checkedOut || busy ? 0.55 : 1,
+              },
+            ]}
+            disabled={!shiftStatus.checkedIn || shiftStatus.checkedOut || busy}
+            onPress={() => quickAttendance('check_out')}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={{
+                color:
+                  !shiftStatus.checkedIn || shiftStatus.checkedOut ? adminColors.textMuted : '#ffffff',
+                fontWeight: '800',
+                fontSize: 15,
+              }}
+            >
+              {shiftStatus.checkedOut ? 'Явсан ✓' : 'Явлаа'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={{ color: adminColors.textFaint, fontSize: 12, marginTop: 12 }}>
           📍 {adminLocationLabel}
         </Text>
       </View>
@@ -1491,9 +1568,20 @@ export default function AttendanceScreen() {
         )}
       </Card>
 
-      <Text style={{ color: adminColors.text, fontSize: 15, fontWeight: '700', marginTop: spacing.lg, marginBottom: 8 }}>
-        {dashboardDate}   {dayRowsLoading ? '· ачаалж байна...' : ''}
-      </Text>
+      {dayRowsError ? (
+        <View style={[dashStyles.errorBox, { backgroundColor: 'rgba(255,107,96,0.12)' }]}>
+          <Text style={{ color: '#ff6b60', fontSize: 12, lineHeight: 17 }}>{dayRowsError}</Text>
+        </View>
+      ) : null}
+
+      <View style={dashStyles.listHeadRow}>
+        <Text style={{ color: adminColors.text, fontSize: 15, fontWeight: '800' }}>
+          Өнөөдөр   {dashboardDate}
+        </Text>
+        <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>
+          {dayRowsLoading ? 'ачаалж байна…' : `${filteredDayRows.length} ажилтан`}
+        </Text>
+      </View>
       <View style={dashStyles.tableHeadRow}>
         <Text style={[dashStyles.tableHeadCell, { flex: 2, color: adminColors.textMuted }]}>Ажилтан</Text>
         <Text style={[dashStyles.tableHeadCell, { color: adminColors.textMuted }]}>Ирсэн</Text>
@@ -1523,7 +1611,7 @@ export default function AttendanceScreen() {
         ListEmptyComponent={!dayRowsLoading ? <EmptyState text="Ирцийн бүртгэл олдсонгүй" /> : null}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={dashStyles.tableRow}
+            style={[dashStyles.tableRow, { backgroundColor: adminColors.surfaceContainer }]}
             activeOpacity={0.7}
             onPress={() =>
               navigation.navigate('AttendanceDetail', {
@@ -1535,11 +1623,34 @@ export default function AttendanceScreen() {
               })
             }
           >
+            {/* Зүүн ирмэг дээрх өнгөт зурвас — төлөвийг нэг харцаар таниулна */}
+            <View
+              style={[
+                dashStyles.statusStripe,
+                {
+                  backgroundColor:
+                    item.status === 'late'
+                      ? '#ff6b60'
+                      : item.status === 'absent'
+                        ? '#5c5c64'
+                        : item.status === 'leave' || item.status === 'rest'
+                          ? '#8fd3f2'
+                          : item.check_in_at
+                            ? '#3fcf8e'
+                            : 'transparent',
+                },
+              ]}
+            />
             <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <ChatAvatar name={item.employee_name} uri={item.avatar_url} size={30} />
-              <Text style={{ color: adminColors.text, fontSize: 13 }} numberOfLines={1}>
-                {item.employee_name}
-              </Text>
+              <ChatAvatar name={item.employee_name} uri={item.avatar_url} size={32} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: adminColors.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>
+                  {item.employee_name}
+                </Text>
+                {item.is_remote ? (
+                  <Text style={{ color: adminColors.primary, fontSize: 10, marginTop: 1 }}>Зайнаас</Text>
+                ) : null}
+              </View>
             </View>
             <Text style={{ flex: 1, color: adminColors.text, fontSize: 13 }}>
               {item.check_in_at ? new Date(item.check_in_at).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
@@ -1547,7 +1658,14 @@ export default function AttendanceScreen() {
             <Text style={{ flex: 1, color: adminColors.text, fontSize: 13 }}>
               {item.check_out_at ? new Date(item.check_out_at).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
             </Text>
-            <Text style={{ flex: 1, color: item.late_minutes > 0 ? '#ff6b60' : adminColors.textMuted, fontSize: 13 }}>
+            <Text
+              style={{
+                flex: 1,
+                color: item.late_minutes > 0 ? '#ff6b60' : adminColors.textMuted,
+                fontSize: 13,
+                fontWeight: item.late_minutes > 0 ? '700' : '400',
+              }}
+            >
               {item.late_minutes > 0 ? `${item.late_minutes}м` : item.early_leave_minutes > 0 ? `-${item.early_leave_minutes}м` : '--'}
             </Text>
           </TouchableOpacity>
@@ -1855,9 +1973,39 @@ const dashStyles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   selfCard: { borderRadius: 16, padding: spacing.md, marginBottom: spacing.sm },
+  heroCard: { borderRadius: 20, padding: spacing.lg, marginBottom: spacing.sm },
+  heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  heroBtnRow: { flexDirection: 'row', gap: 10, marginTop: spacing.lg },
+  heroBtn: { flex: 1, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  errorBox: { borderRadius: 12, padding: spacing.md, marginTop: spacing.md },
+  listHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+    marginBottom: 8,
+  },
   tableHeadRow: { flexDirection: 'row', paddingHorizontal: 4, marginBottom: 6 },
   tableHeadCell: { flex: 1, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4 },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 8,
+    borderRadius: 14,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  statusStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 3,
+    borderRadius: 2,
+  },
   subNav: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
   subNavPill: {
     flexDirection: 'row',

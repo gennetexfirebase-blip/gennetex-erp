@@ -216,10 +216,15 @@ begin
 
   return query
   with emp as (
+    -- ⚠️ ЗӨВХӨН `superadmin` (хөгжүүлэгч)-ийг хасна.
+    --
+    -- Өмнө нь `role in ('employee','ahlah','menejer')` гэж шүүдэг байсан
+    -- тул АДМИН эрхтэй ажилчид жагсаалтад ОГТ ОРДОГГҮЙ байв — админ ч
+    -- ирцээ бүртгүүлдэг тул тэднийг ч харуулах ёстой.
     select p.id, p.name, p.avatar_url, p.department_id, d.name as department_name
     from public.profiles p
     left join public.departments d on d.id = p.department_id
-    where p.role in ('employee', 'ahlah', 'menejer')
+    where coalesce(p.role, 'employee') <> 'superadmin'
       and (p_department_id is null or p.department_id = p_department_id)
       and public.dept_in_scope(p.department_id)
   ),
