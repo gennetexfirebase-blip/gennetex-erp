@@ -37,6 +37,14 @@ import AttendanceMonthlySummaryScreen from './src/screens/AttendanceMonthlySumma
 import AttendanceHistoryScreen from './src/screens/AttendanceHistoryScreen';
 import AttendanceDetailScreen from './src/screens/AttendanceDetailScreen';
 import AttendanceRequestsScreen from './src/screens/AttendanceRequestsScreen';
+import AttendanceSettingsScreen from './src/screens/AttendanceSettingsScreen';
+import AttendanceLocationsScreen from './src/screens/AttendanceLocationsScreen';
+import AttendanceLocationFormScreen from './src/screens/AttendanceLocationFormScreen';
+import AttendanceWifiScreen from './src/screens/AttendanceWifiScreen';
+import AttendanceWifiFormScreen from './src/screens/AttendanceWifiFormScreen';
+import AttendanceNotificationComposerScreen from './src/screens/AttendanceNotificationComposerScreen';
+import LocationSubmissionsScreen from './src/screens/LocationSubmissionsScreen';
+import MapDetailScreen from './src/screens/MapDetailScreen';
 import PayrollAdminScreen from './src/screens/PayrollAdminScreen';
 import MyPayrollScreen from './src/screens/MyPayrollScreen';
 import ChatScreen from './src/screens/ChatScreen';
@@ -223,6 +231,14 @@ function AppStack() {
       <Stack.Screen name="AttendanceHistory" component={AttendanceHistoryScreen} />
       <Stack.Screen name="AttendanceDetail" component={AttendanceDetailScreen} />
       <Stack.Screen name="AttendanceRequests" component={AttendanceRequestsScreen} />
+      <Stack.Screen name="AttendanceSettings" component={AttendanceSettingsScreen} />
+      <Stack.Screen name="AttendanceLocations" component={AttendanceLocationsScreen} />
+      <Stack.Screen name="AttendanceLocationForm" component={AttendanceLocationFormScreen} />
+      <Stack.Screen name="AttendanceWifi" component={AttendanceWifiScreen} />
+      <Stack.Screen name="AttendanceWifiForm" component={AttendanceWifiFormScreen} />
+      <Stack.Screen name="AttendanceNotificationComposer" component={AttendanceNotificationComposerScreen} />
+      <Stack.Screen name="AttendanceLocationSubmissions" component={LocationSubmissionsScreen} />
+      <Stack.Screen name="MapDetail" component={MapDetailScreen} />
       <Stack.Screen name="Payroll" component={PayrollAdminScreen} options={{ title: 'Цалин' }} />
       <Stack.Screen name="MyPayroll" component={MyPayrollScreen} options={{ title: 'Миний цалин' }} />
       <Stack.Screen name="AdminReports" component={AdminReportsScreen} />

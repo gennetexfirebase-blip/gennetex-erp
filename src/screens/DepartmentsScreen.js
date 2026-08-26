@@ -34,7 +34,7 @@ import { useTheme, useStyles } from '../context/ThemeContext';
 import { canManageDepartments } from '../lib/roles';
 import * as deptApi from '../services/departmentService';
 
-const EMPTY_FORM = { name: '', kind: 'org', note: '' };
+const EMPTY_FORM = { name: '', kind: 'org', note: '', parentId: null };
 
 export default function DepartmentsScreen() {
   const { colors } = useTheme();
@@ -84,7 +84,22 @@ export default function DepartmentsScreen() {
     setRefreshing(false);
   };
 
-  const shown = useMemo(() => list.filter((d) => d.kind === kind), [list, kind]);
+  // Мод хэлбэр: эцэг хэлтэс, дараа нь түүний хүүхдүүд нь дор нь.
+  const shown = useMemo(() => {
+    const kindList = list.filter((d) => d.kind === kind);
+    const byParent = {};
+    kindList.forEach((d) => {
+      const key = d.parent_id && kindList.some((p) => p.id === d.parent_id) ? d.parent_id : 'root';
+      if (!byParent[key]) byParent[key] = [];
+      byParent[key].push(d);
+    });
+    const ordered = [];
+    (byParent.root || []).forEach((root) => {
+      ordered.push({ ...root, depth: 0 });
+      (byParent[root.id] || []).forEach((child) => ordered.push({ ...child, depth: 1 }));
+    });
+    return ordered;
+  }, [list, kind]);
 
   const openCreate = () => {
     setEditId(null);
@@ -96,7 +111,7 @@ export default function DepartmentsScreen() {
   const openEdit = (dept) => {
     if (!mayManage) return;
     setEditId(dept.id);
-    setForm({ name: dept.name, kind: dept.kind, note: dept.note || '' });
+    setForm({ name: dept.name, kind: dept.kind, note: dept.note || '', parentId: dept.parent_id || null });
     setError(null);
     setModal(true);
   };
@@ -164,7 +179,7 @@ export default function DepartmentsScreen() {
         accessibilityLabel={`${item.name}, ${tally.members} хүн`}
         accessibilityHint={mayManage ? 'Дэлгэрэнгүй харах бол дарна. Засах бол удаан дарна.' : undefined}
       >
-        <Card style={styles.row}>
+        <Card style={[styles.row, item.depth ? { marginLeft: spacing.xl } : null]}>
           <View style={styles.iconWrap}>
             <Text style={styles.icon}>{deptApi.kindIcon(item.kind)}</Text>
           </View>
@@ -253,6 +268,30 @@ export default function DepartmentsScreen() {
                 value={form.name}
                 onChangeText={(t) => setForm({ ...form, name: t })}
               />
+
+              <Text style={styles.label}>Эцэг хэлтэс (заавал биш)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+                <TouchableOpacity
+                  style={[styles.parentChip, !form.parentId && styles.parentChipOn]}
+                  onPress={() => setForm({ ...form, parentId: null })}
+                >
+                  <Text style={[styles.parentChipText, !form.parentId && styles.parentChipTextOn]}>Байхгүй</Text>
+                </TouchableOpacity>
+                {list
+                  .filter((d) => d.kind === form.kind && d.id !== editId)
+                  .map((d) => (
+                    <TouchableOpacity
+                      key={d.id}
+                      style={[styles.parentChip, form.parentId === d.id && styles.parentChipOn]}
+                      onPress={() => setForm({ ...form, parentId: d.id })}
+                    >
+                      <Text style={[styles.parentChipText, form.parentId === d.id && styles.parentChipTextOn]}>
+                        {d.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+
               <Field
                 label="Тэмдэглэл"
                 value={form.note}
@@ -350,4 +389,15 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   radioOn: { borderColor: colors.primary, borderWidth: 6 },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  parentChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    marginRight: spacing.sm,
+  },
+  parentChipOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  parentChipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  parentChipTextOn: { color: colors.primary },
 });

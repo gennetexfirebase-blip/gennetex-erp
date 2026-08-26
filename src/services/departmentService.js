@@ -48,13 +48,13 @@ export async function fetchDepartments({ kind, includeInactive = false } = {}) {
   return data || [];
 }
 
-export async function createDepartment({ name, kind = DEFAULT_KIND, note }) {
+export async function createDepartment({ name, kind = DEFAULT_KIND, note, parentId }) {
   requireCloud();
   const clean = String(name || '').trim();
   if (!clean) throw new Error('Хэлтсийн нэр шаардлагатай.');
   const { data, error } = await supabase
     .from(TABLE)
-    .insert({ name: clean, kind, note: note?.trim() || null })
+    .insert({ name: clean, kind, note: note?.trim() || null, parent_id: parentId || null })
     .select()
     .single();
   if (error) throw new Error(mapDepartmentError(error.message));
@@ -72,6 +72,7 @@ export async function updateDepartment(id, patch) {
   if (patch.kind !== undefined) clean.kind = patch.kind;
   if (patch.note !== undefined) clean.note = patch.note?.trim() || null;
   if (patch.active !== undefined) clean.active = !!patch.active;
+  if (patch.parentId !== undefined) clean.parent_id = patch.parentId || null;
 
   const { data, error } = await supabase
     .from(TABLE)

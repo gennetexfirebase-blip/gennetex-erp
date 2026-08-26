@@ -1281,6 +1281,13 @@ export default function AttendanceScreen() {
           <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>ЖЕННЕТЕКС ХХК</Text>
         </View>
         <TouchableOpacity
+          style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer, marginRight: 8 }]}
+          onPress={() => navigation.navigate('AttendanceSettings')}
+          accessibilityLabel="Ирцийн тохиргоо"
+        >
+          <Text style={{ fontSize: 16 }}>⚙️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer }]}
           onPress={() => navigation.navigate('Notifications')}
         >
