@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci --prefix public-web",
-  "buildCommand": "npm run build --prefix public-web && node scripts/build-vercel.cjs",
+  "installCommand": "npm ci --prefix public-web && npm ci --prefix admin-web-react",
+  "buildCommand": "npm run build --prefix public-web && npm run build --prefix admin-web-react && node scripts/build-vercel.cjs",
   "outputDirectory": "dist-web",
   "framework": null,
   "cleanUrls": true,
@@ -36,6 +36,10 @@
     },
     {
       "source": "/gennetex/admin",
+      "destination": "/gennetex/admin/index.html"
+    },
+    {
+      "source": "/gennetex/admin/((?!assets/).*)",
       "destination": "/gennetex/admin/index.html"
     },
     {
