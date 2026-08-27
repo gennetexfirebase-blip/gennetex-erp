@@ -34,6 +34,15 @@
 --   `messages.room` нь `conversations.id`-ийн текст хэлбэр (chatService.js:181
 --   дээр `m.room === c.id` гэж тулгадаг). Тиймээс гишүүнчлэлийг
 --   `conversation_members`-аас шалгана.
+--
+-- ⚠️ ТӨРЛИЙН CAST (2026-08-27-нд зассан):
+--   `messages.sender_id` ба `attendance.staff_id` нь `text` төрөлтэй, харин
+--   `auth.uid()` нь `uuid`. PostgreSQL-д `text = uuid` ОПЕРАТОР БАЙХГҮЙ тул
+--   энэ файл өмнө нь
+--       ERROR: operator does not exist: text = uuid (SQLSTATE 42883)
+--   гэж унаж, ХЭЗЭЭ Ч БҮРЭН АЖИЛЛААГҮЙ. Үүнээс болж ирц/чатын RLS хүчин
+--   төгөлдөр болоогүй үлдсэн. Тиймээс тэдгээрийг `auth.uid()::text` болгов.
+--   Бусад хүснэгтийн `user_id` нь аль хэдийн `uuid` тул cast хэрэггүй.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -70,7 +79,7 @@ drop policy if exists "messages_read"   on public.messages;
 create policy "messages_read" on public.messages
   for select to authenticated
   using (
-    sender_id = auth.uid()
+    sender_id = auth.uid()::text
     or public.is_conversation_member(room)
   );
 
@@ -80,7 +89,7 @@ drop policy if exists "messages_insert" on public.messages;
 create policy "messages_insert" on public.messages
   for insert to authenticated
   with check (
-    sender_id = auth.uid()
+    sender_id = auth.uid()::text
     and (public.is_conversation_member(room) or room = 'general')
   );
 
@@ -88,13 +97,13 @@ create policy "messages_insert" on public.messages
 drop policy if exists "messages_update" on public.messages;
 create policy "messages_update" on public.messages
   for update to authenticated
-  using (sender_id = auth.uid())
-  with check (sender_id = auth.uid());
+  using (sender_id = auth.uid()::text)
+  with check (sender_id = auth.uid()::text);
 
 drop policy if exists "messages_delete" on public.messages;
 create policy "messages_delete" on public.messages
   for delete to authenticated
-  using (sender_id = auth.uid() or public.is_admin_user());
+  using (sender_id = auth.uid()::text or public.is_admin_user());
 
 -- Ярианы жагсаалт — зөвхөн өөрийн орсон яриа.
 drop policy if exists "conversations_all"  on public.conversations;
@@ -165,12 +174,12 @@ drop policy if exists "attendance_select" on public.attendance;
 drop policy if exists "attendance_read"   on public.attendance;
 create policy "attendance_read" on public.attendance
   for select to authenticated
-  using (staff_id = auth.uid() or public.is_admin_user());
+  using (staff_id = auth.uid()::text or public.is_admin_user());
 
 drop policy if exists "attendance_insert" on public.attendance;
 create policy "attendance_insert" on public.attendance
   for insert to authenticated
-  with check (staff_id = auth.uid() or public.is_admin_user());
+  with check (staff_id = auth.uid()::text or public.is_admin_user());
 
 -- Ирц зөвшөөрөх/татгалзах нь зөвхөн админы ажил.
 drop policy if exists "attendance_update" on public.attendance;
