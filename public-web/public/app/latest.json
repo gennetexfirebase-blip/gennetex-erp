@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.0",
-    "minSupportedVersion":  "1.2.5",
-    "releasedAt":  "2026-08-26",
-    "sizeBytes":  135014856,
-    "fileName":  "gennetex-erp-1.3.0.apk",
-    "url":  "https://github.com/gennetexfirebase-blip/gennetex-erp/releases/download/v1.3.0/gennetex-erp-1.3.0.apk"
+  "version": "1.3.1",
+  "url": "https://github.com/gennetexfirebase-blip/gennetex-erp/releases/download/v1.3.1/gennetex-erp-1.3.1.apk",
+  "fileName": "gennetex-erp-1.3.1.apk",
+  "sizeBytes": 135014860,
+  "releasedAt": "2026-08-27",
+  "minSupportedVersion": "1.2.5"
 }
