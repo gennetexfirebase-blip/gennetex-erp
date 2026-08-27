@@ -49,6 +49,35 @@ if (changed) {
   console.log('[patch-expo-ngrok] already patched or patterns not present');
 }
 
+// ---------------------------------------------------------------------------
+// `expo start --tunnel` бүрд гардаг "Log in / Proceed anonymously" сонголтыг
+// алгасуулна.
+// ---------------------------------------------------------------------------
+// ЯАГААД: tunnel асаах бүрд Expo CLI нь Expo бүртгэлээр нэвтрэхийг санал
+// болгож, сум товчоор сонголт хийхийг ШААРДДАГ. Бид зөвхөн дотоод багийн
+// dev build дээр ажилладаг тул Expo бүртгэл хэрэггүй бөгөөд энэ асуулт нь
+// зүгээр л нэмэлт алхам болдог. `tryGetUserAsync` нь нэвтрээгүй үед `null`
+// буцаах нь хэвийн зан төлөв (анонимоор үргэлжилнэ) тул шууд `null`
+// буцаалгана — CI=1 тавихаас ялгаатай нь дэлгэц дээрх интерактив
+// товчлуурууд (r, s, m) хэвээр ажиллана.
+const userActions = path.join(
+  __dirname,
+  '../node_modules/@expo/cli/build/src/api/user/actions.js'
+);
+if (fs.existsSync(userActions)) {
+  let src = fs.readFileSync(userActions, 'utf8');
+  const marker = 'async function tryGetUserAsync() {';
+  const skip = `${marker}
+    // [gennetex patch] Нэвтрэх сонголтыг алгасаж, анонимоор үргэлжилнэ.
+    return await (0, _user.getUserAsync)().catch(() => null);
+    // eslint-disable-next-line no-unreachable`;
+  if (src.includes(marker) && !src.includes('[gennetex patch]')) {
+    src = src.replace(marker, skip);
+    fs.writeFileSync(userActions, src);
+    console.log('[patch-expo-ngrok] tunnel-ийн нэвтрэх асуулт алгаслаа');
+  }
+}
+
 // @expo/ngrok-ийн retry helper мөн body-г заавал байна гэж үздэг.
 const ngrokUtils = path.join(__dirname, '../node_modules/@expo/ngrok/src/utils.js');
 if (fs.existsSync(ngrokUtils)) {
