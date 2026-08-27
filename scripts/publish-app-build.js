@@ -106,6 +106,21 @@ const manifest = {
   minSupportedVersion: version,
 };
 
+/*
+ * ⚠️ ТАТАХ ЭХ СУРВАЛЖИЙН ТУХАЙ (2026-08-27-нд олсон):
+ *   GitHub Release-ийн татах холбоос нь 302 redirect + хугацаатай
+ *   гарын үсэгтэй (signed) URL руу заадаг. Android дээр Chrome үүнийг
+ *   "аюултай" гэж үзээд файлыг 100% татсаны ДАРАА чимээгүй устгадаг —
+ *   хэрэглэгчид татагдсан мэт харагдаад Files дотор олдохгүй.
+ *
+ *   Тиймээс ҮНДСЭН эх сурвалж нь Supabase Storage-ийн `app-releases`
+ *   bucket (шууд холбоос, redirect-гүй), GitHub нь НӨӨЦ (`mirrorUrl`).
+ *
+ *   Supabase руу байршуулах:
+ *     · төслийн Storage хязгаарыг APK-гаас том болгоно (Settings → Storage)
+ *     · service_role key-ээр POST /storage/v1/object/app-releases/<нэр>.apk
+ */
+
 fs.writeFileSync(path.join(OUT_DIR, 'latest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
 console.log('\n✔ Татах хуудас бэлэн');

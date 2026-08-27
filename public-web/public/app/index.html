@@ -125,7 +125,7 @@
     </ol>
     <p style="margin-top:14px">
       <a id="direct" class="direct" href="#" target="_blank" rel="noopener">
-        GitHub-аас шууд татах →
+        Нөөц холбоосоор татах →
       </a>
     </p>
     <p class="note" style="margin-top:10px">
@@ -177,9 +177,9 @@
       // өөр origin). Татах нь серверийн `Content-Disposition: attachment`
       // -аар шийдэгддэг тул энэ атрибут зөвхөн нэрийг санал болгоно.
       dl.setAttribute('download', info.fileName || 'gennetex-erp.apk');
-      // Нөөц холбоос — браузер блоклосон үед шууд орж татна.
+      // Нөөц холбоос — үндсэн эх сурвалж дээр асуудал гарвал GitHub-аас.
       const direct = document.getElementById('direct');
-      if (direct) direct.href = info.url;
+      if (direct) direct.href = info.mirrorUrl || info.url;
       const mb = info.sizeBytes ? (info.sizeBytes / 1048576).toFixed(1) + ' MB · ' : '';
       meta.textContent = `Хувилбар ${info.version || '—'} · ${mb}${info.releasedAt || ''}`;
     } catch (e) {
