@@ -1,34 +1,45 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-/** Map-ийн баруун талын дугуй floating товч (одоогийн байршил/ажлын газар/түүх). */
+/**
+ * Map-ийн хажуугийн дугуй floating товч.
+ *
+ * ⚠️ `Pressable` + `hitSlop` ашиглана: MapView бол native view тул түүний
+ * дээрх товчнууд хангалттай том touch талбайтай байх ёстой, эс бөгөөс
+ * даралт map руу "унана".
+ */
 export default function MapControlButton({ icon, onPress, colors, style, accessibilityLabel }) {
   return (
-    <TouchableOpacity
-      style={[styles.btn, { backgroundColor: colors.surface }, style]}
+    <Pressable
+      style={({ pressed }) => [
+        styles.btn,
+        { backgroundColor: colors.surface },
+        pressed && { opacity: 0.65, transform: [{ scale: 0.94 }] },
+        style,
+      ]}
       onPress={onPress}
-      activeOpacity={0.75}
+      hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <Text style={[styles.icon, { color: colors.primary }]}>{icon}</Text>
-    </TouchableOpacity>
+      <Ionicons name={icon} size={20} color={colors.primary} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
-    marginBottom: 10,
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 6,
+    marginBottom: 12,
   },
-  icon: { fontSize: 18 },
 });

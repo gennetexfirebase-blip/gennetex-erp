@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   RefreshControl,
   Linking,
 } from 'react-native';
@@ -19,7 +20,7 @@ import * as faceCloud from '../services/faceCloudService';
 import * as faceEdge from '../services/faceEdgeService';
 import { friendlyError } from '../lib/erpMessages';
 import * as deviceApi from '../services/deviceAuthService';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
 import { Card, Button, Field, SectionTitle, EmptyState } from '../components/ui';
@@ -30,6 +31,7 @@ import * as attApi from '../services/attendanceService';
 import * as faceApi from '../services/faceService';
 import * as shiftApi from '../services/shiftService';
 import * as notifyApi from '../services/notificationService';
+import * as notifyCenterApi from '../services/notificationCenterService';
 import { playCheckInSound, playCheckOutSound } from '../services/attendanceSoundService';
 import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
@@ -162,6 +164,10 @@ export default function AttendanceScreen() {
   // бараан самбартай зөрчилдөнө.
   const colors = adminColors;
   const styles = useMemo(() => makeStyles({ colors: adminColors }), []);
+  // Notch / Dynamic Island-тай зөрчилдөхгүй байхын тулд.
+  // `SafeAreaView` нь `position: absolute` дотор inset-ээ зөв тооцдоггүй
+  // тул шууд hook ашиглана.
+  const insets = useSafeAreaInsets();
   const { currentUser, isCloud, isAdmin, fetchEmployees, shiftStatus, refreshShiftStatus } = useApp();
   const profile = currentUser;
   const developerEmail = String(process.env.EXPO_PUBLIC_DEVELOPER_EMAIL || '').trim().toLowerCase();
@@ -446,6 +452,25 @@ export default function AttendanceScreen() {
 
   // 'granted' | 'denied' | null (хараахан шалгаагүй)
   const [locationPermission, setLocationPermission] = useState(null);
+
+  // Header дээрх хонхны badge — уншаагүй мэдэгдлийн тоо.
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    if (!isCloud || !profile?.id) return;
+    let cancelled = false;
+    const load = () =>
+      notifyCenterApi
+        .fetchUnreadCount(profile.id)
+        .then((n) => !cancelled && setUnreadCount(n || 0))
+        .catch(() => {});
+    load();
+    // Шинэ мэдэгдэл ирэхэд тоо шууд шинэчлэгдэнэ.
+    const unsub = notifyCenterApi.subscribeNotifications?.(profile.id, load);
+    return () => {
+      cancelled = true;
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [isCloud, profile?.id]);
 
   useEffect(() => {
     // Админ ч өөрийн (ЗӨВХӨН ӨӨРИЙНХӨӨ, бусдын биш) байршлыг харна.
@@ -1209,23 +1234,66 @@ export default function AttendanceScreen() {
           profileName={profile?.name}
         />
 
-        <SafeAreaView style={styles.mapTopBar} edges={['top']} pointerEvents="box-none">
-          <View style={styles.mapTopRow}>
-            <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={40} />
-            <View style={[styles.orgPill, { backgroundColor: employeeColors.surface }]}>
-              <Text style={{ color: employeeColors.text, fontWeight: '700', fontSize: 14 }}>
+        {/* ⚠️ Header нь MapView-ийн ДЭЭР байх ёстой.
+            MapView бол NATIVE view бөгөөд Android дээр өөрөө бүх touch-ыг
+            барьж авдаг тул `zIndex` + `elevation` ЗААВАЛ хэрэгтэй — эс
+            бөгөөс товчнууд харагдах ч дарагдахгүй.
+            `pointerEvents="box-none"` нь зөвхөн жинхэнэ товчнууд touch авч,
+            бусад хэсгээр map-ыг чирэх боломжтой байлгана. */}
+        <View
+          style={[styles.mapTopBar, { paddingTop: insets.top + 8 }]}
+          pointerEvents="box-none"
+        >
+          <View style={[styles.headerCard, { backgroundColor: employeeColors.surface }]}>
+            <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={46} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text
+                style={{ color: employeeColors.text, fontWeight: '800', fontSize: 16 }}
+                numberOfLines={1}
+              >
+                {profile?.name}
+              </Text>
+              <Text style={{ color: employeeColors.textMuted, fontSize: 12, marginTop: 1 }}>
                 ЖЕННЕТЕКС ХХК
               </Text>
             </View>
-            <TouchableOpacity
-              style={[styles.bellBtn, { backgroundColor: employeeColors.surface }]}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.headerBtn,
+                { backgroundColor: employeeColors.surfaceAlt },
+                pressed && { opacity: 0.6, transform: [{ scale: 0.96 }] },
+              ]}
               onPress={() => navigation.navigate('Notifications')}
+              hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Мэдэгдэл"
             >
-              <Text style={{ fontSize: 18 }}>🔔</Text>
-            </TouchableOpacity>
+              <Ionicons name="notifications-outline" size={21} color={employeeColors.text} />
+              {unreadCount > 0 ? (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.headerBtn,
+                { backgroundColor: employeeColors.surfaceAlt, marginLeft: 10 },
+                pressed && { opacity: 0.6, transform: [{ scale: 0.96 }] },
+              ]}
+              onPress={() => navigation.navigate('MyShift')}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Хуваарь, тохиргоо"
+            >
+              <Ionicons name="settings-outline" size={21} color={employeeColors.text} />
+            </Pressable>
           </View>
+
           {locationPermission === 'denied' ? (
             <View style={[styles.permBanner, { backgroundColor: employeeColors.surface }]}>
               <Text style={{ color: employeeColors.danger, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
@@ -1247,11 +1315,11 @@ export default function AttendanceScreen() {
               style={{ marginTop: 10, alignSelf: 'center' }}
             />
           )}
-        </SafeAreaView>
+        </View>
 
         <View style={styles.mapControls} pointerEvents="box-none">
           <MapControlButton
-            icon="📍"
+            icon="navigate"
             colors={employeeColors}
             accessibilityLabel="Миний байршил руу төвлөрөх"
             onPress={() =>
@@ -1263,7 +1331,7 @@ export default function AttendanceScreen() {
             }
           />
           <MapControlButton
-            icon="🏢"
+            icon="business"
             colors={employeeColors}
             accessibilityLabel="Ажлын байршил руу төвлөрөх"
             onPress={() =>
@@ -1275,7 +1343,7 @@ export default function AttendanceScreen() {
             }
           />
           <MapControlButton
-            icon="🕘"
+            icon="time-outline"
             colors={employeeColors}
             accessibilityLabel="Өдрийн түүх"
             onPress={() => navigation.navigate('AttendanceHistory')}
@@ -2183,7 +2251,49 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   // ---- Ажилтны map-first Ирц дэлгэц ----
-  mapTopBar: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.lg },
+  // ⚠️ zIndex + elevation ЗААВАЛ: MapView бол native view бөгөөд эдгээргүй
+  // бол товчнууд харагдах ч ДАРАГДАХГҮЙ (touch нь map руу унана).
+  mapTopBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.lg,
+    zIndex: 100,
+    elevation: 100,
+  },
+  headerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  headerBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ff3b30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  headerBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   mapTopRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   orgPill: {
     flex: 1,
@@ -2223,8 +2333,16 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     elevation: 3,
   },
   permBtn: { borderRadius: 12, paddingVertical: 8, paddingHorizontal: 18 },
-  mapControls: { position: 'absolute', right: spacing.lg, top: '32%' },
-  actionBtnWrap: { position: 'absolute', left: 0, right: 0, bottom: 210, alignItems: 'center' },
+  mapControls: { position: 'absolute', right: spacing.lg, top: '32%', zIndex: 90, elevation: 90 },
+  actionBtnWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 210,
+    alignItems: 'center',
+    zIndex: 90,
+    elevation: 90,
+  },
   warnOverlay: {
     flex: 1,
     backgroundColor: 'rgba(23,23,23,0.48)',

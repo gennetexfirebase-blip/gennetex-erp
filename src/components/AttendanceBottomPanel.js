@@ -44,6 +44,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    // MapView (native) дээр байрлах тул давхаргыг тодорхой зааж өгнө.
+    zIndex: 80,
+    elevation: 80,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 10,
