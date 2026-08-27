@@ -85,6 +85,33 @@
     padding-bottom: 22px;
   }
 
+  /* Cloudflare лого — эх зураг 1200x628 (өргөн банер) тул өндрөөр нь
+     хязгаарлаж, харьцааг хадгална. */
+  .logo {
+    width: auto;
+    height: auto;
+    max-width: min(280px, 76vw);
+    max-height: 96px;
+    object-fit: contain;
+    border-radius: 10px;
+    margin-bottom: -6px;
+  }
+
+  .warn {
+    max-width: 520px;
+    padding: 13px 16px;
+    text-align: center;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: #8a5a00;
+    background: #fff6e0;
+    border: 1px solid #f0d79a;
+    border-radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .warn { color: #f0c46a; background: #2a2113; border-color: #4a3a1a; }
+  }
+
   .lede {
     margin: -8px 0 0;
     max-width: 520px;
@@ -162,6 +189,8 @@
 </head>
 <body>
 
+<img class="logo" src="./cloudflare.jpg" alt="Cloudflare" width="1200" height="628" />
+
 <h1 id="label">Upload хийгдэх хугацаа</h1>
 
 <div class="board" id="board" aria-live="polite">
@@ -186,9 +215,17 @@
   </div>
 </div>
 
-<p class="lede" id="lede">Энэ цаг дуусахад автоматаар серверт байршина.</p>
+<p class="lede" id="lede">
+  Энэ цаг <b>00:00</b> болоход Cloudflare сервэрт байршина.<br />
+  Хийж дуусаны дараа шууд сервэрт байршина.
+</p>
 
 <p class="note" id="note"></p>
+
+<div class="warn">
+  <b>30GB</b> source code upload хийж байна. Интернэт тасарвал дахин
+  зогссон цагаасаа тоологдохыг анхаарна уу.
+</div>
 
 <button class="gear" id="gear" title="Тохируулах" aria-label="Тохируулах">⚙</button>
 
@@ -254,7 +291,7 @@ function tick() {
     els.board.style.display = 'none';
     document.getElementById('lede').style.display = 'none';
     els.note.className = 'done';
-    els.note.textContent = 'Хугацаа дууслаа — серверт байршиж байна.';
+    els.note.textContent = 'Cloudflare сервэрт байршиж байна…';
     return;
   }
 
