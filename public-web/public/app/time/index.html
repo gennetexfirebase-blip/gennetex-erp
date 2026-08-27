@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Хугацаа тохируулах · Gennetex ERP</title>
+<meta name="robots" content="noindex, nofollow" />
+<style>
+  :root {
+    --page: #f4f6f9;
+    --card: #ffffff;
+    --ink: #10151c;
+    --muted: #5a6672;
+    --line: #d5dde7;
+    --brand: #0099db;
+    --ok: #17915c;
+    --err: #d9463e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d1117;
+      --card: #161b22;
+      --ink: #e8eef6;
+      --muted: #8b98a5;
+      --line: #2b323c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 48px;
+    background: var(--page);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  .wrap { width: min(430px, 100%); }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .sub { margin: 0 0 20px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+
+  /* ── Тоолуурын самбар (/app/uplaod-тай ижил) ───────────────── */
+  .board {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(5px, 1.6vw, 12px);
+    margin-bottom: 20px;
+    padding: clamp(12px, 2.6vw, 20px) clamp(12px, 2.8vw, 22px);
+    background: #fff;
+    border: 3px solid #1b2430;
+    border-radius: 6px;
+    box-shadow: 6px 6px 0 #1b2430;
+    overflow-x: auto;
+  }
+  .unit { text-align: center; }
+  .digits { display: flex; gap: clamp(3px, 1vw, 7px); }
+  .digit {
+    width: clamp(30px, 8vw, 50px);
+    height: clamp(42px, 11vw, 68px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef3fb;
+    border: 3px solid #1b2430;
+    clip-path: polygon(0 0, 100% 0, 100% 82%, 82% 100%, 0 100%);
+    font-size: clamp(19px, 5.2vw, 32px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #10151c;
+  }
+  .caption {
+    margin-top: 7px;
+    font-size: clamp(7px, 1.7vw, 9.5px);
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    color: #5a6672;
+  }
+  .sep {
+    font-size: clamp(16px, 4vw, 24px);
+    font-weight: 800;
+    color: #5a6672;
+    padding-bottom: 18px;
+  }
+
+  .card {
+    padding: 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+
+  /* Одоогийн тохиргоо */
+  .current {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .current .k { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); }
+  .current .v { margin-top: 5px; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .current .left { margin-top: 4px; font-size: 13px; color: var(--muted); }
+
+  label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  input {
+    width: 100%;
+    padding: 11px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+  }
+  input:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: var(--brand); }
+
+  .quick { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+  .quick button {
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--page);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .quick button:hover { border-color: var(--brand); color: var(--brand); }
+
+  button.save {
+    width: 100%;
+    margin-top: 20px;
+    padding: 13px;
+    font-size: 15.5px;
+    font-weight: 700;
+    font-family: inherit;
+    color: #fff;
+    background: var(--brand);
+    border: 0;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  button.save:disabled { opacity: 0.55; cursor: default; }
+
+  .msg { margin-top: 12px; font-size: 13.5px; line-height: 1.5; min-height: 20px; }
+  .msg.err { color: var(--err); }
+  .msg.ok { color: var(--ok); }
+
+  .foot { margin-top: 18px; font-size: 13px; text-align: center; color: var(--muted); }
+  .foot a { color: var(--brand); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Хугацаа тохируулах</h1>
+  <p class="sub">
+    Энд оруулсан цаг нь <b>/app/uplaod</b> хуудасны тоолуурт шууд тусна.
+    Бүх зочинд ижил харагдана.
+  </p>
+
+  <!-- Тоолуурын самбар — /app/uplaod дээрхтэй ЯГ ижил төрх, ингэснээр
+       цаг оруулахдаа үр дүнг нь шууд харна. -->
+  <div class="board" id="board" aria-live="polite">
+    <div class="unit">
+      <div class="digits" id="d"></div>
+      <div class="caption">DAYS</div>
+    </div>
+    <div class="sep">:</div>
+    <div class="unit">
+      <div class="digits" id="h"></div>
+      <div class="caption">HOURS</div>
+    </div>
+    <div class="sep">:</div>
+    <div class="unit">
+      <div class="digits" id="m"></div>
+      <div class="caption">MINUTES</div>
+    </div>
+    <div class="sep">:</div>
+    <div class="unit">
+      <div class="digits" id="s"></div>
+      <div class="caption">SECONDS</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="current">
+      <div class="k">ОДООГИЙН ТОХИРГОО</div>
+      <div class="v" id="curVal">…</div>
+      <div class="left" id="curLeft"></div>
+    </div>
+
+    <form id="form" autocomplete="off">
+      <label for="pin">PIN</label>
+      <input id="pin" type="password" inputmode="numeric" placeholder="••••••" />
+
+      <label for="target">Дуусах огноо, цаг</label>
+      <input id="target" type="datetime-local" />
+      <div class="quick">
+        <button type="button" data-h="1">+1 цаг</button>
+        <button type="button" data-h="3">+3 цаг</button>
+        <button type="button" data-h="6">+6 цаг</button>
+        <button type="button" data-h="24">+1 хоног</button>
+        <button type="button" data-h="72">+3 хоног</button>
+      </div>
+
+      <label for="title">Гарчиг</label>
+      <input id="title" type="text" placeholder="Upload хийгдэх хугацаа" />
+
+      <button class="save" type="submit">Хадгалах</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+
+  <p class="foot">
+    <a href="/app/uplaod">Тоолуурыг харах →</a>
+  </p>
+</div>
+
+<script>
+/**
+ * Тоолуурын зорилтот цагийг тохируулах хуудас.
+ *
+ * Хадгалалт нь `set_upload_countdown` RPC-ээр явагдана — тэр нь PIN
+ * шалгадаг. `app_upload_countdown` хүснэгт дээр `update` эрх ХЭНД Ч
+ * алга тул энэ хаягийг мэдсэн хүн PIN-гүйгээр юу ч өөрчлөх боломжгүй.
+ */
+const SB = 'https://zkftykocmqzrgdhgwluu.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZnR5a29jbXF6cmdkaGd3bHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNTAyNDYsImV4cCI6MjEwMTgyNjI0Nn0.FwZ0yK6lS5Ngh3Rd2WaEJw08EA3WGW4Ac_uKNx7oTQ0';
+const HEADERS = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+
+const curVal = document.getElementById('curVal');
+const curLeft = document.getElementById('curLeft');
+const form = document.getElementById('form');
+const msg = document.getElementById('msg');
+const targetInput = document.getElementById('target');
+const titleInput = document.getElementById('title');
+
+/** Date → `datetime-local` хүлээж авдаг орон нутгийн хэлбэр. */
+function toLocalInput(date) {
+  const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+
+function humanLeft(ms) {
+  if (ms <= 0) return 'хугацаа дууссан';
+  let s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60);
+  const parts = [];
+  if (d) parts.push(d + ' хоног');
+  if (h) parts.push(h + ' цаг');
+  if (m || !parts.length) parts.push(m + ' минут');
+  return parts.join(' ') + ' үлдсэн';
+}
+
+// ── Тоолуурын самбар ────────────────────────────────────────────
+const board = {
+  d: document.getElementById('d'),
+  h: document.getElementById('h'),
+  m: document.getElementById('m'),
+  s: document.getElementById('s'),
+};
+let targetMs = null;
+let ticking = null;
+
+function paint(el, value, minDigits) {
+  const txt = String(Math.max(0, value)).padStart(minDigits, '0');
+  if (el.dataset.v === txt) return; // шаардлагагүй DOM бичилтээс сэргийлнэ
+  el.dataset.v = txt;
+  el.innerHTML = '';
+  for (const ch of txt) {
+    const box = document.createElement('div');
+    box.className = 'digit';
+    box.textContent = ch;
+    el.appendChild(box);
+  }
+}
+
+function tick() {
+  if (targetMs == null) return;
+  let left = Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
+  const days = Math.floor(left / 86400); left -= days * 86400;
+  const hours = Math.floor(left / 3600); left -= hours * 3600;
+  const mins = Math.floor(left / 60);
+  paint(board.d, days, 2);
+  paint(board.h, hours, 2);
+  paint(board.m, mins, 2);
+  paint(board.s, left - mins * 60, 2);
+}
+
+function render(row) {
+  const dt = new Date(row.target_at);
+  curVal.textContent = dt.toLocaleString('mn-MN', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+  curLeft.textContent = (row.label || '') + ' · ' + humanLeft(dt - Date.now());
+  targetInput.value = toLocalInput(dt);
+  titleInput.value = row.label || '';
+
+  targetMs = dt.getTime();
+  clearInterval(ticking);
+  tick();
+  ticking = setInterval(tick, 1000);
+}
+
+async function load() {
+  try {
+    const res = await fetch(
+      SB + '/rest/v1/app_upload_countdown?id=eq.main&select=target_at,label',
+      { headers: HEADERS, cache: 'no-store' }
+    );
+    const rows = await res.json();
+    if (rows.length) render(rows[0]);
+    else curVal.textContent = 'Тохируулаагүй';
+  } catch (e) {
+    curVal.textContent = 'Уншиж чадсангүй';
+  }
+}
+
+// Түргэн товчнууд — одоогоос хойш N цаг.
+document.querySelectorAll('.quick button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const d = new Date(Date.now() + Number(b.dataset.h) * 3600 * 1000);
+    d.setSeconds(0, 0);
+    targetInput.value = toLocalInput(d);
+  });
+});
+
+form.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = form.querySelector('.save');
+  const pin = document.getElementById('pin').value.trim();
+  if (!pin || !targetInput.value) {
+    msg.className = 'msg err';
+    msg.textContent = 'PIN болон огноог бөглөнө үү.';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.className = 'msg';
+  msg.textContent = 'Хадгалж байна…';
+  try {
+    const res = await fetch(SB + '/rest/v1/rpc/set_upload_countdown', {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        p_pin: pin,
+        // `datetime-local` нь бүсийн тэмдэглэгээгүй ирдэг тул орон нутгийн
+        // цаг гэж уншуулаад ISO болгоно.
+        p_target: new Date(targetInput.value).toISOString(),
+        p_label: titleInput.value.trim() || null,
+      }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      msg.className = 'msg err';
+      msg.textContent = body.message === 'invalid_pin'
+        ? 'PIN буруу байна.'
+        : (body.hint || body.message || 'Хадгалж чадсангүй.');
+      return;
+    }
+    msg.className = 'msg ok';
+    msg.textContent = 'Хадгаллаа. Тоолуур шинэ цагаар явна.';
+    document.getElementById('pin').value = '';
+    render(body);
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Сүлжээний алдаа.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+load();
+</script>
+</body>
+</html>
