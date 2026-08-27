@@ -362,7 +362,11 @@ export default function AttendanceScreen() {
     if (!isCloud) return;
     try {
       setLocations(await attApi.fetchAttendanceLocations());
-    } catch (e) {}
+    } catch (e) {
+      // Байршил ачаалагдахгүй бол ажилтан хаана бүртгүүлэхээ мэдэхгүй тул
+      // ЧИМЭЭГҮЙ залгихгүй — шалтгааныг дэлгэц дээр харуулна.
+      setError(e?.message || 'Бүртгэлийн байршил ачаалж чадсангүй');
+    }
   }, [isCloud]);
 
   /**
@@ -1230,6 +1234,7 @@ export default function AttendanceScreen() {
           mapRef={mapRef}
           employeeLocation={liveLocation}
           workplace={workplace}
+          locations={locations}
           profileUri={profile?.avatar_url}
           profileName={profile?.name}
         />
@@ -1364,6 +1369,19 @@ export default function AttendanceScreen() {
           colors={employeeColors}
           dateLabel={dateLabel}
           scheduleLabel={scheduleLabel}
+          locations={locations}
+          activeLocationId={workplace?.id}
+          onPressLocation={(l) =>
+            mapRef.current?.animateToRegion(
+              {
+                latitude: Number(l.latitude),
+                longitude: Number(l.longitude),
+                latitudeDelta: 0.008,
+                longitudeDelta: 0.008,
+              },
+              400
+            )
+          }
           onPressSummary={() => navigation.navigate('AttendanceMonthlySummary')}
           onPressRequest={() => navigation.navigate('AttendanceRequestForm')}
         />

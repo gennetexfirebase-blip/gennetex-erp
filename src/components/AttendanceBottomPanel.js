@@ -1,13 +1,17 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 /** Map screen-ийн доод, rounded-top цагаан панел — товч 2 + өнөөдрийн хуваарийн мөр. */
 export default function AttendanceBottomPanel({
   colors,
   onPressSummary,
   onPressRequest,
+  onPressLocation,
   dateLabel,
   scheduleLabel,
+  locations = [],
+  activeLocationId,
 }) {
   return (
     <View style={[styles.panel, { backgroundColor: colors.surface }]}>
@@ -28,6 +32,56 @@ export default function AttendanceBottomPanel({
           <Text style={[styles.secondaryText, { color: colors.primary }]}>Хүсэлт</Text>
         </TouchableOpacity>
       </View>
+      {/* Бүртгэл хийх боломжтой БҮХ цэг — ажилтан хаана бүртгүүлж болохоо
+          мэдэх ёстой. Дарахад тухайн цэг рүү газрын зураг төвлөрнө. */}
+      {locations.length > 0 ? (
+        <View style={styles.locSection}>
+          <Text style={[styles.locHead, { color: colors.textMuted }]}>
+            Бүртгэл хийх боломжтой цэг ({locations.length})
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingRight: 8 }}>
+              {locations.map((l) => {
+                const active = l.id === activeLocationId;
+                return (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={[
+                      styles.locChip,
+                      {
+                        backgroundColor: active ? colors.primarySoft : colors.surfaceAlt,
+                        borderColor: active ? colors.primary : 'transparent',
+                      },
+                    ]}
+                    onPress={() => onPressLocation?.(l)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name="location"
+                      size={13}
+                      color={active ? colors.primary : colors.textMuted}
+                    />
+                    <Text
+                      style={{
+                        color: active ? colors.primary : colors.text,
+                        fontSize: 12,
+                        fontWeight: active ? '700' : '500',
+                      }}
+                      numberOfLines={1}
+                    >
+                      {l.name}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+                      {l.radius_m || 200}м
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      ) : null}
+
       <View style={styles.scheduleRow}>
         <Text style={[styles.scheduleLeft, { color: colors.text }]}>Өнөөдөр</Text>
         <Text style={[styles.scheduleRight, { color: colors.textMuted }]}>
@@ -83,6 +137,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryText: { fontSize: 15, fontWeight: '700' },
+  locSection: { marginTop: 14 },
+  locHead: { fontSize: 11, fontWeight: '600', marginBottom: 8 },
+  locChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    maxWidth: 190,
+  },
   scheduleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

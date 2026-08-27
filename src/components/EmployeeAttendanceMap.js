@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from './Map';
 import ChatAvatar from './ChatAvatar';
 
@@ -11,17 +11,20 @@ const UB_REGION = {
 };
 
 /**
- * Ажилтны Ирц дэлгэцийн бүтэн дэлгэцийн газрын зураг — ажлын байрны геофенс
- * (Circle) болон ажилтны одоогийн байршлыг (avatar marker) харуулна.
+ * Ажилтны Ирц дэлгэцийн бүтэн дэлгэцийн газрын зураг.
  *
- * `react-native-maps`-ийг шууд ашиглахгүй, `../components/Map` дундаа
- * ашигладаг wrapper-ээр л дамжина (LiveLocationScreen-тэй ижил конвенц) —
- * веб дээр автоматаар placeholder-т шилждэг.
+ * ⚠️ БҮХ идэвхтэй геофенс цэгийг харуулна — өмнө нь зөвхөн нэгийг
+ * (хамгийн ойрхон эсвэл хуваарийнхыг) зурдаг байсан тул ажилтан бусад
+ * цэг дээр ч бүртгүүлж болохоо мэдэхгүй байв.
+ *
+ * `activeId` (хуваарийн эсвэл хамгийн ойр цэг) нь илүү тод, бусад нь
+ * бүдэг харагдана.
  */
 export default function EmployeeAttendanceMap({
   mapRef,
   employeeLocation,
   workplace,
+  locations = [],
   profileUri,
   profileName,
   style,
@@ -33,7 +36,21 @@ export default function EmployeeAttendanceMap({
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       }
-    : UB_REGION;
+    : workplace?.latitude != null
+      ? {
+          latitude: workplace.latitude,
+          longitude: workplace.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }
+      : UB_REGION;
+
+  // `locations` өгөгдөөгүй хуучин дуудлагыг ч ажиллуулна.
+  const points = locations.length
+    ? locations
+    : workplace?.latitude != null
+      ? [workplace]
+      : [];
 
   return (
     <View style={[styles.wrap, style]}>
@@ -44,20 +61,44 @@ export default function EmployeeAttendanceMap({
         initialRegion={initialRegion}
         showsUserLocation={false}
       >
-        {workplace?.latitude != null ? (
-          <Circle
-            center={{ latitude: workplace.latitude, longitude: workplace.longitude }}
-            radius={workplace.radius_m || 200}
-            strokeWidth={0}
-            fillColor="rgba(0,153,219,0.15)"
-          />
-        ) : null}
+        {points.map((loc) => {
+          if (loc?.latitude == null) return null;
+          const isActive = workplace?.id ? loc.id === workplace.id : true;
+          return (
+            <React.Fragment key={loc.id || `${loc.latitude},${loc.longitude}`}>
+              <Circle
+                center={{ latitude: Number(loc.latitude), longitude: Number(loc.longitude) }}
+                radius={loc.radius_m || 200}
+                strokeWidth={isActive ? 2 : 1}
+                strokeColor={isActive ? 'rgba(0,153,219,0.55)' : 'rgba(0,153,219,0.28)'}
+                fillColor={isActive ? 'rgba(0,153,219,0.16)' : 'rgba(0,153,219,0.07)'}
+              />
+              <Marker
+                coordinate={{ latitude: Number(loc.latitude), longitude: Number(loc.longitude) }}
+                title={loc.name}
+                description={`Радиус: ${loc.radius_m || 200}м`}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={false}
+              >
+                <View style={[styles.pin, !isActive && styles.pinDim]}>
+                  <Text style={styles.pinText} numberOfLines={1}>
+                    {loc.name}
+                  </Text>
+                </View>
+              </Marker>
+            </React.Fragment>
+          );
+        })}
 
         {employeeLocation?.latitude != null ? (
           <Marker
-            coordinate={{ latitude: employeeLocation.latitude, longitude: employeeLocation.longitude }}
+            coordinate={{
+              latitude: employeeLocation.latitude,
+              longitude: employeeLocation.longitude,
+            }}
             anchor={{ x: 0.5, y: 0.5 }}
             title={profileName || 'Би'}
+            tracksViewChanges={false}
           >
             <ChatAvatar name={profileName} uri={profileUri} size={44} />
           </Marker>
@@ -70,4 +111,15 @@ export default function EmployeeAttendanceMap({
 const styles = StyleSheet.create({
   wrap: { ...StyleSheet.absoluteFillObject },
   map: { ...StyleSheet.absoluteFillObject },
+  pin: {
+    backgroundColor: '#0099db',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    maxWidth: 130,
+  },
+  pinDim: { backgroundColor: 'rgba(0,153,219,0.65)' },
+  pinText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
