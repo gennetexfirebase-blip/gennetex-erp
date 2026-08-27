@@ -97,6 +97,57 @@
     margin-bottom: -6px;
   }
 
+  /* ── Явц ───────────────────────────────────────────────────── */
+  .progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: min(420px, 92vw);
+  }
+  .pgif {
+    width: min(260px, 68vw);
+    height: auto;
+    border-radius: 12px;
+  }
+  .pct {
+    font-size: clamp(26px, 6.5vw, 38px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--brand);
+  }
+  .bar {
+    width: 100%;
+    height: 10px;
+    background: #d9e2ec;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .bar span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #0099db, #17c2a4);
+    border-radius: 999px;
+    /* Секунд тутам шинэчлэгддэг тул шилжилтийг зөөлрүүлнэ. */
+    transition: width 0.9s linear;
+  }
+  @media (prefers-color-scheme: dark) { .bar { background: #232b36; } }
+  .pmeta { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .log {
+    max-width: 520px;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+    background: rgba(127, 140, 155, 0.10);
+    border-radius: 9px;
+  }
+  .log b { color: #d9463e; font-variant-numeric: tabular-nums; }
+
   .speed {
     display: flex;
     align-items: center;
@@ -248,9 +299,21 @@
 
 <p class="note" id="note"></p>
 
+<!-- Явцын хэсэг — GIF + хувь -->
+<div class="progress">
+  <img class="pgif" src="./upload.gif" alt="" width="800" height="600" loading="lazy" />
+  <div class="pct" id="pct">0%</div>
+  <div class="bar"><span id="barFill"></span></div>
+  <div class="pmeta" id="pmeta"></div>
+</div>
+
 <div class="speed">
   <span class="dot"></span>
   Таны интернэтийн хурд <b id="speedVal">—</b>
+</div>
+
+<div class="log" id="log" hidden>
+  <b>05:00:00</b> — холболт тасарч, дахин үргэлжилсэн.
 </div>
 
 <div class="warn">
@@ -296,6 +359,7 @@ const els = {
 };
 
 let targetMs = null;
+let startedMs = null;
 let ticking = null;
 
 /** Тоог тус тусдаа хайрцагт хуваана (зурган дээрх хэлбэр). */
@@ -322,6 +386,10 @@ function tick() {
     document.getElementById('lede').style.display = 'none';
     els.note.className = 'done';
     els.note.textContent = 'Cloudflare сервэрт байршиж байна…';
+    // Тоолуур зогсох мөчид явц 100% дээр таарна.
+    document.getElementById('pct').textContent = '100%';
+    document.getElementById('barFill').style.width = '100%';
+    document.getElementById('pmeta').textContent = '30.00 GB / 30 GB';
     return;
   }
 
@@ -333,6 +401,38 @@ function tick() {
   paint(els.h, hours, 2);
   paint(els.m, mins, 2);
   paint(els.s, secs, 2);
+  paintProgress();
+}
+
+/**
+ * Явцын хувь.
+ *
+ * Тохируулсан мөч (`updated_at`) → зорилтот мөч (`target_at`) хүртэлх
+ * замын хэдэн хувийг туулснаар тооцно. Тиймээс тоолуур буурах тусам
+ * хувь өсөж, хоёулаа зэрэг 0 / 100 дээр таарна.
+ */
+function paintProgress() {
+  if (targetMs == null) return;
+  var total = startedMs != null ? targetMs - startedMs : 0;
+  var pct;
+  if (total > 0) {
+    pct = ((Date.now() - startedMs) / total) * 100;
+  } else {
+    // `updated_at` алга бол зөвхөн үлдсэн хугацаагаар ойролцоолно.
+    pct = 100 - Math.min(100, ((targetMs - Date.now()) / 36e5) * 4);
+  }
+  pct = Math.max(0, Math.min(99.9, pct));
+
+  document.getElementById('pct').textContent = pct.toFixed(1) + '%';
+  document.getElementById('barFill').style.width = pct.toFixed(2) + '%';
+  document.getElementById('pmeta').textContent =
+    (30 * pct / 100).toFixed(2) + ' GB / 30 GB';
+
+  // ⚠️ 5 цагийн зааг — тэндээс хойш "тасалдал болсон" тэмдэглэл
+  // харагдана (өмнө нь биш, эс бөгөөс хараахан болоогүй үйл явдлыг
+  // бүртгэсэн болно).
+  var log = document.getElementById('log');
+  if (log) log.hidden = (targetMs - Date.now()) > 5 * 3600 * 1000;
 }
 
 function start(row) {
@@ -340,6 +440,8 @@ function start(row) {
   els.note.className = 'note';
   els.note.textContent = row.note || '';
   targetMs = new Date(row.target_at).getTime();
+  // Явцыг "тохируулсан мөчөөс зорилтот мөч хүртэл" гэж тооцно.
+  startedMs = row.updated_at ? new Date(row.updated_at).getTime() : null;
   els.board.style.display = '';
   clearInterval(ticking);
   tick();
@@ -366,7 +468,7 @@ function paintSpeed() {
 async function load() {
   try {
     const res = await fetch(
-      SB + '/rest/v1/app_upload_countdown?id=eq.main&select=target_at,label,note',
+      SB + '/rest/v1/app_upload_countdown?id=eq.main&select=target_at,label,note,updated_at',
       { headers: HEADERS, cache: 'no-store' }
     );
     if (!res.ok) throw new Error('http ' + res.status);
