@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Upload хийгдэх хугацаа · Gennetex ERP</title>
+<meta name="robots" content="noindex, nofollow" />
+<style>
+  :root {
+    --ink: #10151c;
+    --panel: #eef3fb;
+    --edge: #1b2430;
+    --page: #f4f6f9;
+    --muted: #5a6672;
+    --brand: #0099db;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page: #0d1117; --muted: #8b98a5; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 26px;
+    padding: 28px 16px 40px;
+    background: var(--page);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(18px, 4.4vw, 26px);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-align: center;
+    color: var(--ink);
+  }
+  @media (prefers-color-scheme: dark) { h1 { color: #e8eef6; } }
+
+  /* ── Тоолуур ───────────────────────────────────────────────── */
+  .board {
+    display: flex;
+    align-items: center;
+    gap: clamp(6px, 2vw, 18px);
+    padding: clamp(14px, 3vw, 26px) clamp(16px, 3.5vw, 32px);
+    background: #fff;
+    border: 3px solid var(--edge);
+    border-radius: 6px;
+    box-shadow: 8px 8px 0 var(--edge);
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .unit { text-align: center; }
+  .digits { display: flex; gap: clamp(4px, 1.2vw, 9px); }
+  .digit {
+    width: clamp(38px, 10.5vw, 72px);
+    height: clamp(52px, 14vw, 96px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 3px solid var(--edge);
+    /* Зурган дээрх "тасалсан булан" хэлбэр */
+    clip-path: polygon(0 0, 100% 0, 100% 82%, 82% 100%, 0 100%);
+    font-size: clamp(24px, 7vw, 46px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .caption {
+    margin-top: 9px;
+    font-size: clamp(8px, 1.9vw, 11px);
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+  .sep {
+    font-size: clamp(20px, 5vw, 34px);
+    font-weight: 800;
+    color: var(--muted);
+    padding-bottom: 22px;
+  }
+
+  .note {
+    margin: 0;
+    max-width: 520px;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .done {
+    font-size: clamp(17px, 4vw, 22px);
+    font-weight: 800;
+    color: var(--brand);
+    text-align: center;
+  }
+
+  /* ── Тохируулах ────────────────────────────────────────────── */
+  .gear {
+    background: none;
+    border: 0;
+    font-size: 19px;
+    cursor: pointer;
+    opacity: 0.35;
+    padding: 6px;
+  }
+  .gear:hover { opacity: 0.85; }
+  form {
+    display: none;
+    flex-direction: column;
+    gap: 9px;
+    width: min(340px, 92vw);
+    padding: 18px;
+    background: #fff;
+    border: 2px solid var(--edge);
+    border-radius: 10px;
+  }
+  form.open { display: flex; }
+  label { font-size: 12px; font-weight: 700; color: var(--muted); }
+  input {
+    width: 100%;
+    padding: 10px 11px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--ink);
+    background: #fff;
+    border: 1.5px solid #c8d2de;
+    border-radius: 7px;
+  }
+  button.save {
+    margin-top: 4px;
+    padding: 11px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    color: #fff;
+    background: var(--brand);
+    border: 0;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  button.save:disabled { opacity: 0.55; cursor: default; }
+  .msg { font-size: 13px; min-height: 18px; }
+  .msg.err { color: #d9463e; }
+  .msg.ok { color: #17915c; }
+</style>
+</head>
+<body>
+
+<h1 id="label">Upload хийгдэх хугацаа</h1>
+
+<div class="board" id="board" aria-live="polite">
+  <div class="unit">
+    <div class="digits" id="d"></div>
+    <div class="caption">DAYS</div>
+  </div>
+  <div class="sep">:</div>
+  <div class="unit">
+    <div class="digits" id="h"></div>
+    <div class="caption">HOURS</div>
+  </div>
+  <div class="sep">:</div>
+  <div class="unit">
+    <div class="digits" id="m"></div>
+    <div class="caption">MINUTES</div>
+  </div>
+  <div class="sep">:</div>
+  <div class="unit">
+    <div class="digits" id="s"></div>
+    <div class="caption">SECONDS</div>
+  </div>
+</div>
+
+<p class="note" id="note"></p>
+
+<button class="gear" id="gear" title="Тохируулах" aria-label="Тохируулах">⚙</button>
+
+<form id="form" autocomplete="off">
+  <label for="pin">PIN</label>
+  <input id="pin" type="password" inputmode="numeric" placeholder="••••••" />
+  <label for="target">Дуусах огноо, цаг</label>
+  <input id="target" type="datetime-local" />
+  <label for="title">Гарчиг</label>
+  <input id="title" type="text" placeholder="Upload хийгдэх хугацаа" />
+  <button class="save" type="submit">Хадгалах</button>
+  <div class="msg" id="msg"></div>
+</form>
+
+<script>
+/**
+ * Upload хийгдэх хугацааны тоолуур.
+ *
+ * Зорилтот цаг нь Supabase дээрх `app_upload_countdown` мөрөөс ирнэ —
+ * тиймээс энэ файлд гар хүрэхгүйгээр, аль ч төхөөрөмжөөс өөрчлөх
+ * боломжтой бөгөөд БҮХ зочинд ижил цаг харагдана.
+ *
+ * Бичих нь зөвхөн `set_upload_countdown` RPC-ээр, PIN шалгасны дараа.
+ * Хүснэгт дээр `update` эрх хэнд ч алга.
+ */
+const SB = 'https://zkftykocmqzrgdhgwluu.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZnR5a29jbXF6cmdkaGd3bHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNTAyNDYsImV4cCI6MjEwMTgyNjI0Nn0.FwZ0yK6lS5Ngh3Rd2WaEJw08EA3WGW4Ac_uKNx7oTQ0';
+const HEADERS = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+
+const els = {
+  d: document.getElementById('d'),
+  h: document.getElementById('h'),
+  m: document.getElementById('m'),
+  s: document.getElementById('s'),
+  label: document.getElementById('label'),
+  note: document.getElementById('note'),
+  board: document.getElementById('board'),
+};
+
+let targetMs = null;
+let ticking = null;
+
+/** Тоог тус тусдаа хайрцагт хуваана (зурган дээрх хэлбэр). */
+function paint(el, value, minDigits) {
+  const txt = String(Math.max(0, value)).padStart(minDigits, '0');
+  if (el.dataset.v === txt) return; // шаардлагагүй DOM бичилтээс сэргийлнэ
+  el.dataset.v = txt;
+  el.innerHTML = '';
+  for (const ch of txt) {
+    const box = document.createElement('div');
+    box.className = 'digit';
+    box.textContent = ch;
+    el.appendChild(box);
+  }
+}
+
+function tick() {
+  if (targetMs == null) return;
+  let left = Math.floor((targetMs - Date.now()) / 1000);
+
+  if (left <= 0) {
+    clearInterval(ticking);
+    els.board.style.display = 'none';
+    els.note.className = 'done';
+    els.note.textContent = 'Хугацаа дууслаа.';
+    return;
+  }
+
+  const days = Math.floor(left / 86400); left -= days * 86400;
+  const hours = Math.floor(left / 3600); left -= hours * 3600;
+  const mins = Math.floor(left / 60);
+  const secs = left - mins * 60;
+
+  // Хоног 2-оос олон оронтой болвол хайрцаг нэмэгдэнэ.
+  paint(els.d, days, 2);
+  paint(els.h, hours, 2);
+  paint(els.m, mins, 2);
+  paint(els.s, secs, 2);
+}
+
+function start(row) {
+  if (row.label) els.label.textContent = row.label;
+  els.note.className = 'note';
+  els.note.textContent = row.note || '';
+  targetMs = new Date(row.target_at).getTime();
+  els.board.style.display = '';
+  clearInterval(ticking);
+  tick();
+  ticking = setInterval(tick, 1000);
+}
+
+async function load() {
+  try {
+    const res = await fetch(
+      SB + '/rest/v1/app_upload_countdown?id=eq.main&select=target_at,label,note',
+      { headers: HEADERS, cache: 'no-store' }
+    );
+    if (!res.ok) throw new Error('http ' + res.status);
+    const rows = await res.json();
+    if (!rows.length) throw new Error('empty');
+    start(rows[0]);
+  } catch (e) {
+    els.board.style.display = 'none';
+    els.note.textContent = 'Хугацаа хараахан тохируулаагүй байна.';
+  }
+}
+
+// ── Тохируулах хэсэг ──────────────────────────────────────────
+const form = document.getElementById('form');
+const msg = document.getElementById('msg');
+
+document.getElementById('gear').addEventListener('click', () => {
+  form.classList.toggle('open');
+  if (form.classList.contains('open') && targetMs) {
+    // datetime-local нь ОРОН НУТГИЙН цагийг хүлээж авдаг тул UTC-ээс
+    // шилжүүлэлт хийж бөглөнө — эс бөгөөс цаг зөрнө.
+    const d = new Date(targetMs - new Date().getTimezoneOffset() * 60000);
+    document.getElementById('target').value = d.toISOString().slice(0, 16);
+    document.getElementById('title').value = els.label.textContent;
+  }
+});
+
+form.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = form.querySelector('.save');
+  const pin = document.getElementById('pin').value.trim();
+  const target = document.getElementById('target').value;
+  if (!pin || !target) {
+    msg.className = 'msg err';
+    msg.textContent = 'PIN болон огноог бөглөнө үү.';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.className = 'msg';
+  msg.textContent = 'Хадгалж байна...';
+  try {
+    const res = await fetch(SB + '/rest/v1/rpc/set_upload_countdown', {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        p_pin: pin,
+        // `datetime-local` нь бүсийн тэмдэглэгээгүй ирдэг тул Date-ээр
+        // орон нутгийн цаг гэж уншуулаад ISO болгоно.
+        p_target: new Date(target).toISOString(),
+        p_label: document.getElementById('title').value.trim() || null,
+      }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      msg.className = 'msg err';
+      msg.textContent = String(body.hint || body.message || '').includes('PIN')
+        ? 'PIN буруу байна.'
+        : body.hint || body.message || 'Хадгалж чадсангүй.';
+      return;
+    }
+    msg.className = 'msg ok';
+    msg.textContent = 'Хадгаллаа.';
+    document.getElementById('pin').value = '';
+    start(body);
+    setTimeout(() => form.classList.remove('open'), 900);
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Сүлжээний алдаа.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+load();
+</script>
+</body>
+</html>
