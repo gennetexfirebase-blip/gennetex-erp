@@ -166,11 +166,17 @@ jobs:
       - name: Gradle-ийн алдааг ил гаргах
         if: failure()
         run: |
-          echo "::group::Gradle log (сүүлийн 200 мөр)"
-          tail -200 /tmp/gradle.log || echo "лог үүсээгүй"
+          echo "::group::Gradle log (сүүлийн 300 мөр)"
+          tail -300 /tmp/gradle.log || echo "лог үүсээгүй"
           echo "::endgroup::"
-          grep -iE "^(e:|error:|FAILURE|Caused by|\* What went wrong)|error: |Execution failed" /tmp/gradle.log \
-            | tail -25 | while IFS= read -r line; do echo "::error::$line"; done || true
+          # ⚠️ `WARNING`-уудыг ЗААВАЛ хасна. `play-services-auth` нь D8-ийн
+          # "Invalid stack map table" анхааруулгыг олон арваар цацдаг
+          # бөгөөд тэдгээр нь build-ыг унагадаггүй. Хасахгүй бол
+          # annotation-ийн тооны хязгаарыг дүүргэж, ЖИНХЭНЭ алдааг
+          # шахаж гаргадаг (2026-08-27-нд яг ингэж болсон).
+          grep -E "FAILURE:|What went wrong|Execution failed|Caused by:|^e: |^\s+> " /tmp/gradle.log \
+            | grep -v "WARNING" | head -20 \
+            | while IFS= read -r line; do echo "::error::$line"; done || true
 
       # APK дотор JS bundle БАЙГАА ЭСЭХИЙГ баталгаажуулна.
       # Bundle-гүй APK нь суусан ч ажиллахгүй бөгөөд гаднаас нь ялгаж
