@@ -49,6 +49,7 @@ import MapControlButton from '../components/MapControlButton';
 import AttendanceActionButton from '../components/AttendanceActionButton';
 import AttendanceBottomPanel from '../components/AttendanceBottomPanel';
 import ChatAvatar from '../components/ChatAvatar';
+import WorkHoursRing from '../components/WorkHoursRing';
 import SummaryStatCards from '../components/SummaryStatCards';
 import DateRangeFilterBar from '../components/DateRangeFilterBar';
 import AttendanceFilterSheet from '../components/AttendanceFilterSheet';
@@ -1305,6 +1306,30 @@ export default function AttendanceScreen() {
     );
   }
 
+  // ---- Админы өөрийн ирцийн товч үзүүлэлтүүд ----
+  const fmtHM = (iso) =>
+    iso ? new Date(iso).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+
+  /** Хуваарийн нийт минут (эхлэх→дуусах). Хуваарьгүй бол 8 цаг. */
+  const shiftMinutes = (s) => {
+    if (!s?.start_time || !s?.end_time) return 480;
+    const [sh, sm] = String(s.start_time).split(':').map(Number);
+    const [eh, em] = String(s.end_time).split(':').map(Number);
+    return Math.max(60, eh * 60 + em - (sh * 60 + sm));
+  };
+
+  const myWorkedMinutes = (() => {
+    if (!shiftStatus.checkInAt) return 0;
+    const end = shiftStatus.checkOutAt ? new Date(shiftStatus.checkOutAt) : new Date();
+    return Math.max(0, Math.round((end - new Date(shiftStatus.checkInAt)) / 60000));
+  })();
+
+  const myStatus = shiftStatus.checkedOut
+    ? { label: 'Ажил дууссан', icon: '✓', bg: 'rgba(63,207,142,0.18)', fg: '#3fcf8e' }
+    : shiftStatus.checkedIn
+      ? { label: 'Ажил дээр', icon: '●', bg: 'rgba(0,153,219,0.18)', fg: adminColors.primary }
+      : { label: 'Бүртгүүлээгүй', icon: '○', bg: 'rgba(245,181,68,0.18)', fg: '#f5b544' };
+
   // Админы ӨӨРИЙНХ нь одоогийн байршил — бусад ажилтны байршлыг энд ХАРУУЛАХГҮЙ.
   const adminNearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
   const adminLocationLabel =
@@ -1351,95 +1376,109 @@ export default function AttendanceScreen() {
           бүртгэнэ (байршил + төхөөрөмжийн шалгалт хэвээр). */}
       <View style={[dashStyles.heroCard, { backgroundColor: adminColors.surfaceContainer }]}>
         <View style={dashStyles.heroTopRow}>
-          <View>
-            <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Миний ирц</Text>
-            <Text style={{ color: adminColors.text, fontSize: 26, fontWeight: '800', marginTop: 2 }}>
-              {shiftStatus.checkedIn
-                ? new Date(shiftStatus.checkInAt || Date.now()).toLocaleTimeString('mn-MN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '--:--'}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Өнөөдрийн ирц</Text>
+            <Text style={{ color: adminColors.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>
+              {shiftStatus.checkedOut
+                ? fmtHM(shiftStatus.checkOutAt)
+                : shiftStatus.checkedIn
+                  ? fmtHM(shiftStatus.checkInAt)
+                  : '--:--'}
             </Text>
+            <View style={[dashStyles.statusChip, { backgroundColor: myStatus.bg }]}>
+              <Text style={{ color: myStatus.fg, fontSize: 11, fontWeight: '700' }}>
+                {myStatus.icon} {myStatus.label}
+              </Text>
+            </View>
           </View>
-          <View
-            style={[
-              dashStyles.statusPill,
-              {
-                backgroundColor: shiftStatus.checkedOut
-                  ? 'rgba(160,160,168,0.18)'
-                  : shiftStatus.checkedIn
-                    ? 'rgba(63,207,142,0.18)'
-                    : 'rgba(245,181,68,0.18)',
-              },
-            ]}
-          >
-            <Text
-              style={{
-                color: shiftStatus.checkedOut ? '#a0a0a8' : shiftStatus.checkedIn ? '#3fcf8e' : '#f5b544',
-                fontSize: 12,
-                fontWeight: '700',
-              }}
-            >
-              {shiftStatus.checkedOut ? 'Ажил дууссан' : shiftStatus.checkedIn ? 'Ажил дээр' : 'Бүртгүүлээгүй'}
-            </Text>
+          <WorkHoursRing
+            workedMinutes={myWorkedMinutes}
+            targetMinutes={myShift ? shiftMinutes(myShift) : 480}
+            colors={adminColors}
+          />
+        </View>
+
+        {/* Ирсэн / Явсан хоёр багана */}
+        <View style={dashStyles.inOutRow}>
+          <View style={dashStyles.inOutCell}>
+            <View style={[dashStyles.inOutIcon, { backgroundColor: 'rgba(63,207,142,0.18)' }]}>
+              <Text style={{ fontSize: 13 }}>→</Text>
+            </View>
+            <View>
+              <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Ирсэн</Text>
+              <Text style={{ color: adminColors.text, fontSize: 16, fontWeight: '800' }}>
+                {fmtHM(shiftStatus.checkInAt)}
+              </Text>
+            </View>
+          </View>
+          <View style={[dashStyles.inOutDivider, { backgroundColor: adminColors.outlineVariant }]} />
+          <View style={dashStyles.inOutCell}>
+            <View style={[dashStyles.inOutIcon, { backgroundColor: 'rgba(255,107,96,0.18)' }]}>
+              <Text style={{ fontSize: 13 }}>←</Text>
+            </View>
+            <View>
+              <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Явсан</Text>
+              <Text style={{ color: adminColors.text, fontSize: 16, fontWeight: '800' }}>
+                {fmtHM(shiftStatus.checkOutAt)}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <View style={dashStyles.heroBtnRow}>
-          <TouchableOpacity
-            style={[
-              dashStyles.heroBtn,
-              {
-                backgroundColor: shiftStatus.checkedIn ? adminColors.surfaceContainerHigh : adminColors.primary,
-                opacity: shiftStatus.checkedIn || busy ? 0.55 : 1,
-              },
-            ]}
-            disabled={shiftStatus.checkedIn || busy}
-            onPress={() => quickAttendance('check_in')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={{
-                color: shiftStatus.checkedIn ? adminColors.textMuted : adminColors.onPrimary,
-                fontWeight: '800',
-                fontSize: 15,
-              }}
-            >
-              {shiftStatus.checkedIn ? 'Ирсэн ✓' : 'Ирлээ'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              dashStyles.heroBtn,
-              {
-                backgroundColor:
-                  !shiftStatus.checkedIn || shiftStatus.checkedOut
-                    ? adminColors.surfaceContainerHigh
-                    : '#ff6b60',
-                opacity: !shiftStatus.checkedIn || shiftStatus.checkedOut || busy ? 0.55 : 1,
-              },
-            ]}
-            disabled={!shiftStatus.checkedIn || shiftStatus.checkedOut || busy}
-            onPress={() => quickAttendance('check_out')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={{
-                color:
-                  !shiftStatus.checkedIn || shiftStatus.checkedOut ? adminColors.textMuted : '#ffffff',
-                fontWeight: '800',
-                fontSize: 15,
-              }}
-            >
-              {shiftStatus.checkedOut ? 'Явсан ✓' : 'Явлаа'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={{ color: adminColors.textFaint, fontSize: 12, marginTop: 12 }}>
+        <Text style={{ color: adminColors.textFaint, fontSize: 12, marginTop: 10 }}>
           📍 {adminLocationLabel}
         </Text>
+
+        {/* Ирлээ / Явлаа */}
+        {!shiftStatus.checkedOut ? (
+          <View style={dashStyles.heroBtnRow}>
+            {!shiftStatus.checkedIn ? (
+              <TouchableOpacity
+                style={[dashStyles.heroBtn, { backgroundColor: adminColors.primary, opacity: busy ? 0.55 : 1 }]}
+                disabled={busy}
+                onPress={() => quickAttendance('check_in')}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: adminColors.onPrimary, fontWeight: '800', fontSize: 15 }}>Ирлээ</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[dashStyles.heroBtn, { backgroundColor: '#ff6b60', opacity: busy ? 0.55 : 1 }]}
+                disabled={busy}
+                onPress={() => quickAttendance('check_out')}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Явлаа</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : null}
+      </View>
+
+      {/* Хурдан холбоос — доод хөвөгч цэсийг орлоно */}
+      <View style={dashStyles.quickRow}>
+        {[
+          { icon: '📨', label: 'Хүсэлт', to: 'AttendanceRequests', badge: pending.length },
+          { icon: '👥', label: 'Ажилтан', to: 'Employees' },
+          { icon: '⚙️', label: 'Тохиргоо', to: 'AttendanceSettings' },
+        ].map((q) => (
+          <TouchableOpacity
+            key={q.to}
+            style={[dashStyles.quickBtn, { backgroundColor: adminColors.surfaceContainer }]}
+            onPress={() => navigation.navigate(q.to)}
+            activeOpacity={0.8}
+          >
+            <Text style={{ fontSize: 17 }}>{q.icon}</Text>
+            <Text style={{ color: adminColors.text, fontSize: 12, fontWeight: '600', marginTop: 3 }}>
+              {q.label}
+            </Text>
+            {q.badge > 0 ? (
+              <View style={dashStyles.quickBadge}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{q.badge}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        ))}
       </View>
 
       <View style={{ marginTop: spacing.lg }}>
@@ -1672,23 +1711,10 @@ export default function AttendanceScreen() {
         )}
       />
 
-      {/* Floating sub-nav — зөвхөн энэ Ирц tab-ийн доторх дэд навигаци, гадаад Tab.Navigator-т нөлөөгүй */}
-      <View style={dashStyles.subNav}>
-        <View style={[dashStyles.subNavPill, { backgroundColor: adminColors.surfaceContainerHigh }]}>
-          <View style={[dashStyles.subNavItem, dashStyles.subNavItemActive, { backgroundColor: adminColors.primary }]}>
-            <Text style={{ fontSize: 16 }}>⏱️</Text>
-            <Text style={{ color: adminColors.onPrimary, fontSize: 11, fontWeight: '700' }}>Ирц</Text>
-          </View>
-          <TouchableOpacity style={dashStyles.subNavItem} onPress={() => navigation.navigate('AttendanceRequests')}>
-            <Text style={{ fontSize: 16 }}>📨</Text>
-            <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Хүсэлт</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dashStyles.subNavItem} onPress={() => navigation.navigate('Employees')}>
-            <Text style={{ fontSize: 16 }}>👥</Text>
-            <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Ажилтан</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* ⚠️ Доод хөвөгч дэд цэсийг АРИЛГАВ: аппын үндсэн Tab.Navigator мөн
+          доод талд байдаг тул хоёулаа давхцаж, дарагдаж болдоггүй байв.
+          Хүсэлт/Ажилтан руу орох замыг header доторх хурдан товчоор
+          гаргасан (adminHeader доторх quickRow). */}
 
       <DateRangeSheet
         visible={dateSheetVisible}
@@ -1974,10 +2000,48 @@ const dashStyles = StyleSheet.create({
   },
   selfCard: { borderRadius: 16, padding: spacing.md, marginBottom: spacing.sm },
   heroCard: { borderRadius: 20, padding: spacing.lg, marginBottom: spacing.sm },
-  heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  statusChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    marginTop: 8,
+  },
   heroBtnRow: { flexDirection: 'row', gap: 10, marginTop: spacing.lg },
   heroBtn: { flex: 1, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  inOutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.10)',
+  },
+  inOutCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inOutIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  inOutDivider: { width: StyleSheet.hairlineWidth, height: 28, marginHorizontal: spacing.sm },
+  quickRow: { flexDirection: 'row', gap: 10, marginTop: spacing.sm },
+  quickBtn: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 14,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ff6b60',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
   errorBox: { borderRadius: 12, padding: spacing.md, marginTop: spacing.md },
   listHeadRow: {
     flexDirection: 'row',
@@ -2006,20 +2070,6 @@ const dashStyles = StyleSheet.create({
     width: 3,
     borderRadius: 2,
   },
-  subNav: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
-  subNavPill: {
-    flexDirection: 'row',
-    borderRadius: 28,
-    padding: 6,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  subNavItem: { alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 22, gap: 2 },
-  subNavItemActive: {},
 });
 
 const makeStyles = ({ colors }) => StyleSheet.create({
