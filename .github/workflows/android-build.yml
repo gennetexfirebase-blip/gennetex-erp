@@ -8,7 +8,12 @@ on:
   # гараар товч дарах шаардлагагүй.
   push:
     tags:
+      # `v1.3.5` → release build (тараах APK)
       - 'v*'
+      # `dev-1` → DEBUG build. Энэ нь Expo Go-ийн орлуулагч:
+      # JS bundle-ийг дотроо агуулахгүй, Metro dev server-ээс уншина.
+      # Тиймээс кодоо засмагц утсан дээр шууд шинэчлэгдэнэ.
+      - 'dev-*'
   workflow_dispatch:
     inputs:
       variant:
@@ -34,7 +39,7 @@ on:
 
 env:
   # Tag түлхэлтээр ажиллахад `inputs` хоосон байдаг тул энд нэгтгэнэ.
-  VARIANT: ${{ inputs.variant || 'release' }}
+  VARIANT: ${{ inputs.variant || (startsWith(github.ref_name, 'dev-') && 'debug') || 'release' }}
   RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
 
 jobs:
@@ -201,7 +206,14 @@ jobs:
             echo "::error::APK олдсонгүй."
             exit 1
           fi
-          OUT="gennetex-erp-${VERSION}.apk"
+          # ⚠️ Debug APK-г ЗААВАЛ өөр нэрээр гаргана. Тэр нь JS bundle-гүй
+          # бөгөөд Metro dev server-гүйгээр ажиллахгүй тул ажилтнуудад
+          # тараавал "апп нээгдэхгүй" болно.
+          if [ "${{ env.VARIANT }}" = "release" ]; then
+            OUT="gennetex-erp-${VERSION}.apk"
+          else
+            OUT="gennetex-erp-${VERSION}-dev.apk"
+          fi
           cp "$SRC" "$OUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "path=$OUT" >> "$GITHUB_OUTPUT"
