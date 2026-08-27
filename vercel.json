@@ -16,6 +16,34 @@
       ]
     },
     {
+      "comment": "Манифест ба татах хуудас — CDN дээр ХЭЗЭЭ Ч кэшлэхгүй. Эс бөгөөс шинэ хувилбар гаргасан ч хэрэглэгч хуучин дугаарыг хардаг бөгөөд hard refresh (Ctrl+Shift+R) ч тусладаггүй: кэш нь браузерт биш, Vercel-ийн ирмэг дээр байдаг.",
+      "source": "/app/latest.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/app",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/app/uplaod",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/app/(.*\\.apk)",
       "headers": [
         {

@@ -85,6 +85,16 @@
     padding-bottom: 22px;
   }
 
+  .lede {
+    margin: -8px 0 0;
+    max-width: 520px;
+    text-align: center;
+    font-size: clamp(14px, 3.2vw, 16px);
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+  @media (prefers-color-scheme: dark) { .lede { color: #cfdae6; } }
   .note {
     margin: 0;
     max-width: 520px;
@@ -176,6 +186,8 @@
   </div>
 </div>
 
+<p class="lede" id="lede">Энэ цаг дуусахад автоматаар серверт байршина.</p>
+
 <p class="note" id="note"></p>
 
 <button class="gear" id="gear" title="Тохируулах" aria-label="Тохируулах">⚙</button>
@@ -240,8 +252,9 @@ function tick() {
   if (left <= 0) {
     clearInterval(ticking);
     els.board.style.display = 'none';
+    document.getElementById('lede').style.display = 'none';
     els.note.className = 'done';
-    els.note.textContent = 'Хугацаа дууслаа.';
+    els.note.textContent = 'Хугацаа дууслаа — серверт байршиж байна.';
     return;
   }
 

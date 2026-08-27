@@ -169,7 +169,13 @@
     const dl = document.getElementById('dl');
     const meta = document.getElementById('meta');
     try {
-      const res = await fetch('/app/latest.json', { cache: 'no-store' });
+      // ⚠️ `cache: 'no-store'` нь ЗӨВХӨН браузерын кэшийг алгасдаг —
+      // Vercel-ийн ирмэг (CDN) дээрх хуулбарыг тойрдоггүй. Тиймээс шинэ
+      // хувилбар гаргасан ч хуучин дугаар харагдаж, Ctrl+Shift+R ч
+      // тусалдаггүй байв. Давтагдашгүй query нэмснээр CDN тус бүрийн
+      // хүсэлтийг шинэ гэж үзнэ (vercel.json дээрх no-store толгойтой
+      // хамт хоёр давхар хамгаалалт).
+      const res = await fetch('/app/latest.json?t=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) throw new Error('manifest');
       const info = await res.json();
       dl.href = info.url;
