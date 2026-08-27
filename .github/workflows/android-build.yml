@@ -3,6 +3,12 @@ name: Android APK build
 # Гараар ажиллуулна (Actions → Android APK build → Run workflow).
 # EAS ашиглахгүй — GitHub-ийн runner дээр Gradle-ээр шууд барина.
 on:
+  # `v1.3.3` мэтийн tag түлхэхэд АВТОМАТААР release build хийнэ.
+  # Ингэснээр хувилбар гаргах = tag түлхэх болж, Actions руу орж
+  # гараар товч дарах шаардлагагүй.
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       variant:
@@ -25,6 +31,11 @@ on:
         required: false
         default: ''
         type: string
+
+env:
+  # Tag түлхэлтээр ажиллахад `inputs` хоосон байдаг тул энд нэгтгэнэ.
+  VARIANT: ${{ inputs.variant || 'release' }}
+  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
 
 jobs:
   build:
@@ -123,7 +134,7 @@ jobs:
 
       # ── Release гарын үсэг (зөвхөн variant=release үед) ───────────
       - name: Release keystore тавих
-        if: ${{ inputs.variant == 'release' }}
+        if: ${{ env.VARIANT == 'release' }}
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -142,7 +153,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          if [ "${{ inputs.variant }}" = "release" ]; then
+          if [ "${{ env.VARIANT }}" = "release" ]; then
             ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
           else
             ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
@@ -152,7 +163,7 @@ jobs:
       # Bundle-гүй APK нь суусан ч ажиллахгүй бөгөөд гаднаас нь ялгаж
       # мэдэхэд хэцүү тул энд зогсоох нь дээр.
       - name: JS bundle шалгах
-        if: ${{ inputs.variant == 'release' }}
+        if: ${{ env.VARIANT == 'release' }}
         run: |
           APK=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
           if unzip -l "$APK" | grep -q "index.android.bundle"; then
@@ -187,17 +198,17 @@ jobs:
 
       # ── GitHub Release руу байршуулах ─────────────────────────────
       - name: Release үүсгэж APK хавсаргах
-        if: ${{ inputs.release_tag != '' }}
+        if: ${{ env.RELEASE_TAG != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ inputs.release_tag }}"
+          TAG="${{ env.RELEASE_TAG }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${{ steps.apk.outputs.path }}" --clobber
           else
             gh release create "$TAG" "${{ steps.apk.outputs.path }}" \
               --title "Gennetex ERP $TAG" \
-              --notes "Хувилбар ${{ steps.apk.outputs.version }} · ${{ inputs.variant }} build"
+              --notes "Хувилбар ${{ steps.apk.outputs.version }} · ${{ env.VARIANT }} build"
           fi
           echo "Татах холбоос:"
           echo "https://github.com/${{ github.repository }}/releases/download/$TAG/${{ steps.apk.outputs.path }}"
@@ -208,7 +219,7 @@ jobs:
             echo "### APK бэлэн боллоо"
             echo ""
             echo "- Хувилбар: **${{ steps.apk.outputs.version }}**"
-            echo "- Төрөл: **${{ inputs.variant }}**"
+            echo "- Төрөл: **${{ env.VARIANT }}**"
             echo "- Хэмжээ: **$(( ${{ steps.apk.outputs.size }} / 1048576 )) MB**"
             echo "- sizeBytes (latest.json-д хэрэгтэй): \`${{ steps.apk.outputs.size }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
