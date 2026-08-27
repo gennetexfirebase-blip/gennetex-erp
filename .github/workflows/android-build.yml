@@ -152,12 +152,25 @@ jobs:
       - name: APK барих
         working-directory: android
         run: |
+          set -o pipefail
           chmod +x gradlew
-          if [ "${{ env.VARIANT }}" = "release" ]; then
-            ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
-          else
-            ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
-          fi
+          TASK=assembleDebug
+          [ "${{ env.VARIANT }}" = "release" ] && TASK=assembleRelease
+          ./gradlew "$TASK" --no-daemon --stacktrace \
+            -PreactNativeArchitectures=arm64-v8a 2>&1 | tee /tmp/gradle.log
+
+      # ⚠️ Gradle унахад GitHub нь annotation-д зөвхөн "exit code 1" гэж
+      # бичдэг бөгөөд бодит алдаа зөвхөн бүтэн лог дотор үлддэг. Тэр логийг
+      # унших API нь нэвтрэлт шаарддаг тул шалтгаан гаднаас харагдахгүй.
+      # Энд гол мөрүүдийг annotation болгож гаргана.
+      - name: Gradle-ийн алдааг ил гаргах
+        if: failure()
+        run: |
+          echo "::group::Gradle log (сүүлийн 200 мөр)"
+          tail -200 /tmp/gradle.log || echo "лог үүсээгүй"
+          echo "::endgroup::"
+          grep -iE "^(e:|error:|FAILURE|Caused by|\* What went wrong)|error: |Execution failed" /tmp/gradle.log \
+            | tail -25 | while IFS= read -r line; do echo "::error::$line"; done || true
 
       # APK дотор JS bundle БАЙГАА ЭСЭХИЙГ баталгаажуулна.
       # Bundle-гүй APK нь суусан ч ажиллахгүй бөгөөд гаднаас нь ялгаж
