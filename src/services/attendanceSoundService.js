@@ -5,6 +5,11 @@ import { Audio } from 'expo-av';
 // бүртгэгдсэн тохиолдолд л дуу тоглоно).
 const CHECK_IN_SOUND = require('../../assets/sounds/attendance_check_in.mp3');
 const CHECK_OUT_SOUND = require('../../assets/sounds/attendance_check_out.mp3');
+// Зайнаас (бүсээс гадуур) бүртгүүлсэн — админы зөвшөөрөл хүлээнэ.
+const REMOTE_IN_SOUND = require('../../assets/sounds/remote_check_in.mp3');
+const REMOTE_OUT_SOUND = require('../../assets/sounds/remote_check_out.mp3');
+// Ирц бүртгэх бүсээс ГАРСАН.
+const ZONE_EXIT_SOUND = require('../../assets/sounds/zone_exit.mp3');
 
 async function playSound(asset) {
   try {
@@ -26,6 +31,21 @@ export function playCheckInSound() {
 
 export function playCheckOutSound() {
   return playSound(CHECK_OUT_SOUND);
+}
+
+/** Зайнаас ирсэн ирц илгээгдлээ (админы зөвшөөрөл хүлээнэ). */
+export function playRemoteCheckInSound() {
+  return playSound(REMOTE_IN_SOUND);
+}
+
+/** Зайнаас явсан ирц илгээгдлээ. */
+export function playRemoteCheckOutSound() {
+  return playSound(REMOTE_OUT_SOUND);
+}
+
+/** Ирц бүртгэх бүсээс ГАРСАН үед. */
+export function playZoneExitSound() {
+  return playSound(ZONE_EXIT_SOUND);
 }
 
 // ---------------------------------------------------------------------------

@@ -37,7 +37,10 @@ import * as notifyCenterApi from '../services/notificationCenterService';
 import {
   playCheckInSound,
   playCheckOutSound,
+  playRemoteCheckInSound,
+  playRemoteCheckOutSound,
   playZoneEnterSound,
+  playZoneExitSound,
 } from '../services/attendanceSoundService';
 import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
@@ -470,7 +473,10 @@ export default function AttendanceScreen() {
    * (гадна → дотор, эсвэл нэг бүсээс нөгөө рүү) үед л дуугарна — эс бөгөөс
    * байршил шинэчлэгдэх бүрд (8 секунд тутам) давтан дуугарна.
    */
-  const insideZoneRef = useRef(null);
+  // `undefined` = хараахан байршил тогтоогоогүй, `null` = бүсээс гадуур,
+  // id = тухайн бүсэд байна. Гурвыг ялгах нь чухал — эс бөгөөс апп нээх
+  // бүрд "бүсээс гарлаа" гэж буруу дуугарна.
+  const insideZoneRef = useRef(undefined);
   useEffect(() => {
     if (!isCloud || !liveLocation?.latitude || locations.length === 0) return;
     const near = attApi.nearestAttendanceLocation(liveLocation, locations);
@@ -478,12 +484,16 @@ export default function AttendanceScreen() {
 
     if (insideZoneRef.current === currentId) return; // өөрчлөгдөөгүй
     const previous = insideZoneRef.current;
+    const isFirstFix = previous === undefined;
     insideZoneRef.current = currentId;
 
-    // Анхны ачаалалт (previous === null && зөвхөн эхлэх) үед ч дуугарна —
-    // ажилтан аппаа нээхэд бүсэд байвал мэдэгдэх нь зөв.
-    if (currentId && currentId !== previous) {
+    if (currentId) {
+      // Бүсэд НЭВТЭРЛЭЭ.
       playZoneEnterSound(near.location?.name);
+    } else if (previous && !isFirstFix) {
+      // Бүсээс ГАРЛАА. ⚠️ Анхны байршил тогтоох үед (`isFirstFix`) дуугаргахгүй
+      // — тэр үед "гарсан" биш, зүгээр л бүсээс гадуур байгаа гэсэн үг.
+      playZoneExitSound();
     }
   }, [isCloud, liveLocation, locations]);
 
@@ -845,8 +855,18 @@ export default function AttendanceScreen() {
     });
     await loadMyDay();
     await refreshShiftStatus();
+
     if (isRemote) {
-      Alert.alert('Хүсэлт илгээгдлээ', 'Зайнаас бүртгүүлэх хүсэлт админд илгээгдлээ. Зөвшөөрөхийг хүлээнэ үү.');
+      // ⚠️ Зайнаас бүртгүүлсэн ирц нь `pending` төлөвтэй үүсдэг (дээрх
+      // `status`) бөгөөд админ зөвшөөрч байж л жинхэнэ ирц болно.
+      // Админд мэдэгдэл нь `attApi.insertAttendance` дотроос
+      // (`notifyRemoteAttendance`) автоматаар илгээгддэг.
+      if (type === 'check_in') playRemoteCheckInSound();
+      else playRemoteCheckOutSound();
+      Alert.alert(
+        'Хүсэлт илгээгдлээ',
+        'Зайнаас бүртгүүлэх хүсэлт админд илгээгдлээ. Админ зөвшөөрсний дараа ирцэд тооцогдоно.'
+      );
     } else {
       // "Ирц бүртгэл амжилттай" гэсэн бичвэрийн оронд дуу хоолойгоор мэдэгдэнэ.
       if (type === 'check_in') playCheckInSound();
@@ -1959,8 +1979,11 @@ export default function AttendanceScreen() {
               style={[
                 dashStyles.statusStripe,
                 {
-                  backgroundColor:
-                    item.status === 'late'
+                  // Зөвшөөрөл хүлээж буй нь бусад төлөвөөс ДЭЭГҮҮР —
+                  // админ юуг шийдэх ёстойгоо эхэнд харах ёстой.
+                  backgroundColor: item.is_pending
+                    ? '#f5b544'
+                    : item.status === 'late'
                       ? '#ff6b60'
                       : item.status === 'absent'
                         ? '#5c5c64'
@@ -1978,7 +2001,16 @@ export default function AttendanceScreen() {
                 <Text style={{ color: adminColors.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>
                   {item.employee_name}
                 </Text>
-                {item.is_remote ? (
+                {/* Зөвшөөрөл хүлээж буй нь хамгийн чухал мэдээлэл тул
+                    эхэнд, шар өнгөөр. */}
+                {item.is_pending ? (
+                  <View style={dashStyles.pendingChip}>
+                    <Ionicons name="time-outline" size={10} color="#f5b544" />
+                    <Text style={{ color: '#f5b544', fontSize: 10, fontWeight: '700' }}>
+                      Хүлээгдэж байна
+                    </Text>
+                  </View>
+                ) : item.is_remote ? (
                   <Text style={{ color: adminColors.primary, fontSize: 10, marginTop: 1 }}>Зайнаас</Text>
                 ) : null}
               </View>
@@ -2386,6 +2418,17 @@ const dashStyles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 6,
     overflow: 'hidden',
+  },
+  pendingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245,181,68,0.16)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 3,
   },
   statusStripe: {
     position: 'absolute',

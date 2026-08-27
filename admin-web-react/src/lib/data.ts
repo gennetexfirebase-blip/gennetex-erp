@@ -35,6 +35,8 @@ export type AttendanceRow = {
   check_in_at: string | null;
   check_out_at: string | null;
   is_remote: boolean;
+  /** Зайнаас бүртгүүлсэн бөгөөд админы зөвшөөрөл хүлээж буй эсэх. */
+  is_pending?: boolean;
   late_minutes: number | null;
   early_leave_minutes: number | null;
   worked_minutes: number | null;

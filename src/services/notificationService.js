@@ -513,11 +513,17 @@ export async function notifyIncomingCall(calleeId, { callerName, room, callId })
   });
 }
 
-export async function notifyRemoteAttendance({ staffName, note }) {
+export async function notifyRemoteAttendance({ staffName, note, type, distanceM }) {
+  const kind = type === 'check_out' ? 'явсан' : 'ирсэн';
+  const where = distanceM != null ? ` · цэгээс ~${distanceM}м` : '';
   await notifyAdmins({
     title: 'Зайнаас ирцийн хүсэлт',
-    body: `${staffName || 'Ажилтан'}: ${note || 'Зөвшөөрөл хүлээж байна'}`,
-    data: { type: 'attendance_pending'},
+    body: `${staffName || 'Ажилтан'} зайнаас ${kind} ирц бүртгүүллээ${where}${
+      note ? ` · ${note}` : ''
+    }`,
+    // Дарахад ирцийн дэлгэц рүү очно — админ тэндээс зөвшөөрнө.
+    data: { type: 'attendance_pending', screen: 'Attendance' },
+    priority: 'high',
   });
 }
 

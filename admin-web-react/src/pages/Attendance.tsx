@@ -199,7 +199,12 @@ export default function AttendancePage() {
                         <Avatar name={r.employee_name} src={r.avatar_url} size={30} />
                         <div className="min-w-0">
                           <p className="truncate font-medium text-ink">{r.employee_name}</p>
-                          {r.is_remote ? (
+                          {/* Зөвшөөрөл хүлээж буй нь эхэнд, шараар */}
+                          {r.is_pending ? (
+                            <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-bold text-warning">
+                              Хүлээгдэж байна
+                            </span>
+                          ) : r.is_remote ? (
                             <p className="text-[11px] text-brand">Зайнаас</p>
                           ) : null}
                         </div>

@@ -81,6 +81,8 @@ export async function insertAttendance(record) {
       await notifyApi.notifyRemoteAttendance({
         staffName: record.staffName,
         note: record.note,
+        type: record.type,
+        distanceM: record.distanceM ?? record.distance_m,
       });
     } catch (e) {}
   } else if (data.type === 'check_in'&& data.is_remote) {

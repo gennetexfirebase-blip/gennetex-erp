@@ -66,6 +66,7 @@ export function buildDailyAttendanceSheets({ date, rows = [], orgName = 'ЖЕН�
         ['Хоцорсон', count('late')],
         ['Эрт явсан', count('early_leave')],
         ['Тасалсан', count('absent')],
+        ['Зөвшөөрөл хүлээж буй', rows.filter((r) => r.is_pending).length],
         ['Чөлөөтэй', count('leave')],
         ['Амралт', count('rest')],
         ['Нийт ажилласан (цаг)', minutesToHours(totalWorked)],
@@ -87,6 +88,7 @@ export function buildDailyAttendanceSheets({ date, rows = [], orgName = 'ЖЕН�
           'Хоцорсон (мин)',
           'Эрт явсан (мин)',
           'Зайнаас',
+          'Зөвшөөрөл',
           'Төлөв',
         ],
         ...rows.map((r, i) => [
@@ -100,6 +102,7 @@ export function buildDailyAttendanceSheets({ date, rows = [], orgName = 'ЖЕН�
           r.late_minutes || 0,
           r.early_leave_minutes || 0,
           r.is_remote ? 'Тийм' : '',
+          r.is_pending ? 'Хүлээгдэж байна' : r.check_in_at ? 'Баталгаажсан' : '',
           STATUS_LABEL[r.status] || r.status || '',
         ]),
       ],

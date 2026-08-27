@@ -5,7 +5,6 @@
 // export ГАРГАДАГГҮЙ. Metro нь interop хийдэг ч Rollup хийдэггүй тул
 // side-effect-ээр ачаалаад `globalThis.XlsxChart`-аас уншина.
 import '../../../admin-web/xlsx-chart.js';
-// @ts-ignore — төрлийн тодорхойлолтгүй хуваалцсан модуль
 import {
   buildDailyAttendanceSheets,
   sheetsToPreview,
@@ -35,7 +34,9 @@ export function toPreview(sheets: Sheet[]): Preview {
  */
 export function downloadDailyExcel(date: string, rows: AttendanceRow[]) {
   const bytes = XlsxChart.build({ sheets: dailySheets(date, rows) });
-  const blob = new Blob([bytes], {
+  // `Uint8Array<ArrayBufferLike>`-ийг Blob хүлээж авахын тулд ArrayBuffer
+  // болгож хуулна (TS-ийн шинэ lib дээр шууд дамжуулахыг зөвшөөрдөггүй).
+  const blob = new Blob([new Uint8Array(bytes).buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = URL.createObjectURL(blob);
