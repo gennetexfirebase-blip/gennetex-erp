@@ -206,7 +206,7 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#0099db",
-          "defaultChannel": "default",
+          "defaultChannel": "general_v2",
           "sounds": [
             "./assets/sounds/incoming_call.wav"
           ]

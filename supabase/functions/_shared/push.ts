@@ -147,9 +147,19 @@ export async function sendPushAudience(db: SupabaseClient, audience: PushAudienc
           ? {}
           : {
               notification: {
-                channelId: notification.channelId || 'default',
+                // Апп талын `DEFAULT_CHANNEL`-тэй ЗААВАЛ таарна. Хуучин
+                // `default` суваг нь IMPORTANCE_DEFAULT байсан тул
+                // мэдэгдэл банергүй, чимээгүй суудаг байв.
+                channelId: notification.channelId || 'general_v2',
                 sound: notification.sound || 'default',
                 icon: 'notification_icon',
+                // ⚠️ Эдгээргүй бол зарим Android (ялангуяа Samsung One UI)
+                // мэдэгдлийг банергүй, түгжээтэй дэлгэцэд харагдуулахгүй
+                // суулгадаг. Сувгийн importance дангаараа хангалтгүй.
+                notificationPriority: 'PRIORITY_MAX',
+                visibility: 'public',
+                defaultSound: true,
+                defaultVibrateTimings: true,
               },
             }),
       },
@@ -164,8 +174,27 @@ export async function sendPushAudience(db: SupabaseClient, audience: PushAudienc
     result.responses.forEach((response, index) => {
       const code = response.error?.code || '';
       if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token') invalid.add(chunk[index]);
+      // ⚠️ FCM-ийн МӨР ТУС БҮРИЙН хариуг лог болгоно. Өмнө нь зөвхөн
+      // нийт тоог буцаадаг байсан бөгөөд клиент түүнийг ч хаядаг байв —
+      // тиймээс "push илгээгдсэн ч утсанд ирэхгүй" гэдгийг оношлох ямар
+      // ч мэдээлэл үлддэггүй байлаа.
+      if (response.error) {
+        console.error('[push] FCM амжилтгүй', {
+          code,
+          message: response.error.message,
+          token: chunk[index].slice(0, 12) + '…',
+        });
+      }
     });
   }
+  console.log('[push] дүн', {
+    type: notification.type,
+    recipients: allUsers.length,
+    tokens: tokens.length,
+    sent,
+    failed,
+    invalid: invalid.size,
+  });
   if (invalid.size) await db.from('push_tokens').delete().in('token', [...invalid]);
   return { recipients: allUsers.length, tokens: tokens.length, sent, failed, invalidTokensRemoved: invalid.size };
 }

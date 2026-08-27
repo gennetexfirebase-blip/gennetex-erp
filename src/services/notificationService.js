@@ -78,10 +78,27 @@ Notifications.setNotificationHandler({
   },
 });
 
+/**
+ * Ерөнхий мэдэгдлийн суваг.
+ *
+ * ⚠️ ЯАГААД `_v2` ВЭ: өмнөх `default` суваг нь `IMPORTANCE_DEFAULT`-аар
+ *    үүссэн бөгөөд тэр түвшинд Android нь мэдэгдлийг ЗӨВХӨН самбарт
+ *    чимээгүй суулгадаг — дэлгэцийн дээд талд банер (heads-up) гаргахгүй,
+ *    түгжээтэй дэлгэц дээр харуулахгүй. Тиймээс админы илгээсэн мэдэгдэл
+ *    "ирээгүй" мэт харагддаг байв (чат мессеж ирдэг байсан нь `chat`
+ *    суваг HIGH байсных).
+ *
+ *    Android дээр суваг НЭГ УДАА үүссэний дараа importance-ийг код
+ *    өөрчилж ЧАДАХГҮЙ (зөвхөн хэрэглэгч Тохиргооноос). Тиймээс шинэ ID
+ *    авахаас өөр зам байхгүй — дуудлагын суваг дээр аль хэдийн ашигласан
+ *    хэв маяг (`gennetex_incoming_call_v2`).
+ */
+export const DEFAULT_CHANNEL = 'general_v2';
+
 export async function ensureChannels() {
   if (Platform.OS !== 'android') return;
   const channels = [
-    ['default', 'Ерөнхий мэдэгдэл', Notifications.AndroidImportance.DEFAULT],
+    [DEFAULT_CHANNEL, 'Ерөнхий мэдэгдэл', Notifications.AndroidImportance.HIGH],
     ['messages', 'Мессеж', Notifications.AndroidImportance.HIGH],
     ['chat', 'Чат мессеж', Notifications.AndroidImportance.HIGH],
     ['orders', 'Захиалга', Notifications.AndroidImportance.HIGH],
@@ -116,9 +133,15 @@ export async function ensureChannels() {
    * ажиллахаа больсон сувгууд хуримтлагдаж, аль нь идэвхтэйг нь
    * ялгах боломжгүй болно.
    */
-  const RETIRED_CALL_CHANNELS = ['gennetex_incoming_call_v1'];
+  const RETIRED_CHANNELS = [
+    'gennetex_incoming_call_v1',
+    // Чимээгүй, банергүй хуучин ерөнхий суваг — `DEFAULT_CHANNEL`-ийн
+    // тайлбарыг үзнэ үү. Устгахгүй бол хэрэглэгчийн Мэдэгдэл тохиргоонд
+    // хоёр "Ерөнхий мэдэгдэл" зэрэгцэн харагдана.
+    'default',
+  ];
   await Promise.all(
-    RETIRED_CALL_CHANNELS.map((id) =>
+    RETIRED_CHANNELS.map((id) =>
       Notifications.deleteNotificationChannelAsync(id).catch(() => {})
     )
   );
@@ -329,7 +352,7 @@ function normalizeNotification(payload = {}) {
     screen: payload.data?.screen || payload.screen,
     entityId: payload.data?.entityId || payload.entityId,
     data: { ...(payload.data || {}) },
-    channelId: payload.channelId || 'default',
+    channelId: payload.channelId || DEFAULT_CHANNEL,
     sound: payload.sound || 'default',
   };
 }
@@ -569,7 +592,7 @@ export async function notifyDeveloperMessage({ fromName, subject, preview, messa
     title: `Шинэ мессеж: ${fromName || 'Ажилтан'}`,
     body: subject ? `${subject} — ${preview || ''}`.trim() : preview || 'Мессеж ирлээ',
     data: { type: 'admin', screen: 'DeveloperInbox', entityId: messageId },
-    channelId: 'default',
+    channelId: DEFAULT_CHANNEL,
   });
 }
 
@@ -579,7 +602,7 @@ export async function notifyLeaveRequestToAdmins({ userName, dateRange, reason, 
     title: 'Чөлөөний хүсэл',
     body: `${userName || 'Ажилтан'} — ${dateRange || ''}${reason ? ` · ${reason}` : ''}`.trim(),
     data: { type: 'admin', screen: 'Notifications', entityId: requestId },
-    channelId: 'default',
+    channelId: DEFAULT_CHANNEL,
   });
 }
 
@@ -589,7 +612,7 @@ export async function notifyAttendanceRequestToAdmins({ userName, typeLabel, req
     title: 'Цагийн шинэ хүсэлт',
     body: `${userName || 'Ажилтан'}: ${typeLabel || 'Хүсэлт'}`,
     data: { type: 'admin', screen: 'AttendanceRequests', entityId: requestId },
-    channelId: 'default',
+    channelId: DEFAULT_CHANNEL,
   });
 }
 
@@ -602,7 +625,7 @@ export async function notifyAttendanceRequestDecision(userId, { typeLabel, statu
         ? `${typeLabel || 'Хүсэлт'} зөвшөөрөгдлөө`
         : `${typeLabel || 'Хүсэлт'}${rejectionReason ? `: ${rejectionReason}` : ''}`,
     data: { type: 'attendance_request_decision', requestId, status },
-    channelId: 'default',
+    channelId: DEFAULT_CHANNEL,
     priority: 'high',
   });
 }

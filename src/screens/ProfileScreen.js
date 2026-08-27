@@ -19,6 +19,7 @@ import {
   getPushDiagnostics,
   enablePushForUser,
   sendPushToUser,
+  DEFAULT_CHANNEL,
 } from '../services/notificationService';
 import {
   getIncomingCallDiagnostics,
@@ -99,7 +100,7 @@ export default function ProfileScreen() {
         title: 'Тест мэдэгдэл',
         body: 'Энэ мэдэгдэл ирсэн бол push бүрэн ажиллаж байна.',
         type: 'test',
-        channelId: 'default',
+        channelId: DEFAULT_CHANNEL,
       });
       const lines = [
         `Хүлээн авагч: ${res?.recipients ?? '—'}`,
