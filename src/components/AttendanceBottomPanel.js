@@ -1,6 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+/** Аппын үндсэн доод таб мөрний ойролцоо өндөр (icon + текст + padding). */
+const TAB_BAR_HEIGHT = 62;
 
 /** Map screen-ийн доод, rounded-top цагаан панел — товч 2 + өнөөдрийн хуваарийн мөр. */
 export default function AttendanceBottomPanel({
@@ -13,8 +17,18 @@ export default function AttendanceBottomPanel({
   locations = [],
   activeLocationId,
 }) {
+  // ⚠️ Панел нь аппын үндсэн таб мөрний ДЭЭР байрлана. Өмнө нь `bottom: 0`
+  // байсан тул "Цаг бүртгэл/Хүсэлт" товч болон цэгийн жагсаалт таб мөрний
+  // ард орж дарагдахгүй байв.
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={[styles.panel, { backgroundColor: colors.surface }]}>
+    <View
+      style={[
+        styles.panel,
+        { backgroundColor: colors.surface, paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 12 },
+      ]}
+    >
       <View style={styles.handle} />
       <View style={styles.row}>
         <TouchableOpacity
@@ -105,7 +119,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingTop: 10,
     paddingHorizontal: 20,
-    paddingBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,

@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { imageQuality } from '../lib/performanceMode';
 import { useFaceDetection } from '../lib/faceDetection';
 import * as faceCloud from '../services/faceCloudService';
 import * as faceEdge from '../services/faceEdgeService';
@@ -804,17 +806,35 @@ export default function AttendanceScreen() {
    * АЛГА, шууд бүртгэнэ. Байршил, төхөөрөмжийн баталгаажуулалт хэвээр
    * хамгаалалт болно; зөвхөн камерын алхмыг л алгасна.
    */
-  const finalizeQuickAttendance = async (type, loc, isRemote, distance, locationName, reason = null) => {
+  const finalizeQuickAttendance = async (
+    type,
+    loc,
+    isRemote,
+    distance,
+    locationName,
+    reason = null,
+    photoUri = null
+  ) => {
     const dev = bypassDeviceApproval
       ? { verified: true, deviceId: null, reason: null }
       : await deviceApi.verifyDeviceForAttendance(profile.id);
     const status = isRemote || !dev.verified ? 'pending' : 'approved';
     const deviceNote = dev.verified ? null : `Төхөөрөмж баталгаажаагүй (${dev.reason})`;
+
+    // Зураг сонгосон бол хавсаргана. Байршуулалт унасан ч ирцийг ЗОГСООХГҮЙ
+    // — зураг нь заавал биш нэмэлт мэдээлэл.
+    let photoUrl = null;
+    if (photoUri) {
+      try {
+        photoUrl = await attApi.uploadSelfie(photoUri, profile.id);
+      } catch (e) {}
+    }
+
     await attApi.insertAttendance({
       staffId: profile.id,
       staffName: profile.name,
       type,
-      photoUrl: null,
+      photoUrl,
       status,
       isRemote,
       distanceM: distance,
@@ -831,6 +851,30 @@ export default function AttendanceScreen() {
       // "Ирц бүртгэл амжилттай" гэсэн бичвэрийн оронд дуу хоолойгоор мэдэгдэнэ.
       if (type === 'check_in') playCheckInSound();
       else playCheckOutSound();
+    }
+  };
+
+  /**
+   * "Явлаа" дээр буусан байршлын зураг авах (заавал биш).
+   *
+   * Камер нээнэ; хэрэглэгч цуцлах эсвэл зөвшөөрөл өгөхгүй бол `null`
+   * буцаана — ирц зураггүйгээр бүртгэгдэнэ.
+   */
+  const pickCheckOutPhoto = async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Зөвшөөрөл', 'Камерын зөвшөөрөл олгогдоогүй тул зураггүй бүртгэнэ.');
+        return null;
+      }
+      const res = await ImagePicker.launchCameraAsync({
+        quality: imageQuality(),
+        allowsEditing: false,
+      });
+      if (res.canceled || !res.assets?.[0]?.uri) return null;
+      return res.assets[0].uri;
+    } catch (e) {
+      return null;
     }
   };
 
@@ -864,6 +908,56 @@ export default function AttendanceScreen() {
         setRemoteReason('');
         setQuickFlow(true);
         setRemoteModal(true);
+        return;
+      }
+
+      // ЯВЛАА дээр буусан байршлаа зургаар баталгаажуулах сонголт.
+      // ⚠️ ЗААВАЛ БИШ — "Алгасах" дарвал зураггүй шууд бүртгэнэ.
+      if (type === 'check_out') {
+        setBusy(false);
+        Alert.alert(
+          'Явлаа',
+          'Буусан байршлаа зургаар баталгаажуулах уу?',
+          [
+            {
+              text: 'Алгасах',
+              style: 'cancel',
+              onPress: async () => {
+                setBusy(true);
+                try {
+                  await finalizeQuickAttendance(type, loc, mode !== 'onsite', distance, locationName);
+                } catch (e) {
+                  Alert.alert('Алдаа', friendlyError(e));
+                } finally {
+                  setBusy(false);
+                }
+              },
+            },
+            {
+              text: 'Зураг авах',
+              onPress: async () => {
+                const uri = await pickCheckOutPhoto();
+                setBusy(true);
+                try {
+                  await finalizeQuickAttendance(
+                    type,
+                    loc,
+                    mode !== 'onsite',
+                    distance,
+                    locationName,
+                    null,
+                    uri
+                  );
+                } catch (e) {
+                  Alert.alert('Алдаа', friendlyError(e));
+                } finally {
+                  setBusy(false);
+                }
+              },
+            },
+          ],
+          { cancelable: true }
+        );
         return;
       }
 
@@ -1383,7 +1477,12 @@ export default function AttendanceScreen() {
           />
         </View>
 
-        <View style={styles.actionBtnWrap} pointerEvents="box-none">
+        {/* Доод панел + таб мөрний дээр байрлана (панелийн өндөр өөрчлөгдвөл
+            энэ тоог мөн тохируулна). */}
+        <View
+          style={[styles.actionBtnWrap, { bottom: insets.bottom + 300 }]}
+          pointerEvents="box-none"
+        >
           <AttendanceActionButton
             mode={actionMode}
             enabled={actionEnabled}
