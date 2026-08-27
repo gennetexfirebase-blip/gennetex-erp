@@ -67,6 +67,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           DEVELOPER_EMAIL: ${{ secrets.EXPO_PUBLIC_DEVELOPER_EMAIL }}
+          MAPS_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
             echo "::error::EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY secret тохируулаагүй байна."
@@ -76,8 +77,20 @@ jobs:
             echo "EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL"
             echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
             echo "EXPO_PUBLIC_DEVELOPER_EMAIL=$DEVELOPER_EMAIL"
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=$MAPS_KEY"
           } > .env
           echo ".env үүслээ ($(wc -l < .env) мөр)"
+          # ⚠️ Түлхүүргүй бол `app.config.js` нь AndroidManifest-д
+          # `com.google.android.geo.API_KEY` meta-data-г БИЧИХГҮЙ бөгөөд
+          # газрын зураг агуулсан дэлгэц (Ирц) нээх бүрд апп НАТИВ талдаа
+          # `IllegalStateException: API key not found` шидэж унадаг.
+          # Одоо `components/Map.js` орлуулагч харуулж унахаас сэргийлдэг
+          # ч газрын зураг харагдахгүй тул анхааруулна.
+          if [ -z "$MAPS_KEY" ]; then
+            echo "::warning::EXPO_PUBLIC_GOOGLE_MAPS_API_KEY secret алга — газрын зураг харагдахгүй (апп унахгүй)."
+          else
+            echo "Google Maps түлхүүр тохирлоо."
+          fi
 
       - name: google-services.json сэргээх
         env:

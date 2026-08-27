@@ -12,6 +12,8 @@ import {
   GraduationCap,
   Wallet,
   MoreHorizontal,
+  ExternalLink,
+  Package,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -89,4 +91,9 @@ export const NAV: NavItem[] = [
       { label: 'Тусламж', to: '/more/help' },
     ],
   },
+  // Хуучин панелд байгаа бөгөөд энд хараахан шилжүүлээгүй модулиуд
+  // (агуулах, багаж, дуудлага, аялал, түлш, санал гомдол…).
+  // Шинэ панел бэлэн болтол ажил зогсохгүй байхын тулд шууд холбоно.
+  { label: 'Багаж олголт', to: '/stock-issues', icon: Package },
+  { label: 'Хуучин панел', to: '/legacy', icon: ExternalLink },
 ];

@@ -6,6 +6,9 @@ import { useStyles } from '../context/ThemeContext';
 
 export const PROVIDER_GOOGLE = 'google';
 
+// Native талтай ижил API — вэб дээр газрын зураг байхгүй тул үргэлж false.
+export const MAPS_READY = false;
+
 // Marker болон бусад дэд компонентууд вэб дээр юу ч зурахгүй.
 export function Marker() {
   return null;

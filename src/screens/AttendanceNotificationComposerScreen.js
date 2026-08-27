@@ -94,7 +94,7 @@ export default function AttendanceNotificationComposerScreen() {
 
     setSending(true);
     try {
-      await campaignApi.sendNotificationCampaign({
+      const res = await campaignApi.sendNotificationCampaign({
         title: title.trim(),
         body: body.trim(),
         audience,
@@ -103,7 +103,27 @@ export default function AttendanceNotificationComposerScreen() {
       });
       setFormVisible(false);
       await load();
-      Alert.alert('Илгээгдлээ', 'Мэдэгдэл амжилттай илгээгдлээ.');
+
+      // Бодит хүргэлтийг хэлнэ. Утсанд push хүрсэн эсэх нь хүлээн авагч
+      // тухайн аппаараа гар утсандаа нэвтэрсэн эсэхээс шалтгаална —
+      // "амжилттай" гэж бүрхэг хэлэх нь алдаа хайхад төөрөгдүүлдэг.
+      const d = res?.delivery;
+      if (d && d.tokens === 0) {
+        Alert.alert(
+          'Мэдэгдэл хадгалагдлаа',
+          `${d.recipients} хүнд мэдэгдлийн төвд харагдана.\n\n` +
+            'Гэхдээ ХЭН Ч утсандаа push хүлээж аваагүй — сонгосон ' +
+            'хүмүүсийн нэг нь ч гар утасны аппаараа нэвтрээгүй байна.'
+        );
+      } else if (d) {
+        Alert.alert(
+          'Илгээгдлээ',
+          `${d.recipients} хүн · ${d.sent}/${d.tokens} төхөөрөмжид хүрлээ` +
+            (d.failed ? `\n${d.failed} төхөөрөмжид хүрсэнгүй.` : '')
+        );
+      } else {
+        Alert.alert('Илгээгдлээ', 'Мэдэгдэл амжилттай илгээгдлээ.');
+      }
     } catch (e) {
       Alert.alert('Алдаа', friendlyError(e));
     } finally {

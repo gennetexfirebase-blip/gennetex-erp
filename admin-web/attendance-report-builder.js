@@ -166,9 +166,84 @@ export function buildRangeAttendanceSheets({ employeeName, from, to, rows = [] }
   ];
 }
 
+/**
+ * Багаж/бараа ОЛГОЛТЫН тайлан — хэн, хэнд, юуг, хэзээ.
+ *
+ * Цагийг СЕКУНД хүртэл харуулна: нэг өдөрт олон удаа олгосон тохиолдолд
+ * дараалал нь тодорхой байх ёстой.
+ *
+ * @param {object} p
+ * @param {string} p.from  'YYYY-MM-DD'
+ * @param {string} p.to
+ * @param {Array}  p.rows  `stock_movements`-ийн мөрүүд
+ */
+export function buildStockIssueSheets({ from, to, rows = [] }) {
+  const fmt = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
+      d.getMinutes()
+    )}:${p(d.getSeconds())}`;
+  };
+
+  const issued = rows.filter((r) => r.movement_type === 'withdraw');
+  const byIssuer = {};
+  issued.forEach((r) => {
+    const k = r.issued_by_name || '—';
+    byIssuer[k] = (byIssuer[k] || 0) + 1;
+  });
+
+  return [
+    {
+      name: 'Нэгтгэл',
+      rows: [
+        ['Үзүүлэлт', 'Утга'],
+        ['Хугацаа', `${from} — ${to}`],
+        ['Нийт олголт', issued.length],
+        ['Нийт хөдөлгөөн', rows.length],
+        ['Тайлан гаргасан', fmt(new Date().toISOString())],
+        [],
+        ['Олгосон админ', 'Олголтын тоо'],
+        ...Object.entries(byIssuer).map(([k, v]) => [k, v]),
+      ],
+    },
+    {
+      name: 'Олголт',
+      rows: [
+        [
+          '№',
+          'Огноо / цаг',
+          'Олгосон (админ)',
+          'Хүлээн авсан',
+          'Бараа / багаж',
+          'Тоо',
+          'Нэгж',
+          'Төрөл',
+        ],
+        ...rows.map((r, i) => [
+          i + 1,
+          fmt(r.created_at),
+          r.issued_by_name || '—',
+          r.user_name || '',
+          r.item_name || '',
+          Number(r.quantity) || 0,
+          r.unit || '',
+          r.movement_type === 'withdraw'
+            ? 'Олгосон'
+            : r.movement_type === 'consume'
+              ? 'Зарцуулсан'
+              : r.movement_type || '',
+        ]),
+      ],
+    },
+  ];
+}
+
 /** Preview-д зориулсан хялбар хүснэгт — эхний хуудсын мөрүүд. */
 export function sheetsToPreview(sheets) {
-  const main = sheets.find((s) => s.name === 'Ирц' || s.name === 'Өдрөөр') || sheets[0];
+  const main =
+    sheets.find((s) => s.name === 'Ирц' || s.name === 'Өдрөөр' || s.name === 'Олголт') || sheets[0];
   return {
     header: main.rows[0] || [],
     body: main.rows.slice(1),

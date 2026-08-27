@@ -17,6 +17,11 @@ declare module '*/admin-web/attendance-report-builder.js' {
     to: string;
     rows: unknown[];
   }): ReportSheet[];
+  export function buildStockIssueSheets(p: {
+    from: string;
+    to: string;
+    rows: unknown[];
+  }): ReportSheet[];
   export function sheetsToPreview(sheets: ReportSheet[]): {
     header: string[];
     body: (string | number)[][];

@@ -51,13 +51,16 @@ export async function sendNotificationCampaign({
     priority,
   };
 
-  if (audience.kind === 'all') {
-    await sendPushToAll(payload);
-  } else {
-    await sendPushToUsers(audienceIds, payload);
-  }
+  // ⚠️ Edge function-ийн үр дүнг ХАЯХГҮЙ. Өмнө нь `await`-аад орхидог
+  // байсан тул нэг ч төхөөрөмжид хүрээгүй ч UI "амжилттай илгээгдлээ"
+  // гэж хэлдэг байв. Бодит шалтгаан (хүлээн авагчид push token-гүй)
+  // хэзээ ч харагдахгүй тул "push ажиллахгүй байна" гэж эргэлздэг.
+  const delivery =
+    audience.kind === 'all'
+      ? await sendPushToAll(payload)
+      : await sendPushToUsers(audienceIds, payload);
 
-  return campaign;
+  return { ...campaign, delivery: delivery || null };
 }
 
 export async function fetchNotificationCampaigns(limit = 50) {

@@ -2,36 +2,76 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import LoginPage from './pages/Login';
+import { Loading } from './components/ui';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { fetchAttendanceRequests, fetchEmployees } from './lib/data';
+
+type Profile = {
+  id: string;
+  name?: string | null;
+  avatar_url?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
+
+/** Админ эрх — `role_rank() >= 3` -тэй ижил дүрэм (админ, хөгжүүлэгч). */
+const ADMIN_ROLES = new Set(['admin', 'superadmin']);
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [profile, setProfile] = useState<{
-    name?: string | null;
-    avatar_url?: string | null;
-    email?: string | null;
-  } | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [authState, setAuthState] = useState<'loading' | 'out' | 'denied' | 'ok'>('loading');
   const [counts, setCounts] = useState({ requests: 0, employees: 0 });
   const [employeeCount, setEmployeeCount] = useState({ used: 0, total: 20 });
 
+  // ── Нэвтрэлт ────────────────────────────────────────────────────
+  // ⚠️ Нэвтрээгүй үед бүх RPC нь `is_admin_user()` дээр унаж, өгөгдөл
+  // ОГТ ирдэггүй. Тиймээс эхлээд эрхийг тодорхойлж, дараа нь л
+  // самбарыг үзүүлнэ.
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    (async () => {
-      const { data: sessionData } = await supabase.auth.getUser();
-      const uid = sessionData?.user?.id;
-      if (uid) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('name, avatar_url, email')
-          .eq('id', uid)
-          .maybeSingle();
-        setProfile(data || { email: sessionData?.user?.email });
+    if (!isSupabaseConfigured) {
+      setAuthState('out');
+      return;
+    }
+    let cancelled = false;
+
+    const resolve = async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data?.user?.id;
+      if (cancelled) return;
+      if (!uid) {
+        setProfile(null);
+        setAuthState('out');
+        return;
       }
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, email, role')
+        .eq('id', uid)
+        .maybeSingle();
+      if (cancelled) return;
+      const merged: Profile = p || { id: uid, email: data?.user?.email };
+      setProfile(merged);
+      setAuthState(ADMIN_ROLES.has(String(merged.role || '')) ? 'ok' : 'denied');
+    };
+
+    resolve();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => resolve());
+    return () => {
+      cancelled = true;
+      sub?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  // ── Тоолуурууд (зөвхөн эрх баталгаажсаны дараа) ────────────────
+  useEffect(() => {
+    if (authState !== 'ok') return;
+    (async () => {
       try {
         const [reqs, emps] = await Promise.all([
-          fetchAttendanceRequests('pending'),
+          fetchAttendanceRequests('pending').catch(() => []),
           fetchEmployees().catch(() => []),
         ]);
         setCounts({
@@ -40,10 +80,28 @@ export default function Layout() {
         });
         setEmployeeCount({ used: emps.length, total: Math.max(emps.length, 20) });
       } catch {
-        /* дэлгэц ажиллах ёстой — тоолуур л хоосон үлдэнэ */
+        /* тоолуур хоосон үлдэнэ — самбар ажиллах ёстой */
       }
     })();
-  }, []);
+  }, [authState]);
+
+  if (authState === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-app">
+        <Loading text="Эрх шалгаж байна…" />
+      </div>
+    );
+  }
+
+  if (authState === 'out') return <LoginPage />;
+
+  if (authState === 'denied') {
+    return (
+      <LoginPage
+        error={`${profile?.email || 'Энэ хаяг'} нь админ эрхгүй байна. Байгууллагынхаа хөгжүүлэгчид хандана уу.`}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-app">

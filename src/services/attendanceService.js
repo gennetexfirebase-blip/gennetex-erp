@@ -158,9 +158,25 @@ export async function fetchPendingAttendance() {
   return data || [];
 }
 
+/**
+ * Ирц зөвшөөрөх / татгалзах.
+ *
+ * ⚠️ Шууд UPDATE хийхээ больсон — RLS нь одоо зөвхөн хөгжүүлэгчид
+ * зөвшөөрдөг. Шийдвэр `admin_decide_attendance` RPC-ээр гарна: тэр нь
+ * эрхийн шатлалыг шалгаад (админ өөр админыг батлахгүй) аудит бичнэ.
+ */
 export async function setAttendanceStatus(id, status) {
-  const { error } = await supabase.from(TABLE).update({ status }).eq('id', id);
-  if (error) throw error;
+  const { data, error } = await supabase.rpc('admin_decide_attendance', {
+    p_attendance_id: id,
+    p_status: status,
+  });
+  if (error) {
+    if (String(error.message || '').includes('forbidden_target')) {
+      throw new Error('Өөртэйгөө тэнцүү буюу дээш эрхтэй хүний ирцийг зөвшөөрөх боломжгүй. Хөгжүүлэгчид хандана уу.');
+    }
+    throw error;
+  }
+  return data;
 }
 
 // Өнөөдрийн ирцийн (check_in) тоо

@@ -9,6 +9,8 @@ import DepartmentsPage from './pages/Departments';
 import SchedulePage from './pages/Schedule';
 import LocationsPage from './pages/Locations';
 import Placeholder from './pages/Placeholder';
+import LegacyPage from './pages/Legacy';
+import StockIssuesPage from './pages/StockIssues';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/more/settings" element={<Placeholder title="Тохиргоо" />} />
           <Route path="/more/billing" element={<Placeholder title="Төлбөр" />} />
           <Route path="/more/market" element={<Placeholder title="Маркет" />} />
+          <Route path="/stock-issues" element={<StockIssuesPage />} />
+          <Route path="/legacy" element={<LegacyPage />} />
           <Route path="/more/help" element={<Placeholder title="Тусламж" />} />
 
           <Route path="*" element={<Placeholder title="Хуудас олдсонгүй" note="Хаяг буруу байна." />} />

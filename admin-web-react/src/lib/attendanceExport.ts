@@ -8,6 +8,7 @@ import '../../../admin-web/xlsx-chart.js';
 import {
   buildDailyAttendanceSheets,
   sheetsToPreview,
+  buildStockIssueSheets,
 } from '../../../admin-web/attendance-report-builder.js';
 import type { AttendanceRow } from './data';
 
@@ -47,5 +48,21 @@ export function downloadDailyExcel(date: string, rows: AttendanceRow[]) {
   a.click();
   document.body.removeChild(a);
   // Санах ойг чөлөөлнө — эс бөгөөс олон удаа татахад blob хуримтлагдана.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Багаж/бараа олголтын тайланг .xlsx болгож татна. */
+export function downloadStockExcel(from: string, to: string, rows: unknown[]) {
+  const bytes = XlsxChart.build({ sheets: buildStockIssueSheets({ from, to, rows }) });
+  const blob = new Blob([new Uint8Array(bytes).buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gennetex_olgolt_${from.replace(/-/g, '')}_${to.replace(/-/g, '')}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

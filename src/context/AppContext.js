@@ -349,6 +349,9 @@ export function AppProvider({ children }) {
           userName: employee.name || employee.email || 'Ажилтан',
           qty: q,
           photoUrl,
+          // Олгосон админыг бүртгэнэ — "хэн хэнд юу олгосон" тайланд хэрэгтэй.
+          issuedBy: currentUser?.id || null,
+          issuedByName: currentUser?.name || currentUser?.email || null,
         });
       } catch (e) {
         setSyncError(e.message);

@@ -90,15 +90,19 @@ export async function deleteInventory(id) {
 }
 
 // Бараа олгох: тоо хасаад олголтын лог үүсгэнэ
-export async function withdrawInventory({ item, userId, userName, qty, photoUrl }) {
+export async function withdrawInventory({ item, userId, userName, qty, photoUrl, issuedBy, issuedByName }) {
   const newQty = Math.max(0, (Number(item.quantity) || 0) - qty);
   await updateInventory(item.id, { quantity: newQty });
   const { error } = await supabase.from('stock_movements').insert({
     item_id: item.id,
     item_name: item.name,
     unit: item.unit,
+    // ХЭНД олгосон
     user_id: userId || null,
     user_name: userName,
+    // ХЭН олгосон — тайланд "аль админ хэнд юу олгосон" гэж харуулна.
+    issued_by: issuedBy || null,
+    issued_by_name: issuedByName || null,
     quantity: qty,
     movement_type: MOVEMENT_TYPES.WITHDRAW,
     photo_url: photoUrl || null,

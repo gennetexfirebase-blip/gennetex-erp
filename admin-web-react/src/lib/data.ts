@@ -285,6 +285,32 @@ export async function fetchShiftsForMonth(year: number, month: number) {
   return data || [];
 }
 
+export type StockMovement = {
+  id: string;
+  created_at: string;
+  item_name: string | null;
+  unit: string | null;
+  quantity: number;
+  movement_type: string;
+  /** Хүлээн авсан ажилтан */
+  user_name: string | null;
+  /** Олгосон админ (2026-08-27-нд нэмэгдсэн — хуучин мөрүүд хоосон) */
+  issued_by_name: string | null;
+};
+
+/** Багаж/бараа олголтын хөдөлгөөн — хугацааны мужаар. */
+export async function fetchStockMovements(from: string, to: string): Promise<StockMovement[]> {
+  const { data, error } = await supabase
+    .from('stock_movements')
+    .select('*')
+    .gte('created_at', `${from}T00:00:00`)
+    .lte('created_at', `${to}T23:59:59.999`)
+    .order('created_at', { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+  return (data || []) as StockMovement[];
+}
+
 export async function fetchRecentAttendance(limit = 200) {
   const { data, error } = await supabase
     .from('attendance')
