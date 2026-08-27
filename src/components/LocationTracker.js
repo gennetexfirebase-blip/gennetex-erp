@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { useApp } from '../context/AppContext';
 import * as tracking from '../services/trackingService';
 import * as bgLocation from '../services/backgroundLocationService';
+import * as attApi from '../services/attendanceService';
+import { playZoneExitSound, playZoneEnterSound } from '../services/attendanceSoundService';
+import { DEFAULT_CHANNEL } from '../services/notificationService';
 import { distanceMeters } from '../lib/geo';
 
 const MIN_UPLOAD_MS = 15000; // хамгийн багадаа 15 сек тутам
@@ -22,6 +26,41 @@ export default function LocationTracker() {
   // Тиймээс хамгийн сүүлийн утгыг ref-д хадгалж, effect-ийг нэг л удаа асаана.
   const callsRef = useRef(calls);
   callsRef.current = calls;
+
+  /**
+   * Ирц бүртгэх бүсээс ГАРСАН үеийн дуут анхааруулга.
+   *
+   * ⚠️ Өмнө нь энэ шалгалт `AttendanceScreen`-ий дотор байсан тул зөвхөн
+   *    тэр дэлгэц НЭЭЛТТЭЙ байхад ажилладаг байв — ажилтан Нүүр рүү
+   *    буцангуут, эсвэл аппаа хаангуут бүсээс гарсныг мэдэгдэхээ болино.
+   *    Энд шилжүүлснээр НЭВТЭРСЭН БҮХ хэрэглэгчид (эрхээс үл хамааран),
+   *    аппын аль ч дэлгэц дээр, арын хяналттай үед ч ажиллана.
+   *
+   * `undefined` = байршил хараахан тогтоогоогүй, `null` = бүсээс гадуур,
+   * id = тухайн бүсэд байна. Гурвыг ялгах нь чухал — эс бөгөөс апп нээх
+   * бүрд "бүсээс гарлаа" гэж буруу дуугарна.
+   */
+  const zoneRef = useRef(undefined);
+  const zonesRef = useRef([]);
+
+  useEffect(() => {
+    if (!isCloud || !currentUser?.id) return;
+    let cancelled = false;
+    const load = () =>
+      attApi
+        .fetchAttendanceLocations()
+        .then((list) => {
+          if (!cancelled) zonesRef.current = list || [];
+        })
+        .catch(() => {});
+    load();
+    // Админ шинэ цэг нэмэх/радиус солиход аппыг дахин нээлгүйгээр тусна.
+    const timer = setInterval(load, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [isCloud, currentUser?.id]);
 
   useEffect(() => {
     // Нэвтэрсэн бол БАЙНГА байршил илгээнэ.
@@ -104,6 +143,47 @@ export default function LocationTracker() {
       }
     })();
 
+    /**
+     * Бүс солигдсон мөчийг барина.
+     *
+     * Дуу дангаараа хангалтгүй: апп ард байх, дэлгэц түгжээтэй, чимээгүй
+     * горимд байх үед сонсогдохгүй. Тиймээс мэдэгдэл давхар гаргана.
+     */
+    const checkZone = (coord) => {
+      const zones = zonesRef.current;
+      if (!zones.length) return;
+
+      const near = attApi.nearestAttendanceLocation(coord, zones);
+      const currentId = near.within ? near.location?.id : null;
+      if (zoneRef.current === currentId) return; // өөрчлөгдөөгүй
+
+      const previous = zoneRef.current;
+      const isFirstFix = previous === undefined;
+      zoneRef.current = currentId;
+
+      if (currentId) {
+        playZoneEnterSound(near.location?.name);
+        return;
+      }
+      // ⚠️ Анхны байршил тогтоох үед дуугаргахгүй — тэр үед "гарсан" биш,
+      // зүгээр л бүсээс гадуур байгаа гэсэн үг.
+      if (!previous || isFirstFix) return;
+
+      playZoneExitSound();
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Ирц бүртгэх байршлаас гарлаа',
+          body: near.distance
+            ? `Та бүсээс ~${near.distance}м зайд байна.`
+            : 'Та ирц бүртгэх байршлаас гарсан байна.',
+          sound: 'default',
+          data: { type: 'attendance_zone_exit', screen: 'Attendance' },
+          ...(Platform.OS === 'android' ? { channelId: DEFAULT_CHANNEL } : {}),
+        },
+        trigger: null,
+      }).catch(() => {});
+    };
+
     const handle = async (pos, force = false) => {
       const coord = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       const now = Date.now();
@@ -128,6 +208,8 @@ export default function LocationTracker() {
           setTrackingState?.((prev) => ({ ...prev, active: true, error: e.message, last: { ...coord, at: now } }));
         }
       }
+
+      checkZone(coord);
 
       // Айлд очсон эсэхийг шалгах
       for (const c of callsRef.current || []) {

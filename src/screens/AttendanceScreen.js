@@ -39,8 +39,8 @@ import {
   playCheckOutSound,
   playRemoteCheckInSound,
   playRemoteCheckOutSound,
-  playZoneEnterSound,
-  playZoneExitSound,
+  // Бүсэд нэвтрэх/гарах дуу нь `components/LocationTracker.js`-д
+  // шилжсэн — бүх дэлгэц, бүх эрхэд ажиллах ёстой тул.
 } from '../services/attendanceSoundService';
 import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
@@ -467,35 +467,16 @@ export default function AttendanceScreen() {
   const [locationPermission, setLocationPermission] = useState(null);
 
   /**
-   * Геофенс бүсэд НЭВТРЭХ мөчийг барьж, дуут мэдэгдэл өгнө.
+   * Геофенс бүсэд нэвтрэх/гарах дуут анхааруулга ЭНД БАЙХГҮЙ.
    *
-   * `insideZoneRef` нь одоо ямар бүсэд байгааг санана. Бүс СОЛИГДСОН
-   * (гадна → дотор, эсвэл нэг бүсээс нөгөө рүү) үед л дуугарна — эс бөгөөс
-   * байршил шинэчлэгдэх бүрд (8 секунд тутам) давтан дуугарна.
+   * ⚠️ Өмнө нь энэ дэлгэц дотор байсан тул зөвхөн Ирц дэлгэц НЭЭЛТТЭЙ
+   *    үед л ажилладаг байв — ажилтан өөр дэлгэц рүү орох эсвэл аппаа
+   *    хаангуут бүсээс гарсныг мэдэгдэхээ болино.
+   *
+   *    Одоо `src/components/LocationTracker.js` дотор — тэр нь аппын
+   *    үндэст сууж, нэвтэрсэн БҮХ хэрэглэгчид (эрхээс үл хамааран),
+   *    арын хяналттай үед ч ажиллана.
    */
-  // `undefined` = хараахан байршил тогтоогоогүй, `null` = бүсээс гадуур,
-  // id = тухайн бүсэд байна. Гурвыг ялгах нь чухал — эс бөгөөс апп нээх
-  // бүрд "бүсээс гарлаа" гэж буруу дуугарна.
-  const insideZoneRef = useRef(undefined);
-  useEffect(() => {
-    if (!isCloud || !liveLocation?.latitude || locations.length === 0) return;
-    const near = attApi.nearestAttendanceLocation(liveLocation, locations);
-    const currentId = near.within ? near.location?.id : null;
-
-    if (insideZoneRef.current === currentId) return; // өөрчлөгдөөгүй
-    const previous = insideZoneRef.current;
-    const isFirstFix = previous === undefined;
-    insideZoneRef.current = currentId;
-
-    if (currentId) {
-      // Бүсэд НЭВТЭРЛЭЭ.
-      playZoneEnterSound(near.location?.name);
-    } else if (previous && !isFirstFix) {
-      // Бүсээс ГАРЛАА. ⚠️ Анхны байршил тогтоох үед (`isFirstFix`) дуугаргахгүй
-      // — тэр үед "гарсан" биш, зүгээр л бүсээс гадуур байгаа гэсэн үг.
-      playZoneExitSound();
-    }
-  }, [isCloud, liveLocation, locations]);
 
   // Header дээрх хонхны badge — уншаагүй мэдэгдлийн тоо.
   const [unreadCount, setUnreadCount] = useState(0);
