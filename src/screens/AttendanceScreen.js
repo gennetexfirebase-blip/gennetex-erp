@@ -32,7 +32,11 @@ import * as faceApi from '../services/faceService';
 import * as shiftApi from '../services/shiftService';
 import * as notifyApi from '../services/notificationService';
 import * as notifyCenterApi from '../services/notificationCenterService';
-import { playCheckInSound, playCheckOutSound } from '../services/attendanceSoundService';
+import {
+  playCheckInSound,
+  playCheckOutSound,
+  playZoneEnterSound,
+} from '../services/attendanceSoundService';
 import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
   WEEKDAYS,
@@ -456,6 +460,30 @@ export default function AttendanceScreen() {
 
   // 'granted' | 'denied' | null (хараахан шалгаагүй)
   const [locationPermission, setLocationPermission] = useState(null);
+
+  /**
+   * Геофенс бүсэд НЭВТРЭХ мөчийг барьж, дуут мэдэгдэл өгнө.
+   *
+   * `insideZoneRef` нь одоо ямар бүсэд байгааг санана. Бүс СОЛИГДСОН
+   * (гадна → дотор, эсвэл нэг бүсээс нөгөө рүү) үед л дуугарна — эс бөгөөс
+   * байршил шинэчлэгдэх бүрд (8 секунд тутам) давтан дуугарна.
+   */
+  const insideZoneRef = useRef(null);
+  useEffect(() => {
+    if (!isCloud || !liveLocation?.latitude || locations.length === 0) return;
+    const near = attApi.nearestAttendanceLocation(liveLocation, locations);
+    const currentId = near.within ? near.location?.id : null;
+
+    if (insideZoneRef.current === currentId) return; // өөрчлөгдөөгүй
+    const previous = insideZoneRef.current;
+    insideZoneRef.current = currentId;
+
+    // Анхны ачаалалт (previous === null && зөвхөн эхлэх) үед ч дуугарна —
+    // ажилтан аппаа нээхэд бүсэд байвал мэдэгдэх нь зөв.
+    if (currentId && currentId !== previous) {
+      playZoneEnterSound(near.location?.name);
+    }
+  }, [isCloud, liveLocation, locations]);
 
   // Header дээрх хонхны badge — уншаагүй мэдэгдлийн тоо.
   const [unreadCount, setUnreadCount] = useState(0);

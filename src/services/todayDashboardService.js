@@ -66,35 +66,39 @@ export async function fetchTodayBundle({ userId, isAdmin, name } = {}) {
     result.slaWarnings = mapped.filter((c) => isSlaExceeded(c) || isSlaWarning(c));
   } catch {}
 
+  // ⚠️ `attendance` хүснэгтийн эзний багана нь `staff_id` (TEXT), `user_id` БИШ.
+  // Өмнө нь `user_id`-гээр хайж, буцаж ирсэн `error`-ыг ШАЛГААГҮЙ тул
+  // Supabase нь `data: null` буцаахад `throw` хийдэггүйгээс catch руу ч
+  // орохгүй, үр дүнд нь ирцээ бүртгүүлсэн ажилтанд ч "Өнөөдөр цаг
+  // бүртгээгүй" гэж ҮРГЭЛЖ харагддаг байв.
   try {
-    const { data: att } = await supabase
+    const { data: att, error } = await supabase
       .from('attendance')
-      .select('id, created_at, kind, type')
-      .eq('user_id', userId)
+      .select('id, created_at, type, status')
+      .eq('staff_id', userId)
+      .neq('status', 'rejected')
       .gte('created_at', `${day}T00:00:00`)
+      .lte('created_at', `${day}T23:59:59.999`)
       .limit(20);
+    if (error) throw error;
     result.checkInToday = !!(att && att.length);
   } catch {
-    try {
-      const { data: att2 } = await supabase
-        .from('attendance')
-        .select('id')
-        .eq('staff_id', userId)
-        .gte('created_at', `${day}T00:00:00`)
-        .limit(5);
-      result.checkInToday = !!(att2 && att2.length);
-    } catch {}
+    result.checkInToday = false;
   }
 
+  // Хуваарийн хүснэгт нь `employee_shifts`, багана нь `shift_date`.
   try {
-    const { data: shifts } = await supabase
-      .from('shifts')
+    const { data: shifts, error } = await supabase
+      .from('employee_shifts')
       .select('*')
       .eq('user_id', userId)
-      .eq('date', day)
+      .eq('shift_date', day)
       .limit(1);
+    if (error) throw error;
     result.shift = shifts?.[0] || null;
-  } catch {}
+  } catch {
+    result.shift = null;
+  }
 
   try {
     const { data: meetings } = await supabase

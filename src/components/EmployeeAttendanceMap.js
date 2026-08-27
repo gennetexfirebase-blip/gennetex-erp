@@ -66,12 +66,14 @@ export default function EmployeeAttendanceMap({
           const isActive = workplace?.id ? loc.id === workplace.id : true;
           return (
             <React.Fragment key={loc.id || `${loc.latitude},${loc.longitude}`}>
+              {/* Цэвэрхэн тойрог — нимгэн цэнхэр хүрээ, маш сул дүүргэлт.
+                  Өмнө нь бараан/бүдэг харагддаг байсныг арилгав. */}
               <Circle
                 center={{ latitude: Number(loc.latitude), longitude: Number(loc.longitude) }}
                 radius={loc.radius_m || 200}
-                strokeWidth={isActive ? 2 : 1}
-                strokeColor={isActive ? 'rgba(0,153,219,0.55)' : 'rgba(0,153,219,0.28)'}
-                fillColor={isActive ? 'rgba(0,153,219,0.16)' : 'rgba(0,153,219,0.07)'}
+                strokeWidth={2}
+                strokeColor={isActive ? 'rgba(0,153,219,0.9)' : 'rgba(0,153,219,0.45)'}
+                fillColor={isActive ? 'rgba(0,153,219,0.10)' : 'rgba(0,153,219,0.05)'}
               />
               <Marker
                 coordinate={{ latitude: Number(loc.latitude), longitude: Number(loc.longitude) }}
