@@ -28,35 +28,21 @@ const androidGoogleServices = './google-services.json';
 const iosGoogleServices = './GoogleService-Info.plist';
 
 /**
- * Google Maps түлхүүр.
+ * Газрын зураг — OpenStreetMap.
  *
- * ⚠️ ӨМНӨ НЬ `app.json` дотор `AIzaSyAOVY…3lLao` гэж ХАТУУ бичигдсэн байв.
- *    Тэр нь Google өөрийн баримт бичигтээ жишээ болгон нийтэлсэн ОЛОН
- *    НИЙТИЙН түлхүүр — мянга мянган төсөл түүнийг хуулсан бөгөөд танай
- *    төслийн Android аппад ажиллахгүй (Maps SDK нь түлхүүрийг
- *    аппын SHA-1 гарын үсэгтэй уядаг). Тиймээс газрын зураг хоосон саарал
- *    дэлгэц болж харагдана.
+ * ⚠️ 2026-08-27: Google Maps-аас БҮРЭН татгалзав.
  *
- * ЗӨВ ЗАМ:
- *   Google Cloud Console → APIs & Services → Credentials → API key үүсгээд
- *   заавал ХЯЗГААРЛАНА:
- *     Android — package `com.gennetex.erp` + release SHA-1
- *     iOS     — bundle id `com.gennetex.erp`
- *   Дараа нь `.env` дотор:
- *     EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIza...
+ *    Google Maps SDK нь Android дээр `com.google.android.geo.API_KEY`
+ *    meta-data ЗААВАЛ шаарддаг бөгөөд байхгүй үед натив талдаа
+ *    `IllegalStateException: API key not found` шидэж бүтэн аппыг
+ *    унагаадаг. Ирц дэлгэц газрын зурагтай тул тэр дэлгэц рүү орох
+ *    бүрд апп хаагддаг байв. Түүнчлэн уг түлхүүр нь биллинг холбосон
+ *    төлбөртэй данс шаарддаг.
  *
- * Түлхүүр нь аппын багц дотор ил үлддэг (үүнээс зайлсхийх боломжгүй) тул
- * дээрх хязгаарлалт нь цорын ганц бодит хамгаалалт юм.
+ *    Одоо `src/components/Map.js` нь OpenStreetMap-ийг WebView (Leaflet)
+ *    дотор зурдаг тул ЯМАР Ч түлхүүр шаардахгүй бөгөөд натив газрын
+ *    зургийн крэш бүрмөсөн арилав.
  */
-const mapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-
-if (!mapsApiKey && process.env.EAS_BUILD) {
-  // Build-ийг зогсоохгүй — газрын зураггүйгээр аппын бусад хэсэг ажиллана.
-  console.warn(
-    '[app.config] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY тохируулаагүй байна — ' +
-      'Android дээр газрын зураг хоосон харагдана.'
-  );
-}
 
 module.exports = ({ config }) => {
   const plugins = (config.plugins || []).filter((plugin) => {
@@ -94,12 +80,10 @@ module.exports = ({ config }) => {
     android: {
       ...config.android,
       ...(fs.existsSync(androidGoogleServices) ? { googleServicesFile: androidGoogleServices } : {}),
-      ...(mapsApiKey ? { config: { ...(config.android?.config || {}), googleMaps: { apiKey: mapsApiKey } } } : {}),
     },
     ios: {
       ...config.ios,
       ...(fs.existsSync(iosGoogleServices) ? { googleServicesFile: iosGoogleServices } : {}),
-      ...(mapsApiKey ? { config: { ...(config.ios?.config || {}), googleMapsApiKey: mapsApiKey } } : {}),
     },
   };
 };

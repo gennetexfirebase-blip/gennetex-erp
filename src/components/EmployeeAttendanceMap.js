@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from './Map';
-import ChatAvatar from './ChatAvatar';
 
 const UB_REGION = {
   latitude: 47.9184,
@@ -75,19 +74,16 @@ export default function EmployeeAttendanceMap({
                 strokeColor={isActive ? 'rgba(0,153,219,0.9)' : 'rgba(0,153,219,0.45)'}
                 fillColor={isActive ? 'rgba(0,153,219,0.10)' : 'rgba(0,153,219,0.05)'}
               />
+              {/* Шошгыг `label`/`dim`-ээр өгнө — газрын зураг WebView
+                  дотор зурагддаг тул React хүүхэд элемент дамжуулах
+                  боломжгүй (`components/Map.js`-ийн тайлбар). */}
               <Marker
                 coordinate={{ latitude: Number(loc.latitude), longitude: Number(loc.longitude) }}
                 title={loc.name}
                 description={`Радиус: ${loc.radius_m || 200}м`}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={false}
-              >
-                <View style={[styles.pin, !isActive && styles.pinDim]}>
-                  <Text style={styles.pinText} numberOfLines={1}>
-                    {loc.name}
-                  </Text>
-                </View>
-              </Marker>
+                label={loc.name}
+                dim={!isActive}
+              />
             </React.Fragment>
           );
         })}
@@ -98,12 +94,12 @@ export default function EmployeeAttendanceMap({
               latitude: employeeLocation.latitude,
               longitude: employeeLocation.longitude,
             }}
-            anchor={{ x: 0.5, y: 0.5 }}
             title={profileName || 'Би'}
-            tracksViewChanges={false}
-          >
-            <ChatAvatar name={profileName} uri={profileUri} size={44} />
-          </Marker>
+            avatarUri={profileUri}
+            avatarName={profileName}
+            focused
+            zIndex={10}
+          />
         ) : null}
       </MapView>
     </View>

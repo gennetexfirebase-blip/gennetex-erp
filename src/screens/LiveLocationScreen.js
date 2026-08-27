@@ -72,41 +72,25 @@ function timeAgo(ts) {
 }
 
 function WorkerMarker({ worker, color, visit, focused, onPress }) {
-  const styles = useStyles(makeStyles);
-  const [tracks, setTracks] = useState(!!worker.avatar_url);
-
+  // Тэмдэг нь WebView доторх газрын зураг дээр зурагддаг тул React
+  // хүүхэд элемент биш, props-оор дүрсээ дамжуулна
+  // (`components/Map.js`-ийн тайлбарыг үзнэ үү).
   return (
     <Marker
       coordinate={{ latitude: worker.latitude, longitude: worker.longitude }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={tracks}
       title={worker.name || 'Ажилтан'}
       description={
         visit
           ? `${visit.customer || 'Айл'}${visit.problem ? ' · ' + visit.problem : ''}`
           : timeAgo(worker.last_seen)
       }
+      avatarUri={worker.avatar_url}
+      avatarName={worker.name}
+      tint={color}
+      focused={focused}
       onPress={onPress}
       zIndex={focused ? 10 : 1}
-    >
-      {/* Сонгосон хүн тодрох цагираг — олон тэмдэг дундаас нүдэнд шууд өртөнө */}
-      <View style={[styles.markerHalo, focused && { backgroundColor: color + '33' }]}>
-        <View style={[styles.marker, { borderColor: color }]}>
-          {worker.avatar_url ? (
-            <Image
-              source={{ uri: worker.avatar_url }}
-              style={styles.markerImg}
-              onLoad={() => setTracks(false)}
-              onError={() => setTracks(false)}
-            />
-          ) : (
-            <View style={[styles.markerFallback, { backgroundColor: color }]}>
-              <Text style={styles.markerInitials}>{initials(worker.name)}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </Marker>
+    />
   );
 }
 

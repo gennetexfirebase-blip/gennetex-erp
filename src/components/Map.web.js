@@ -1,4 +1,5 @@
-// Web fallback — react-native-maps вэб дээр ажиллахгүй тул энд орлуулна.
+// Web fallback — вэб дээр WebView байдаггүй тул газрын зургийг орлуулна.
+// (Native тал нь OpenStreetMap-ийг Leaflet-ээр зурдаг — Map.js.)
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { spacing } from '../theme';
@@ -31,7 +32,7 @@ const MapView = React.forwardRef(function MapView({ children, style }, ref) {
       <Text style={styles.text}>
         Газрын зураг зөвхөн утсан дээр (iOS / Android) харагдана.
       </Text>
-      <Text style={styles.sub}>Expo Go-оор утсан дээрээ туршина уу.</Text>
+      <Text style={styles.sub}>Гар утасны аппаараа нээнэ үү.</Text>
     </View>
   );
 });
