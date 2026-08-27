@@ -1550,9 +1550,9 @@ export default function AttendanceScreen() {
       <View style={{ marginTop: spacing.md }}>
         <DateRangeFilterBar
           fromLabel={dashboardDate}
-          toLabel={dashboardDate}
           colors={adminColors}
-          onPressDate={() => setDateSheetVisible(true)}
+          onChangeDate={setDashboardDate}
+          onPressCalendar={() => setDateSheetVisible(true)}
           onPressFilter={() => setFilterSheetVisible(true)}
         />
       </View>

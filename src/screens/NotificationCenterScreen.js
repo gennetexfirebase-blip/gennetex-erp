@@ -1,14 +1,40 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
-import { Card, EmptyState, HeaderButton, ScreenHeader } from '../components/ui';
+import { EmptyState } from '../components/ui';
 import { spacing } from '../theme';
 import { navigateFromNotification } from '../lib/navigationRef';
 import * as notificationApi from '../services/notificationCenterService';
 
-const TYPE_ICONS = { message: '💬', chat: '💬', order: '📦', payment: '💳', task: '✅', admin: '📣', system: '⚙️', urgent: '⚠️' };
+/** Төрөл бүрийн дүрс, өнгө, монгол шошго. */
+const TYPE_META = {
+  message: { emoji: '💬', label: 'Чат', tone: '#2ec5c0' },
+  chat: { emoji: '💬', label: 'Чат', tone: '#2ec5c0' },
+  order: { emoji: '📦', label: 'Захиалга', tone: '#f5b544' },
+  payment: { emoji: '💳', label: 'Төлбөр', tone: '#3fcf8e' },
+  task: { emoji: '✅', label: 'Даалгавар', tone: '#3fcf8e' },
+  admin: { emoji: '📣', label: 'Систем', tone: '#2f9fe0' },
+  system: { emoji: '⚙️', label: 'Систем', tone: '#2f9fe0' },
+  urgent: { emoji: '⚠️', label: 'Яаралтай', tone: '#ff6b60' },
+  device: { emoji: '📱', label: 'Шинэ', tone: '#9b6dff' },
+  attendance_pending: { emoji: '🔔', label: 'Ирц', tone: '#2f9fe0' },
+};
+
+function metaFor(type) {
+  return TYPE_META[type] || { emoji: '🔔', label: 'Мэдэгдэл', tone: '#2f9fe0' };
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}:${pad(d.getSeconds())}`;
+}
 
 export default function NotificationCenterScreen() {
   const { currentUser } = useApp();
@@ -20,9 +46,13 @@ export default function NotificationCenterScreen() {
 
   const load = useCallback(async () => {
     if (!currentUser?.id) return;
-    try { setRows(await notificationApi.fetchNotifications(currentUser.id)); }
-    catch (error) { Alert.alert('Алдаа', error.message || 'Мэдэгдэл ачаалж чадсангүй'); }
-    finally { setLoading(false); }
+    try {
+      setRows(await notificationApi.fetchNotifications(currentUser.id));
+    } catch (error) {
+      Alert.alert('Алдаа', error.message || 'Мэдэгдэл ачаалж чадсангүй');
+    } finally {
+      setLoading(false);
+    }
   }, [currentUser?.id]);
 
   useEffect(() => {
@@ -33,45 +63,182 @@ export default function NotificationCenterScreen() {
   const open = async (row) => {
     try {
       if (!row.is_read) await notificationApi.markNotificationRead(row.id, currentUser.id);
-      setRows((items) => items.map((item) => item.id === row.id ? { ...item, is_read: true } : item));
+      setRows((items) => items.map((item) => (item.id === row.id ? { ...item, is_read: true } : item)));
       navigateFromNotification({ type: row.type, ...(row.data || {}) });
-    } catch (error) { Alert.alert('Алдаа', error.message); }
+    } catch (error) {
+      Alert.alert('Алдаа', error.message);
+    }
   };
 
   const markAll = async () => {
-    try { await notificationApi.markAllNotificationsRead(currentUser.id); setRows((items) => items.map((item) => ({ ...item, is_read: true }))); }
-    catch (error) { Alert.alert('Алдаа', error.message); }
+    try {
+      await notificationApi.markAllNotificationsRead(currentUser.id);
+      setRows((items) => items.map((item) => ({ ...item, is_read: true })));
+    } catch (error) {
+      Alert.alert('Алдаа', error.message);
+    }
   };
 
   const unread = rows.filter((row) => !row.is_read).length;
+
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Мэдэгдэл" subtitle={`${unread} уншаагүй`} right={<HeaderButton icon="⚙" onPress={() => navigation.navigate('NotificationSettings')} />} />
-      <ScrollView contentContainerStyle={styles.body} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}>
-        {unread ? <TouchableOpacity onPress={markAll} style={styles.markAll}><Text style={[styles.markAllText, { color: colors.primary }]}>Бүгдийг уншсанд тооцох</Text></TouchableOpacity> : null}
-        {!rows.length && !loading ? <EmptyState text="Одоогоор мэдэгдэл алга." /> : rows.map((row) => (
-          <TouchableOpacity key={row.id} activeOpacity={0.82} onPress={() => open(row)}>
-            <Card style={[styles.card, !row.is_read && { borderColor: colors.primary }] }>
-              <View style={styles.row}>
-                <View style={[styles.icon, { backgroundColor: colors.surfaceAlt }]}><Text style={styles.iconText}>{TYPE_ICONS[row.type] || '🔔'}</Text></View>
-                <View style={styles.content}>
-                  <View style={styles.titleRow}><Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>{row.title}</Text>{!row.is_read ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}</View>
-                  <Text style={[styles.message, { color: colors.textMuted }]}>{row.body}</Text>
-                  <Text style={[styles.date, { color: colors.textFaint }]}>{new Date(row.created_at).toLocaleString('mn-MN')}</Text>
-                </View>
-              </View>
-            </Card>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* ── Толгой ─────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={10}
+          accessibilityLabel="Буцах"
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: spacing.md }}>
+          <Text style={styles.title}>Мэдэгдэл</Text>
+          <Text style={styles.subtitle}>
+            {unread > 0 ? `${unread} уншаагүй` : 'Бүгд уншсан'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => navigation.navigate('NotificationSettings')}
+          accessibilityLabel="Тохиргоо"
+        >
+          <Ionicons name="settings-outline" size={20} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.body}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
+        }
+      >
+        {unread > 0 ? (
+          <TouchableOpacity style={styles.markAllBtn} onPress={markAll} activeOpacity={0.75}>
+            <Ionicons name="checkmark-done" size={17} color={colors.primary} />
+            <Text style={styles.markAllText}>Бүгдийг уншсанд тооцох</Text>
           </TouchableOpacity>
-        ))}
+        ) : null}
+
+        {!rows.length && !loading ? (
+          <EmptyState text="Одоогоор мэдэгдэл алга." />
+        ) : (
+          rows.map((row) => {
+            const meta = metaFor(row.type);
+            return (
+              <TouchableOpacity
+                key={row.id}
+                activeOpacity={0.8}
+                onPress={() => open(row)}
+                style={[styles.card, !row.is_read && styles.cardUnread]}
+              >
+                <View style={styles.cardRow}>
+                  <View style={[styles.emojiCircle, { backgroundColor: `${meta.tone}1F` }]}>
+                    <Text style={styles.emoji}>{meta.emoji}</Text>
+                  </View>
+
+                  <View style={styles.content}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {row.title}
+                    </Text>
+                    {row.body ? (
+                      <Text style={styles.cardBody} numberOfLines={3}>
+                        {row.body}
+                      </Text>
+                    ) : null}
+
+                    <View style={styles.metaRow}>
+                      <View style={[styles.typeBadge, { borderColor: `${meta.tone}66` }]}>
+                        <Text style={[styles.typeBadgeText, { color: meta.tone }]}>{meta.label}</Text>
+                      </View>
+                      <Text style={styles.dot}>•</Text>
+                      <Text style={styles.date}>{fmtDate(row.created_at)}</Text>
+                    </View>
+                  </View>
+
+                  {!row.is_read ? <View style={styles.unreadDot} /> : null}
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background }, body: { padding: spacing.lg, paddingBottom: 130 },
-  markAll: { alignSelf: 'flex-end', paddingVertical: spacing.sm, marginBottom: spacing.sm }, markAllText: { fontWeight: '800', fontSize: 13 },
-  card: { padding: spacing.md }, row: { flexDirection: 'row', gap: spacing.md }, icon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, iconText: { fontSize: 21 },
-  content: { flex: 1 }, titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, title: { flex: 1, fontSize: 15, fontWeight: '900' }, dot: { width: 8, height: 8, borderRadius: 4 },
-  message: { fontSize: 13, lineHeight: 19, marginTop: 4 }, date: { fontSize: 11, marginTop: 8 },
-});
+const makeStyles = ({ colors }) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: colors.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
+    subtitle: { color: colors.textMuted, fontSize: 13, marginTop: 1 },
+
+    body: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: 130 },
+
+    markAllBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-end',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
+      marginBottom: spacing.md,
+    },
+    markAllText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+
+    card: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 18,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    cardUnread: { borderColor: `${colors.primary}44` },
+    cardRow: { flexDirection: 'row', gap: spacing.md },
+
+    emojiCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emoji: { fontSize: 24 },
+
+    content: { flex: 1 },
+    cardTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+    cardBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 3 },
+
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+    typeBadge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+    typeBadgeText: { fontSize: 12, fontWeight: '700' },
+    dot: { color: colors.textFaint, fontSize: 12 },
+    date: { color: colors.textFaint, fontSize: 12 },
+
+    unreadDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.primary,
+      marginTop: 4,
+    },
+  });

@@ -1,7 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, Modal, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  StyleSheet,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScreenHeader, Field, Button, EmptyState, LoadingState, BottomBar } from '../components/ui';
+import { ScreenHeader, Button, EmptyState, LoadingState, BottomBar } from '../components/ui';
 import EmployeeSelectSheet from '../components/EmployeeSelectSheet';
 import { useApp } from '../context/AppContext';
 import * as campaignApi from '../services/notificationCampaignService';
@@ -128,80 +141,143 @@ export default function AttendanceNotificationComposerScreen() {
       </BottomBar>
 
       <Modal visible={formVisible} transparent animationType="slide" onRequestClose={() => setFormVisible(false)}>
-        <View style={styles.overlay}>
-          <View style={[styles.sheet, { backgroundColor: colors.surfaceContainer }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: spacing.md }}>
-                Мэдэгдэл илгээх
-              </Text>
-              <Field label="Гарчиг" value={title} onChangeText={setTitle} />
-              <Field
-                label="Мэдэгдэл"
-                value={body}
-                onChangeText={setBody}
-                multiline
-                style={{ marginTop: spacing.md, minHeight: 90, textAlignVertical: 'top' }}
-              />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.overlay}
+        >
+          <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
 
-              <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: spacing.md, marginBottom: 8 }}>
-                Хүлээн авагч
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {AUDIENCE_OPTIONS.map((opt) => (
+              {/* ── Хүлээн авагч ──────────────────────────────── */}
+              <View style={[styles.block, { backgroundColor: colors.surfaceContainer }]}>
+                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>Хүлээн авагч</Text>
+
+                <View style={styles.audienceRow}>
+                  {AUDIENCE_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[
+                        styles.audienceChip,
+                        {
+                          backgroundColor:
+                            audienceKind === opt.key ? colors.primary : colors.surfaceContainerHigh,
+                        },
+                      ]}
+                      onPress={() => setAudienceKind(opt.key)}
+                    >
+                      <Text
+                        style={{
+                          color: audienceKind === opt.key ? colors.onPrimary : colors.textMuted,
+                          fontSize: 12,
+                          fontWeight: '600',
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {audienceKind === 'department' ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.md }}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {departments.map((d) => (
+                        <TouchableOpacity
+                          key={d.id}
+                          style={[
+                            styles.audienceChip,
+                            {
+                              backgroundColor:
+                                departmentId === d.id ? colors.primary : colors.surfaceContainerHigh,
+                            },
+                          ]}
+                          onPress={() => setDepartmentId(d.id)}
+                        >
+                          <Text
+                            style={{
+                              color: departmentId === d.id ? colors.onPrimary : colors.text,
+                              fontSize: 12,
+                            }}
+                          >
+                            {d.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : null}
+
+                {audienceKind === 'users' ? (
                   <TouchableOpacity
-                    key={opt.key}
-                    style={[
-                      styles.audienceChip,
-                      { backgroundColor: audienceKind === opt.key ? colors.primary : colors.surfaceContainerHigh },
-                    ]}
-                    onPress={() => setAudienceKind(opt.key)}
+                    style={styles.pickerCircleWrap}
+                    onPress={() => setSheetVisible(true)}
+                    activeOpacity={0.75}
                   >
-                    <Text style={{ color: audienceKind === opt.key ? colors.onPrimary : colors.text, fontSize: 12 }}>
-                      {opt.label}
+                    <View style={[styles.pickerCircle, { borderColor: colors.primary }]}>
+                      <Ionicons name="add" size={26} color={colors.primary} />
+                    </View>
+                    <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 8 }}>
+                      {selectedIds.length ? `${selectedIds.length} ажилтан` : 'Хоосон'}
                     </Text>
                   </TouchableOpacity>
-                ))}
+                ) : null}
               </View>
 
-              {audienceKind === 'department' ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.md }}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {departments.map((d) => (
-                      <TouchableOpacity
-                        key={d.id}
-                        style={[
-                          styles.audienceChip,
-                          { backgroundColor: departmentId === d.id ? colors.primary : colors.surfaceContainerHigh },
-                        ]}
-                        onPress={() => setDepartmentId(d.id)}
-                      >
-                        <Text style={{ color: departmentId === d.id ? colors.onPrimary : colors.text, fontSize: 12 }}>
-                          {d.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              ) : null}
+              {/* ── Мэдэгдэл ─────────────────────────────────── */}
+              <View style={[styles.block, { backgroundColor: colors.surfaceContainer }]}>
+                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: spacing.md }}>
+                  Мэдэгдэл илгээх
+                </Text>
 
-              {audienceKind === 'users' ? (
+                <TextInput
+                  style={[styles.titleInput, { borderColor: colors.outlineVariant, color: colors.text }]}
+                  placeholder="Гарчиг"
+                  placeholderTextColor={colors.textFaint}
+                  value={title}
+                  onChangeText={setTitle}
+                  maxLength={120}
+                />
+
+                <View style={[styles.bodyWrap, { borderColor: colors.primary }]}>
+                  <TextInput
+                    style={[styles.bodyInput, { color: colors.text }]}
+                    placeholder="Мэдэгдлээ бичнэ үү..."
+                    placeholderTextColor={colors.textFaint}
+                    value={body}
+                    onChangeText={(t) => t.length <= 1000 && setBody(t)}
+                    multiline
+                  />
+                  <Text style={{ color: colors.textFaint, fontSize: 12, alignSelf: 'flex-end' }}>
+                    {body.length}/1000
+                  </Text>
+                </View>
+
                 <TouchableOpacity
-                  style={[styles.assignBtn, { borderColor: colors.outlineVariant, marginTop: spacing.md }]}
-                  onPress={() => setSheetVisible(true)}
+                  style={[
+                    styles.sendBtn,
+                    { backgroundColor: colors.primary, opacity: sending ? 0.6 : 1 },
+                  ]}
+                  onPress={send}
+                  disabled={sending}
+                  activeOpacity={0.85}
                 >
-                  <Text style={{ color: colors.primary, fontWeight: '700' }}>
-                    Ажилтан сонгох{selectedIds.length ? ` (${selectedIds.length})` : ''}
+                  <Ionicons name="paper-plane" size={17} color={colors.onPrimary} />
+                  <Text style={{ color: colors.onPrimary, fontSize: 16, fontWeight: '700' }}>
+                    {sending ? 'Илгээж байна...' : 'Илгээх'}
                   </Text>
                 </TouchableOpacity>
-              ) : null}
 
-              <View style={{ flexDirection: 'row', gap: 12, marginTop: spacing.xl }}>
-                <Button title="Болих" variant="ghost" style={{ flex: 1 }} onPress={() => setFormVisible(false)} />
-                <Button title="Мэдэгдэл илгээх" style={{ flex: 1 }} onPress={send} loading={sending} />
+                <TouchableOpacity
+                  style={{ alignSelf: 'center', paddingVertical: 12 }}
+                  onPress={() => setFormVisible(false)}
+                >
+                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>Болих</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <EmployeeSelectSheet
@@ -221,8 +297,43 @@ export default function AttendanceNotificationComposerScreen() {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, padding: spacing.lg, marginBottom: spacing.sm },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, maxHeight: '88%' },
-  audienceChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  assignBtn: { height: 48, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, maxHeight: '92%' },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 16 },
+
+  block: { borderRadius: 18, padding: spacing.lg, marginBottom: spacing.md },
+  audienceRow: { flexDirection: 'row', gap: 8, marginTop: spacing.md },
+  audienceChip: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+
+  pickerCircleWrap: { alignItems: 'center', marginTop: spacing.lg },
+  pickerCircle: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  titleInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 50,
+    fontSize: 15,
+    marginBottom: spacing.md,
+  },
+  bodyWrap: { borderWidth: 1, borderRadius: 16, padding: 14, minHeight: 130 },
+  bodyInput: { flex: 1, fontSize: 15, textAlignVertical: 'top', minHeight: 90 },
+
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    height: 54,
+    borderRadius: 28,
+    marginTop: spacing.lg,
+  },
 });
