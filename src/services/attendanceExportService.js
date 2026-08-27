@@ -13,7 +13,7 @@ import XlsxChart from '../../admin-web/xlsx-chart.js';
 import {
   buildDailyAttendanceSheets,
   buildRangeAttendanceSheets,
-} from './attendanceReportBuilder';
+} from '../../admin-web/attendance-report-builder.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 

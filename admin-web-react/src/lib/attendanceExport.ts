@@ -9,11 +9,11 @@ import '../../../admin-web/xlsx-chart.js';
 import {
   buildDailyAttendanceSheets,
   sheetsToPreview,
-} from '../../../src/services/attendanceReportBuilder.js';
+} from '../../../admin-web/attendance-report-builder.js';
+import type { AttendanceRow } from './data';
 
 type XlsxChartApi = { build: (o: unknown) => Uint8Array };
 const XlsxChart = (globalThis as unknown as { XlsxChart: XlsxChartApi }).XlsxChart;
-import type { AttendanceRow } from './data';
 
 export type Sheet = { name: string; rows: (string | number)[][] };
 export type Preview = { header: string[]; body: (string | number)[][]; sheetName: string };

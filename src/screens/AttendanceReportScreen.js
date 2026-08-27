@@ -17,7 +17,7 @@ import * as exportApi from '../services/attendanceExportService';
 import {
   buildDailyAttendanceSheets,
   sheetsToPreview,
-} from '../services/attendanceReportBuilder';
+} from '../../admin-web/attendance-report-builder.js';
 import { friendlyError } from '../lib/erpMessages';
 import { dayKey } from '../lib/workHours';
 import { colors } from '../theme/attendanceDark';
