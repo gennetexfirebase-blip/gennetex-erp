@@ -22,6 +22,18 @@ function hhmm(iso: string) {
   return new Date(iso).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' });
 }
 
+/** Төлөвийг МОНГОЛООР — түүхий `on_time` гэх утга харуулахгүй. */
+const STATUS_LABEL: Record<string, string> = {
+  on_time: 'Цагтаа ирсэн',
+  late: 'Хоцорсон',
+  early_leave: 'Эрт явсан',
+  absent: 'Тасалсан',
+  leave: 'Чөлөөтэй',
+  rest: 'Амралт',
+  not_scheduled: 'Хуваарьгүй',
+  upcoming: 'Ирээгүй',
+};
+
 /**
  * Ажилтны нэг өдрийн ирцийн дэлгэрэнгүй — ХЭЗЭЭ, ХААНААС бүртгүүлснийг
  * газрын зураг дээр харуулна.
@@ -71,6 +83,17 @@ export default function AttendanceDetailDrawer({
             <p className="truncate text-[15px] font-bold text-ink">{row.employee_name}</p>
             <p className="text-[12px] text-subtle">{date}</p>
           </div>
+          <Badge
+            tone={
+              row.status === 'late' || row.status === 'absent'
+                ? 'danger'
+                : row.status === 'on_time'
+                  ? 'success'
+                  : 'neutral'
+            }
+          >
+            {STATUS_LABEL[row.status] || row.status}
+          </Badge>
           <button
             onClick={onClose}
             className="focus-ring rounded-[var(--radius-sm)] p-2 text-muted hover:bg-hover hover:text-ink"
@@ -90,28 +113,35 @@ export default function AttendanceDetailDrawer({
           ) : (
             <>
               {/* Бүртгэлийн жагсаалт */}
-              <div className="mb-5 space-y-2">
-                {records.map((r) => {
+              {/* Timeline — мөрүүдийг босоо шугамаар холбоно */}
+              <div className="mb-5 rounded-[var(--radius)] border border-line bg-card p-4">
+                {records.map((r, i) => {
                   const isIn = r.type === 'check_in';
                   const selected = active?.id === r.id;
+                  const last = i === records.length - 1;
                   return (
                     <button
                       key={r.id}
                       onClick={() => setActive(r)}
-                      className={`flex w-full items-center gap-3 rounded-[var(--radius)] border p-3 text-left transition ${
-                        selected ? 'border-brand bg-brand-soft' : 'border-line bg-card hover:bg-hover'
-                      }`}
+                      className="flex w-full gap-3 text-left"
                     >
-                      <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                          isIn ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'
-                        }`}
-                      >
-                        {isIn ? <LogIn size={16} /> : <LogOut size={16} />}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-semibold text-ink">
-                          {isIn ? 'Ирсэн' : 'Явсан'} · {hhmm(r.created_at)}
+                      <div className="flex flex-col items-center">
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white ${
+                            isIn ? 'bg-success' : 'bg-danger'
+                          } ${selected ? 'ring-2 ring-brand ring-offset-2 ring-offset-[var(--bg-card)]' : ''}`}
+                        >
+                          {isIn ? <LogIn size={15} /> : <LogOut size={15} />}
+                        </span>
+                        {!last ? <span className="my-1 w-0.5 flex-1 bg-line" /> : null}
+                      </div>
+                      <div className={`min-w-0 flex-1 ${last ? '' : 'pb-4'}`}>
+                        <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                          {isIn ? 'Ирсэн' : 'Явсан'}
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${isIn ? 'bg-success' : 'bg-danger'}`}
+                          />
+                          {hhmm(r.created_at)}
                         </p>
                         <p className="truncate text-[12px] text-muted">
                           {r.location_name
@@ -119,11 +149,10 @@ export default function AttendanceDetailDrawer({
                             : r.latitude != null
                               ? `${Number(r.latitude).toFixed(5)}, ${Number(r.longitude).toFixed(5)}`
                               : 'Байршил хадгалагдаагүй'}
-                          {r.distance_m != null ? ` · ~${r.distance_m}м` : ''}
+                          {r.distance_m != null ? ` • ~${r.distance_m}м` : ''}
+                          {r.is_remote ? ' • Зайнаас' : ''}
                         </p>
                       </div>
-                      {r.is_remote ? <Badge tone="warning">Зайнаас</Badge> : null}
-                      {r.status === 'pending' ? <Badge tone="warning">Хүлээгдэж буй</Badge> : null}
                     </button>
                   );
                 })}
