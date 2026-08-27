@@ -67,6 +67,13 @@
     border-radius: 12px; padding: 14px; font-size: 13.5px; line-height: 1.55;
   }
   .ios { color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .direct {
+    display: inline-block; font-weight: 700; font-size: 14.5px;
+    color: var(--accent, #0099db); text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--accent, #0099db) 45%, transparent);
+    border-radius: 12px; padding: 12px 18px;
+  }
+  .direct:hover { background: color-mix(in srgb, var(--accent, #0099db) 10%, transparent); }
   .foot { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 28px; }
   code {
     background: color-mix(in srgb, var(--muted) 15%, transparent);
@@ -101,6 +108,30 @@
       <li>“Тодорхойгүй эх сурвалж” гэсэн анхааруулга гарвал <b>Тохиргоо → Зөвшөөрөх</b> гэж сонгоод буцна.</li>
       <li>Апп нээгдмэгц <b>Google хаягаараа</b> нэвтэрнэ.</li>
     </ol>
+  </div>
+
+  <!-- Татахад асуудал гарвал -->
+  <div class="card">
+    <h2>Татагдахгүй эсвэл файл олдохгүй бол</h2>
+    <p class="note" style="margin-bottom:12px">
+      Chrome зэрэг браузер APK файлыг “аюултай” гэж үзээд <b>чимээгүй хаадаг</b>.
+      Татсан мэт харагдаад Downloads дотор байхгүй бол ихэвчлэн энэ шалтгаантай.
+    </p>
+    <ol>
+      <li>Браузерын <b>⋮ → Татаж авсан зүйл (Downloads)</b> хэсгийг нээнэ.</li>
+      <li>Файл улаанаар “dangerous / blocked” гэж тэмдэглэгдсэн бол дэргэдэх
+        <b>▾</b> дарж <b>Үргэлжлүүлэх / Keep</b> гэж сонгоно.</li>
+      <li>Ажиллахгүй бол доорх шууд холбоосоор татна.</li>
+    </ol>
+    <p style="margin-top:14px">
+      <a id="direct" class="direct" href="#" target="_blank" rel="noopener">
+        GitHub-аас шууд татах →
+      </a>
+    </p>
+    <p class="note" style="margin-top:10px">
+      Файл <b>135 MB</b> тул Wi-Fi дээр татахыг зөвлөж байна. Татаж дууссан файл
+      ихэвчлэн <b>Файл → Downloads</b> дотор байрлана.
+    </p>
   </div>
 
   <!-- Эрхийн анхааруулга -->
@@ -142,7 +173,13 @@
       if (!res.ok) throw new Error('manifest');
       const info = await res.json();
       dl.href = info.url;
+      // ⚠️ `download` нь ӨӨР ДОМЭЙН дээр үйлчлэхгүй (GitHub release нь
+      // өөр origin). Татах нь серверийн `Content-Disposition: attachment`
+      // -аар шийдэгддэг тул энэ атрибут зөвхөн нэрийг санал болгоно.
       dl.setAttribute('download', info.fileName || 'gennetex-erp.apk');
+      // Нөөц холбоос — браузер блоклосон үед шууд орж татна.
+      const direct = document.getElementById('direct');
+      if (direct) direct.href = info.url;
       const mb = info.sizeBytes ? (info.sizeBytes / 1048576).toFixed(1) + ' MB · ' : '';
       meta.textContent = `Хувилбар ${info.version || '—'} · ${mb}${info.releasedAt || ''}`;
     } catch (e) {
