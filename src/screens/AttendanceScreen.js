@@ -1730,12 +1730,17 @@ export default function AttendanceScreen() {
         {[
           { icon: 'paper-plane-outline', label: 'Хүсэлт', to: 'AttendanceRequests', badge: pending.length },
           { icon: 'people-outline', label: 'Ажилтан', to: 'Employees' },
-          { icon: 'map-outline', label: 'Байршил', to: 'AttendanceLocationSubmissions' },
+          {
+            icon: 'document-text-outline',
+            label: 'Тайлан',
+            to: 'AttendanceReport',
+            params: { date: dashboardDate },
+          },
         ].map((q) => (
           <TouchableOpacity
             key={q.to}
             style={[dashStyles.quickBtn, { backgroundColor: adminColors.surfaceContainer }]}
-            onPress={() => navigation.navigate(q.to)}
+            onPress={() => navigation.navigate(q.to, q.params)}
             activeOpacity={0.8}
           >
             <Ionicons name={q.icon} size={19} color={adminColors.primary} />

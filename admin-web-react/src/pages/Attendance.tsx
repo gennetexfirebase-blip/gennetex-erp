@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Calendar, Filter, RotateCw } from 'lucide-react';
+import { Calendar, Filter, RotateCw, FileSpreadsheet, Download } from 'lucide-react';
 import { PageHeader, Card, Button, Input, Select, Avatar, EmptyState, Loading, ErrorState, Badge } from '../components/ui';
 import { fetchAttendanceToday, fetchDepartments, useAsync, type AttendanceRow } from '../lib/data';
 import AttendanceDetailDrawer from '../components/AttendanceDetailDrawer';
+import ExcelPreviewModal from '../components/ExcelPreviewModal';
+import { downloadDailyExcel } from '../lib/attendanceExport';
 
 const STATUS_LABEL: Record<string, string> = {
   on_time: 'Ирсэн',
@@ -38,6 +40,7 @@ export default function AttendancePage() {
   const [status, setStatus] = useState<string>('all');
   const [query, setQuery] = useState('');
   const [detail, setDetail] = useState<AttendanceRow | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { data: departments } = useAsync(fetchDepartments, [], [] as any[]);
   const { data: rows, loading, error, reload } = useAsync<AttendanceRow[]>(
@@ -75,9 +78,27 @@ export default function AttendancePage() {
         title="Ирц бүртгэл"
         crumb="Ирц бүртгэл"
         actions={
-          <Button variant="outline" icon={<RotateCw size={15} />} onClick={reload}>
-            Шинэчлэх
-          </Button>
+          <>
+            <Button variant="outline" icon={<RotateCw size={15} />} onClick={reload}>
+              Шинэчлэх
+            </Button>
+            <Button
+              variant="outline"
+              icon={<FileSpreadsheet size={15} />}
+              onClick={() => setPreviewOpen(true)}
+              disabled={!rows.length}
+            >
+              Урьдчилан харах
+            </Button>
+            <Button
+              variant="success"
+              icon={<Download size={15} />}
+              onClick={() => downloadDailyExcel(date, filtered)}
+              disabled={!filtered.length}
+            >
+              Excel татах
+            </Button>
+          </>
         }
       />
 
@@ -210,6 +231,13 @@ export default function AttendancePage() {
       </Card>
 
       <AttendanceDetailDrawer row={detail} date={date} onClose={() => setDetail(null)} />
+
+      <ExcelPreviewModal
+        open={previewOpen}
+        date={date}
+        rows={filtered}
+        onClose={() => setPreviewOpen(false)}
+      />
     </>
   );
 }

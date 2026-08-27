@@ -43,5 +43,9 @@ export default defineConfig({
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(SUPABASE_URL),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(SUPABASE_ANON_KEY),
   },
+  // Төслийн үндсэн `src/` болон `admin-web/` доторх ХУВААЛЦСАН модулиудыг
+  // (ирцийн тайлан угсрагч, xlsx бичигч) шууд импортлохыг зөвшөөрнө —
+  // ингэснээр код давхардахгүй, апп ба вэбээс татсан Excel ижил гарна.
+  server: { fs: { allow: ['..'] } },
   build: { outDir: 'dist', sourcemap: false },
 });

@@ -37,6 +37,7 @@ import AttendanceMonthlySummaryScreen from './src/screens/AttendanceMonthlySumma
 import AttendanceHistoryScreen from './src/screens/AttendanceHistoryScreen';
 import AttendanceDetailScreen from './src/screens/AttendanceDetailScreen';
 import AttendanceRequestsScreen from './src/screens/AttendanceRequestsScreen';
+import AttendanceReportScreen from './src/screens/AttendanceReportScreen';
 import AttendanceSettingsScreen from './src/screens/AttendanceSettingsScreen';
 import AttendanceLocationsScreen from './src/screens/AttendanceLocationsScreen';
 import AttendanceLocationFormScreen from './src/screens/AttendanceLocationFormScreen';
@@ -231,6 +232,7 @@ function AppStack() {
       <Stack.Screen name="AttendanceHistory" component={AttendanceHistoryScreen} />
       <Stack.Screen name="AttendanceDetail" component={AttendanceDetailScreen} />
       <Stack.Screen name="AttendanceRequests" component={AttendanceRequestsScreen} />
+      <Stack.Screen name="AttendanceReport" component={AttendanceReportScreen} />
       <Stack.Screen name="AttendanceSettings" component={AttendanceSettingsScreen} />
       <Stack.Screen name="AttendanceLocations" component={AttendanceLocationsScreen} />
       <Stack.Screen name="AttendanceLocationForm" component={AttendanceLocationFormScreen} />
