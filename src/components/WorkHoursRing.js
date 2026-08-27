@@ -11,8 +11,8 @@ import Svg, { Circle } from 'react-native-svg';
 export default function WorkHoursRing({
   workedMinutes = 0,
   targetMinutes = 480, // 8 цаг
-  size = 96,
-  stroke = 8,
+  size = 118,
+  stroke = 9,
   colors,
   label = 'Нийт ажилласан',
 }) {
@@ -53,12 +53,20 @@ export default function WorkHoursRing({
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
         </Svg>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{timeText}</Text>
+        {/* Шошго нь цагиргийн ДОТОР — загварын дагуу */}
+        <View style={{ alignItems: 'center', paddingHorizontal: 6 }}>
+          <Text
+            style={{ color: colors.textMuted, fontSize: 10, textAlign: 'center' }}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+          <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginTop: 1 }}>
+            {timeText}
+          </Text>
           <Text style={{ color: colors.textFaint, fontSize: 10 }}>цаг</Text>
         </View>
       </View>
-      <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 6 }}>{label}</Text>
     </View>
   );
 }

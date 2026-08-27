@@ -13,6 +13,7 @@ import {
   Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFaceDetection } from '../lib/faceDetection';
 import * as faceCloud from '../services/faceCloudService';
 import * as faceEdge from '../services/faceEdgeService';
@@ -99,6 +100,54 @@ function describeFaceFailure(result, ownerName) {
       'Өөр хүнийг орлож бүртгүүлэх боломжгүй.\n\n' +
       'Хэрэв та эрхийнхээ эзэн мөн бол профайлаасаа царайгаа дахин бүртгүүлнэ үү.',
   };
+}
+
+/**
+ * Админы удирдлагын карт — өнгөт дугуй icon, гарчиг/тайлбар, outline товч,
+ * доор нь жагсаалт. Гурван хэсэг (хуваарь/амралт/байршил) ижил хэлбэртэй
+ * байхын тулд тусад нь гаргав.
+ */
+function AdminSectionCard({
+  colors,
+  icon,
+  iconBg,
+  iconFg,
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
+  footer,
+  children,
+  style,
+}) {
+  return (
+    <View style={[dashStyles.sectionCard, { backgroundColor: colors.surfaceContainer }, style]}>
+      <View style={dashStyles.sectionHead}>
+        <View style={[dashStyles.sectionIcon, { backgroundColor: iconBg }]}>
+          <Ionicons name={icon} size={19} color={iconFg} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{title}</Text>
+          {subtitle ? (
+            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>
+          ) : null}
+        </View>
+        {actionLabel ? (
+          <TouchableOpacity
+            style={[dashStyles.outlineBtn, { borderColor: colors.primary }]}
+            onPress={onAction}
+            activeOpacity={0.75}
+          >
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>{actionLabel}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      {children}
+      {footer ? (
+        <Text style={{ color: colors.textFaint, fontSize: 11, marginTop: 10 }}>{footer}</Text>
+      ) : null}
+    </View>
+  );
 }
 
 export default function AttendanceScreen() {
@@ -238,13 +287,14 @@ export default function AttendanceScreen() {
     return true;
   });
 
+  // Нэг мөрөнд багтахаар 4 үндсэн үзүүлэлт (загварын дагуу).
+  // "Ирсэн" нь цагтаа ирсэн + хоцорсон + эрт явсныг бүгдийг хамруулна —
+  // ирц бүртгүүлсэн эсэх нь админд хамгийн чухал тоо.
   const dayStatCards = [
     { key: 'all', label: 'Бүгд', value: dayRows.length },
     { key: 'absent', label: 'Тасалсан', value: dayRows.filter((r) => r.status === 'absent').length },
     { key: 'late', label: 'Хоцорсон', value: dayRows.filter((r) => r.status === 'late').length },
-    { key: 'on_time', label: 'Ирсэн', value: dayRows.filter((r) => r.status === 'on_time').length },
-    { key: 'leave', label: 'Чөлөөтэй', value: dayRows.filter((r) => r.status === 'leave').length },
-    { key: 'early_leave', label: 'Эрт явсан', value: dayRows.filter((r) => r.status === 'early_leave').length },
+    { key: 'on_time', label: 'Ирсэн', value: dayRows.filter((r) => r.check_in_at).length },
   ];
 
   const loadEmployees = useCallback(async () => {
@@ -1325,10 +1375,10 @@ export default function AttendanceScreen() {
   })();
 
   const myStatus = shiftStatus.checkedOut
-    ? { label: 'Ажил дууссан', icon: '✓', bg: 'rgba(63,207,142,0.18)', fg: '#3fcf8e' }
+    ? { label: 'Ажил дууссан', icon: 'checkmark-circle', bg: 'rgba(63,207,142,0.16)', fg: '#3fcf8e' }
     : shiftStatus.checkedIn
-      ? { label: 'Ажил дээр', icon: '●', bg: 'rgba(0,153,219,0.18)', fg: adminColors.primary }
-      : { label: 'Бүртгүүлээгүй', icon: '○', bg: 'rgba(245,181,68,0.18)', fg: '#f5b544' };
+      ? { label: 'Ажил дээр', icon: 'ellipse', bg: 'rgba(0,153,219,0.16)', fg: adminColors.primary }
+      : { label: 'Бүртгүүлээгүй', icon: 'alert-circle-outline', bg: 'rgba(245,181,68,0.16)', fg: '#f5b544' };
 
   // Админы ӨӨРИЙНХ нь одоогийн байршил — бусад ажилтны байршлыг энд ХАРУУЛАХГҮЙ.
   const adminNearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
@@ -1345,28 +1395,31 @@ export default function AttendanceScreen() {
   const adminHeader = (
     <View>
       <View style={dashStyles.topRow}>
-        <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={44} />
-        <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <Text style={{ color: adminColors.text, fontSize: 16, fontWeight: '800' }}>{profile?.name}</Text>
-          <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>ЖЕННЕТЕКС ХХК</Text>
+        <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={48} />
+        <View style={{ flex: 1, marginLeft: spacing.md }}>
+          <Text style={{ color: adminColors.text, fontSize: 19, fontWeight: '800' }} numberOfLines={1}>
+            {profile?.name}
+          </Text>
+          <Text style={{ color: adminColors.textMuted, fontSize: 12, marginTop: 1 }}>ЖЕННЕТЕКС ХХК</Text>
         </View>
         <TouchableOpacity
           style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer, marginRight: 8 }]}
-          onPress={() => navigation.navigate('AttendanceSettings')}
-          accessibilityLabel="Ирцийн тохиргоо"
-        >
-          <Text style={{ fontSize: 16 }}>⚙️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer }]}
           onPress={() => navigation.navigate('Notifications')}
+          accessibilityLabel="Мэдэгдэл"
         >
-          <Text style={{ fontSize: 16 }}>🔔</Text>
+          <Ionicons name="notifications-outline" size={19} color={adminColors.text} />
           {pending.length > 0 ? (
             <View style={dashStyles.badgeDot}>
               <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{pending.length}</Text>
             </View>
           ) : null}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer }]}
+          onPress={() => navigation.navigate('AttendanceSettings')}
+          accessibilityLabel="Ирцийн тохиргоо"
+        >
+          <Ionicons name="settings-outline" size={19} color={adminColors.text} />
         </TouchableOpacity>
       </View>
 
@@ -1386,8 +1439,9 @@ export default function AttendanceScreen() {
                   : '--:--'}
             </Text>
             <View style={[dashStyles.statusChip, { backgroundColor: myStatus.bg }]}>
-              <Text style={{ color: myStatus.fg, fontSize: 11, fontWeight: '700' }}>
-                {myStatus.icon} {myStatus.label}
+              <Ionicons name={myStatus.icon} size={14} color={myStatus.fg} />
+              <Text style={{ color: myStatus.fg, fontSize: 13, fontWeight: '700' }}>
+                {myStatus.label}
               </Text>
             </View>
           </View>
@@ -1401,33 +1455,36 @@ export default function AttendanceScreen() {
         {/* Ирсэн / Явсан хоёр багана */}
         <View style={dashStyles.inOutRow}>
           <View style={dashStyles.inOutCell}>
-            <View style={[dashStyles.inOutIcon, { backgroundColor: 'rgba(63,207,142,0.18)' }]}>
-              <Text style={{ fontSize: 13 }}>→</Text>
+            <View style={[dashStyles.inOutIcon, { borderColor: adminColors.primary }]}>
+              <Ionicons name="arrow-forward" size={15} color={adminColors.primary} />
             </View>
             <View>
-              <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Ирсэн</Text>
-              <Text style={{ color: adminColors.text, fontSize: 16, fontWeight: '800' }}>
+              <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Ирсэн</Text>
+              <Text style={{ color: adminColors.text, fontSize: 17, fontWeight: '800' }}>
                 {fmtHM(shiftStatus.checkInAt)}
               </Text>
             </View>
           </View>
           <View style={[dashStyles.inOutDivider, { backgroundColor: adminColors.outlineVariant }]} />
           <View style={dashStyles.inOutCell}>
-            <View style={[dashStyles.inOutIcon, { backgroundColor: 'rgba(255,107,96,0.18)' }]}>
-              <Text style={{ fontSize: 13 }}>←</Text>
+            <View style={[dashStyles.inOutIcon, { borderColor: adminColors.primary }]}>
+              <Ionicons name="arrow-forward" size={15} color={adminColors.primary} />
             </View>
             <View>
-              <Text style={{ color: adminColors.textMuted, fontSize: 11 }}>Явсан</Text>
-              <Text style={{ color: adminColors.text, fontSize: 16, fontWeight: '800' }}>
+              <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Явсан</Text>
+              <Text style={{ color: adminColors.text, fontSize: 17, fontWeight: '800' }}>
                 {fmtHM(shiftStatus.checkOutAt)}
               </Text>
             </View>
           </View>
         </View>
 
-        <Text style={{ color: adminColors.textFaint, fontSize: 12, marginTop: 10 }}>
-          📍 {adminLocationLabel}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
+          <Ionicons name="location-outline" size={14} color={adminColors.textFaint} />
+          <Text style={{ color: adminColors.textFaint, fontSize: 12, flex: 1 }} numberOfLines={1}>
+            {adminLocationLabel}
+          </Text>
+        </View>
 
         {/* Ирлээ / Явлаа */}
         {!shiftStatus.checkedOut ? (
@@ -1458,9 +1515,9 @@ export default function AttendanceScreen() {
       {/* Хурдан холбоос — доод хөвөгч цэсийг орлоно */}
       <View style={dashStyles.quickRow}>
         {[
-          { icon: '📨', label: 'Хүсэлт', to: 'AttendanceRequests', badge: pending.length },
-          { icon: '👥', label: 'Ажилтан', to: 'Employees' },
-          { icon: '⚙️', label: 'Тохиргоо', to: 'AttendanceSettings' },
+          { icon: 'paper-plane-outline', label: 'Хүсэлт', to: 'AttendanceRequests', badge: pending.length },
+          { icon: 'people-outline', label: 'Ажилтан', to: 'Employees' },
+          { icon: 'map-outline', label: 'Байршил', to: 'AttendanceLocationSubmissions' },
         ].map((q) => (
           <TouchableOpacity
             key={q.to}
@@ -1468,8 +1525,8 @@ export default function AttendanceScreen() {
             onPress={() => navigation.navigate(q.to)}
             activeOpacity={0.8}
           >
-            <Text style={{ fontSize: 17 }}>{q.icon}</Text>
-            <Text style={{ color: adminColors.text, fontSize: 12, fontWeight: '600', marginTop: 3 }}>
+            <Ionicons name={q.icon} size={19} color={adminColors.primary} />
+            <Text style={{ color: adminColors.text, fontSize: 12, fontWeight: '600', marginTop: 5 }}>
               {q.label}
             </Text>
             {q.badge > 0 ? (
@@ -1547,65 +1604,82 @@ export default function AttendanceScreen() {
         </View>
       ) : null}
 
-      {/* Хуваарь / Амралт / Байршил — одоо байгаа удирдлагууд, dark карт дотор хэвээр */}
-      <Card style={{ marginTop: spacing.md, backgroundColor: adminColors.surfaceContainer }}>
-        <View style={styles.locHead}>
-          <Text style={[styles.blockTitle, { color: adminColors.text }]}> Ажилтны хуваарь</Text>
-          <Button title="Хуваарь оноох" size="sm" onPress={() => setShiftModal(true)} />
-        </View>
-        {todayShifts.length === 0 ? (
-          <Text style={[styles.privacyText, { color: adminColors.textMuted }]}>Өнөөдрийн хуваарь алга.</Text>
-        ) : (
-          todayShifts.map((s) => (
-            <View key={s.id} style={styles.locRow}>
-              <Text style={[styles.locName, { color: adminColors.text }]}>{s.user_name}</Text>
-              <Text style={[styles.locRadius, { color: adminColors.textMuted }]}>
-                {s.start_time}–{s.end_time}
-                {s.location_name ? ` · ${s.location_name}` : ''}
-              </Text>
-            </View>
-          ))
-        )}
-      </Card>
+      {/* ── Удирдлагын картууд (загварын дагуу: өнгөт дугуй icon + outline товч) ── */}
+      <AdminSectionCard
+        colors={adminColors}
+        icon="calendar"
+        iconBg="rgba(0,153,219,0.16)"
+        iconFg="#2f9fe0"
+        title="Ажилтны хуваарь"
+        subtitle={todayShifts.length === 0 ? 'Өнөөдрийн хуваарь алга.' : `${todayShifts.length} ажилтанд хуваарьтай`}
+        actionLabel="Хуваарь оноох"
+        onAction={() => setShiftModal(true)}
+        style={{ marginTop: spacing.md }}
+      >
+        {todayShifts.map((s) => (
+          <View key={s.id} style={dashStyles.itemRow}>
+            <View style={[dashStyles.itemDot, { backgroundColor: adminColors.primary }]} />
+            <Text style={[dashStyles.itemName, { color: adminColors.text }]} numberOfLines={1}>
+              {s.user_name}
+            </Text>
+            <Text style={{ color: adminColors.textMuted, fontSize: 13 }}>
+              {s.start_time}–{s.end_time}
+            </Text>
+          </View>
+        ))}
+      </AdminSectionCard>
 
-      <Card style={{ marginTop: spacing.sm, backgroundColor: adminColors.surfaceContainer }}>
-        <View style={styles.locHead}>
-          <Text style={[styles.blockTitle, { color: adminColors.text }]}> Амралтын өдөр</Text>
-          <Button title="Өдөр сонгох" size="sm" onPress={openBreakModal} />
-        </View>
-        {Object.keys(breakSchedulesByUser).length === 0 ? (
-          <Text style={[styles.privacyText, { color: adminColors.textMuted }]}>Даваа–Ням гаригт амралтын өдөр тохируулаагүй.</Text>
-        ) : (
-          Object.values(breakSchedulesByUser).map((item) => (
-            <View key={item.user_id} style={styles.locRow}>
-              <Text style={[styles.locName, { color: adminColors.text }]}>{item.user_name}</Text>
-              <Text style={[styles.locRadius, { color: adminColors.textMuted }]}>
-                {item.days.map((d) => weekdayLabel(d)).join(', ')}
-              </Text>
-            </View>
-          ))
-        )}
-      </Card>
+      <AdminSectionCard
+        colors={adminColors}
+        icon="bed"
+        iconBg="rgba(155,109,255,0.16)"
+        iconFg="#9b6dff"
+        title="Амралтын өдөр"
+        subtitle={
+          Object.keys(breakSchedulesByUser).length === 0
+            ? 'Даваа–Ням гаригт амралтын өдөр тохируулаагүй.'
+            : `${Object.keys(breakSchedulesByUser).length} ажилтанд тохируулсан`
+        }
+        actionLabel="Өдөр сонгох"
+        onAction={openBreakModal}
+      >
+        {Object.values(breakSchedulesByUser).map((item) => (
+          <View key={item.user_id} style={dashStyles.itemRow}>
+            <View style={[dashStyles.itemDot, { backgroundColor: '#9b6dff' }]} />
+            <Text style={[dashStyles.itemName, { color: adminColors.text }]} numberOfLines={1}>
+              {item.user_name}
+            </Text>
+            <Text style={{ color: adminColors.textMuted, fontSize: 13 }}>
+              {item.days.map((d) => weekdayLabel(d)).join(', ')}
+            </Text>
+          </View>
+        ))}
+      </AdminSectionCard>
 
-      <Card style={{ marginTop: spacing.sm, backgroundColor: adminColors.surfaceContainer }}>
-        <View style={styles.locHead}>
-          <Text style={[styles.blockTitle, { color: adminColors.text }]}> Бүртгэлийн байршил</Text>
-          <Button title="Одоогийн газар нэмэх" size="sm" onPress={() => setLocModal(true)} />
-        </View>
-        {locations.length === 0 ? (
-          <Text style={[styles.privacyText, { color: adminColors.textMuted }]}>Байршил тохируулаагүй бол хаанаас ч бүртгэнэ.</Text>
-        ) : (
-          locations.map((l) => (
-            <View key={l.id} style={styles.locRow}>
-              <Text style={[styles.locName, { color: adminColors.text }]}>{l.name}</Text>
-              <Text style={[styles.locRadius, { color: adminColors.textMuted }]}>{l.radius_m}м</Text>
-              <TouchableOpacity onPress={() => removeLocation(l.id, l.name)} hitSlop={8}>
-                <Text style={styles.delete}>Устгах</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        )}
-      </Card>
+      <AdminSectionCard
+        colors={adminColors}
+        icon="location"
+        iconBg="rgba(0,153,219,0.16)"
+        iconFg="#2f9fe0"
+        title="Бүртгэлийн байршил"
+        subtitle={locations.length === 0 ? 'Байршил тохируулаагүй бол хаанаас ч бүртгэнэ.' : null}
+        actionLabel="Байршил нэмэх"
+        onAction={() => setLocModal(true)}
+        footer={locations.length > 0 ? 'Бүртгэл хийх боломжтой цэгүүд' : null}
+      >
+        {locations.map((l) => (
+          <View key={l.id} style={dashStyles.itemRow}>
+            <View style={[dashStyles.itemDot, { backgroundColor: adminColors.primary }]} />
+            <Text style={[dashStyles.itemName, { color: adminColors.text }]} numberOfLines={1}>
+              {l.name}
+            </Text>
+            <Text style={{ color: adminColors.textMuted, fontSize: 13, marginRight: 12 }}>{l.radius_m}м</Text>
+            <TouchableOpacity onPress={() => removeLocation(l.id, l.name)} hitSlop={10}>
+              <Ionicons name="trash-outline" size={17} color="#ff6b60" />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </AdminSectionCard>
 
       {dayRowsError ? (
         <View style={[dashStyles.errorBox, { backgroundColor: 'rgba(255,107,96,0.12)' }]}>
@@ -1999,15 +2073,24 @@ const dashStyles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   selfCard: { borderRadius: 16, padding: spacing.md, marginBottom: spacing.sm },
-  heroCard: { borderRadius: 20, padding: spacing.lg, marginBottom: spacing.sm },
+  heroCard: {
+    borderRadius: 20,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,153,219,0.28)',
+  },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   statusChip: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginTop: 10,
   },
   heroBtnRow: { flexDirection: 'row', gap: 10, marginTop: spacing.lg },
   heroBtn: { flex: 1, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
@@ -2019,9 +2102,33 @@ const dashStyles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.10)',
   },
-  inOutCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  inOutIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  inOutDivider: { width: StyleSheet.hairlineWidth, height: 28, marginHorizontal: spacing.sm },
+  inOutCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  inOutIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inOutDivider: { width: StyleSheet.hairlineWidth, height: 34, marginHorizontal: spacing.sm },
+  sectionCard: { borderRadius: 18, padding: spacing.lg, marginTop: spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center' },
+  sectionIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  outlineBtn: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  itemDot: { width: 7, height: 7, borderRadius: 4 },
+  itemName: { flex: 1, fontSize: 14, fontWeight: '600' },
   quickRow: { flexDirection: 'row', gap: 10, marginTop: spacing.sm },
   quickBtn: {
     flex: 1,
