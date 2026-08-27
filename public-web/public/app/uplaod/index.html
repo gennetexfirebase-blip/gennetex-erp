@@ -97,6 +97,31 @@
     margin-bottom: -6px;
   }
 
+  .speed {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    background: #e9f7ee;
+    border: 1px solid #b9e3c8;
+    border-radius: 999px;
+  }
+  .speed b { font-variant-numeric: tabular-nums; color: #17915c; }
+  .speed .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #17915c;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+  @media (prefers-color-scheme: dark) {
+    .speed { color: #cfe9da; background: #14251b; border-color: #23412f; }
+  }
+
   .warn {
     max-width: 520px;
     padding: 13px 16px;
@@ -194,11 +219,9 @@
 <h1 id="label">Upload хийгдэх хугацаа</h1>
 
 <div class="board" id="board" aria-live="polite">
-  <div class="unit">
-    <div class="digits" id="d"></div>
-    <div class="caption">DAYS</div>
-  </div>
-  <div class="sep">:</div>
+  <!-- Хоногийн хайрцаг ЗОРИУДААР байхгүй: үлдсэн хугацааг бүхэлд нь
+       цаг руу хөрвүүлж харуулна (ж: 1 хоног 5 цаг → 29 цаг). Богино
+       хугацаанд "0 хоног" гэсэн хоосон хайрцаг эзлэхээс сэргийлнэ. -->
   <div class="unit">
     <div class="digits" id="h"></div>
     <div class="caption">HOURS</div>
@@ -221,6 +244,11 @@
 </p>
 
 <p class="note" id="note"></p>
+
+<div class="speed">
+  <span class="dot"></span>
+  Таны интернэтийн хурд <b id="speedVal">—</b>
+</div>
 
 <div class="warn">
   <b>30GB</b> source code upload хийж байна. Интернэт тасарвал дахин
@@ -256,7 +284,6 @@ const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const HEADERS = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
 
 const els = {
-  d: document.getElementById('d'),
   h: document.getElementById('h'),
   m: document.getElementById('m'),
   s: document.getElementById('s'),
@@ -295,13 +322,11 @@ function tick() {
     return;
   }
 
-  const days = Math.floor(left / 86400); left -= days * 86400;
+  // Хоногийг тусад нь харуулахгүй — цаг руу нэмнэ.
   const hours = Math.floor(left / 3600); left -= hours * 3600;
   const mins = Math.floor(left / 60);
   const secs = left - mins * 60;
 
-  // Хоног 2-оос олон оронтой болвол хайрцаг нэмэгдэнэ.
-  paint(els.d, days, 2);
   paint(els.h, hours, 2);
   paint(els.m, mins, 2);
   paint(els.s, secs, 2);
@@ -316,6 +341,23 @@ function start(row) {
   clearInterval(ticking);
   tick();
   ticking = setInterval(tick, 1000);
+}
+
+/**
+ * Интернэтийн хурд — 10-20 Mbps хооронд аажим хэлбэлзэнэ.
+ *
+ * Утга нь ЦАГААС гаралтай (санамсаргүй биш) тул хуудсыг дахин
+ * ачаалахад ижил тоо гарна — өөр өөр төхөөрөмж дээр ч таарна.
+ * 5 минут тутам нэг алхам хөдөлж, 10 → 11 → 12 … гэсэн байгалийн
+ * өсөлт бууралт үүсгэнэ.
+ */
+function paintSpeed() {
+  const STEP_MS = 5 * 60 * 1000;
+  const step = Math.floor(Date.now() / STEP_MS);
+  // Хоёр өөр давтамжийн синусыг нэмснээр давтагдал нүдэнд өртөхгүй.
+  const wave = Math.sin(step * 0.41) * 0.62 + Math.sin(step * 0.13) * 0.38;
+  const mbps = 10 + (wave + 1) / 2 * 10; // 10 … 20
+  document.getElementById('speedVal').textContent = mbps.toFixed(1) + ' Mbps';
 }
 
 async function load() {
@@ -397,6 +439,9 @@ form.addEventListener('submit', async (ev) => {
 });
 
 load();
+paintSpeed();
+// Алхам солигдох мөчийг барихын тулд минут тутам шалгана.
+setInterval(paintSpeed, 60 * 1000);
 </script>
 </body>
 </html>

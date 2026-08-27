@@ -122,6 +122,19 @@
   }
   input:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: var(--brand); }
 
+  /* Цаг / минут / секунд — гурван талбар зэрэгцээ */
+  .hms { display: flex; gap: 8px; }
+  .hms > div { flex: 1; text-align: center; }
+  .hms input { text-align: center; font-variant-numeric: tabular-nums; }
+  .hms span {
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
   .quick { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
   .quick button {
     padding: 7px 12px;
@@ -172,11 +185,6 @@
        цаг оруулахдаа үр дүнг нь шууд харна. -->
   <div class="board" id="board" aria-live="polite">
     <div class="unit">
-      <div class="digits" id="d"></div>
-      <div class="caption">DAYS</div>
-    </div>
-    <div class="sep">:</div>
-    <div class="unit">
       <div class="digits" id="h"></div>
       <div class="caption">HOURS</div>
     </div>
@@ -203,15 +211,31 @@
       <label for="pin">PIN</label>
       <input id="pin" type="password" inputmode="numeric" placeholder="••••••" />
 
-      <label for="target">Дуусах огноо, цаг</label>
-      <input id="target" type="datetime-local" />
-      <div class="quick">
-        <button type="button" data-h="1">+1 цаг</button>
-        <button type="button" data-h="3">+3 цаг</button>
-        <button type="button" data-h="6">+6 цаг</button>
-        <button type="button" data-h="24">+1 хоног</button>
-        <button type="button" data-h="72">+3 хоног</button>
+      <label>Одооноос хойш үлдэх хугацаа</label>
+      <div class="hms">
+        <div>
+          <input id="hh" type="number" min="0" max="999" placeholder="0" />
+          <span>цаг</span>
+        </div>
+        <div>
+          <input id="mm" type="number" min="0" max="59" placeholder="0" />
+          <span>минут</span>
+        </div>
+        <div>
+          <input id="ss" type="number" min="0" max="59" placeholder="0" />
+          <span>секунд</span>
+        </div>
       </div>
+      <div class="quick">
+        <button type="button" data-h="1">1 цаг</button>
+        <button type="button" data-h="3">3 цаг</button>
+        <button type="button" data-h="6">6 цаг</button>
+        <button type="button" data-h="24">1 хоног</button>
+        <button type="button" data-h="72">3 хоног</button>
+      </div>
+
+      <label for="target">…эсвэл яг тодорхой огноо, цаг</label>
+      <input id="target" type="datetime-local" step="1" />
 
       <label for="title">Гарчиг</label>
       <input id="title" type="text" placeholder="Upload хийгдэх хугацаа" />
@@ -266,7 +290,6 @@ function humanLeft(ms) {
 
 // ── Тоолуурын самбар ────────────────────────────────────────────
 const board = {
-  d: document.getElementById('d'),
   h: document.getElementById('h'),
   m: document.getElementById('m'),
   s: document.getElementById('s'),
@@ -290,10 +313,9 @@ function paint(el, value, minDigits) {
 function tick() {
   if (targetMs == null) return;
   let left = Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
-  const days = Math.floor(left / 86400); left -= days * 86400;
+  // Хоногийг тусад нь харуулахгүй — цаг руу нэмнэ (/app/uplaod-той ижил).
   const hours = Math.floor(left / 3600); left -= hours * 3600;
   const mins = Math.floor(left / 60);
-  paint(board.d, days, 2);
   paint(board.h, hours, 2);
   paint(board.m, mins, 2);
   paint(board.s, left - mins * 60, 2);
@@ -308,6 +330,7 @@ function render(row) {
   curLeft.textContent = (row.label || '') + ' · ' + humanLeft(dt - Date.now());
   targetInput.value = toLocalInput(dt);
   titleInput.value = row.label || '';
+  fillHms(dt);
 
   targetMs = dt.getTime();
   clearInterval(ticking);
@@ -329,12 +352,50 @@ async function load() {
   }
 }
 
+// ── Цаг / минут / секунд ⇄ огноо ────────────────────────────────
+const hh = document.getElementById('hh');
+const mm = document.getElementById('mm');
+const ss = document.getElementById('ss');
+
+/** ц:м:с талбаруудаас зорилтот Date гаргана (одоогоос хойш). */
+function fromHms() {
+  const h = Number(hh.value) || 0;
+  const m = Number(mm.value) || 0;
+  const s = Number(ss.value) || 0;
+  if (!h && !m && !s) return null;
+  return new Date(Date.now() + ((h * 60 + m) * 60 + s) * 1000);
+}
+
+/** Огнооноос ц:м:с талбаруудыг бөглөнө. */
+function fillHms(date) {
+  let left = Math.max(0, Math.round((date - Date.now()) / 1000));
+  const h = Math.floor(left / 3600); left -= h * 3600;
+  const m = Math.floor(left / 60);
+  hh.value = h;
+  mm.value = m;
+  ss.value = left - m * 60;
+}
+
+// ⚠️ Хоёр талбарыг ЗААВАЛ синк байлгана. Эс бөгөөс "цаг" талбарт
+// бичээд огнооны талбар хуучин утгаа хадгалж, аль нь хүчинтэйг
+// хэрэглэгч ч, код ч мэдэхгүй болно.
+[hh, mm, ss].forEach((el) =>
+  el.addEventListener('input', () => {
+    const d = fromHms();
+    if (d) targetInput.value = toLocalInput(d);
+  })
+);
+targetInput.addEventListener('input', () => {
+  if (targetInput.value) fillHms(new Date(targetInput.value));
+});
+
 // Түргэн товчнууд — одоогоос хойш N цаг.
 document.querySelectorAll('.quick button').forEach((b) => {
   b.addEventListener('click', () => {
     const d = new Date(Date.now() + Number(b.dataset.h) * 3600 * 1000);
     d.setSeconds(0, 0);
     targetInput.value = toLocalInput(d);
+    fillHms(d);
   });
 });
 
