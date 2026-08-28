@@ -32,17 +32,20 @@ export default function GiveToEmployeeModal({
    * 'whole'  = тоо хэмжээгээр шууд олгоно (код уншуулахгүй)
    * 'pieces' = ширхэгээр, код уншуулна
    *
-   * ⚠️ Анхдагч нь ангилалаас хамаарна. Өмнө нь БҮХ зүйлд `pieces`
-   *    байсан тул бараа материал, хангамж олгох бүрд QR уншуулах
-   *    цонх албадан нээгддэг байв — тэдгээрт сериал дугаар байдаггүй
-   *    тул уншуулах зүйл ч байхгүй, зүгээр л саад болж байлаа.
+   * ⚠️ Анхдагч нь ҮРГЭЛЖ `whole` — камер нээхгүй, шууд олгоно.
    *
-   *    Багаж (`tool`) дээр л ширхэгээр нь чухал: аль ЯГ ТЭР
-   *    төхөөрөмж (MAC/SN) хэнд очсоныг дараа нь мөрдөх ёстой.
+   *    Өмнө нь БҮХ зүйлд `pieces` байсан тул олгох бүрд "Илгээх"
+   *    дарсны дараа код уншуулах камер албадан нээгддэг байв. Бараа
+   *    материал, хангамжид сериал дугаар байдаггүй тул уншуулах зүйл
+   *    ч байхгүй; багаж дээр ч гэсэн олгох болгонд код уншуулах нь
+   *    ажлыг удаашруулж байлаа.
+   *
+   *    `pieces` нь СОНГОЛТ хэвээр: аль ЯГ ТЭР төхөөрөмж (MAC/SN)
+   *    хэнд очсоныг мөрдөх шаардлагатай үед админ өөрөө сонгоно.
    */
-  const defaultMode = item?.category === 'tool' ? 'pieces' : 'whole';
-  const [mode, setMode] = useState(defaultMode);
+  const [mode, setMode] = useState('whole');
   const [photoUri, setPhotoUri] = useState(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -62,13 +65,14 @@ export default function GiveToEmployeeModal({
     setEmployeeId(options[0]?.id || '');
     setQty('1');
     setPhotoUri(null);
+    setPhotoOpen(false);
     setListOpen(false);
     setSaving(false);
-    // Өөр ангилалын зүйл рүү шилжихэд горим дагаж сэргэнэ — эс бөгөөс
-    // багаж олгосны дараа бараа материал олгоход `pieces` наалдаж
-    // үлдэж, дахин код уншуулах цонх нээгдэнэ.
-    setMode(defaultMode);
-  }, [visible, item?.id, options, defaultMode]);
+    // Цонх нээгдэх бүрд "Шууд олгох" руу сэргэнэ — эс бөгөөс нэг удаа
+    // код уншуулсны дараа тэр горим наалдаж үлдэж, дараагийн олголт
+    // бүрд камер дахин нээгдэнэ.
+    setMode('whole');
+  }, [visible, item?.id, options]);
 
   const pickPhoto = async (useCamera) => {
     const perm = useCamera
@@ -166,9 +170,9 @@ export default function GiveToEmployeeModal({
             ) : null}
 
             {/* Хэрхэн олгох вэ.
-                Хайрцгаар — доторх бүх зүйл нэг дор очно.
-                Ширхэгээр — "Илгээх" дарсны дараа код уншуулах хэсэг
-                шууд нээгдэж, уншуулсан бараа тус бүр хасагдана. */}
+                Шууд олгох  — тоо хэмжээгээр хасаад дуусна (анхдагч).
+                Код уншуулж — "Илгээх" дарсны дараа камер нээгдэж,
+                уншуулсан бараа тус бүр хасагдана. */}
             <Text style={styles.label}>Хэрхэн олгох вэ?</Text>
             <View style={styles.modeRow}>
               <TouchableOpacity
@@ -207,25 +211,43 @@ export default function GiveToEmployeeModal({
             />
             <Text style={styles.hint}>Боломжит: {maxQty} {item.unit}</Text>
 
-            <Text style={styles.label}>Баталгаа зураг (заавал биш)</Text>
+            {/* Баталгаа зураг — ХААЛТТАЙ эхэлнэ.
+                Өмнө нь камер/зургийн товчнууд шууд харагддаг байсан тул
+                олгохын өмнө заавал зураг дарах ёстой мэт сэтгэгдэл
+                төрүүлж байв. Одоо хэрэгтэй үед л дарж нээнэ. */}
             {photoUri ? (
-              <View style={styles.photoWrap}>
-                <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
-                <TouchableOpacity style={styles.photoRemove} onPress={() => setPhotoUri(null)}>
-                  <Ionicons name="close-circle" size={24} color={colors.danger} />
-                </TouchableOpacity>
-              </View>
+              <>
+                <Text style={styles.label}>Баталгаа зураг</Text>
+                <View style={styles.photoWrap}>
+                  <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
+                  <TouchableOpacity style={styles.photoRemove} onPress={() => setPhotoUri(null)}>
+                    <Ionicons name="close-circle" size={24} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : photoOpen ? (
+              <>
+                <Text style={styles.label}>Баталгаа зураг (заавал биш)</Text>
+                <View style={styles.photoBtns}>
+                  <TouchableOpacity style={styles.photoBtn} onPress={() => pickPhoto(true)}>
+                    <Ionicons name="camera" size={20} color={colors.primary} />
+                    <Text style={styles.photoBtnText}>Камер</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.photoBtn} onPress={() => pickPhoto(false)}>
+                    <Ionicons name="images" size={20} color={colors.primary} />
+                    <Text style={styles.photoBtnText}>Зураг</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
             ) : (
-              <View style={styles.photoBtns}>
-                <TouchableOpacity style={styles.photoBtn} onPress={() => pickPhoto(true)}>
-                  <Ionicons name="camera" size={20} color={colors.primary} />
-                  <Text style={styles.photoBtnText}>Камер</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.photoBtn} onPress={() => pickPhoto(false)}>
-                  <Ionicons name="images" size={20} color={colors.primary} />
-                  <Text style={styles.photoBtnText}>Зураг</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.photoToggle}
+                onPress={() => setPhotoOpen(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="image-outline" size={17} color={colors.textMuted} />
+                <Text style={styles.photoToggleText}>Баталгаа зураг хавсаргах (заавал биш)</Text>
+              </TouchableOpacity>
             )}
           </ScrollView>
 
@@ -247,6 +269,19 @@ export default function GiveToEmployeeModal({
 }
 
 const makeStyles = ({ colors }) => StyleSheet.create({
+  photoToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    marginTop: spacing.md,
+    paddingVertical: 11,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+  },
+  photoToggleText: { color: colors.textMuted, fontSize: 13.5, fontWeight: '600' },
   modeRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
   modeBtn: {
     flex: 1,
