@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import FuelRefillModal from '../components/FuelRefillModal';
+import FuelPriceCard from '../components/FuelPriceCard';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, SectionTitle, Badge, StatCard, EmptyState, formatMNT } from '../components/ui';
@@ -97,6 +98,10 @@ export default function FleetFuelScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Түлшний үнэ — ШТС-д очиж шинэ үнэ хараад тэр дороо
+            шинэчлэх боломжтой байхын тулд цэнэглэлтийн дэлгэц дээрээ. */}
+        <FuelPriceCard isAdmin={isAdmin} onChanged={load} />
 
         {rows.length === 0 ? (
           <EmptyState text="Машин эсвэл аяллын бүртгэл алга." />

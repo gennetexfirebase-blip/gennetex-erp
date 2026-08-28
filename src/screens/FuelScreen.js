@@ -17,6 +17,7 @@ import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
 import * as fuelApi from '../services/fuelPriceService';
 import { friendlyError } from '../lib/erpMessages';
+import FuelReceiptCard from '../components/FuelReceiptCard';
 import { formatIdle } from '../lib/fuelCalc';
 
 export default function FuelScreen() {
@@ -119,6 +120,10 @@ export default function FuelScreen() {
           <StatCard label="Зардал" value={formatMNT(totalCost)} color={colors.warning} />
         ) : null}
       </View>
+
+      {/* Баримт илгээх — ажилтан ч, админ ч ашиглана. ШТС-ийн баримтаа
+          зурагдаж илгээхэд бүх админд өөрийнх нь нэрээс чат очно. */}
+      <FuelReceiptCard sender={currentUser} />
 
       {!isAdmin ? (
         <Card>
