@@ -28,8 +28,20 @@ export default function GiveToEmployeeModal({
   const styles = useStyles(makeStyles);
   const [employeeId, setEmployeeId] = useState('');
   const [qty, setQty] = useState('1');
-  // 'whole' = хайрцгаар бүтнээр, 'pieces' = ширхэгээр (код уншуулна)
-  const [mode, setMode] = useState('pieces');
+  /**
+   * 'whole'  = тоо хэмжээгээр шууд олгоно (код уншуулахгүй)
+   * 'pieces' = ширхэгээр, код уншуулна
+   *
+   * ⚠️ Анхдагч нь ангилалаас хамаарна. Өмнө нь БҮХ зүйлд `pieces`
+   *    байсан тул бараа материал, хангамж олгох бүрд QR уншуулах
+   *    цонх албадан нээгддэг байв — тэдгээрт сериал дугаар байдаггүй
+   *    тул уншуулах зүйл ч байхгүй, зүгээр л саад болж байлаа.
+   *
+   *    Багаж (`tool`) дээр л ширхэгээр нь чухал: аль ЯГ ТЭР
+   *    төхөөрөмж (MAC/SN) хэнд очсоныг дараа нь мөрдөх ёстой.
+   */
+  const defaultMode = item?.category === 'tool' ? 'pieces' : 'whole';
+  const [mode, setMode] = useState(defaultMode);
   const [photoUri, setPhotoUri] = useState(null);
   const [listOpen, setListOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,7 +64,11 @@ export default function GiveToEmployeeModal({
     setPhotoUri(null);
     setListOpen(false);
     setSaving(false);
-  }, [visible, item?.id, options]);
+    // Өөр ангилалын зүйл рүү шилжихэд горим дагаж сэргэнэ — эс бөгөөс
+    // багаж олгосны дараа бараа материал олгоход `pieces` наалдаж
+    // үлдэж, дахин код уншуулах цонх нээгдэнэ.
+    setMode(defaultMode);
+  }, [visible, item?.id, options, defaultMode]);
 
   const pickPhoto = async (useCamera) => {
     const perm = useCamera
@@ -161,7 +177,7 @@ export default function GiveToEmployeeModal({
                 activeOpacity={0.8}
               >
                 <Text style={[styles.modeText, mode === 'whole' && styles.modeTextOn]}>
-                  Хайрцгаар
+                  Шууд олгох
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -170,14 +186,14 @@ export default function GiveToEmployeeModal({
                 activeOpacity={0.8}
               >
                 <Text style={[styles.modeText, mode === 'pieces' && styles.modeTextOn]}>
-                  Ширхэгээр
+                  Код уншуулж
                 </Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.hint}>
               {mode === 'whole'
-                ? 'Доторх бүх зүйл нэг дор очиж, агуулахаас хасагдана.'
-                : 'Илгээх дарсны дараа код уншуулах хэсэг нээгдэнэ. Уншуулсан бараа тус бүр хасагдана.'}
+                ? 'Оруулсан тоо хэмжээгээр шууд олгож, агуулахаас хасна. Код уншуулахгүй.'
+                : 'Илгээх дарсны дараа код уншуулах хэсэг нээгдэнэ. Уншуулсан бараа тус бүр хасагдана — аль яг тэр төхөөрөмж хэнд очсоныг мөрдөхөд.'}
             </Text>
 
             <Text style={styles.label}>Тоо хэмжээ ({item.unit})</Text>
