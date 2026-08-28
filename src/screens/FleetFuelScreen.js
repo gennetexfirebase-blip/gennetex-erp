@@ -1,5 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import FuelRefillModal from '../components/FuelRefillModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, SectionTitle, Badge, StatCard, EmptyState, formatMNT } from '../components/ui';
@@ -46,23 +55,15 @@ export default function FleetFuelScreen() {
   const activeCount = rows.filter((r) => r.active).length;
   const totalKm = rows.reduce((s, r) => s + r.totalKm, 0);
 
-  const refill = (vehicle) => {
-    if (!isAdmin || !vehicle?.id) return;
-    Alert.alert('Сав дүүргэх', `${vehicle.plate_number} — бензиний түвшинг 100% болгох уу?`, [
-      { text: 'Болих', style: 'cancel' },
-      {
-        text: '100% болгох',
-        onPress: async () => {
-          try {
-            await vehicleApi.refillVehicleFuel(vehicle.id);
-            await load();
-          } catch (e) {
-            Alert.alert('Алдаа', e.message);
-          }
-        },
-      },
-    ]);
-  };
+  /**
+   * Цэнэглэх — админ ЗӨВХӨН МӨНГӨН ДҮНГЭЭ оруулна.
+   *
+   * ⚠️ Өмнө нь "100% болгох" гэсэн ганц товч байсан тул хэдэн төгрөгийн
+   *    түлш авсан нь хаана ч бүртгэгдэхгүй, зарцуулалтын тайлан
+   *    бодит бус байв. Одоо литр нь тухайн үеийн 1 литрийн үнээр
+   *    СЕРВЕР дээр тооцогдож, мөнгө/литр/үнэ гурвуулаа бүртгэгдэнэ.
+   */
+  const [refillVehicle, setRefillVehicle] = useState(null);
 
   return (
     <View style={styles.container}>
@@ -129,14 +130,24 @@ export default function FleetFuelScreen() {
                 {row.remainingLiters.toFixed(1)} / {row.tank} л үлдсэн
               </Text>
               {isAdmin && row.vehicle?.id ? (
-                <TouchableOpacity style={styles.refillBtn} onPress={() => refill(row.vehicle)}>
-                  <Text style={styles.refillText}>Сав дүүргэх (100%)</Text>
+                <TouchableOpacity
+                  style={styles.refillBtn}
+                  onPress={() => setRefillVehicle(row.vehicle)}
+                >
+                  <Text style={styles.refillText}>Түлш цэнэглэх</Text>
                 </TouchableOpacity>
               ) : null}
             </Card>
           ))
         )}
       </ScrollView>
+
+      <FuelRefillModal
+        visible={refillVehicle !== null}
+        vehicle={refillVehicle}
+        onClose={() => setRefillVehicle(null)}
+        onDone={load}
+      />
     </View>
   );
 }

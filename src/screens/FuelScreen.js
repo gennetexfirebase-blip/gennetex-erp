@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import {
@@ -15,6 +15,8 @@ import {
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
+import * as fuelApi from '../services/fuelPriceService';
+import { friendlyError } from '../lib/erpMessages';
 import { formatIdle } from '../lib/fuelCalc';
 
 export default function FuelScreen() {
@@ -33,6 +35,10 @@ export default function FuelScreen() {
   const [litersPer100, setLitersPer100] = useState(String(fuelSettings.litersPer100km));
   const [pricePerLiter, setPricePerLiter] = useState(String(fuelSettings.pricePerLiter));
   const [myTrips, setMyTrips] = useState([]);
+  // Сервер дээрх БОДИТ түлшний үнэ (fuel_prices). Тохиргооны
+  // `pricePerLiter`-тэй хоёр тийш синк болно — эс бөгөөс аяллын
+  // зардал ба цэнэглэлт хоёр өөр үнээр тооцогдоно.
+  const [serverPrices, setServerPrices] = useState([]);
 
   React.useEffect(() => {
     setLitersPer100(String(fuelSettings.litersPer100km));
@@ -46,10 +52,23 @@ export default function FuelScreen() {
     } catch (e) {}
   }, [isCloud, currentUser?.id]);
 
+  const loadPrices = useCallback(async () => {
+    if (!isCloud) return;
+    try {
+      const list = await fuelApi.fetchCurrentPrices();
+      setServerPrices(list);
+      // АИ-92-ийн бодит үнэ байвал талбарыг түүгээр дүүргэнэ —
+      // админ хуучин тоог хараад андуурахаас сэргийлнэ.
+      const ai92 = list.find((p) => p.fuel_type === 'ai92');
+      if (ai92) setPricePerLiter(String(Math.round(Number(ai92.price_mnt))));
+    } catch (e) {}
+  }, [isCloud]);
+
   useFocusEffect(
     useCallback(() => {
       loadTrips();
-    }, [loadTrips])
+      loadPrices();
+    }, [loadTrips, loadPrices])
   );
 
   const tripRows = isCloud ? myTrips.filter((t) => t.status === 'done') : fuelLogs;
@@ -67,11 +86,28 @@ export default function FuelScreen() {
   );
 
   const handleSaveSettings = async () => {
+    const price = Number(pricePerLiter) || 0;
     await updateFuelSettings({
       litersPer100km: Number(litersPer100) || 0,
-      pricePerLiter: Number(pricePerLiter) || 0,
+      pricePerLiter: price,
       idleLitersPerHour: fuelSettings.idleLitersPerHour ?? 0,
     });
+
+    // ⚠️ Сервер дээр ч бичнэ. Цэнэглэлт (мөнгө → литр) нь `fuel_prices`
+    //    хүснэгтээс уншдаг тул зөвхөн локал тохиргоонд хадгалбал хоёр
+    //    өөр үнэ үүсч, аяллын зардал ба цэнэглэлт зөрнө.
+    if (isCloud && price > 0) {
+      try {
+        await fuelApi.setPrice({ fuelType: 'ai92', price });
+        await loadPrices();
+        Alert.alert('Хадгаллаа', `АИ-92: ${price.toLocaleString('mn-MN')}₮ / литр`);
+      } catch (e) {
+        Alert.alert(
+          'Тохиргоо хадгалагдлаа',
+          'Гэхдээ серверийн түлшний үнэ шинэчлэгдсэнгүй: ' + friendlyError(e)
+        );
+      }
+    }
   };
 
   const header = (
