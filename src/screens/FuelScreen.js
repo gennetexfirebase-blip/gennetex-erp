@@ -1,11 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import {
   Card,
-  Button,
-  Field,
   StatCard,
   SectionTitle,
   ScreenHeader,
@@ -16,7 +14,6 @@ import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
 import * as fuelApi from '../services/fuelPriceService';
-import { friendlyError } from '../lib/erpMessages';
 import FuelReceiptCard from '../components/FuelReceiptCard';
 import { formatIdle } from '../lib/fuelCalc';
 
@@ -33,18 +30,7 @@ export default function FuelScreen() {
     removeFuelLog,
   } = useApp();
 
-  const [litersPer100, setLitersPer100] = useState(String(fuelSettings.litersPer100km));
-  const [pricePerLiter, setPricePerLiter] = useState(String(fuelSettings.pricePerLiter));
   const [myTrips, setMyTrips] = useState([]);
-  // Сервер дээрх БОДИТ түлшний үнэ (fuel_prices). Тохиргооны
-  // `pricePerLiter`-тэй хоёр тийш синк болно — эс бөгөөс аяллын
-  // зардал ба цэнэглэлт хоёр өөр үнээр тооцогдоно.
-  const [serverPrices, setServerPrices] = useState([]);
-
-  React.useEffect(() => {
-    setLitersPer100(String(fuelSettings.litersPer100km));
-    setPricePerLiter(String(fuelSettings.pricePerLiter));
-  }, [fuelSettings]);
 
   const loadTrips = useCallback(async () => {
     if (!isCloud || !currentUser?.id) return;
@@ -53,17 +39,34 @@ export default function FuelScreen() {
     } catch (e) {}
   }, [isCloud, currentUser?.id]);
 
+  /**
+   * Серверийн түлшний үнийг локал тохиргоонд СИНК хийнэ.
+   *
+   * ⚠️ ЯАГААД ХЭРЭГТЭЙ ВЭ: аяллын зардлыг `fuelSettings.pricePerLiter`
+   *    -ээр тооцдог (`lib/fuelCalc.js`, `VehicleScreen.js`). Түүнийг
+   *    гараар засдаг байсан "Бензиний тохиргоо" картыг устгасан тул
+   *    одоо хаанаас ч шинэчлэгдэхгүй — үнэ өөрчлөгдөхөд аяллын зардал
+   *    хуучин тоогоор тооцогдсоор үлдэнэ. Тиймээс `fuel_prices`
+   *    (цорын ганц үнэн эх сурвалж) -аас чимээгүй сэргээнэ.
+   */
   const loadPrices = useCallback(async () => {
     if (!isCloud) return;
     try {
       const list = await fuelApi.fetchCurrentPrices();
-      setServerPrices(list);
-      // АИ-92-ийн бодит үнэ байвал талбарыг түүгээр дүүргэнэ —
-      // админ хуучин тоог хараад андуурахаас сэргийлнэ.
       const ai92 = list.find((p) => p.fuel_type === 'ai92');
-      if (ai92) setPricePerLiter(String(Math.round(Number(ai92.price_mnt))));
-    } catch (e) {}
-  }, [isCloud]);
+      if (!ai92) return;
+      const price = Math.round(Number(ai92.price_mnt));
+      if (price > 0 && price !== Number(fuelSettings.pricePerLiter)) {
+        await updateFuelSettings({
+          litersPer100km: fuelSettings.litersPer100km ?? 0,
+          pricePerLiter: price,
+          idleLitersPerHour: fuelSettings.idleLitersPerHour ?? 0,
+        });
+      }
+    } catch (e) {
+      // Үнэ авч чадаагүй бол хуучин утгаараа үргэлжилнэ.
+    }
+  }, [isCloud, fuelSettings, updateFuelSettings]);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,30 +89,6 @@ export default function FuelScreen() {
     [tripRows]
   );
 
-  const handleSaveSettings = async () => {
-    const price = Number(pricePerLiter) || 0;
-    await updateFuelSettings({
-      litersPer100km: Number(litersPer100) || 0,
-      pricePerLiter: price,
-      idleLitersPerHour: fuelSettings.idleLitersPerHour ?? 0,
-    });
-
-    // ⚠️ Сервер дээр ч бичнэ. Цэнэглэлт (мөнгө → литр) нь `fuel_prices`
-    //    хүснэгтээс уншдаг тул зөвхөн локал тохиргоонд хадгалбал хоёр
-    //    өөр үнэ үүсч, аяллын зардал ба цэнэглэлт зөрнө.
-    if (isCloud && price > 0) {
-      try {
-        await fuelApi.setPrice({ fuelType: 'ai92', price });
-        await loadPrices();
-        Alert.alert('Хадгаллаа', `АИ-92: ${price.toLocaleString('mn-MN')}₮ / литр`);
-      } catch (e) {
-        Alert.alert(
-          'Тохиргоо хадгалагдлаа',
-          'Гэхдээ серверийн түлшний үнэ шинэчлэгдсэнгүй: ' + friendlyError(e)
-        );
-      }
-    }
-  };
 
   const header = (
     <View>
@@ -130,29 +109,8 @@ export default function FuelScreen() {
           <Text style={styles.note}>
             Машин хөдөлж байхад л км тоологдоно. Зогссон үед түлш тооцохгүй.
           </Text>
-          <Text style={styles.note}>Бензиний тохиргоог зөвхөн админ засна.</Text>
         </Card>
-      ) : (
-        <Card>
-          <SectionTitle>Бензиний тохиргоо (админ)</SectionTitle>
-          <Field
-            label="100км-т зарцуулах литр"
-            keyboardType="numeric"
-            value={litersPer100}
-            onChangeText={setLitersPer100}
-          />
-          <Field
-            label="1 литрийн үнэ (₮)"
-            keyboardType="numeric"
-            value={pricePerLiter}
-            onChangeText={setPricePerLiter}
-          />
-          <Text style={styles.note}>
-            Аялалын үед зөвхөн машин хөдөлж байхад км нэмэгдэнэ. Зогссон үед түлш тооцохгүй.
-          </Text>
-          <Button title="Тохиргоо хадгалах" onPress={handleSaveSettings} style={{ marginTop: spacing.sm }} />
-        </Card>
-      )}
+      ) : null}
 
       <SectionTitle style={{ marginTop: spacing.sm }}> Аяллын түүх</SectionTitle>
     </View>
