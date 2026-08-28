@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../context/ThemeContext';
@@ -47,12 +47,54 @@ table thead th:nth-child(3), table tbody td:nth-child(3){white-space:nowrap}
 table thead th:nth-child(4), table tbody td:nth-child(4){white-space:nowrap}
 table thead th:nth-child(5), table tbody td:nth-child(5){white-space:nowrap}
 table thead th:nth-child(6), table tbody td:nth-child(6){white-space:nowrap} /* Тэнцсэн/Төлсөн гэх мэт */
-</style></head><body>${body}</body></html>`;
+</style></head><body>${body}
+<script>
+  /**
+   * Агуулгын БОДИТ өндрийг React тал руу мэдэгдэнэ.
+   *
+   * ⚠️ Эс бөгөөс WebView тогтмол өндөртэй үлдэж, доод хэсэг (Торгуулийн
+   *    хүснэгт хамгийн сүүлд байдаг) таслагдана. Гадна ScrollView
+   *    дотор байгаа тул WebView-ийн дотоод гүйлгэлт найдваргүй —
+   *    хуруу аль давхаргад ажиллахыг OS шийддэг.
+   */
+  function reportHeight() {
+    var h = Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight
+    );
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ height: h }));
+    }
+  }
+  window.addEventListener('load', reportHeight);
+  // Хүснэгт хожуу байрлаж дуусах тохиолдол бий — хэд хэдэн удаа хэмжинэ.
+  [80, 300, 800, 1600].forEach(function (t) { setTimeout(reportHeight, t); });
+  if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+</script>
+</body></html>`;
 }
 
 export default function AutoboxTables({ plate, data, loading, error, statusText, title = 'Машины мэдээлэл' }) {
   const { colors } = useTheme();
   const html = useMemo(() => (data ? buildAutoboxHtml(data, colors) : ''), [data, colors]);
+  // Агуулгын өндөр — WebView дотроос ирнэ. Ирэх хүртэл түр өндөр.
+  const [height, setHeight] = useState(320);
+
+  // Шинэ машин сонгоход өндөр сэргэнэ — эс бөгөөс өмнөх машины
+  // (магадгүй урт) өндөр наалдаж, доор нь хоосон зай үлдэнэ.
+  useEffect(() => {
+    setHeight(320);
+  }, [plate, data]);
+
+  const onMessage = (event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      // Хэт багассан утгыг үл тоомсорлоно (зураг ачаалагдах зуурын хэмжилт).
+      if (msg.height > 80) setHeight(Math.ceil(msg.height) + 16);
+    } catch {
+      /* хэмжилт ирээгүй — түр өндөр хэвээр */
+    }
+  };
 
   return (
     <View style={styles.wrap}>
@@ -63,13 +105,21 @@ export default function AutoboxTables({ plate, data, loading, error, statusText,
       ) : error ? (
         <Text style={[styles.err, { color: colors.danger }]}>{error}</Text>
       ) : data ? (
-        <View style={[styles.webWrap, { borderColor: colors.border, backgroundColor: colors.bg }]}>
+        <View
+          style={[
+            styles.webWrap,
+            { borderColor: colors.border, backgroundColor: colors.bg, height },
+          ]}
+        >
           <WebView
             originWhitelist={['*']}
             source={{ html }}
-            scrollEnabled
+            // Бүх агуулга нэг дор харагдах тул дотоод гүйлгэлт хэрэггүй —
+            // гадна ScrollView бүхнийг гүйлгэнэ.
+            scrollEnabled={false}
+            onMessage={onMessage}
             style={styles.web}
-            nestedScrollEnabled
+            androidLayerType="software"
           />
         </View>
       ) : null}
@@ -86,7 +136,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.md,
     overflow: 'hidden',
-    minHeight: 220,
   },
-  web: { flex: 1, minHeight: 280, backgroundColor: 'transparent' },
+  web: { flex: 1, backgroundColor: 'transparent' },
 });

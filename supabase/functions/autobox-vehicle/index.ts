@@ -59,11 +59,19 @@ type Penalty = {
  * Алдаа гарвал хоосон хүснэгтийг нь буцаана — торгуулийн мэдээлэл
  * ирээгүйгээс болж машины бусад мэдээлэл алдагдах ёсгүй.
  */
+/**
+ * Торгуулийн мөрүүдийг татаж, HTML болон БҮТЭЦТЭЙ хэлбэрээр буцаана.
+ *
+ * ⚠️ Өмнө нь зөвхөн HTML буцаадаг байсан тул апп талын "Торгууль" карт
+ *    (төлөгдөөгүй нийт дүн, жолоочтой холбосон мөрүүд) ҮРГЭЛЖ хоосон
+ *    байв — тэр нь `finesRows` хүлээдэг мөртлөө сервер түүнийг огт
+ *    илгээдэггүй байлаа.
+ */
 async function fillPenaltyRows(
   shell: string | null,
   plateNo: string,
-): Promise<string | null> {
-  if (!shell) return shell;
+): Promise<{ html: string | null; rows: string[][] }> {
+  if (!shell) return { html: shell, rows: [] };
   try {
     const api =
       `https://www.autobox.mn/api/services/app/Xyp/GetAutoboxPenalty?plateNo=${
@@ -72,11 +80,11 @@ async function fillPenaltyRows(
     const res = await fetch(api, {
       headers: { "User-Agent": "GennetexERP/1.0", Accept: "application/json" },
     });
-    if (!res.ok) return shell;
+    if (!res.ok) return { html: shell, rows: [] };
 
     const json = await res.json();
     const items: Penalty[] = json?.result?.items ?? [];
-    if (!items.length) return shell;
+    if (!items.length) return { html: shell, rows: [] };
 
     const rows = items
       .map((p) =>
@@ -97,9 +105,21 @@ async function fillPenaltyRows(
       /(<tbody[^>]*>)([\s\S]*?)(<\/tbody>)/i,
       `$1${rows}$3`,
     );
-    return filled;
+
+    // Апп талын карт ижил дараалал хүлээдэг:
+    // [Улсын дугаар, Хаана, Зөрчил, Мөнгөн дүн, Огноо, Төлөв]
+    const structured = items.map((p) => [
+      plateNo,
+      String(p.location ?? ""),
+      String(p.reason ?? ""),
+      String(p.amount ?? ""),
+      String(p.date ?? ""),
+      String(p.statusText ?? ""),
+    ]);
+
+    return { html: filled, rows: structured };
   } catch (_e) {
-    return shell;
+    return { html: shell, rows: [] };
   }
 }
 
@@ -185,7 +205,8 @@ Deno.serve(async (req) => {
      * бөглөнө.
      */
     const finesShell = extractTabTable(html, "fineTab");
-    const fines = await fillPenaltyRows(finesShell, plateNo);
+    const penalty = await fillPenaltyRows(finesShell, plateNo);
+    const fines = penalty.html;
     const header = extractHeader(html);
     const hash = await hashContent([general, technical, diagnosis, fines]);
 
@@ -199,6 +220,8 @@ Deno.serve(async (req) => {
       technical,
       diagnosis,
       fines,
+      // Апп талын "Торгууль" карт үүнийг хүлээдэг.
+      finesRows: penalty.rows,
       fetchedAt: new Date().toISOString(),
     });
   } catch (e) {
