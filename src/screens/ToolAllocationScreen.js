@@ -14,8 +14,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { Card, ScreenHeader, HeaderButton, EmptyState } from '../components/ui';
+import { Card, ScreenHeader, EmptyState } from '../components/ui';
 import ChatAvatar from '../components/ChatAvatar';
+import ExcelIcon from '../components/ExcelIcon';
 import { computeBalancesByUser } from '../lib/stockBalance';
 import * as stockExport from '../services/stockExportService';
 import { buildStockHoldingSheets, sheetsToPreview } from '../../admin-web/attendance-report-builder.js';
@@ -207,11 +208,16 @@ export default function ToolAllocationScreen() {
         title="Хэн авсан"
         subtitle={`${totals.people} ажилтан · ${totals.kinds} нэр төрөл · нийт ${totals.qty}`}
         right={
-          <HeaderButton
-            title="Excel"
-            icon="📗"
+          <TouchableOpacity
+            style={styles.excelBtn}
             onPress={() => setPreviewOpen(true)}
-          />
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Excel тайлан"
+          >
+            <ExcelIcon size={18} />
+            <Text style={styles.excelBtnText}>Excel</Text>
+          </TouchableOpacity>
         }
       />
 
@@ -286,9 +292,7 @@ export default function ToolAllocationScreen() {
         <View style={styles.overlay}>
           <View style={styles.sheet}>
             <View style={styles.sheetHead}>
-              <View style={styles.excelIcon}>
-                <Ionicons name="document-text" size={20} color="#fff" />
-              </View>
+              <ExcelIcon size={34} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.sheetTitle}>Ажилтны эзэмшил</Text>
                 <Text style={styles.sheetSub}>{preview.sheetName} · Excel</Text>
@@ -331,7 +335,7 @@ export default function ToolAllocationScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
+                  <ExcelIcon size={19} />
                   <Text style={styles.downloadText}>Excel татах</Text>
                 </>
               )}
@@ -384,14 +388,18 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   sheetTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
   sheetSub: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
-  excelIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: '#1D6F42', // Excel-ийн ногоон
+  excelBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#1D6F4240',
+    backgroundColor: '#1D6F4214',
   },
+  excelBtnText: { color: '#1D6F42', fontSize: 13.5, fontWeight: '700' },
 
   group: { marginBottom: spacing.lg },
   groupLabel: {

@@ -12,6 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui';
+import ExcelIcon from '../components/ExcelIcon';
 import * as attApi from '../services/attendanceService';
 import * as exportApi from '../services/attendanceExportService';
 import {
@@ -175,7 +176,7 @@ export default function AttendanceReportScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Ionicons name="download-outline" size={19} color="#fff" />
+              <ExcelIcon size={19} />
               <Text style={styles.downloadText}>Excel татах</Text>
             </>
           )}

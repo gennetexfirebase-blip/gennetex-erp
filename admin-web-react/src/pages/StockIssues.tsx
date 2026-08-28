@@ -13,6 +13,7 @@ import {
   Badge,
 } from '../components/ui';
 import { fetchStockMovements, useAsync, type StockMovement } from '../lib/data';
+import ExcelIcon from '../components/ExcelIcon';
 import { downloadStockExcel } from '../lib/attendanceExport';
 
 function fmt(iso: string) {
@@ -65,7 +66,7 @@ export default function StockIssuesPage() {
             </Button>
             <Button
               variant="success"
-              icon={<Download size={15} />}
+              icon={<ExcelIcon size={15} />}
               onClick={() => downloadStockExcel(from, to, filtered)}
               disabled={!filtered.length}
             >

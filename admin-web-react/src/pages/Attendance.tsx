@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Calendar, Filter, RotateCw, FileSpreadsheet, Download } from 'lucide-react';
 import { PageHeader, Card, Button, Input, Select, Avatar, EmptyState, Loading, ErrorState, Badge } from '../components/ui';
+import ExcelIcon from '../components/ExcelIcon';
 import { fetchAttendanceToday, fetchDepartments, useAsync, type AttendanceRow } from '../lib/data';
 import AttendanceDetailDrawer from '../components/AttendanceDetailDrawer';
 import ExcelPreviewModal from '../components/ExcelPreviewModal';
@@ -84,7 +85,7 @@ export default function AttendancePage() {
             </Button>
             <Button
               variant="outline"
-              icon={<FileSpreadsheet size={15} />}
+              icon={<ExcelIcon size={15} />}
               onClick={() => setPreviewOpen(true)}
               disabled={!rows.length}
             >
@@ -92,7 +93,7 @@ export default function AttendancePage() {
             </Button>
             <Button
               variant="success"
-              icon={<Download size={15} />}
+              icon={<ExcelIcon size={15} />}
               onClick={() => downloadDailyExcel(date, filtered)}
               disabled={!filtered.length}
             >

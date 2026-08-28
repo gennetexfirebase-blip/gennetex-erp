@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader, EmptyState } from '../components/ui';
+import ExcelIcon from '../components/ExcelIcon';
 import { CALL_TYPES } from '../data/mockData';
 import * as tracking from '../services/trackingService';
 import { exportVisitsExcel } from '../services/aiAdminService';
@@ -141,7 +142,7 @@ export default function AdminVisitsScreen() {
           <ActivityIndicator color="#fff" size="small" />
         ) : (
           <>
-            <Ionicons name="download-outline" size={18} color="#fff" />
+            <ExcelIcon size={18} />
             <Text style={styles.excelBtnText}>Бүгдийн Excel татах (нэгтгэл + дэлгэрэнгүй)</Text>
           </>
         )}

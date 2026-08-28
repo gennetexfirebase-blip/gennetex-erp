@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { X, Download, FileSpreadsheet } from 'lucide-react';
 import { Button } from './ui';
 import { dailySheets, toPreview, downloadDailyExcel } from '../lib/attendanceExport';
+import ExcelIcon from '../components/ExcelIcon';
 import type { AttendanceRow } from '../lib/data';
 
 /**
@@ -35,7 +36,7 @@ export default function ExcelPreviewModal({
       <div className="relative flex max-h-[88vh] w-full max-w-5xl flex-col rounded-[var(--radius-lg)] border border-line bg-app shadow-panel">
         <header className="flex items-center gap-3 border-b border-line px-5 py-4">
           <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-success-soft text-success">
-            <FileSpreadsheet size={18} />
+            <ExcelIcon size={18} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-bold text-ink">Ирцийн тайлан</p>
@@ -45,7 +46,7 @@ export default function ExcelPreviewModal({
           </div>
           <Button
             variant="success"
-            icon={<Download size={15} />}
+            icon={<ExcelIcon size={15} />}
             onClick={() => downloadDailyExcel(date, rows)}
             disabled={!rows.length}
           >
