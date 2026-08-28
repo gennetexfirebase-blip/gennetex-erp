@@ -240,6 +240,85 @@ export function buildStockIssueSheets({ from, to, rows = [] }) {
   ];
 }
 
+const CATEGORY_LABEL = {
+  material: 'Бараа материал',
+  tool: 'Багаж',
+  supply: 'Хангамж',
+};
+
+/**
+ * Ажилтан бүрийн гар дээрх үлдэгдэл — "хэн юу барьж байна".
+ *
+ * `holders` нь `computeBalancesByUser`-ийн гаралт:
+ *   [{ user_id, user_name, items: [{ item_name, unit, category, quantity }] }]
+ *
+ * Хоёр хуудас гаргана:
+ *   Нэгтгэл — ажилтан бүрийн нийт нэр төрөл, ангилал тус бүрийн тоо
+ *   Дэлгэрэнгүй — ажилтан × бараа бүрийн мөр
+ */
+export function buildStockHoldingSheets({ holders = [], orgName = 'ЖЕННЕТЕКС ХХК' }) {
+  const now = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  const stampedAt = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(
+    now.getHours()
+  )}:${p(now.getMinutes())}`;
+
+  const countBy = (items, cat) =>
+    items.filter((it) => (it.category || 'material') === cat).length;
+
+  const totalItems = holders.reduce((s, h) => s + h.items.length, 0);
+  const totalQty = holders.reduce(
+    (s, h) => s + h.items.reduce((q, it) => q + (Number(it.quantity) || 0), 0),
+    0
+  );
+
+  const detail = [];
+  holders.forEach((h) => {
+    h.items.forEach((it) => {
+      detail.push([
+        detail.length + 1,
+        h.user_name || '—',
+        CATEGORY_LABEL[it.category || 'material'] || 'Бараа материал',
+        it.item_name || '—',
+        Number(it.quantity) || 0,
+        it.unit || 'ширхэг',
+      ]);
+    });
+  });
+
+  return [
+    {
+      name: 'Нэгтгэл',
+      rows: [
+        [orgName],
+        ['Ажилтны гар дээрх бараа, багаж, хангамж'],
+        ['Тайлан гаргасан', stampedAt],
+        [],
+        ['Эзэмшигч ажилтан', holders.length],
+        ['Нийт нэр төрөл', totalItems],
+        ['Нийт тоо ширхэг', totalQty],
+        [],
+        ['Ажилтан', 'Бараа материал', 'Багаж', 'Хангамж', 'Нийт нэр төрөл', 'Нийт тоо'],
+        ...holders.map((h) => [
+          h.user_name || '—',
+          countBy(h.items, 'material'),
+          countBy(h.items, 'tool'),
+          countBy(h.items, 'supply'),
+          h.items.length,
+          h.items.reduce((q, it) => q + (Number(it.quantity) || 0), 0),
+        ]),
+      ],
+    },
+    {
+      name: 'Дэлгэрэнгүй',
+      rows: [
+        ['№', 'Ажилтан', 'Ангилал', 'Бараа / багаж', 'Тоо', 'Нэгж'],
+        ...detail,
+      ],
+    },
+  ];
+}
+
 /** Preview-д зориулсан хялбар хүснэгт — эхний хуудсын мөрүүд. */
 export function sheetsToPreview(sheets) {
   const main =
