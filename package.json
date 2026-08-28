@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node scripts/patch-expo-platform-header.js && expo start --dev-client",
-    "start:go": "expo start",
+    "start:go": "node scripts/check-ngrok-auth.js && node scripts/patch-expo-ngrok-timeout.js && node scripts/patch-expo-platform-header.js && expo start --tunnel --go",
     "start:tunnel": "node scripts/check-ngrok-auth.js && node scripts/patch-expo-ngrok-timeout.js && node scripts/patch-expo-platform-header.js && expo start --tunnel --dev-client",
     "android": "node scripts/fix-android-sdk-path.js && expo run:android",
     "ios": "expo run:ios",
