@@ -19,6 +19,14 @@ import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
 import { buildVehicleFuelStats } from '../lib/vehicleFuelStats';
 
+/** "08-28 14:30" — товч бөгөөд ойлгомжтой. */
+function fmtRefillDate(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function FleetFuelScreen() {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
@@ -129,6 +137,21 @@ export default function FleetFuelScreen() {
                 {' · '}
                 {row.remainingLiters.toFixed(1)} / {row.tank} л үлдсэн
               </Text>
+
+              {/* Сүүлийн цэнэглэлт ба тэрнээс хойшх зарцуулалт.
+                  Түвшин яагаад ийм байгааг тайлбарлана — эс бөгөөс
+                  хувь өөрөө өөрчлөгдсөн мэт харагдана. */}
+              {row.vehicle?.fuel_refilled_at ? (
+                <View style={styles.refillMark}>
+                  <Text style={styles.refillMarkIcon}>⛽</Text>
+                  <Text style={styles.refillMarkText}>
+                    {fmtRefillDate(row.vehicle.fuel_refilled_at)}-нд цэнэглэсэн
+                    {Number(row.usedSinceRefill) > 0
+                      ? ` · тэрнээс хойш ${Number(row.usedSinceRefill).toFixed(1)} л зарцуулсан`
+                      : ' · хараахан зарцуулаагүй'}
+                  </Text>
+                </View>
+              ) : null}
               {isAdmin && row.vehicle?.id ? (
                 <TouchableOpacity
                   style={styles.refillBtn}
@@ -183,7 +206,19 @@ const makeStyles = ({ colors }) =>
     },
     barFill: { height: '100%', borderRadius: 999 },
     barHint: { color: colors.textMuted, fontSize: 12, marginTop: 8, lineHeight: 18 },
-    refillBtn: {
+    refillMark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceContainer,
+  },
+  refillMarkIcon: { fontSize: 13 },
+  refillMarkText: { color: colors.textMuted, fontSize: 11.5, flex: 1, lineHeight: 16 },
+  refillBtn: {
       marginTop: spacing.sm,
       alignSelf: 'flex-start',
       paddingHorizontal: 12,

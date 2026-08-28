@@ -37,6 +37,10 @@ export function buildVehicleFuelStats(vehicles, trips, { days = 30 } = {}) {
       activeTrip: null,
       tank: vehicleTankLiters(v),
       baseLevel: Number(v.fuel_level_percent ?? 100),
+      // Сүүлийн цэнэглэлтийн мөч. Түвшинг ҮҮНЭЭС ХОЙШ явсан аяллаар
+      // бууруулна — статистикийн `days` шүүлтээс хамаарахгүй.
+      refilledAt: v.fuel_refilled_at ? new Date(v.fuel_refilled_at).getTime() : null,
+      sinceRefillLiters: 0,
     };
   });
 
@@ -60,18 +64,37 @@ export function buildVehicleFuelStats(vehicles, trips, { days = 30 } = {}) {
         activeTrip: null,
         tank: vehicleTankLiters(v),
         baseLevel: Number(v?.fuel_level_percent ?? 100),
+        refilledAt: v?.fuel_refilled_at ? new Date(v.fuel_refilled_at).getTime() : null,
+        sinceRefillLiters: 0,
       };
     }
     const row = map[key];
+
+    /**
+     * Энэ аялал СҮҮЛИЙН ЦЭНЭГЛЭЛТЭЭС ХОЙШ болсон уу?
+     *
+     * ⚠️ Түвшинг зөвхөн үүгээр бууруулна. Цэнэглэхээс ӨМНӨХ аялал нь
+     *    аль хэдийн тооцогдсон түлшийг хоёр дахин хасах болно.
+     */
+    const startedMs = t.started_at ? new Date(t.started_at).getTime() : null;
+    const afterRefill =
+      row.refilledAt == null || (startedMs != null && startedMs >= row.refilledAt);
+
     if (t.status === 'active') {
       row.active = true;
       row.activeKm = tripKm(t);
       row.activeLiters = Number(t.liters || 0);
       row.activeTrip = t;
+      if (afterRefill) row.sinceRefillLiters += Number(t.liters || 0);
       if (t.driver_name) row.driver = t.driver_name;
       return;
     }
-    if (!t.started_at || new Date(t.started_at) < cutoff) return;
+
+    // Дууссан аялал ч түлш шатаадаг — өмнө нь энэ түвшинд огт
+    // тусдаггүй байсан тул аялал дуусмагц хувь буцаж үсэрдэг байв.
+    if (afterRefill) row.sinceRefillLiters += Number(t.liters || 0);
+
+    if (!startedMs || startedMs < cutoff) return;
     row.km += tripKm(t);
     row.liters += Number(t.liters || 0);
     row.cost += Number(t.cost || 0);
@@ -82,14 +105,21 @@ export function buildVehicleFuelStats(vehicles, trips, { days = 30 } = {}) {
   return Object.values(map)
     .map((row) => {
       const tank = row.tank;
-      const activeDrain = row.active && tank > 0 ? (row.activeLiters / tank) * 100 : 0;
-      const currentLevel = Math.max(0, Math.min(100, Math.round((row.baseLevel - activeDrain) * 10) / 10));
+      // Цэнэглэснээс хойш шатсан бүх түлш — явж байгаа аялал ч, дууссан ч.
+      const drain = tank > 0 ? (row.sinceRefillLiters / tank) * 100 : 0;
+      const currentLevel = Math.max(
+        0,
+        Math.min(100, Math.round((row.baseLevel - drain) * 10) / 10)
+      );
       const remainingLiters = Math.max(0, Math.round(((currentLevel / 100) * tank) * 10) / 10);
       const totalKm = Math.round((row.km + (row.active ? row.activeKm : 0)) * 100) / 100;
       const periodLiters = row.active ? row.activeLiters : row.liters;
       return {
         ...row,
         currentLevel,
+        // Цэнэглэлтээс хойш шатсан литр — дэлгэц дээр "хэдийг зарцуулав"
+        // гэдгийг харуулахад.
+        usedSinceRefill: Math.round(row.sinceRefillLiters * 10) / 10,
         remainingLiters,
         totalKm,
         periodLiters,
