@@ -64,7 +64,7 @@ export default function VehicleScreen() {
     idleLitersPerHour: fuelSettings.idleLitersPerHour,
     pricePerLiter: fuelSettings.pricePerLiter,
   });
-  const baseFuelLevel = Number(vehicle?.fuel_level_percent ?? 100);
+  const baseFuelLevel = Number(vehicle?.fuel_level_percent ?? 0);
   const tripDrainPct = tankLiters > 0 ? (fuel.liters / tankLiters) * 100 : 0;
   const currentFuelLevel = Math.max(0, Math.min(100, Math.round((baseFuelLevel - tripDrainPct) * 10) / 10));
   const remainingLiters = Math.max(0, Math.round(((currentFuelLevel / 100) * tankLiters) * 10) / 10);

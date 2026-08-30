@@ -25,7 +25,11 @@ export async function insertVehicle({ code, plate_number, liters_per_100km, tank
       plate_number: normalizePlateNumber(plate_number),
       liters_per_100km: Number(liters_per_100km) || 12,
       tank_capacity_liters: Number(tank_capacity_liters) || 60,
-      fuel_level_percent: 100,
+      // ⚠️ Шинэ машин 0%-аас эхэлнэ. Өмнө нь 100 гэж хатуу бичигдсэн
+      //    байсан тул систем савны бодит түлшийг мэдэхгүй мөртлөө
+      //    "дүүрэн" гэж таамаглаж, эхний цэнэглэлт нь 100 дээр
+      //    таслагдаж алга болдог байв.
+      fuel_level_percent: 0,
       driver_name: driver_name?.trim() || null,
       driver_id: driver_id || null,
     })
@@ -187,7 +191,7 @@ export async function endTrip(id, { distanceKm, liters, cost, idleSeconds }) {
       if (v) {
         const tank = Number(v.tank_capacity_liters) || 60;
         const drain = (usedLiters / tank) * 100;
-        const next = Math.max(0, Math.min(100, Number(v.fuel_level_percent ?? 100) - drain));
+        const next = Math.max(0, Math.min(100, Number(v.fuel_level_percent ?? 0) - drain));
         await supabase
           .from('vehicles')
           .update({ fuel_level_percent: Math.round(next * 10) / 10 })
@@ -197,6 +201,14 @@ export async function endTrip(id, { distanceKm, liters, cost, idleSeconds }) {
   }
 }
 
+/**
+ * @deprecated Түвшинг 100% болгоно — мөнгө, литр бүртгэхгүй.
+ *
+ * ⚠️ Шинэ бүртгэлд `fuelPriceService.refuelByAmount()` ашиглана: админ
+ *    мөнгөн дүнгээ оруулж, литр нь тухайн үеийн үнээр тооцогдоно.
+ *    Энэ функц зөвхөн хуучин дуудлагын нийцлийн үүднээс үлдэв —
+ *    ашиглавал зарцуулалтын тайлан бодит бус болно.
+ */
 export async function refillVehicleFuel(vehicleId) {
   const { data, error } = await supabase
     .from('vehicles')

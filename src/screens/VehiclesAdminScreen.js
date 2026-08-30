@@ -25,6 +25,7 @@ import {
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
+import FuelRefillModal from '../components/FuelRefillModal';
 import FuelTankGauge from '../components/FuelTankGauge';
 import { buildVehicleFuelStats, fuelLevelColor, vehicleTankLiters } from '../lib/vehicleFuelStats';
 import { formatPlateInput, normalizePlateNumber } from '../lib/mongoliaPlate';
@@ -204,22 +205,14 @@ export default function VehiclesAdminScreen() {
     return map;
   }, [list, trips]);
 
-  const refillFuel = (item) => {
-    Alert.alert('Сав дүүргэх', `${item.plate_number} — бензин 100% болгох уу?`, [
-      { text: 'Болих', style: 'cancel' },
-      {
-        text: '100%',
-        onPress: async () => {
-          try {
-            await vehicleApi.refillVehicleFuel(item.id);
-            await load();
-          } catch (e) {
-            Alert.alert('Алдаа', e.message);
-          }
-        },
-      },
-    ]);
-  };
+  /**
+   * Цэнэглэх — админ мөнгөн дүнгээ оруулна, литр нь тухайн үеийн
+   * түлшний үнээр тооцогдоно.
+   *
+   * ⚠️ Өмнө нь "100% болгох" гэсэн ганц товч байсан тул хэдэн
+   *    төгрөгийн түлш авсан нь хаана ч бүртгэгдэхгүй байв.
+   */
+  const [refillVehicle, setRefillVehicle] = useState(null);
 
   if (!isAdmin) {
     return (
@@ -256,7 +249,7 @@ export default function VehiclesAdminScreen() {
           }
           renderItem={({ item }) => {
             const fuel = fuelByVehicle[item.id];
-            const lvl = fuel?.currentLevel ?? Number(item.fuel_level_percent ?? 100);
+            const lvl = fuel?.currentLevel ?? Number(item.fuel_level_percent ?? 0);
             const tank = vehicleTankLiters(item);
             const remain = fuel?.remainingLiters ?? Math.round(((lvl / 100) * tank) * 10) / 10;
             const km = fuel?.totalKm ?? 0;
@@ -286,7 +279,7 @@ export default function VehiclesAdminScreen() {
                   <TouchableOpacity onPress={() => setQrItem(item)}>
                     <Badge text="QR" color={colors.primary} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => refillFuel(item)} hitSlop={8}>
+                  <TouchableOpacity onPress={() => setRefillVehicle(item)} hitSlop={8}>
                     <Text style={styles.refill}>Сав</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={8}>
@@ -514,6 +507,13 @@ export default function VehiclesAdminScreen() {
           </View>
         </View>
       </Modal>
+      <FuelRefillModal
+        visible={refillVehicle !== null}
+        vehicle={refillVehicle}
+        onClose={() => setRefillVehicle(null)}
+        onDone={load}
+      />
+
     </View>
   );
 }

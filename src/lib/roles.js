@@ -234,6 +234,11 @@ export function sameDepartment(viewer, target) {
  * ХОЁР ШҮҮЛТ:
  *   1. Зэрэглэл — өөрөөсөө ДООШ хүмүүсийг л харна (ахлах админыг харахгүй).
  *   2. Хэлтэс   — харьяалалтай бол зөвхөн ӨӨРИЙН хэлтсийнхнийг харна.
+ *                 ⚠️ Хэлтэс ТОХИРУУЛААГҮЙ хүн БҮХ админд харагдана:
+ *                 нуувал системд бүртгэлтэй мөртлөө хэн ч удирдах
+ *                 боломжгүй болно (2026-08-30-нд ажигдав — 6 ажилтны
+ *                 5 нь хэлтэсгүй байсан тул хэлтэстэй админуудад
+ *                 бараг хэн ч харагдахгүй байлаа).
  *
  * @param viewer Бүтэн профайл (хэлтэс шүүх бол) эсвэл эрхийн нэр.
  */
@@ -251,7 +256,14 @@ export function filterVisibleProfiles(profiles, viewer) {
   if (!isValidRole(viewerRole)) return list;
 
   const mine = rankOf(viewerRole);
-  return list.filter((p) => rankOf(p.role) < mine && sameDepartment(viewer, p));
+  return list.filter(
+    (p) =>
+      rankOf(p.role) < mine &&
+      // `sameDepartment` нь харьяалалгүй хүнийг ХАСДАГ (түүний утга
+      // "хоёул нэг хэлтэст үү"). Энд харагдах хүрээ хэрэгтэй тул
+      // `inDepartmentScope`-ыг `sharedWhenNull = true`-тэй дуудна.
+      inDepartmentScope(viewer, deptOf(p), true)
+  );
 }
 
 /** Профайл засах эрх — өөрөөсөө доош, өөрийн хэлтэст. */
