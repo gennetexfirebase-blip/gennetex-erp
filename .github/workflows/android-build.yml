@@ -130,6 +130,20 @@ jobs:
       # `expo prebuild` нь `android/`-ыг ШИНЭЭР үүсгэдэг тул native
       # засварууд (patch) болон google-services хуулалт дахин хэрэгтэй.
       # Энэ нь `eas-build-post-install` script-тэй ижил алхам.
+      # ⚠️ Gradle-ийн анхдагч heap (2 GB) нь `packageRelease` дээр
+      # хүрэлцэхгүй — 2026-08-31-нд `OutOfMemoryError: Java heap space`
+      # гарч build унасан. GitHub runner нь 7 GB RAM-тай тул 5 GB өгч,
+      # зэрэгцээ ажлыг хязгаарлаж санах ойн оргилыг намируулна.
+      - name: Gradle-ийн санах ойг нэмэх
+        run: |
+          {
+            echo ""
+            echo "# CI дээр дарж бичив (android-build.yml)"
+            echo "org.gradle.jvmargs=-Xmx5120m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError"
+            echo "org.gradle.workers.max=2"
+          } >> android/gradle.properties
+          tail -5 android/gradle.properties
+
       - name: Prebuild-ийн дараах засварууд
         run: |
           node scripts/patch-incoming-call-rn81.js
