@@ -196,7 +196,8 @@
       },
       "package": "com.gennetex.erp",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2
+      "versionCode": 2,
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/logo.png"
@@ -280,7 +281,10 @@
           "android": {
             "compileSdkVersion": 36,
             "targetSdkVersion": 36,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "enableMinifyInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "extraProguardRules": "# ⚠️ ЭДГЭЭР ДҮРЭМ БЭЛЭН БОЛОВЧ MINIFY УНТРААЛТТАЙ БАЙНА.\n#    Асаахдаа `enableMinifyInReleaseBuilds` болон\n#    `enableShrinkResourcesInReleaseBuilds`-ыг `true` болгоно.\n#\n#    ⚠️ Асаасны дараа ЗААВАЛ БОДИТ ТӨХӨӨРӨМЖ ДЭЭР release APK-г\n#       турших ёстой. R8-ийн алдаа нь зөвхөн release build дээр,\n#       зөвхөн ажиллах үед илэрдэг — debug дээр огт харагдахгүй.\n#       Тусгайлан шалгах: царай таних (ONNX), видео дуудлага\n#       (WebRTC/CallKeep), ирэх дуудлагын бүтэн дэлгэц, QR уншигч.\n\n# ── ONNX Runtime — JNI-аар класс хайдаг ─────────────────────\n-keep class ai.onnxruntime.** { *; }\n-keep class com.microsoft.onnxruntime.** { *; }\n-dontwarn ai.onnxruntime.**\n\n# ── WebRTC — натив талаас callback дууддаг ──────────────────\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**\n-keep class com.oney.WebRTCModule.** { *; }\n\n# ── CallKeep / ирэх дуудлага — ConnectionService reflection ──\n-keep class io.wazo.callkeep.** { *; }\n-keep class com.reactnativefullscreennotificationincomingcall.** { *; }\n\n# ── ML Kit царай илрүүлэх ───────────────────────────────────\n-keep class com.google.mlkit.** { *; }\n-keep class com.google.android.gms.internal.mlkit_** { *; }\n-dontwarn com.google.mlkit.**\n\n# ── Firebase / GMS ──────────────────────────────────────────\n-keep class com.google.firebase.** { *; }\n-dontwarn com.google.android.gms.**\n\n# ── React Native цөм ────────────────────────────────────────\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.facebook.jni.** { *; }\n-keepclassmembers class * { @com.facebook.proguard.annotations.DoNotStrip *; }\n"
           }
         }
       ]

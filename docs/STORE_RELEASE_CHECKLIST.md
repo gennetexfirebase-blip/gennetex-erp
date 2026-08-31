@@ -78,22 +78,24 @@ URL-ыг мэдэж байвал **нэвтрэхгүйгээр** ажилтны
 
 ---
 
-## 🟠 3. Google Maps API key
+## ✅ 3. Google Maps — БҮРЭН ХАСАГДСАН
 
-`app.json` дотор `AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao` гэж хатуу
-бичигдсэн байсныг **устгав**. Тэр нь Google-ийн баримт бичгийн жишээ
-түлхүүр — танай аппад ажиллахгүй (Maps SDK нь түлхүүрийг аппын SHA-1-тэй
-уядаг), тиймээс газрын зураг хоосон харагдаж байсан байх магадлалтай.
+~~Google Maps API key~~ — **энэ хэсэг хуучирсан.**
 
-**Хийх ажил:**
+2026-08-27-нд газрын зургийг **OpenStreetMap** руу бүрэн шилжүүлэв.
+Шалтгаан: Google Maps SDK нь Android дээр `com.google.android.geo.API_KEY`
+meta-data ЗААВАЛ шаарддаг бөгөөд байхгүй үед натив талдаа
+`IllegalStateException: API key not found` шидэж **бүтэн аппыг унагаадаг**.
+Ирц дэлгэц газрын зурагтай тул тэр дэлгэц рүү орох бүрд апп хаагддаг байв.
 
-1. Google Cloud Console → APIs & Services → Credentials → **Create API key**
-2. Хязгаарлалт тавина (энэ л цорын ганц хамгаалалт):
-   - Android: package `com.gennetex.erp` + **release SHA-1**
-   - iOS: bundle id `com.gennetex.erp`
-   - API restrictions: Maps SDK for Android, Maps SDK for iOS
-3. `.env` дотор: `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIza...`
-4. EAS дээр: `eas secret:create --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value AIza...`
+Одоо `src/components/Map.js` нь Leaflet-ийг WebView дотор ажиллуулдаг тул:
+
+- ямар ч API түлхүүр шаардахгүй
+- төлбөртэй Google Cloud данс шаардахгүй
+- натив газрын зургийн крэш бүрмөсөн арилсан
+
+`EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` нь `.env` болон CI-д үлдсэн ч
+**хаана ч уншигддаггүй** — устгаж болно.
 
 ---
 

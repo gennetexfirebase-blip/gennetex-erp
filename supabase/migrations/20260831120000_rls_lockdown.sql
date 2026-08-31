@@ -55,6 +55,7 @@ grant execute on function public.is_conversation_member(uuid) to authenticated;
 
 -- ── Яриа ба гишүүнчлэл ───────────────────────────────────────────
 drop policy if exists conversations_write on public.conversations;
+drop policy if exists conversations_read on public.conversations;
 create policy conversations_read on public.conversations
   for select to authenticated
   using (
@@ -62,22 +63,27 @@ create policy conversations_read on public.conversations
     or created_by = (select auth.uid())
     or public.is_admin_user()
   );
+drop policy if exists conversations_insert on public.conversations;
 create policy conversations_insert on public.conversations
   for insert to authenticated
   with check (created_by = (select auth.uid()) or public.is_admin_user());
+drop policy if exists conversations_update on public.conversations;
 create policy conversations_update on public.conversations
   for update to authenticated
   using (created_by = (select auth.uid()) or public.is_admin_user());
+drop policy if exists conversations_delete on public.conversations;
 create policy conversations_delete on public.conversations
   for delete to authenticated
   using (created_by = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists conversation_members_write on public.conversation_members;
+drop policy if exists conversation_members_read on public.conversation_members;
 create policy conversation_members_read on public.conversation_members
   for select to authenticated
   using (public.is_conversation_member(conversation_id) or public.is_admin_user());
 -- Гишүүн нэмэх нь тухайн яриандаа аль хэдийн байгаа хүн, эсвэл
 -- ярианы үүсгэгч л хийнэ. Өөрийгөө хэн нэгний ярианд нэмэх зам хаагдав.
+drop policy if exists conversation_members_insert on public.conversation_members;
 create policy conversation_members_insert on public.conversation_members
   for insert to authenticated
   with check (
@@ -88,14 +94,17 @@ create policy conversation_members_insert on public.conversation_members
       where c.id = conversation_id and c.created_by = (select auth.uid())
     )
   );
+drop policy if exists conversation_members_delete on public.conversation_members;
 create policy conversation_members_delete on public.conversation_members
   for delete to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists telegram_chat_messages_all on public.telegram_chat_messages;
+drop policy if exists telegram_chat_messages_read on public.telegram_chat_messages;
 create policy telegram_chat_messages_read on public.telegram_chat_messages
   for select to authenticated
   using (sender_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists telegram_chat_messages_insert on public.telegram_chat_messages;
 create policy telegram_chat_messages_insert on public.telegram_chat_messages
   for insert to authenticated
   with check (sender_id = (select auth.uid()) or public.is_admin_user());
@@ -104,78 +113,96 @@ create policy telegram_chat_messages_insert on public.telegram_chat_messages
 -- ⚠️ Энэ хүснэгтийн `user_id` нь uuid БИШ, TEXT. Шууд харьцуулбал
 --    "operator does not exist: text = uuid" гэж унана.
 drop policy if exists developer_messages_all on public.developer_messages;
+drop policy if exists developer_messages_read on public.developer_messages;
 create policy developer_messages_read on public.developer_messages
   for select to authenticated
   using (user_id = (select auth.uid())::text or public.is_admin_user());
+drop policy if exists developer_messages_insert on public.developer_messages;
 create policy developer_messages_insert on public.developer_messages
   for insert to authenticated
   with check (user_id = (select auth.uid())::text or public.is_admin_user());
+drop policy if exists developer_messages_update on public.developer_messages;
 create policy developer_messages_update on public.developer_messages
   for update to authenticated
   using (public.is_admin_user());
 
 -- ── Гүйцэтгэл, санал хүсэлт, чөлөө ───────────────────────────────
 drop policy if exists employee_reports_all on public.employee_reports;
+drop policy if exists employee_reports_read on public.employee_reports;
 create policy employee_reports_read on public.employee_reports
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists employee_reports_write on public.employee_reports;
 create policy employee_reports_write on public.employee_reports
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists employee_feedback_all on public.employee_feedback;
+drop policy if exists employee_feedback_read on public.employee_feedback;
 create policy employee_feedback_read on public.employee_feedback
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists employee_feedback_write on public.employee_feedback;
 create policy employee_feedback_write on public.employee_feedback
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists leave_requests_all on public.leave_requests;
+drop policy if exists leave_requests_read on public.leave_requests;
 create policy leave_requests_read on public.leave_requests
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists leave_requests_insert on public.leave_requests;
 create policy leave_requests_insert on public.leave_requests
   for insert to authenticated
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 -- Шийдвэрлэх нь зөвхөн админ — ажилтан өөрийн хүсэлтээ баталж болохгүй.
+drop policy if exists leave_requests_update on public.leave_requests;
 create policy leave_requests_update on public.leave_requests
   for update to authenticated
   using (public.is_admin_user());
+drop policy if exists leave_requests_delete on public.leave_requests;
 create policy leave_requests_delete on public.leave_requests
   for delete to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
 
 -- ── Царай таних лог, зочлолт, тооллого ───────────────────────────
 drop policy if exists ai_detection_logs_all on public.ai_detection_logs;
+drop policy if exists ai_detection_logs_read on public.ai_detection_logs;
 create policy ai_detection_logs_read on public.ai_detection_logs
   for select to authenticated
   using (employee_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists ai_detection_logs_insert on public.ai_detection_logs;
 create policy ai_detection_logs_insert on public.ai_detection_logs
   for insert to authenticated
   with check (employee_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists visit_logs_all on public.visit_logs;
+drop policy if exists visit_logs_read on public.visit_logs;
 create policy visit_logs_read on public.visit_logs
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists visit_logs_write on public.visit_logs;
 create policy visit_logs_write on public.visit_logs
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists inventory_counts_all on public.inventory_counts;
+drop policy if exists inventory_counts_read on public.inventory_counts;
 create policy inventory_counts_read on public.inventory_counts
   for select to authenticated
   using (employee_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists inventory_counts_write on public.inventory_counts;
 create policy inventory_counts_write on public.inventory_counts
   for all to authenticated
   using (employee_id = (select auth.uid()) or public.is_admin_user())
   with check (employee_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists story_views_all on public.story_views;
+drop policy if exists story_views_read on public.story_views;
 create policy story_views_read on public.story_views
   for select to authenticated
   using (
@@ -187,14 +214,17 @@ create policy story_views_read on public.story_views
       where s.id = story_id and s.author_id = (select auth.uid())
     )
   );
+drop policy if exists story_views_insert on public.story_views;
 create policy story_views_insert on public.story_views
   for insert to authenticated
   with check (user_id = (select auth.uid()));
 
 drop policy if exists ohaab_daily_ack_all on public.ohaab_daily_ack;
+drop policy if exists ohaab_daily_ack_read on public.ohaab_daily_ack;
 create policy ohaab_daily_ack_read on public.ohaab_daily_ack
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists ohaab_daily_ack_write on public.ohaab_daily_ack;
 create policy ohaab_daily_ack_write on public.ohaab_daily_ack
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
@@ -206,9 +236,11 @@ drop policy if exists employee_shifts_select on public.employee_shifts;
 drop policy if exists employee_shifts_insert on public.employee_shifts;
 drop policy if exists employee_shifts_update on public.employee_shifts;
 drop policy if exists employee_shifts_delete on public.employee_shifts;
+drop policy if exists employee_shifts_read on public.employee_shifts;
 create policy employee_shifts_read on public.employee_shifts
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists employee_shifts_write on public.employee_shifts;
 create policy employee_shifts_write on public.employee_shifts
   for all to authenticated
   using (public.is_admin_user())
@@ -218,9 +250,11 @@ drop policy if exists work_breaks_select on public.work_breaks;
 drop policy if exists work_breaks_insert on public.work_breaks;
 drop policy if exists work_breaks_update on public.work_breaks;
 drop policy if exists work_breaks_delete on public.work_breaks;
+drop policy if exists work_breaks_read on public.work_breaks;
 create policy work_breaks_read on public.work_breaks
   for select to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists work_breaks_write on public.work_breaks;
 create policy work_breaks_write on public.work_breaks
   for all to authenticated
   using (public.is_admin_user())
@@ -231,40 +265,50 @@ create policy work_breaks_write on public.work_breaks
 
 -- ── Мэдээллийн урсгал ────────────────────────────────────────────
 drop policy if exists posts_all on public.posts;
+drop policy if exists posts_read on public.posts;
 create policy posts_read on public.posts
   for select to authenticated using (true);
+drop policy if exists posts_write on public.posts;
 create policy posts_write on public.posts
   for all to authenticated
   using (author_id = (select auth.uid()) or public.is_admin_user())
   with check (author_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists post_comments_all on public.post_comments;
+drop policy if exists post_comments_read on public.post_comments;
 create policy post_comments_read on public.post_comments
   for select to authenticated using (true);
+drop policy if exists post_comments_write on public.post_comments;
 create policy post_comments_write on public.post_comments
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists post_reactions_all on public.post_reactions;
+drop policy if exists post_reactions_read on public.post_reactions;
 create policy post_reactions_read on public.post_reactions
   for select to authenticated using (true);
+drop policy if exists post_reactions_write on public.post_reactions;
 create policy post_reactions_write on public.post_reactions
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists stories_all on public.stories;
+drop policy if exists stories_read on public.stories;
 create policy stories_read on public.stories
   for select to authenticated using (true);
+drop policy if exists stories_write on public.stories;
 create policy stories_write on public.stories
   for all to authenticated
   using (author_id = (select auth.uid()) or public.is_admin_user())
   with check (author_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists live_comments_all on public.live_comments;
+drop policy if exists live_comments_read on public.live_comments;
 create policy live_comments_read on public.live_comments
   for select to authenticated using (true);
+drop policy if exists live_comments_write on public.live_comments;
 create policy live_comments_write on public.live_comments
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
@@ -272,32 +316,40 @@ create policy live_comments_write on public.live_comments
 
 -- ── Тээвэр ───────────────────────────────────────────────────────
 drop policy if exists trips_all on public.trips;
+drop policy if exists trips_read on public.trips;
 create policy trips_read on public.trips
   for select to authenticated using (true);
+drop policy if exists trips_write on public.trips;
 create policy trips_write on public.trips
   for all to authenticated
   using (driver_id = (select auth.uid()) or public.is_admin_user())
   with check (driver_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists vehicles_all on public.vehicles;
+drop policy if exists vehicles_read on public.vehicles;
 create policy vehicles_read on public.vehicles
   for select to authenticated using (true);
+drop policy if exists vehicles_write on public.vehicles;
 create policy vehicles_write on public.vehicles
   for all to authenticated
   using (driver_id = (select auth.uid()) or public.is_admin_user())
   with check (driver_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists vehicle_logs_all on public.vehicle_logs;
+drop policy if exists vehicle_logs_read on public.vehicle_logs;
 create policy vehicle_logs_read on public.vehicle_logs
   for select to authenticated using (true);
+drop policy if exists vehicle_logs_write on public.vehicle_logs;
 create policy vehicle_logs_write on public.vehicle_logs
   for all to authenticated
   using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists field_site_sessions_all on public.field_site_sessions;
+drop policy if exists field_site_sessions_read on public.field_site_sessions;
 create policy field_site_sessions_read on public.field_site_sessions
   for select to authenticated using (true);
+drop policy if exists field_site_sessions_write on public.field_site_sessions;
 create policy field_site_sessions_write on public.field_site_sessions
   for all to authenticated
   using (driver_id = (select auth.uid()) or public.is_admin_user())
@@ -305,29 +357,38 @@ create policy field_site_sessions_write on public.field_site_sessions
 
 -- ── Агуулах ──────────────────────────────────────────────────────
 drop policy if exists products_all on public.products;
+drop policy if exists products_read on public.products;
 create policy products_read on public.products
   for select to authenticated using (true);
+drop policy if exists products_insert on public.products;
 create policy products_insert on public.products
   for insert to authenticated with check (true);
+drop policy if exists products_update on public.products;
 create policy products_update on public.products
   for update to authenticated using (true);
 -- Устгах нь эргэлт буцалтгүй тул зөвхөн админ.
+drop policy if exists products_delete on public.products;
 create policy products_delete on public.products
   for delete to authenticated using (public.is_admin_user());
 
 drop policy if exists product_images_all on public.product_images;
+drop policy if exists product_images_read on public.product_images;
 create policy product_images_read on public.product_images
   for select to authenticated using (true);
+drop policy if exists product_images_write on public.product_images;
 create policy product_images_write on public.product_images
   for all to authenticated using (true) with check (true);
 
 drop policy if exists stock_movements_all on public.stock_movements;
+drop policy if exists stock_movements_read on public.stock_movements;
 create policy stock_movements_read on public.stock_movements
   for select to authenticated using (true);
+drop policy if exists stock_movements_insert on public.stock_movements;
 create policy stock_movements_insert on public.stock_movements
   for insert to authenticated
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 -- Хөдөлгөөний түүх нь бүртгэл — өөрчилж, устгаж болохгүй.
+drop policy if exists stock_movements_admin on public.stock_movements;
 create policy stock_movements_admin on public.stock_movements
   for all to authenticated
   using (public.is_admin_user())
@@ -335,17 +396,21 @@ create policy stock_movements_admin on public.stock_movements
 
 -- ── Тайлан, архив, дуудлага ──────────────────────────────────────
 drop policy if exists service_calls_all on public.service_calls;
+drop policy if exists service_calls_read on public.service_calls;
 create policy service_calls_read on public.service_calls
   for select to authenticated using (true);
+drop policy if exists service_calls_write on public.service_calls;
 create policy service_calls_write on public.service_calls
   for all to authenticated
   using (created_by = (select auth.uid()) or public.is_admin_user())
   with check (created_by = (select auth.uid()) or public.is_admin_user());
 
 drop policy if exists ai_performance_reports_all on public.ai_performance_reports;
+drop policy if exists ai_performance_reports_read on public.ai_performance_reports;
 create policy ai_performance_reports_read on public.ai_performance_reports
   for select to authenticated
   using (created_by = (select auth.uid()) or public.is_admin_user());
+drop policy if exists ai_performance_reports_write on public.ai_performance_reports;
 create policy ai_performance_reports_write on public.ai_performance_reports
   for all to authenticated
   using (public.is_admin_user())
@@ -353,26 +418,33 @@ create policy ai_performance_reports_write on public.ai_performance_reports
 
 -- ── Уулзалт, шууд дамжуулалт ─────────────────────────────────────
 drop policy if exists meetings_all on public.meetings;
+drop policy if exists meetings_read on public.meetings;
 create policy meetings_read on public.meetings
   for select to authenticated using (true);
+drop policy if exists meetings_write on public.meetings;
 create policy meetings_write on public.meetings
   for all to authenticated using (true) with check (true);
 
 drop policy if exists call_sessions_all on public.call_sessions;
+drop policy if exists call_sessions_rw on public.call_sessions;
 create policy call_sessions_rw on public.call_sessions
   for all to authenticated using (true) with check (true);
 
 drop policy if exists live_streams_all on public.live_streams;
+drop policy if exists live_streams_read on public.live_streams;
 create policy live_streams_read on public.live_streams
   for select to authenticated using (true);
+drop policy if exists live_streams_write on public.live_streams;
 create policy live_streams_write on public.live_streams
   for all to authenticated using (true) with check (true);
 
 drop policy if exists live_invites_all on public.live_invites;
+drop policy if exists live_invites_rw on public.live_invites;
 create policy live_invites_rw on public.live_invites
   for all to authenticated using (true) with check (true);
 
 -- ── Тохиргоо · зөвхөн админ бичнэ ────────────────────────────────
+drop policy if exists fuel_settings_write on public.fuel_settings;
 drop policy if exists fuel_settings_write on public.fuel_settings;
 create policy fuel_settings_write on public.fuel_settings
   for all to authenticated
@@ -380,8 +452,10 @@ create policy fuel_settings_write on public.fuel_settings
   with check (public.is_admin_user());
 
 drop policy if exists ohaab_instruction_all on public.ohaab_instruction;
+drop policy if exists ohaab_instruction_read on public.ohaab_instruction;
 create policy ohaab_instruction_read on public.ohaab_instruction
   for select to authenticated using (true);
+drop policy if exists ohaab_instruction_write on public.ohaab_instruction;
 create policy ohaab_instruction_write on public.ohaab_instruction
   for all to authenticated
   using (public.is_admin_user())
@@ -392,16 +466,19 @@ create policy ohaab_instruction_write on public.ohaab_instruction
 -- `zz_deprecated_*` нь аль хэдийн ашиглагдахаа больсон ч журам нь
 -- нээлттэй хэвээр байв. Хойшлуулалгүй хаана.
 drop policy if exists inventory_history_all on public.zz_deprecated_inventory_history;
+drop policy if exists zz_inventory_history_admin on public.zz_deprecated_inventory_history;
 create policy zz_inventory_history_admin on public.zz_deprecated_inventory_history
   for all to authenticated
   using (public.is_admin_user()) with check (public.is_admin_user());
 
 drop policy if exists live_streams_all on public.zz_deprecated_live_streams;
+drop policy if exists zz_live_streams_admin on public.zz_deprecated_live_streams;
 create policy zz_live_streams_admin on public.zz_deprecated_live_streams
   for all to authenticated
   using (public.is_admin_user()) with check (public.is_admin_user());
 
 drop policy if exists staff_all on public.zz_deprecated_staff;
+drop policy if exists zz_staff_admin on public.zz_deprecated_staff;
 create policy zz_staff_admin on public.zz_deprecated_staff
   for all to authenticated
   using (public.is_admin_user()) with check (public.is_admin_user());

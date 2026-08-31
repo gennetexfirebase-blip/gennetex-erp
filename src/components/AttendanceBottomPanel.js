@@ -119,11 +119,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingTop: 10,
     paddingHorizontal: 20,
+    // ⚠️ `shadow*` нь ЗӨВХӨН iOS дээр ажиллана. Android дээр сүүдэр ба
+    //    давхарга хоёрыг `elevation` ГАНЦААРАА хариуцдаг.
+    //
+    //    Энд `elevation: 6` гэж давхар бичсэн байсан нь дээрх
+    //    `elevation: 80`-ыг чимээгүй дарж, панель нь газрын зургийн
+    //    дээр гарах ёстой байтлаа 6 давхаргад үлддэг байв.
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 6,
   },
   handle: {
     alignSelf: 'center',
