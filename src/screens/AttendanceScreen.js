@@ -882,11 +882,25 @@ export default function AttendanceScreen() {
     await loadMyDay();
     await refreshShiftStatus();
 
+    // Бүртгэгдсэн мөчийн цаг — мэдэгдэл дээр харагдана.
+    const nowD = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const timeText = `${pad(nowD.getHours())}:${pad(nowD.getMinutes())}`;
+
+    // ⚠️ Админд мэдэгдэх нь `attApi.insertAttendance` дотор — тэр нь
+    //    ирц үүсгэдэг ДӨРВӨН урсгалд (хурдан бүртгэл, царай таних,
+    //    зайнаас, засвар) бүгдэд нь ажиллах ёстой. Дэлгэцээс дуудвал
+    //    зөвхөн энэ нэг урсгал хамрагдана.
+
+    // Ажилтанд өөрт нь харагдах баталгаа — дуу хоолой чимээгүй
+    // горимд сонсогдохгүй тул зөвхөн дуугаар мэдэгдэх нь хангалтгүй.
+    notifyApi
+      .notifyMyAttendance({ type, timeText, locationName, isRemote })
+      .catch(() => {});
+
     if (isRemote) {
-      // ⚠️ Зайнаас бүртгүүлсэн ирц нь `pending` төлөвтэй үүсдэг (дээрх
+      // Зайнаас бүртгүүлсэн ирц нь `pending` төлөвтэй үүсдэг (дээрх
       // `status`) бөгөөд админ зөвшөөрч байж л жинхэнэ ирц болно.
-      // Админд мэдэгдэл нь `attApi.insertAttendance` дотроос
-      // (`notifyRemoteAttendance`) автоматаар илгээгддэг.
       if (type === 'check_in') playRemoteCheckInSound();
       else playRemoteCheckOutSound();
       Alert.alert(
@@ -1897,6 +1911,21 @@ ${dates[0]} – ${dates[dates.length - 1]}`
           ))}
         </View>
       ) : null}
+
+      {/* ⚠️ Админ ӨӨРӨӨ ч ажилтан. Өмнө нь хүсэлтийн зам зөвхөн
+          ажилтны дэлгэцэд байсан тул админ ирцээ нөхөж бүртгүүлэх,
+          зайнаас бүртгүүлэх хүсэлт огт илгээж чаддаггүй байв. */}
+      <AdminSectionCard
+        colors={adminColors}
+        icon="document-text"
+        iconBg="rgba(255,176,32,0.16)"
+        iconFg="#ffb020"
+        title="Миний ирцийн хүсэлт"
+        subtitle="Ирцээ нөхөж бүртгүүлэх, зайнаас бүртгүүлэх"
+        actionLabel="Хүсэлт илгээх"
+        onAction={() => navigation.navigate('AttendanceRequestForm')}
+        style={{ marginTop: spacing.md }}
+      />
 
       {/* ── Удирдлагын картууд (загварын дагуу: өнгөт дугуй icon + outline товч) ── */}
       <AdminSectionCard

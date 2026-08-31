@@ -76,27 +76,37 @@ export async function insertAttendance(record) {
     .select()
     .single();
   if (error) throw error;
-  if (data.status === 'pending'&& data.is_remote) {
-    try {
-      await notifyApi.notifyRemoteAttendance({
-        staffName: record.staffName,
-        note: record.note,
-        type: record.type,
-        distanceM: record.distanceM ?? record.distance_m,
-      });
-    } catch (e) {}
-  } else if (data.type === 'check_in'&& data.is_remote) {
-    try {
-      await notifyApi.notifyOffSiteCheckIn({
-        staffName: record.staffName,
-        locationName: record.locationName,
-        // Дуудагчид `distanceM` (camelCase) өгдөг — өмнө нь `record.distance_m`
-        // гэж уншиж байсан тул үргэлж undefined болж, мэдэгдэл дээр зай
-        // харагдахгүй байв. Аль алиныг нь дэмжинэ.
-        distanceM: record.distanceM ?? record.distance_m,
-      });
-    } catch (e) {}
+  /**
+   * БҮХ ирцийг админд мэдэгдэнэ.
+   *
+   * ⚠️ Өмнө нь зөвхөн ЗАЙНААС бүртгүүлсэн нь очдог байсан тул ажлын
+   *    байран дээрээ ирсэн/явсан ажилтан админд огт харагдахгүй байв.
+   *    Одоо бүх бүртгэл очиж, зайнаас ирсэн нь "баталгаажуулна уу"
+   *    гэсэн тод үйлдэлтэй ялгарна.
+   *
+   * ⚠️ Энэ нь СЕРВИСИЙН давхаргад байх ёстой: ирц үүсгэдэг дөрвөн
+   *    урсгал (хурдан бүртгэл, царай таних, зайнаас, засвар) бүгд
+   *    энэ функцээр дамждаг. Дэлгэцээс дуудвал зарим урсгал орхигдоно.
+   *
+   * Мэдэгдэл явуулж чадаагүй нь ирцийг ЗОГСООХГҮЙ.
+   */
+  try {
+    const at = new Date(data.created_at || Date.now());
+    const p = (n) => String(n).padStart(2, '0');
+    await notifyApi.notifyAttendanceToAdmins({
+      staffName: record.staffName,
+      type: data.type,
+      timeText: `${p(at.getHours())}:${p(at.getMinutes())}`,
+      locationName: record.locationName,
+      // Зайнаас бүртгүүлсэн буюу зөвшөөрөл хүлээж буй нь ялгарна.
+      isRemote: !!data.is_remote || data.status === 'pending',
+      // Дуудагчид `distanceM` (camelCase) өгдөг — хоёуланг дэмжинэ.
+      distanceM: record.distanceM ?? record.distance_m,
+    });
+  } catch (e) {
+    /* мэдэгдэлгүй ч ирц бүртгэгдсэн */
   }
+
   return data;
 }
 

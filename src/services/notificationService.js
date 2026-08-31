@@ -606,6 +606,80 @@ export async function notifyLeaveRequestToAdmins({ userName, dateRange, reason, 
   });
 }
 
+
+/**
+ * Ирц бүртгэгдсэн — БҮХ админд (энгийн админ + системийн админ).
+ *
+ * ⚠️ Өмнө нь зөвхөн ЗАЙНААС бүртгүүлсэн үед мэдэгдэл очдог байсан тул
+ *    ажлын байран дээрээ ирсэн/явсан нь админд огт харагдахгүй байв.
+ *    Одоо бүх бүртгэл очно; зайнаас ирсэн нь "баталгаажуулна уу"
+ *    гэсэн тод үйлдэлтэй ялгарна.
+ *
+ * `sendPushToRole('admin')` нь superadmin-ыг ЧУ багтаадаг (сервер тал
+ * `role in ('admin','superadmin')` гэж шүүдэг).
+ */
+export async function notifyAttendanceToAdmins({
+  staffName,
+  type,
+  timeText,
+  locationName,
+  isRemote,
+  distanceM,
+} = {}) {
+  const kind = type === 'check_out' ? 'явлаа' : 'ирлээ';
+  const where = locationName || (distanceM != null ? `цэгээс ~${distanceM}м` : 'байршил тодорхойгүй');
+
+  const title = isRemote
+    ? 'Ирц баталгаажуулна уу'
+    : `Ажилтан ${kind}`;
+
+  const lines = [`${staffName || 'Ажилтан'} · ${timeText || ''}`, where];
+  if (isRemote) lines.push('Зайнаас бүртгүүлсэн — таны зөвшөөрлийг хүлээж байна.');
+
+  return sendPushToRole('admin', {
+    title,
+    body: lines.filter(Boolean).join('\n'),
+    data: {
+      type: isRemote ? 'attendance_pending' : 'attendance_logged',
+      screen: 'Attendance',
+    },
+    channelId: DEFAULT_CHANNEL,
+    priority: isRemote ? 'high' : 'default',
+  });
+}
+
+/**
+ * Өөрийн ирц бүртгэгдсэнийг ажилтанд ЛОКАЛ мэдэгдлээр батална.
+ *
+ * ⚠️ Push биш локал мэдэгдэл: энэ нь тухайн утсан дээрх үйлдлийн
+ *    хариу тул сервер тойрох шаардлагагүй, шууд гарна. Дуу хоолой
+ *    (`attendanceSoundService`) нь чимээгүй горимд сонсогдохгүй тул
+ *    харагдах баталгаа хэрэгтэй.
+ */
+export async function notifyMyAttendance({ type, timeText, locationName, isRemote } = {}) {
+  if (Platform.OS === 'web') return null;
+  const kind = type === 'check_out' ? 'Явлаа' : 'Ирлээ';
+  const body = isRemote
+    ? 'Админ зөвшөөрсний дараа ирцэд тооцогдоно.'
+    : [timeText, locationName].filter(Boolean).join(' · ') || 'Амжилттай бүртгэгдлээ.';
+
+  try {
+    return await Notifications.scheduleNotificationAsync({
+      content: {
+        title: isRemote ? `${kind} — хүсэлт илгээгдлээ` : `${kind} — бүртгэгдлээ`,
+        body,
+        sound: 'default',
+        data: { type: 'attendance_self', screen: 'Attendance' },
+        ...(Platform.OS === 'android' ? { channelId: DEFAULT_CHANNEL } : {}),
+      },
+      trigger: null,
+    });
+  } catch (e) {
+    // Мэдэгдэл гарсангүй ч ирэц бүртгэгдсэн — алдаа шидэхгүй.
+    return null;
+  }
+}
+
 /** Цагийн хүсэлт (зайнаас/нөхөж бүртгүүлэх гэх мэт) — админуудад. */
 export async function notifyAttendanceRequestToAdmins({ userName, typeLabel, requestId } = {}) {
   return sendPushToRole('admin', {
