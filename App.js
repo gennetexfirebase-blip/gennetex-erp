@@ -14,6 +14,7 @@ import { AppProvider, useApp } from './src/context/AppContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { CallProvider } from './src/context/CallContext';
 import LoginScreen from './src/screens/LoginScreen';
+import OnboardingScreen, { hasSeenOnboarding } from './src/screens/OnboardingScreen';
 import LocalAccessScreen from './src/screens/LocalAccessScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -314,6 +315,13 @@ function Splash() {
 
 function Root({ shareRef }) {
   const { isCloud, authLoading, session, mustChangePassword, currentUser, authProfile, isSuperAdmin, signOut } = useApp();
+
+  // `null` = хараахан шалгаагүй. Шалгах хүртэл Splash харуулна —
+  // эс бөгөөс танилцуулга агшин зуур анивчина.
+  const [onboardingSeen, setOnboardingSeen] = React.useState(null);
+  React.useEffect(() => {
+    hasSeenOnboarding().then(setOnboardingSeen);
+  }, []);
   const [onboarded, setOnboarded] = useState(null);
   const [ohaabOk, setOhaabOk] = useState(null);
   const [deviceOk, setDeviceOk] = useState(null);
@@ -433,7 +441,13 @@ function Root({ shareRef }) {
   }, [isCloud, session?.user?.id, currentUser?.id, isSuperAdmin]);
 
   if (isCloud) {
-    if (authLoading) return <Splash />;
+    if (authLoading || onboardingSeen === null) return <Splash />;
+    /**
+     * Танилцуулга нэвтрэхээс ӨМНӨ гарна — аппыг анх нээсэн хүн юу
+     * хийдэг системд орж байгаагаа мэдэх ёстой. Нэг удаа үзсэний
+     * дараа дахин гарахгүй.
+     */
+    if (!onboardingSeen) return <OnboardingScreen onDone={() => setOnboardingSeen(true)} />;
     if (!session) return <LoginScreen />;
     if (!localUnlocked) {
       return (
