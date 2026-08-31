@@ -161,6 +161,39 @@ function AdminSectionCard({
   );
 }
 
+/**
+ * Сонгосон долоо хоногийн сонгосон өдрүүдийн огноо.
+ *
+ * ⚠️ Өдрийн дугаар нь ISO (Да=1 … Ня=7) — `lib/breakSchedule.js`-ийн
+ *    `WEEKDAYS`-тэй ижил. JS-ийн `getDay()` нь Ням гарагийг 0 гэж
+ *    үздэг тул хөрвүүлж тооцно; хоёр систем зэрэг оршвол өдөр
+ *    нэгээр гулсдаг алдаа гарна.
+ *
+ * `weekOffset` 0 = энэ долоо хоног, 1 = дараагийнх.
+ */
+function weekDates(weekOffset, isoDays) {
+  const now = new Date();
+  const dow = now.getDay() === 0 ? 7 : now.getDay(); // Да=1 … Ня=7
+  const monday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - (dow - 1) + weekOffset * 7
+  );
+
+  const p = (n) => String(n).padStart(2, '0');
+  return isoDays
+    .slice()
+    .sort((a, b) => a - b)
+    .map((iso) => {
+      const d = new Date(
+        monday.getFullYear(),
+        monday.getMonth(),
+        monday.getDate() + (iso - 1)
+      );
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    });
+}
+
 export default function AttendanceScreen() {
   const navigation = useNavigation();
   const faceDetector = useFaceDetection();
@@ -247,6 +280,18 @@ export default function AttendanceScreen() {
     locationId: '',
     note: '',
   });
+
+  /**
+   * Долоо хоногийн сонгосон өдрүүд (0 = Ням … 6 = Бямба).
+   *
+   * ⚠️ Өмнө нь ганц огноо бичдэг байсан тул долоо хоногийн хуваарь
+   *    гаргахад ажилтан бүрд 5-6 удаа цонх нээж, огноог гараар
+   *    бичих шаардлагатай байв. Одоо өдрүүдээ сонгоод нэг удаа
+   *    хадгална.
+   */
+  const [shiftDays, setShiftDays] = useState([1, 2, 3, 4, 5]); // Да–Ба
+  // Аль долоо хоног: 0 = энэ, 1 = дараагийн.
+  const [shiftWeek, setShiftWeek] = useState(0);
   const shiftAlertSent = useRef(false);
   const [employees, setEmployees] = useState([]);
 
@@ -1250,20 +1295,50 @@ export default function AttendanceScreen() {
       Alert.alert('Ажилтан', 'Ажилтан сонгоно уу');
       return;
     }
+    const dates = weekDates(shiftWeek, shiftDays);
+    if (!dates.length) {
+      Alert.alert('Өдөр', 'Дор хаяж нэг өдөр сонгоно уу.');
+      return;
+    }
+
     try {
-      await shiftApi.upsertShift({
-        userId: shiftForm.userId,
-        userName: worker.name,
-        shiftDate: shiftForm.shiftDate,
-        startTime: shiftForm.startTime,
-        endTime: shiftForm.endTime,
-        locationId: shiftForm.locationId || null,
-        note: shiftForm.note.trim(),
-        createdBy: profile?.id,
-      });
+      /**
+       * Сонгосон өдөр бүрд НЭГ мөр. Дараалан хадгална — нэг өдөр
+       * амжилтгүй болсон нь бусдыг зогсоох ёсгүй, тиймээс дүнг
+       * тоолж эцэст нь хэлнэ.
+       */
+      let ok = 0;
+      let failed = 0;
+      for (const d of dates) {
+        try {
+          await shiftApi.upsertShift({
+            userId: shiftForm.userId,
+            userName: worker.name,
+            shiftDate: d,
+            startTime: shiftForm.startTime,
+            endTime: shiftForm.endTime,
+            locationId: shiftForm.locationId || null,
+            note: shiftForm.note.trim(),
+            createdBy: profile?.id,
+          });
+          ok++;
+        } catch (e) {
+          // Хүснэгт байхгүй бол бүгд унана — тэр үед шууд гаргана.
+          if (shiftApi.isShiftTableMissing(e)) throw e;
+          failed++;
+        }
+      }
+
       setShiftModal(false);
       await loadTodayShifts();
-      Alert.alert('Хадгаллаа', 'Хуваарь оноогдлоо');
+      Alert.alert(
+        'Хадгаллаа',
+        `${worker.name} · ${ok} өдрийн хуваарь оноогдлоо` +
+          (failed ? `
+${failed} өдөр хадгалагдсангүй.` : '') +
+          `
+${dates[0]} – ${dates[dates.length - 1]}`
+      );
     } catch (e) {
       const msg = shiftApi.isShiftTableMissing(e) ? shiftApi.MIGRATION_HINT : e.message;
       Alert.alert('Алдаа', msg);
@@ -2215,12 +2290,81 @@ export default function AttendanceScreen() {
           <View style={[styles.sheet, { backgroundColor: adminColors.surface }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.sheetTitle, { color: adminColors.text }]}> Хуваарь оноох</Text>
-              <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>Ажилтанд өдрийн эхлэх/дуусах цаг болон байршил онооно.</Text>
-              <Field
-                label="Огноо (YYYY-MM-DD)"
-                value={shiftForm.shiftDate}
-                onChangeText={(t) => setShiftForm({ ...shiftForm, shiftDate: t })}
-              />
+              <Text style={[styles.sheetSub, { color: adminColors.textMuted }]}>
+                Долоо хоногийн өдрүүдээ сонгоод нэг удаа хадгална.
+              </Text>
+
+              {/* Аль долоо хоног */}
+              <View style={styles.weekTabs}>
+                {[
+                  { v: 0, label: 'Энэ долоо хоног' },
+                  { v: 1, label: 'Дараагийнх' },
+                ].map((w) => (
+                  <TouchableOpacity
+                    key={w.v}
+                    style={[styles.weekTab, shiftWeek === w.v && styles.weekTabOn]}
+                    onPress={() => setShiftWeek(w.v)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.weekTabText, shiftWeek === w.v && styles.weekTabTextOn]}>
+                      {w.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Өдрүүд — олноор сонгоно */}
+              <Text style={styles.fieldLabel}>Өдрүүд</Text>
+              <View style={styles.dayRow}>
+                {WEEKDAYS.map((d) => {
+                  const on = shiftDays.includes(d.day);
+                  return (
+                    <TouchableOpacity
+                      key={d.day}
+                      style={[styles.dayChip, on && styles.dayChipOn]}
+                      onPress={() =>
+                        setShiftDays((prev) =>
+                          prev.includes(d.day)
+                            ? prev.filter((x) => x !== d.day)
+                            : [...prev, d.day]
+                        )
+                      }
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={d.label}
+                    >
+                      <Text style={[styles.dayChipText, on && styles.dayChipTextOn]}>
+                        {d.label.slice(0, 2)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Түргэн сонголт — хамгийн түгээмэл хосууд */}
+              <View style={styles.quickDays}>
+                {[
+                  { label: 'Ажлын 5 өдөр', days: [1, 2, 3, 4, 5] },
+                  { label: 'Бүх 7 хоног', days: [1, 2, 3, 4, 5, 6, 7] },
+                  { label: 'Амралт', days: [6, 7] },
+                ].map((q) => (
+                  <TouchableOpacity
+                    key={q.label}
+                    style={styles.quickDayBtn}
+                    onPress={() => setShiftDays(q.days)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.quickDayText}>{q.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Сонгосон огноонууд — юу хадгалагдахыг УРЬДЧИЛЖ харуулна */}
+              <Text style={styles.datePreview}>
+                {shiftDays.length
+                  ? weekDates(shiftWeek, shiftDays).join(' · ')
+                  : 'Өдөр сонгоогүй байна'}
+              </Text>
               <Text style={styles.fieldLabel}>Ажилтан</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
                 {employees.filter((w) => w.role !== 'admin').map((w) => (
@@ -2622,6 +2766,52 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   hoursTotalLine: { color: colors.textMuted, fontSize: 13 },
   hoursTotalNet: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 4 },
   fieldLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: spacing.xs },
+
+  /* ── Хуваарийн долоо хоног, өдрүүд ────────────────────── */
+  weekTabs: {
+    flexDirection: 'row',
+    gap: 6,
+    padding: 4,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainerHigh,
+    marginBottom: spacing.md,
+  },
+  weekTab: { flex: 1, paddingVertical: 9, borderRadius: radius.sm, alignItems: 'center' },
+  weekTabOn: { backgroundColor: colors.primary },
+  weekTabText: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
+  weekTabTextOn: { color: colors.onPrimary },
+
+  dayRow: { flexDirection: 'row', gap: 6, marginBottom: spacing.md },
+  dayChip: {
+    flex: 1,
+    aspectRatio: 1,
+    maxHeight: 46,
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dayChipText: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
+  dayChipTextOn: { color: colors.onPrimary },
+
+  quickDays: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
+  quickDayBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceContainerHigh,
+  },
+  quickDayText: { color: colors.text, fontSize: 12.5, fontWeight: '600' },
+
+  datePreview: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: spacing.lg,
+    fontVariant: ['tabular-nums'],
+  },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
