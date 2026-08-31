@@ -7,11 +7,15 @@ import ServicesPage from './pages/ServicesPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ContactPage from './pages/ContactPage';
 import CareersPage from './pages/CareersPage';
-// Microsoft Teams App-д шаардлагатай public хуудсууд. Нэвтрэлт шаардахгүй.
+// ⚠️ ДООРХ ГУРВЫГ ХОЁР ДЭЛГҮҮР ЗААВАЛ ШААРДДАГ бөгөөд бүгд НЭВТРЭЛТ
+//    ШААРДАХГҮЙ байх ёстой — шинжээч нэвтрэх эрхгүй тул хаалттай
+//    хуудас нь 404-тэй ижил үр дүнтэй.
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
-// Google Play-ийн Data safety шаарддаг, нэвтрэлт шаардахгүй устгах хуудас.
+// Google Play · Data safety → Account deletion
 import DeleteAccountPage from './pages/DeleteAccountPage';
+// App Store Connect · Support URL (заавал талбар)
+import SupportPage from './pages/SupportPage';
 
 export default function App() {
   return (
@@ -28,6 +32,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/delete-account" element={<DeleteAccountPage />} />
+          <Route path="/support" element={<SupportPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

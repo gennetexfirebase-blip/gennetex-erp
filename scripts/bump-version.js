@@ -45,6 +45,33 @@ function syncJson(filePath, version) {
   const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   if (filePath.endsWith('app.json')) {
     data.expo.version = version;
+
+    /**
+     * ⚠️ ДЭЛГҮҮРИЙН БҮРТГЭЛИЙН ДУГААРЫГ ЗААВАЛ АХИУЛНА.
+     *
+     *   Google Play нь `versionCode`, App Store нь `buildNumber`-ыг
+     *   өмнөх илгээлтээс ЗААВАЛ ИХ байхыг шаарддаг. Тэнцүү эсвэл бага
+     *   бол илгээлт татгалзагдана.
+     *
+     *   Эдгээр нь `version`-оос ТУСДАА тоолуур — 1.3.7 → 1.3.8 болоход
+     *   өөрөө нэмэгддэггүй. 2026-08-31-ний аудитаар апп 1.3.7 хувилбартай
+     *   байхад `versionCode` нь зөвхөн 2 байсан: гараар нэмэх шаардлагатай
+     *   байсныг мартсанаас болсон.
+     *
+     *   CI нь EAS ашигладаггүй (Gradle-ээр шууд барьдаг) тул
+     *   `eas.json`-ы `autoIncrement` энд ХАМААРАХГҮЙ — тоолуурыг энэ
+     *   скрипт л ахиулна.
+     */
+    data.expo.android = data.expo.android || {};
+    data.expo.android.versionCode = Number(data.expo.android.versionCode || 0) + 1;
+
+    data.expo.ios = data.expo.ios || {};
+    data.expo.ios.buildNumber = String(Number(data.expo.ios.buildNumber || 0) + 1);
+
+    console.log(
+      `  versionCode → ${data.expo.android.versionCode}` +
+        `   buildNumber → ${data.expo.ios.buildNumber}`
+    );
   } else {
     data.version = version;
   }

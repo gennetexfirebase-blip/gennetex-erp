@@ -2,26 +2,72 @@
  * Ажилтны ХУВИЙН Telegram акаунттай (MTProto/GramJS) шууд холбогдох сервис.
  * Bot API биш — жинхэнэ Telegram клиент шиг өөрийн бүх чатыг харна.
  *
- * api_id / api_hash-г https://my.telegram.org → API development tools-оос авч
- * .env дотор EXPO_PUBLIC_TELEGRAM_API_ID, EXPO_PUBLIC_TELEGRAM_API_HASH болгож тавина.
+ * ⚠️ api_id / api_hash нь СЕРВЕРТ хадгалагдана.
+ *
+ *    Өмнө нь `EXPO_PUBLIC_TELEGRAM_API_ID/_HASH` байсан бөгөөд тэр
+ *    угтвартай бүхэн JS bundle дотор ШАТААГДДАГ. 2026-08-31-ний
+ *    аудитаар экспортолсон Hermes файлаас `api_hash`-ыг задлахгүйгээр
+ *    уншиж чадсан — APK татсан хэн ч олно.
+ *
+ *    Одоо `telegram-config` Edge Function-оос НЭВТЭРСЭН хэрэглэгч л
+ *    авна. Тохируулах:
+ *      supabase secrets set TELEGRAM_API_ID=<id> TELEGRAM_API_HASH=<hash>
+ *      supabase functions deploy telegram-config
  */
 import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/StringSession';
 import { NewMessage } from 'telegram/events';
 import { computeCheck } from 'telegram/Password';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { callEdge } from '../lib/edgeFunction';
 
 const SESSION_KEY = 'tg_user_session_v1';
 
-export const TG_API_ID = Number(process.env.EXPO_PUBLIC_TELEGRAM_API_ID || 0);
-export const TG_API_HASH = process.env.EXPO_PUBLIC_TELEGRAM_API_HASH || '';
+/**
+ * Серверээс авсан тохиргоо.
+ *
+ * Нэг сесс дотор нэг л удаа татна — MTProto холболт бүрд Edge Function
+ * дуудах нь утгагүй бөгөөд офлайн үед холболтыг үндэслэлгүй унагана.
+ */
+let cachedConfig = null;
+let configPromise = null;
+
+async function loadConfig() {
+  if (cachedConfig) return cachedConfig;
+  if (configPromise) return configPromise;
+
+  configPromise = (async () => {
+    try {
+      const { data } = await callEdge('telegram-config', {});
+      if (data?.apiId && data?.apiHash) {
+        cachedConfig = { apiId: Number(data.apiId), apiHash: String(data.apiHash) };
+        return cachedConfig;
+      }
+    } catch (e) {
+      // Функц deploy хийгээгүй эсвэл secret тохируулаагүй.
+    } finally {
+      configPromise = null;
+    }
+    return null;
+  })();
+
+  return configPromise;
+}
 
 let client = null;
 let connecting = null;
 const entityCache = new Map();
 
-export function isConfigured() {
-  return TG_API_ID > 0 && !!TG_API_HASH;
+/**
+ * Telegram ашиглах боломжтой эсэх.
+ *
+ * ⚠️ Одоо СЕРВЕР рүү очдог тул `async` болов. Дуудагч бүр `await`
+ *    хийх ёстой — өмнөх синхрон хувилбартай адилхан бичвэл үргэлж
+ *    truthy Promise буцаж, тохируулаагүй үед ч "тохируулсан" мэт
+ *    харагдана.
+ */
+export async function isConfigured() {
+  return !!(await loadConfig());
 }
 
 async function loadSessionString() {
@@ -39,11 +85,17 @@ export async function getClient() {
   if (connecting) return connecting;
 
   connecting = (async () => {
-    if (!isConfigured()) {
-      throw new Error('Telegram API тохируулаагүй. .env-д EXPO_PUBLIC_TELEGRAM_API_ID/HASH нэмнэ үү.');
+    const cfg = await loadConfig();
+    if (!cfg) {
+      throw new Error(
+        'Telegram API тохируулаагүй байна.\n\n' +
+          'Сервер тал дээр тохируулна: supabase secrets set ' +
+          'TELEGRAM_API_ID=… TELEGRAM_API_HASH=… дараа нь ' +
+          'supabase functions deploy telegram-config'
+      );
     }
     const session = new StringSession(await loadSessionString());
-    client = new TelegramClient(session, TG_API_ID, TG_API_HASH, {
+    client = new TelegramClient(session, cfg.apiId, cfg.apiHash, {
       connectionRetries: 5,
       useWSS: true,
       deviceModel: 'Gennetex App',
@@ -75,8 +127,10 @@ export async function isAuthorized() {
 /** Утасны дугаар руу нэвтрэх код илгээх */
 export async function sendLoginCode(phoneNumber) {
   const c = await getClient();
+  // `getClient` дотор аль хэдийн ачаалагдсан тул энд кэшээс шууд ирнэ.
+  const cfg = await loadConfig();
   const result = await c.sendCode(
-    { apiId: TG_API_ID, apiHash: TG_API_HASH },
+    { apiId: cfg.apiId, apiHash: cfg.apiHash },
     phoneNumber,
   );
   return {

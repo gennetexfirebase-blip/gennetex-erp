@@ -274,7 +274,25 @@ export default function MyTelegramScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const configured = tg.isConfigured();
+  /**
+   * ⚠️ `isConfigured` нь одоо СЕРВЕР рүү очдог тул async болсон.
+   *    Түлхүүр нь APK дотор шатаагдахаа больж, `telegram-config`
+   *    Edge Function-оос нэвтэрсэн хэрэглэгчид өгөгддөг болсон.
+   *
+   *    `null` = хараахан мэдэгдэхгүй. `false`-ээс ялгах ёстой —
+   *    эс бөгөөс хариу ирэх хүртэл "тохируулаагүй" дэлгэц анивчиж
+   *    харагдана.
+   */
+  const [configured, setConfigured] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    tg.isConfigured()
+      .then((v) => alive && setConfigured(v))
+      .catch(() => alive && setConfigured(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const loadDialogs = useCallback(async () => {
     try {
@@ -290,6 +308,8 @@ export default function MyTelegramScreen() {
   }, []);
 
   const checkAuth = useCallback(async () => {
+    // Тохиргоо хараахан ирээгүй (null) бол шийдвэр гаргахгүй хүлээнэ.
+    if (configured === null) return;
     if (!configured) {
       setAuthed(false);
       setLoading(false);
@@ -342,6 +362,20 @@ export default function MyTelegramScreen() {
     </LinearGradient>
   );
 
+  // Тохиргоо ирэхийг хүлээнэ — `null` үед "тохируулаагүй" гэж
+  // харуулбал дэлгэц анивчина.
+  if (configured === null) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" />
+        <Header />
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (!configured) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -351,8 +385,10 @@ export default function MyTelegramScreen() {
           <Ionicons name="construct-outline" size={44} color={colors.textMuted} />
           <Text style={styles.notice}>
             Telegram API тохируулаагүй байна.{'\n\n'}
-            my.telegram.org-оос api_id, api_hash авч .env дотор
-            EXPO_PUBLIC_TELEGRAM_API_ID / _HASH болгон нэмнэ үү.
+            my.telegram.org-оос api_id, api_hash авна.{'\n\n'}
+            Дараа нь СЕРВЕРТ тохируулна:{'\n'}
+            supabase secrets set TELEGRAM_API_ID=… TELEGRAM_API_HASH=…{'\n'}
+            supabase functions deploy telegram-config
           </Text>
         </View>
       </SafeAreaView>
