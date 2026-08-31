@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
@@ -111,6 +110,15 @@ export async function signInWithGoogle() {
 export async function signInWithApple() {
   if (Platform.OS !== 'ios') {
     throw new Error('Sign in with Apple зөвхөн iOS дээр ажиллана.');
+  }
+
+  // ⚠️ Expo Go дотор энэ модуль байхгүй тул залхуу ачаална —
+  //    дээд түвшинд импортловол апп нээх үед унана.
+  let AppleAuthentication;
+  try {
+    AppleAuthentication = require('expo-apple-authentication');
+  } catch (e) {
+    throw new Error('Apple нэвтрэлт энэ хувилбарт байхгүй байна.');
   }
 
   const available = await AppleAuthentication.isAvailableAsync();

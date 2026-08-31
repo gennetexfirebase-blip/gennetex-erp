@@ -2,12 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/ui';
 import { spacing, radius, type } from '../theme';
 import { useStyles, useTheme } from '../context/ThemeContext';
+
+/**
+ * Apple нэвтрэлт — ЗАЛХУУ ачаалалт.
+ *
+ * ⚠️ Expo Go нь тогтмол багц native модультай ирдэг. Дээд түвшинд
+ *    import хийвэл тэнд байхгүй үед аппыг НЭЭХ ҮЕД унана. Төслийн
+ *    бусад native модуль (WebRTC, Firebase, ONNX) бүгд ижил
+ *    хэв маягаар ачаалагддаг.
+ */
+let AppleAuthentication;
+try {
+  AppleAuthentication = require('expo-apple-authentication');
+} catch (e) {
+  AppleAuthentication = null;
+}
 
 export default function LoginScreen() {
   const styles = useStyles(makeStyles);
@@ -22,7 +36,7 @@ export default function LoginScreen() {
    */
   const [appleReady, setAppleReady] = useState(false);
   useEffect(() => {
-    if (Platform.OS !== 'ios') return;
+    if (Platform.OS !== 'ios' || !AppleAuthentication) return;
     AppleAuthentication.isAvailableAsync()
       .then(setAppleReady)
       .catch(() => setAppleReady(false));
@@ -107,7 +121,7 @@ export default function LoginScreen() {
                 тэнцэх хувийн нууцлалтай сонголтыг ЗААВАЛ өгөх ёстой.
                 Apple нь энэ товчийг бусадтай ижил эрэмбэд, доогуур биш
                 байрлуулахыг шаарддаг — тиймээс ДЭЭР нь тавив. */}
-            {Platform.OS === 'ios' && appleReady ? (
+            {Platform.OS === 'ios' && appleReady && AppleAuthentication ? (
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
                 buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
@@ -117,7 +131,7 @@ export default function LoginScreen() {
               />
             ) : null}
 
-            {Platform.OS === 'ios' && appleReady ? (
+            {Platform.OS === 'ios' && appleReady && AppleAuthentication ? (
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>эсвэл</Text>

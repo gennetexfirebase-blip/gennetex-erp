@@ -82,13 +82,11 @@ export default function TodayDashboard() {
       <View style={styles.row}>
         <Chip label="Миний дуудлага" value={String(myOpen)} color={colors.primary} onPress={() => navigation.navigate('Calls')} styles={styles} />
         <Chip label="SLA" value={String(sla)} color={sla ? colors.danger : colors.success} onPress={() => navigation.navigate('SlaReport')} styles={styles} />
-        <Chip
-          label="Ирц"
-          value={data?.checkInToday ? '✓' : '—'}
-          color={data?.checkInToday ? colors.success : colors.warning}
-          onPress={() => navigation.navigate('Attendance')}
-          styles={styles}
-        />
+        {/* ⚠️ "Ирц ✓/—" чип ЭНД БАЙХГҮЙ. Нүүр дэлгэцийн
+            `HomeAttendanceCard` нь ижил зүйлийг хамаагүй илүү
+            нарийвчлалтай (хэдэн цагт ирсэн, хэр удаж байгаа)
+            харуулдаг тул хоёр газар хоёр өөр хариулт өгөхөөс
+            сэргийлэв. */}
       </View>
 
       {offlinePending > 0 ? (

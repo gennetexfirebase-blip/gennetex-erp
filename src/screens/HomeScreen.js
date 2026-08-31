@@ -1,5 +1,17 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Easing, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  Animated,
+  Easing,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
@@ -20,6 +32,7 @@ import * as ohaabApi from '../services/ohaabService';
 import * as meetingApi from '../services/meetingService';
 import { formatTime, formatDate } from '../lib/formatTime';
 import TodayDashboard from '../components/enhancements/TodayDashboard';
+import HomeAttendanceCard from '../components/HomeAttendanceCard';
 
 const EMPLOYEE_MODULES = [
   { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber' },
@@ -274,6 +287,24 @@ export default function HomeScreen() {
     [serviceModules, tileOrders.service]
   );
 
+  /**
+   * Хавтангийн хайлт.
+   *
+   * ⚠️ Эрхээс хамаараад 28 хүртэл хавтан гурван баганаар өрөгддөг тул
+   *    хэрэгтэй зүйлээ нүдээрээ хайх нь удаан. Хайлт нь БҮХ хавтанг
+   *    (удирдлага + үйлчилгээ) нэг дор шүүнэ — хэрэглэгч аль хэсэгт
+   *    байгааг нь санах шаардлагагүй.
+   */
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+
+  const searchHits = useMemo(() => {
+    if (!q) return null;
+    return [...orderedAdminModules, ...orderedServiceModules].filter((m) =>
+      String(m.label || '').toLowerCase().includes(q)
+    );
+  }, [q, orderedAdminModules, orderedServiceModules]);
+
   const mountAnim = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -386,18 +417,64 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : null}
 
-        <View style={styles.clockCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.clockLabel}>Өнөөдрийн ирц</Text>
-            <Text style={styles.clockSub}>Цаг бүртгэл хийх</Text>
-          </View>
-          <TouchableOpacity style={styles.clockBtn} onPress={() => navigation.navigate('Attendance')} activeOpacity={0.85}>
-            <NavIcon name="clock" size={18} color="#fff"/>
-            <Text style={styles.clockBtnText}>Цаг бүртгэх</Text>
-          </TouchableOpacity>
+        {/* Ирцийн ТӨЛӨВ — хуучин "Цаг бүртгэх" товч нь ирсэн эсэхийг
+            хэлдэггүй байсан тул Ирц дэлгэц рүү орж шалгах шаардлагатай
+            байв. Одоо карт өөрөө хэлнэ. */}
+        <HomeAttendanceCard />
+
+        <View style={styles.searchBar}>
+          <NavIcon name="qr" size={16} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Хайх — ирц, багаж, цалин…"
+            placeholderTextColor={colors.textFaint}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {query ? (
+            <TouchableOpacity onPress={() => setQuery('')} hitSlop={10}>
+              <Text style={styles.searchClear}>✕</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
-        <Animated.View style={{ opacity: mountAnim, transform: [{ translateY: aiSlide }] }}>
+        {/* Хайлт идэвхтэй үед бусад бүх хэсгийг НУУНА — үр дүн
+            хуудсын хаа нэгтээ нуугдвал хайлт өөрөө утгагүй болно. */}
+        {searchHits ? (
+          <View style={styles.searchWrap}>
+            <Text style={styles.searchCount}>
+              {searchHits.length ? `${searchHits.length} үр дүн` : 'Олдсонгүй'}
+            </Text>
+            {searchHits.length ? (
+              <View style={styles.searchGrid}>
+                {searchHits.map((m) => (
+                  <TouchableOpacity
+                    key={m.key}
+                    style={[styles.searchTile, { width: tileWidth, height: tileWidth }]}
+                    onPress={() => go(m)}
+                    activeOpacity={0.85}
+                  >
+                    {renderTileFace(m)}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.searchEmpty}>
+                Өөр үгээр хайж үзнэ үү — жишээ нь «ирц», «багаж», «цалин».
+              </Text>
+            )}
+          </View>
+        ) : null}
+
+        <Animated.View
+          style={{
+            opacity: mountAnim,
+            transform: [{ translateY: aiSlide }],
+            display: searchHits ? 'none' : 'flex',
+          }}
+        >
           <View style={styles.aiHeaderRow}>
             <View style={styles.aiTitleWrap}>
               <Animated.View style={[styles.aiBadge, { transform: [{ scale: badgeScale }] }]}>
@@ -412,7 +489,7 @@ export default function HomeScreen() {
           <View style={styles.aiGrid}>{aiModules.map(renderAiCard)}</View>
         </Animated.View>
 
-        {hasAdminArea ? (
+        {hasAdminArea && !searchHits ? (
           <>
             <View style={styles.adminHeaderRow}>
               <Text style={styles.sectionTitle}>Удирдлага</Text>
@@ -458,19 +535,23 @@ export default function HomeScreen() {
           <Text style={styles.welcomeSub}>Доорх үйлчилгээнүүдээс сонгон ажлаа үргэлжлүүлнэ үү.</Text>
         )}
 
-        <Text style={styles.sectionTitle}>{isAdmin ? 'Ажилтны үйлчилгээ' : 'Үйлчилгээ'}</Text>
-        <Text style={styles.dragHint}>Хавтанг удаан дараад чирвэл байрлалыг нь өөрчилнө.</Text>
-        <DraggableTileGrid
-          items={orderedServiceModules}
-          columns={3}
-          tileWidth={tileWidth}
-          tileHeight={tileWidth}
-          gap={tileGap}
-          renderItem={renderTileFace}
-          onPressItem={go}
-          onOrderChange={(keys) => saveOrder('service', keys)}
-          style={{ marginTop: spacing.sm }}
-        />
+        {searchHits ? null : (
+          <>
+            <Text style={styles.sectionTitle}>{isAdmin ? 'Ажилтны үйлчилгээ' : 'Үйлчилгээ'}</Text>
+            <Text style={styles.dragHint}>Хавтанг удаан дараад чирвэл байрлалыг нь өөрчилнө.</Text>
+            <DraggableTileGrid
+              items={orderedServiceModules}
+              columns={3}
+              tileWidth={tileWidth}
+              tileHeight={tileWidth}
+              gap={tileGap}
+              renderItem={renderTileFace}
+              onPressItem={go}
+              onOrderChange={(keys) => saveOrder('service', keys)}
+              style={{ marginTop: spacing.sm }}
+            />
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -540,6 +621,38 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   headerWeather: { alignSelf: 'flex-start', marginTop: 4, marginRight: spacing.md },
   headerClock: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   greeting: { color: colors.textMuted, fontSize: 14 },
+
+  // Хавтангийн хайлт
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    padding: 0,
+  },
+  searchClear: { color: colors.textMuted, fontSize: 15, fontWeight: '700', paddingHorizontal: 4 },
+
+  searchWrap: { marginBottom: spacing.lg },
+  searchCount: {
+    color: colors.textMuted,
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+  },
+  searchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  searchTile: { borderRadius: radius.lg, overflow: 'hidden' },
+  searchEmpty: { color: colors.textFaint, fontSize: 13.5, lineHeight: 20 },
   name: { color: colors.text, fontSize: 24, fontWeight: '800', marginTop: 2, letterSpacing: -0.3 },
   date: { color: colors.textMuted, fontSize: 13, marginTop: 4, textTransform: 'capitalize'},
   avatar: {
