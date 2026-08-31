@@ -33,6 +33,7 @@ import BoxDetailScreen from './src/screens/BoxDetailScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import MyShiftScreen from './src/screens/MyShiftScreen';
 import AttendanceRequestFormScreen from './src/screens/AttendanceRequestFormScreen';
+import LocationConsentScreen from './src/screens/LocationConsentScreen';
 import AttendanceMonthlySummaryScreen from './src/screens/AttendanceMonthlySummaryScreen';
 import AttendanceHistoryScreen from './src/screens/AttendanceHistoryScreen';
 import AttendanceDetailScreen from './src/screens/AttendanceDetailScreen';
@@ -228,6 +229,7 @@ function AppStack() {
       <Stack.Screen name="Requisition" component={RequisitionScreen} />
       <Stack.Screen name="MyShift" component={MyShiftScreen} />
       <Stack.Screen name="AttendanceRequestForm" component={AttendanceRequestFormScreen} />
+      <Stack.Screen name="LocationConsent" component={LocationConsentScreen} />
       <Stack.Screen name="AttendanceMonthlySummary" component={AttendanceMonthlySummaryScreen} />
       <Stack.Screen name="AttendanceHistory" component={AttendanceHistoryScreen} />
       <Stack.Screen name="AttendanceDetail" component={AttendanceDetailScreen} />

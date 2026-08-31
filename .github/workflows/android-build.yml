@@ -30,6 +30,7 @@ on:
         type: choice
         options:
           - release
+          - bundle
           - debug
       release_tag:
         description: 'GitHub Release-ийн tag (ж: v1.3.0). Хоосон бол release үүсгэхгүй.'
@@ -139,13 +140,13 @@ jobs:
 
       # ── Release гарын үсэг (зөвхөн variant=release үед) ───────────
       - name: Release keystore тавих
-        if: ${{ env.VARIANT == 'release' }}
+        if: ${{ env.VARIANT == 'release' || env.VARIANT == 'bundle' }}
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
-            echo "::error::release build-д ANDROID_KEYSTORE_BASE64 ба ANDROID_KEYSTORE_PASSWORD secret шаардлагатай."
+            echo "::error::release/bundle build-д ANDROID_KEYSTORE_BASE64 ба ANDROID_KEYSTORE_PASSWORD secret шаардлагатай."
             exit 1
           fi
           mkdir -p credentials
@@ -159,10 +160,18 @@ jobs:
         run: |
           set -o pipefail
           chmod +x gradlew
+          # ⚠️ Google Play нь 2021 оноос .aab (App Bundle) ЗААВАЛ шаарддаг.
+          #    APK нь зөвхөн шууд тараахад (/app хуудас) хэрэглэгдэнэ.
           TASK=assembleDebug
           [ "${{ env.VARIANT }}" = "release" ] && TASK=assembleRelease
+          [ "${{ env.VARIANT }}" = "bundle" ]  && TASK=bundleRelease
+
+          # Play-д илгээх bundle нь хуучин төхөөрөмжийг ч хамрах ёстой.
+          ARCHS=arm64-v8a
+          [ "${{ env.VARIANT }}" = "bundle" ] && ARCHS=arm64-v8a,armeabi-v7a
+
           ./gradlew "$TASK" --no-daemon --stacktrace \
-            -PreactNativeArchitectures=arm64-v8a 2>&1 | tee /tmp/gradle.log
+            -PreactNativeArchitectures=$ARCHS 2>&1 | tee /tmp/gradle.log
 
       # ⚠️ Gradle унахад GitHub нь annotation-д зөвхөн "exit code 1" гэж
       # бичдэг бөгөөд бодит алдаа зөвхөн бүтэн лог дотор үлддэг. Тэр логийг
@@ -187,7 +196,7 @@ jobs:
       # Bundle-гүй APK нь суусан ч ажиллахгүй бөгөөд гаднаас нь ялгаж
       # мэдэхэд хэцүү тул энд зогсоох нь дээр.
       - name: JS bundle шалгах
-        if: ${{ env.VARIANT == 'release' }}
+        if: ${{ env.VARIANT == 'release' }}   # .aab өөр бүтэцтэй тул алгасна
         run: |
           APK=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
           if unzip -l "$APK" | grep -q "index.android.bundle"; then
@@ -201,19 +210,23 @@ jobs:
         id: apk
         run: |
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
-          SRC=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          if [ "${{ env.VARIANT }}" = "bundle" ]; then
+            SRC=$(find android/app/build/outputs/bundle -name "*.aab" | head -1)
+          else
+            SRC=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          fi
           if [ -z "$SRC" ]; then
-            echo "::error::APK олдсонгүй."
+            echo "::error::Гаралтын файл олдсонгүй."
             exit 1
           fi
           # ⚠️ Debug APK-г ЗААВАЛ өөр нэрээр гаргана. Тэр нь JS bundle-гүй
           # бөгөөд Metro dev server-гүйгээр ажиллахгүй тул ажилтнуудад
           # тараавал "апп нээгдэхгүй" болно.
-          if [ "${{ env.VARIANT }}" = "release" ]; then
-            OUT="gennetex-erp-${VERSION}.apk"
-          else
-            OUT="gennetex-erp-${VERSION}-dev.apk"
-          fi
+          case "${{ env.VARIANT }}" in
+            release) OUT="gennetex-erp-${VERSION}.apk" ;;
+            bundle)  OUT="gennetex-erp-${VERSION}.aab" ;;
+            *)       OUT="gennetex-erp-${VERSION}-dev.apk" ;;
+          esac
           cp "$SRC" "$OUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "path=$OUT" >> "$GITHUB_OUTPUT"

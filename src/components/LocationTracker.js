@@ -8,6 +8,9 @@ import * as bgLocation from '../services/backgroundLocationService';
 import * as attApi from '../services/attendanceService';
 import { playZoneExitSound, playZoneEnterSound } from '../services/attendanceSoundService';
 import { DEFAULT_CHANNEL } from '../services/notificationService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { navigate } from '../lib/navigationRef';
+import { LOCATION_CONSENT_KEY } from '../screens/LocationConsentScreen';
 import { distanceMeters } from '../lib/geo';
 
 const MIN_UPLOAD_MS = 15000; // хамгийн багадаа 15 сек тутам
@@ -82,6 +85,35 @@ export default function LocationTracker() {
 
     (async () => {
       try {
+        /**
+         * ⚠️ ЗӨВШӨӨРӨЛ АСУУХААС ӨМНӨ ЗОРИЛГЫГ ТАЙЛБАРЛАНА.
+         *
+         * Google Play нь background байршил ашигладаг аппаас системийн
+         * цонх гаргахаас ӨМНӨ тайлбарын дэлгэц харуулахыг шаарддаг
+         * (Location Permissions policy). Түүнгүйгээр илгээлт
+         * татгалзагдана. Apple 5.1.1 ч ижил утгатай.
+         *
+         * Хэрэглэгч татгалзсан бол ДАХИН асуухгүй — сонголтыг нь
+         * хүндэтгэж, байршил шаарддаг хэсэг л хаагдана.
+         */
+        const consentRaw = await AsyncStorage.getItem(LOCATION_CONSENT_KEY);
+        if (!active) return;
+        if (!consentRaw) {
+          navigate('LocationConsent');
+          setTrackingState?.({ active: false, reason: 'consent-pending' });
+          return;
+        }
+        let consent = null;
+        try {
+          consent = JSON.parse(consentRaw);
+        } catch {
+          consent = null;
+        }
+        if (!consent?.granted) {
+          setTrackingState?.({ active: false, reason: 'consent-declined' });
+          return;
+        }
+
         const { status } = await Location.getForegroundPermissionsAsync();
         if (status !== 'granted' || !active) {
           setTrackingState?.({ active: false, reason: 'no-permission' });

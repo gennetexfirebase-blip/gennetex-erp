@@ -164,6 +164,17 @@ export function AppProvider({ children }) {
     }
   };
 
+  /** Apple 4.8-ийн шаардлагаар Google-ийн хажууд заавал байна. */
+  const signInWithApple = async () => {
+    setAuthError(null);
+    try {
+      return await authApi.signInWithApple();
+    } catch (e) {
+      setAuthError(e.message);
+      throw e;
+    }
+  };
+
   const signOut = async () => {
     const userId = session?.user?.id;
     if (userId) await notificationService.removePushToken(userId).catch(() => {});
@@ -561,6 +572,7 @@ export function AppProvider({ children }) {
     currentUser,
     signIn,
     signInWithGoogle,
+    signInWithApple,
     signOut,
     updateMyProfile,
     adminCreateEmployee,

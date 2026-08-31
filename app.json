@@ -141,7 +141,9 @@
             ]
           }
         ]
-      }
+      },
+      "buildNumber": "1",
+      "usesAppleSignIn": true
     },
     "android": {
       "permissions": [
@@ -170,7 +172,8 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.gennetex.erp",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/logo.png"
@@ -246,7 +249,8 @@
       [
         "@config-plugins/react-native-callkeep",
         {}
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {

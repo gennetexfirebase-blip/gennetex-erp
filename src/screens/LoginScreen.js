@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/ui';
 import { spacing, radius, type } from '../theme';
@@ -10,7 +11,29 @@ import { useStyles, useTheme } from '../context/ThemeContext';
 export default function LoginScreen() {
   const styles = useStyles(makeStyles);
   const { gradients } = useTheme();
-  const { signInWithGoogle, authError, isCloud } = useApp();
+  const { signInWithGoogle, signInWithApple, authError, isCloud } = useApp();
+
+  /**
+   * Apple товч харуулах эсэх.
+   *
+   * `isAvailableAsync` нь iOS 13-аас доош, эсвэл simulator дээр `false`
+   * буцаана. Байхгүй үед товчийг харуулбал дарахад алдаа өгнө.
+   */
+  const [appleReady, setAppleReady] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleReady)
+      .catch(() => setAppleReady(false));
+  }, []);
+
+  const handleApple = async () => {
+    try {
+      await signInWithApple();
+    } catch (e) {
+      // Алдааг `authError` дамжуулсан тул дэлгэц дээр өөрөө гарна.
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -70,6 +93,20 @@ export default function LoginScreen() {
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{mapError(shown)}</Text>
               </View>
+            ) : null}
+
+            {/* ⚠️ Apple 4.8: гуравдагч талын нэвтрэлт санал болгосон апп нь
+                тэнцэх хувийн нууцлалтай сонголтыг ЗААВАЛ өгөх ёстой.
+                Apple нь энэ товчийг бусадтай ижил эрэмбэд, доогуур биш
+                байрлуулахыг шаарддаг — тиймээс ДЭЭР нь тавив. */}
+            {Platform.OS === 'ios' && appleReady ? (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleBtn}
+                onPress={handleApple}
+              />
             ) : null}
 
             <Button
@@ -166,6 +203,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
   errorText: { ...type.caption, fontSize: 13, color: colors.danger, lineHeight: 18 },
 
+  appleBtn: { height: 52, marginBottom: spacing.md },
   cta: { marginTop: spacing.xl },
 
   hint: {

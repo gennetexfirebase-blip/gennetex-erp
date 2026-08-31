@@ -672,7 +672,7 @@ export default function AttendanceScreen() {
     setLivenessChallenge(null);
     const nativeFace = faceApi.isNativeFaceAvailable();
     // Expo Go дээр хоёр зам байна: өөрийн Edge Function (үнэгүй, эрхэмлэнэ)
-    // эсвэл Luxand (гуравдагч тал). Аль нь ч байхгүй бол л зогсооно.
+    // эсвэл Supabase Edge Function. Аль нь ч байхгүй бол л зогсооно.
     if (isCloud && !nativeFace && !faceEdge.isEdgeFaceAvailable && !faceCloud.isCloudFaceConfigured) {
       Alert.alert('Царай таних тохиргоо дутуу', 'Царай таних үйлчилгээ тохируулаагүй байна. Админд хандана уу.');
       return;

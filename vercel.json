@@ -90,6 +90,10 @@
       "destination": "/"
     },
     {
+      "source": "/delete-account",
+      "destination": "/"
+    },
+    {
       "source": "/privacy",
       "destination": "/"
     },

@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
@@ -92,6 +94,69 @@ export async function signInWithGoogle() {
   if (sessionResult.error) throw sessionResult.error;
   await syncProfileAfterAuth();
   return sessionResult.data;
+}
+
+/**
+ * Sign in with Apple.
+ *
+ * ⚠️ ЯАГААД ЗААВАЛ ХЭРЭГТЭЙ ВЭ: Apple-ийн 4.8 (Login Services) дүрмээр
+ *    гуравдагч талын нэвтрэлт (энд Google) санал болгосон апп нь
+ *    тэнцэх хувийн нууцлалтай сонголтыг ЗААВАЛ өгөх ёстой. Үүнгүйгээр
+ *    шинжээч аппыг нээлгүйгээр татгалзана.
+ *
+ * ⚠️ Apple нь нэр, имэйлийг ЗӨВХӨН ХАМГИЙН АНХНЫ нэвтрэлтэд буцаана.
+ *    Тэр мөчид хадгалахгүй бол дахин авах боломжгүй — тиймээс
+ *    `claim_authorized_profile` руу дамжуулж, профайлд шингээнэ.
+ */
+export async function signInWithApple() {
+  if (Platform.OS !== 'ios') {
+    throw new Error('Sign in with Apple зөвхөн iOS дээр ажиллана.');
+  }
+
+  const available = await AppleAuthentication.isAvailableAsync();
+  if (!available) {
+    throw new Error('Энэ төхөөрөмж дээр Apple-аар нэвтрэх боломжгүй.');
+  }
+
+  let credential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+  } catch (e) {
+    // Хэрэглэгч цонхыг хаасан нь алдаа биш.
+    if (e?.code === 'ERR_REQUEST_CANCELED') return null;
+    throw e;
+  }
+
+  if (!credential?.identityToken) {
+    throw new Error('Apple-аас баталгаажуулах токен ирсэнгүй.');
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+  });
+  if (error) throw error;
+
+  // Apple-ийн өгсөн нэрийг эхний удаад л барьж авна.
+  const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  if (fullName && data?.user?.id) {
+    await supabase
+      .from('profiles')
+      .update({ name: fullName })
+      .eq('id', data.user.id)
+      .is('name', null);
+  }
+
+  await syncProfileAfterAuth();
+  return data;
 }
 
 export async function syncProfileAfterAuth() {

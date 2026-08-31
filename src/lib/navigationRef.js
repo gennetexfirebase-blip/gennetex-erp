@@ -3,6 +3,19 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 export const navigationRef = createNavigationContainerRef();
 let pendingNotification = null;
 
+/**
+ * Дэлгэц рүү шилжих — компонентээс гадуур (сервис, tracker) ашиглана.
+ *
+ * Навигац бэлэн болоогүй үед ЧИМЭЭГҮЙ өнгөрнө: апп ачаалж дуусаагүй
+ * байхад дуудагдвал алдаа шидэх нь утгагүй, дараагийн боломжид
+ * дуудагдана.
+ */
+export function navigate(name, params) {
+  if (!navigationRef.isReady()) return false;
+  navigationRef.navigate(name, params);
+  return true;
+}
+
 export function flushPendingNotification() {
   if (!pendingNotification || !navigationRef.isReady()) return;
   const data = pendingNotification;
