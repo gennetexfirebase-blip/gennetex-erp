@@ -32,6 +32,27 @@ async function pickImage() {
   return result.assets[0].uri;
 }
 
+const MN_WEEKDAYS = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
+
+/** `2026-08-31` дээр N хоног нэмнэ/хасна. */
+function shiftDay(key, delta) {
+  const [y, m, d] = String(key).split('-').map(Number);
+  // ⚠️ Сарын зааг дээр өөрөө зөв шилжинэ (Date-ийн сарын арифметик).
+  const dt = new Date(y, m - 1, d + delta);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+}
+
+/** "Өчигдөр · Бямба" мэтээр — огноо таних амархан болно. */
+function humanDay(key) {
+  const [y, m, d] = String(key).split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const today = dayKey();
+  if (key === today) return 'Өнөөдөр';
+  if (key === shiftDay(today, -1)) return `Өчигдөр · ${MN_WEEKDAYS[dt.getDay()]}`;
+  return MN_WEEKDAYS[dt.getDay()];
+}
+
 export default function AttendanceRequestFormScreen() {
   const navigation = useNavigation();
   const { currentUser } = useApp();
@@ -42,6 +63,14 @@ export default function AttendanceRequestFormScreen() {
   const [direction, setDirection] = useState('check_in'); // remote_check_in/out хоёрын хооронд
   const [reason, setReason] = useState('');
   const [requestedTime, setRequestedTime] = useState('09:00');
+  /**
+   * Хүсэлт хамаарах ӨДӨР.
+   *
+   * ⚠️ Өмнө нь `dayKey()` гэж ҮРГЭЛЖ өнөөдрийг бичдэг байсан тул
+   *    "нөхөж бүртгүүлэх" сонгосон ч өнөөдрийн ирц болж, утгаа
+   *    алддаг байв — нөхөх гэдэг нь өнгөрсөн өдрийн ирц.
+   */
+  const [requestedDate, setRequestedDate] = useState(dayKey());
   const [photos, setPhotos] = useState([]);
   const [busy, setBusy] = useState(false);
 
@@ -56,6 +85,13 @@ export default function AttendanceRequestFormScreen() {
       ? 'remote_check_in'
       : 'remote_check_out'
     : type;
+
+  // Төрөл солиход огноог зохистой утга руу сэргээнэ: нөхөх бол
+  // өчигдөр (хамгийн түгээмэл), бусад бол өнөөдөр.
+  React.useEffect(() => {
+    if (!meta) return;
+    setRequestedDate(meta.needsPastDate ? shiftDay(dayKey(), -1) : dayKey());
+  }, [type, meta]);
 
   const addPhoto = async () => {
     const uri = await pickImage();
@@ -82,7 +118,7 @@ export default function AttendanceRequestFormScreen() {
         employeeId: profile.id,
         employeeName: profile.name,
         type: effectiveType,
-        requestedDate: dayKey(),
+        requestedDate,
         requestedTime: meta?.needsTimeRange ? requestedTime : null,
         direction: needsDirection ? direction : null,
         reason,
@@ -132,6 +168,46 @@ export default function AttendanceRequestFormScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        ) : null}
+
+        {meta?.needsPastDate ? (
+          <View style={{ marginTop: spacing.md }}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 8 }}>
+              Аль өдрийн ирц вэ?
+            </Text>
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={[styles.dateStep, { borderColor: colors.border }]}
+                onPress={() => setRequestedDate((d) => shiftDay(d, -1))}
+                hitSlop={8}
+              >
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>‹</Text>
+              </TouchableOpacity>
+
+              <View style={[styles.dateValue, { borderColor: colors.border }]}>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
+                  {requestedDate}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                  {humanDay(requestedDate)}
+                </Text>
+              </View>
+
+              {/* Ирээдүйн өдрийг нөхөж бүртгэх боломжгүй — товч идэвхгүй. */}
+              <TouchableOpacity
+                style={[
+                  styles.dateStep,
+                  { borderColor: colors.border },
+                  requestedDate >= dayKey() && { opacity: 0.35 },
+                ]}
+                onPress={() => setRequestedDate((d) => (d < dayKey() ? shiftDay(d, 1) : d))}
+                disabled={requestedDate >= dayKey()}
+                hitSlop={8}
+              >
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>›</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : null}
 
@@ -204,6 +280,21 @@ export default function AttendanceRequestFormScreen() {
 }
 
 const styles = StyleSheet.create({
+  dateRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  dateStep: {
+    width: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+  },
+  dateValue: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderWidth: 1.5,
+    borderRadius: 12,
+  },
   typeCard: { borderWidth: 1, borderRadius: 16, padding: 16 },
   segmentRow: { flexDirection: 'row', gap: 10, marginTop: spacing.md },
   segmentBtn: {

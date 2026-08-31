@@ -32,6 +32,9 @@ export const ATTENDANCE_REQUEST_TYPES = [
     category: 'remote',
     needsTimeRange: true,
     needsAttachment: false,
+    // ⚠️ Нөхөж бүртгэх нь ӨНГӨРСӨН өдрийн ирц. Огноо асуухгүй бол
+    //    хүсэлт үргэлж өнөөдрийнхөөр бичигдэж, утгаа алдана.
+    needsPastDate: true,
   },
   {
     key: 'makeup_check_out',
@@ -39,6 +42,7 @@ export const ATTENDANCE_REQUEST_TYPES = [
     category: 'remote',
     needsTimeRange: true,
     needsAttachment: false,
+    needsPastDate: true,
   },
   {
     key: 'attendance_correction',
@@ -46,6 +50,7 @@ export const ATTENDANCE_REQUEST_TYPES = [
     category: 'remote',
     needsTimeRange: true,
     needsAttachment: true,
+    needsPastDate: true,
     // Аль цагийг (ирсэн/явсан) засахыг заавал сонгуулна — эс бөгөөс
     // зөвшөөрөх үед аль мөрийг засахыг backend мэдэхгүй.
     needsDirection: true,
