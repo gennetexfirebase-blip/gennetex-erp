@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platfo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { Button } from '../components/ui';
 import { spacing, radius, type } from '../theme';
@@ -10,7 +11,7 @@ import { useStyles, useTheme } from '../context/ThemeContext';
 
 export default function LoginScreen() {
   const styles = useStyles(makeStyles);
-  const { gradients } = useTheme();
+  const { gradients, colors } = useTheme();
   const { signInWithGoogle, signInWithApple, authError, isCloud } = useApp();
 
   /**
@@ -61,12 +62,17 @@ export default function LoginScreen() {
         style={styles.brandPanel}
       >
         <SafeAreaView edges={['top']} style={styles.brandInner}>
-          <View style={styles.logoTile}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.logoImg}
-              resizeMode="contain"
-            />
+          {/* Логог тойрсон хоёр цагираг — гүн өгч, төвд анхаарал татна */}
+          <View style={styles.haloOuter}>
+            <View style={styles.haloInner}>
+              <View style={styles.logoTile}>
+                <Image
+                  source={require('../../assets/logo.png')}
+                  style={styles.logoImg}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
           </View>
           <Text style={styles.brandName}>Gennetex ERP</Text>
           <Text style={styles.brandTag}>Generation of Network Experts</Text>
@@ -84,9 +90,11 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.sheet}>
-            <Text style={styles.title}>Нэвтрэх</Text>
+            <View style={styles.grip} />
+
+            <Text style={styles.title}>Тавтай морил</Text>
             <Text style={styles.subtitle}>
-              Зөвшөөрөгдсөн Gmail хаягаараа нэвтэрнэ үү
+              Ажлын хаягаараа нэвтэрч, өдрөө эхлүүлээрэй
             </Text>
 
             {shown ? (
@@ -109,6 +117,14 @@ export default function LoginScreen() {
               />
             ) : null}
 
+            {Platform.OS === 'ios' && appleReady ? (
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>эсвэл</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            ) : null}
+
             <Button
               title={loading ? 'Google нээгдэж байна…' : 'Google-ээр нэвтрэх'}
               icon={loading ? undefined : 'G'}
@@ -119,11 +135,19 @@ export default function LoginScreen() {
               style={styles.cta}
             />
 
-            <Text style={isCloud ? styles.hint : styles.note}>
-              {isCloud
-                ? 'Таны Gmail хаягийг админ эсвэл хөгжүүлэгч урьдчилан бүртгэсэн байх шаардлагатай.'
-                : 'Supabase холбогдоогүй байна. Нэвтрэлт ажиллахын тулд .env тохируулна уу.'}
-            </Text>
+            <View style={styles.hintRow}>
+              <Ionicons
+                name={isCloud ? 'shield-checkmark-outline' : 'warning-outline'}
+                size={15}
+                color={isCloud ? colors.textFaint : colors.warning}
+                style={{ marginTop: 1.5 }}
+              />
+              <Text style={isCloud ? styles.hint : styles.note}>
+                {isCloud
+                  ? 'Зөвхөн байгууллагаас бүртгэсэн хаяг нэвтэрнэ. Хаягаа админаас лавлана уу.'
+                  : 'Supabase холбогдоогүй байна. Нэвтрэлт ажиллахын тулд .env тохируулна уу.'}
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -158,6 +182,25 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
 
   brandPanel: { paddingBottom: spacing.xxl * 2 },
   brandInner: { alignItems: 'center', paddingTop: spacing.xxl },
+  // Логог тойрсон хоёр цагираг — гүн өгнө.
+  haloOuter: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  haloInner: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   logoTile: {
     width: 84,
     height: 84,
@@ -170,6 +213,15 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     ...shadow.md,
   },
   logoImg: { width: '100%', height: '100%' },
+  // Хуудасны дээд ирмэг дэх бариул — доороос гарч ирсэн мэдрэмж өгнө.
+  grip: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
   // Брэнд градиент дээрх текст — хоёр горимд ижил тул цагаан тогтмол.
   brandName: { ...type.h1, color: '#ffffff' },
   brandTag: {
@@ -203,14 +255,32 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
   errorText: { ...type.caption, fontSize: 13, color: colors.danger, lineHeight: 18 },
 
-  appleBtn: { height: 52, marginBottom: spacing.md },
+  appleBtn: { height: 52, marginTop: spacing.xl },
+
+  // Нэвтрэх хоёр аргын хооронд
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: -spacing.sm,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.outlineVariant },
+  dividerText: { ...type.caption, color: colors.textFaint },
   cta: { marginTop: spacing.xl },
 
+  hintRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
   hint: {
     ...type.caption,
+    flex: 1,
     color: colors.textFaint,
-    marginTop: spacing.lg,
-    textAlign: 'center',
     lineHeight: 18,
   },
   note: {
