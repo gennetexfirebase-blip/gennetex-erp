@@ -114,6 +114,34 @@ function syncAdminHtml(version) {
 
 const currentSrc = fs.readFileSync(VERSION_FILE, 'utf8');
 const current = parseVersion(currentSrc);
+
+/**
+ * ⚠️ ЗӨРҮҮГ ШАЛГАНА — эс бөгөөс хувилбар УХАРНА.
+ *
+ * Энэ скрипт `src/version.js`-ийг эх сурвалж болгодог ч
+ * `app.json`-ыг гараар засаад tag түлхэх нь бас боломжтой. Тэгвэл
+ * хоёр файл салж, дараагийн bump нь ХУУЧИН тооноос үргэлжилнэ.
+ *
+ * 2026-09-01-нд яг ингэж болсон: `app.json` нь 1.3.7 байхад
+ * `version.js` нь 1.3.2 дээр зогссон тул bump нь 1.3.3 гаргаж,
+ * хувилбар дөрвөөр УХАРСАН. `/app` дээр аль хэдийн 1.3.7 байсан
+ * тул тэр файлыг байршуулсан бол ажилтнууд хуучин апп татах байв.
+ *
+ * Одоо зөрүүг эрт барьж, гараар засахыг шаардана.
+ */
+const appJsonVersion = JSON.parse(fs.readFileSync(APP_JSON, 'utf8')).expo.version;
+if (appJsonVersion !== formatVersion(current)) {
+  console.error(
+    `\n  ✕ Хувилбарын зөрүү:\n` +
+      `      src/version.js  → ${formatVersion(current)}\n` +
+      `      app.json        → ${appJsonVersion}\n\n` +
+      `    Хоёрын АЛЬ ИХИЙГ нь src/version.js дотор бичээд дахин\n` +
+      `    ажиллуулна уу. Ингэхгүй бол хувилбар ухарч, /app дээр\n` +
+      `    хуучин апп тавигдана.\n`
+  );
+  process.exit(1);
+}
+
 const next = bumpVersion(current);
 const nextStr = formatVersion(next);
 
