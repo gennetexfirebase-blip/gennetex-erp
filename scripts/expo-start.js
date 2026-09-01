@@ -27,14 +27,24 @@ const { spawn } = require('child_process');
 
 const args = process.argv.slice(2);
 
-const child = spawn(
-  process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['expo', 'start', ...args],
-  {
-    stdio: 'inherit',
-    env: { ...process.env, EXPO_NO_DEPENDENCY_VALIDATION: '1' },
-  }
-);
+/**
+ * ⚠️ `npx.cmd`-ыг ЗААВАЛ ЗАЙЛСХИЙНЭ.
+ *
+ *    Node 20-аас хойш Windows дээр `.cmd`/`.bat` файлыг `shell: true`
+ *    гүйгээр spawn хийвэл `Error: spawn EINVAL` шидэгддэг
+ *    (CVE-2024-27980-ийн хамгаалалт). Эхний хувилбар яг үүнд унасан.
+ *
+ *    `shell: true` нэмэх нь ажиллах ч дугаарлалтын асуудал (зайтай
+ *    зам — "F:\gennetex erp\test") дагуулна. Тиймээс бүрэн найдвартай
+ *    зам: Expo CLI-ийн JS эхлэлийг шууд олж, ОДООГИЙН node-оор
+ *    ажиллуулна. Shell огт оролцохгүй.
+ */
+const cli = require.resolve('expo/bin/cli');
+
+const child = spawn(process.execPath, [cli, 'start', ...args], {
+  stdio: 'inherit',
+  env: { ...process.env, EXPO_NO_DEPENDENCY_VALIDATION: '1' },
+});
 
 child.on('exit', (code) => process.exit(code ?? 0));
 child.on('error', (err) => {
