@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,7 @@ try {
 export default function LoginScreen() {
   const styles = useStyles(makeStyles);
   const { gradients, colors } = useTheme();
-  const { signInWithGoogle, signInWithApple, authError, isCloud } = useApp();
+  const { signIn, signInWithGoogle, signInWithApple, authError, isCloud } = useApp();
 
   /**
    * Apple товч харуулах эсэх.
@@ -51,6 +51,25 @@ export default function LoginScreen() {
   };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // ── Нэр / нууц үгээр нэвтрэх ────────────────────────────────────
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const handlePasswordLogin = async () => {
+    if (!identifier.trim() || !password) return;
+    setError(null);
+    setPwLoading(true);
+    try {
+      await signIn(identifier, password);
+    } catch (e) {
+      setError(mapError(e));
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     setError(null);
@@ -108,7 +127,7 @@ export default function LoginScreen() {
 
             <Text style={styles.title}>Тавтай морил</Text>
             <Text style={styles.subtitle}>
-              Ажлын хаягаараа нэвтэрч, өдрөө эхлүүлээрэй
+              Нэвтрэх нэр эсвэл ажлын хаягаараа нэвтэрнэ үү
             </Text>
 
             {shown ? (
@@ -138,6 +157,68 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
             ) : null}
+
+            {/* ── Нэвтрэх нэр / и-мэйл ────────────────────────────────
+                ⚠️ Өмнө нь ЗӨВХӨН Google/Apple байсан. Дэлгүүрийн
+                   шинжээч OAuth-ээр нэвтэрч чадахгүй (танай Google
+                   Workspace-д хаяггүй) тул нэвтрэх боломжгүй байв —
+                   энэ нь App Store-ын хамгийн түгээмэл татгалзлын
+                   нэг. Нэр/нууц үгийн зам ЗААВАЛ хэрэгтэй. */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Нэвтрэх нэр эсвэл и-мэйл</Text>
+              <TextInput
+                value={identifier}
+                onChangeText={setIdentifier}
+                placeholder="Gennetex эсвэл ner@gennetex.mn"
+                placeholderTextColor={colors.textFaint}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                style={styles.input}
+                returnKeyType="next"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Нууц үг</Text>
+              <View style={styles.pwWrap}>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textFaint}
+                  secureTextEntry={!showPw}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[styles.input, styles.pwInput]}
+                  returnKeyType="go"
+                  onSubmitEditing={handlePasswordLogin}
+                />
+                <Text
+                  style={styles.pwToggle}
+                  onPress={() => setShowPw((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPw ? 'Нууц үг нуух' : 'Нууц үг харуулах'}
+                >
+                  <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.textMuted} />
+                </Text>
+              </View>
+            </View>
+
+            <Button
+              title={pwLoading ? 'Нэвтэрч байна…' : 'Нэвтрэх'}
+              size="lg"
+              onPress={handlePasswordLogin}
+              loading={pwLoading}
+              disabled={pwLoading || !identifier.trim() || !password}
+              style={styles.cta}
+            />
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>эсвэл</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
             <Button
               title={loading ? 'Google нээгдэж байна…' : 'Google-ээр нэвтрэх'}
@@ -281,6 +362,27 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.outlineVariant },
   dividerText: { ...type.caption, color: colors.textFaint },
+  field: { marginBottom: spacing.md },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt || colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 13 : 10,
+    fontSize: 15.5,
+    color: colors.text,
+  },
+  pwWrap: { position: 'relative', justifyContent: 'center' },
+  pwInput: { paddingRight: 46 },
+  pwToggle: { position: 'absolute', right: spacing.md, padding: 4 },
+
   cta: { marginTop: spacing.xl },
 
   hintRow: {

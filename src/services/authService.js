@@ -3,6 +3,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
+import { isDemoCredentials, enableDemo, disableDemo } from '../lib/demoMode';
 import {
   ROLES,
   normalizeRole,
@@ -45,14 +46,60 @@ async function getTargetProfile(userId) {
   return data || null;
 }
 
-export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password,
-  });
+/**
+ * И-мэйл ЭСВЭЛ нэвтрэх нэрээр нэвтэрнэ.
+ *
+ * ⚠️ Supabase Auth нь И-МЭЙЛ шаарддаг — нэвтрэх нэр гэсэн ойлголт
+ *    байхгүй. Тиймээс `@` агуулаагүй оролтыг `authorized_users`-аас
+ *    нэрээр хайж и-мэйл рүү хөрвүүлнэ.
+ *
+ *    Ингэснээр байгаа 10 хэрэглэгч огт хөндөгдөхгүй — тэд и-мэйлээрээ
+ *    хэвийн нэвтэрсээр байна.
+ */
+export async function signIn(identifier, password) {
+  const id = String(identifier || '').trim();
+
+  // ── Demo данс ────────────────────────────────────────────────
+  // Өгөгдлийн санд ОГТ хандахгүй. Дэлгүүрийн шинжээч бодит
+  // ажилтнуудын цалин, хувийн чатыг харах шаардлагагүй.
+  if (isDemoCredentials(id, password)) {
+    await enableDemo();
+    return { user: { id: 'dm-user-0', email: 'demo@gennetex.mn' } };
+  }
+
+  // Demo-оос гарч байж бодит нэвтрэлт хийнэ — эс бөгөөс proxy нь
+  // орлуулагч руу чиглэсээр байна.
+  await disableDemo();
+
+  const email = id.includes('@') ? id : await resolveUsername(id);
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   await syncProfileAfterAuth();
   return data;
+}
+
+/**
+ * Нэвтрэх нэр → и-мэйл.
+ *
+ * `authorized_users` нь нэвтрэхээс ӨМНӨ уншигдах ёстой тул anon-д
+ * нээлттэй байх шаардлагатай. Тийм биш бол хайлт хоосон буцна —
+ * тэр тохиолдолд оролтыг и-мэйл гэж үзээд цааш өгнө: Supabase
+ * "буруу нэвтрэх мэдээлэл" гэж ойлгомжтой алдаа буцаана.
+ */
+async function resolveUsername(username) {
+  try {
+    const { data } = await supabase
+      .from('authorized_users')
+      .select('email')
+      .ilike('name', username)
+      .eq('active', true)
+      .limit(2);
+    if (data?.length === 1) return data[0].email;
+  } catch (e) {
+    /* доор уналгүй үргэлжилнэ */
+  }
+  return username;
 }
 
 export async function signInWithGoogle() {
@@ -175,6 +222,10 @@ export async function syncProfileAfterAuth() {
 
 export async function signOut() {
   await supabase.auth.signOut();
+  // ⚠️ Demo тугийг ЗААВАЛ унтраана. Үлдээвэл дараагийн хэрэглэгч
+  //    нэвтрэхэд `supabase` proxy нь орлуулагч руу чиглэсээр байж,
+  //    бодит өгөгдлийн оронд demo мөрүүд харагдана.
+  await disableDemo();
 }
 
 // 1 удаагийн нууц үг үүсгэх (уншихад ойлгомжтой тэмдэгтүүд)

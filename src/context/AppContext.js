@@ -18,6 +18,7 @@ import * as notificationService from '../services/notificationService';
 import * as bgLocation from '../services/backgroundLocationService';
 import * as shiftApi from '../services/shiftService';
 import { clearLocalAccess } from '../services/localAccessService';
+import { restoreDemoSession } from '../lib/demoMode';
 
 const AppContext = createContext(null);
 
@@ -131,12 +132,17 @@ export function AppProvider({ children }) {
       }
     };
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      await loadProfile(data.session);
-      if (mounted) setAuthLoading(false);
-    });
+    // ⚠️ Demo тугийг сесс уншихаас ӨМНӨ сэргээнэ. `supabase` proxy нь
+    //    энэ тугаас хамаарч бодит эсвэл орлуулагч клиент рүү чиглэдэг
+    //    тул дараалал эргэвэл demo хэрэглэгч бодит сан руу хандана.
+    restoreDemoSession().then(() =>
+      supabase.auth.getSession().then(async ({ data }) => {
+        if (!mounted) return;
+        setSession(data.session);
+        await loadProfile(data.session);
+        if (mounted) setAuthLoading(false);
+      })
+    );
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
@@ -149,9 +155,28 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  const signIn = async (email, password) => {
+  const signIn = async (identifier, password) => {
     setAuthError(null);
-    await authApi.signIn(email, password);
+    await authApi.signIn(identifier, password);
+
+    /**
+     * ⚠️ Demo нэвтрэлт нь ЖИНХЭНЭ auth event үүсгэдэггүй.
+     *
+     *    Бодит нэвтрэлтэд `onAuthStateChange` асаж, профайлыг
+     *    ачаалдаг. Demo нь сүлжээ рүү огт хандахгүй тул тэр дохио
+     *    гарахгүй бөгөөд дэлгэц login дээрээ зогсоно.
+     *
+     *    Тиймээс энд гараар сэргээнэ. Бодит нэвтрэлтэд ч хоргүй —
+     *    зүгээр л нэг удаа илүү уншина.
+     */
+    const { data } = await supabase.auth.getSession();
+    setSession(data?.session || null);
+    try {
+      setAuthProfile(await authApi.syncProfileAfterAuth());
+    } catch (e) {
+      setAuthProfile(null);
+      setAuthError(e.message || 'Профайл ачаалахад алдаа гарлаа.');
+    }
   };
 
   const signInWithGoogle = async () => {
