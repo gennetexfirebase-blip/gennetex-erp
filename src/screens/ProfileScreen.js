@@ -31,7 +31,9 @@ import {
   openAppSettings,
   startTracking,
   trackingProblemText,
+  requestIgnoreBatteryOptimizations,
 } from '../services/backgroundLocationService';
+import * as locationQueue from '../services/locationQueue';
 import {
   MODES,
   MODE_OPTIONS,
@@ -241,12 +243,22 @@ export default function ProfileScreen() {
   const checkLocation = async () => {
     const d = await getLocationDiagnostics();
     const bgOk = d.background === 'granted';
+
+    // Хойшлогдсон (сүлжээгүй) цэгийн тоог мөн харуулна — "яагаад
+    // админд байршил хоцорч харагдаж байна" гэдгийг тайлбарлана.
+    let queued = 0;
+    try {
+      queued = await locationQueue.queueSize();
+    } catch (e) {}
+
     const lines = [
       `Байршлын үйлчилгээ: ${d.servicesEnabled ? 'асаалттай' : 'унтраалттай'}`,
       `Апп ашиглаж байхад: ${d.foreground}`,
       `Байнга (арын): ${d.background}`,
       `Хяналт идэвхтэй: ${d.tracking ? 'тийм' : 'үгүй'}`,
-    ];
+      queued > 0 ? `Илгээгдээгүй цэг: ${queued} (сүлжээ ормогц илгээнэ)` : null,
+    ].filter(Boolean);
+
     if (!bgOk) {
       lines.push('', `⚠️ ${trackingProblemText('no-background-permission')}`);
     } else if (!d.tracking) {
@@ -255,8 +267,15 @@ export default function ProfileScreen() {
       lines.push('', '✅ Апп хаалттай үед ч байршил илгээгдэнэ.');
     }
 
+    /**
+     * ⚠️ БАТЕРЕЙН ХЭМНЭЛТ нь background байршил зогсох ХАМГИЙН
+     *    ТҮГЭЭМЭЛ шалтгаан — Xiaomi, Huawei, Samsung, Oppo зэрэг нь
+     *    зөвшөөрөл бүрэн байсан ч арын үйлчилгээг алдаг. Тиймээс
+     *    "Байнга зөвшөөрөх" олгосон ч энэ товчийг үргэлж санал болгоно.
+     */
     Alert.alert('Байршлын шалгалт', lines.join('\n'), [
       { text: 'Хаах', style: 'cancel' },
+      { text: 'Батерей чөлөөлөх', onPress: () => requestIgnoreBatteryOptimizations() },
       ...(bgOk
         ? [{ text: 'Дахин эхлүүлэх', onPress: () => startTracking(authProfile).catch(() => {}) }]
         : [{ text: 'Тохиргоо нээх', onPress: () => openAppSettings() }]),

@@ -78,7 +78,8 @@ function WorkerMarker({ worker, color, visit, focused, onPress }) {
   return (
     <Marker
       coordinate={{ latitude: worker.latitude, longitude: worker.longitude }}
-      title={worker.name || 'Ажилтан'}
+      // Өөрийн маркерыг "Би (нэр)" гэж тодорхой ялгана.
+      title={worker.isMe ? `Би${worker.name ? ` · ${worker.name}` : ''}` : worker.name || 'Ажилтан'}
       description={
         visit
           ? `${visit.customer || 'Айл'}${visit.problem ? ' · ' + visit.problem : ''}`
@@ -86,10 +87,11 @@ function WorkerMarker({ worker, color, visit, focused, onPress }) {
       }
       avatarUri={worker.avatar_url}
       avatarName={worker.name}
-      tint={color}
-      focused={focused}
+      tint={worker.isMe ? '#0099DB' : color}
+      // Өөрийн маркер үргэлж дээр, төвд байхаар онцолно.
+      focused={focused || worker.isMe}
       onPress={onPress}
-      zIndex={focused ? 10 : 1}
+      zIndex={worker.isMe ? 20 : focused ? 10 : 1}
     />
   );
 }
@@ -97,7 +99,7 @@ function WorkerMarker({ worker, color, visit, focused, onPress }) {
 export default function LiveLocationScreen() {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
-  const { isCloud, isAdmin, trackingState } = useApp();
+  const { isCloud, isAdmin, trackingState, currentUser } = useApp();
   const [workers, setWorkers] = useState([]);
   const [visits, setVisits] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -136,13 +138,39 @@ export default function LiveLocationScreen() {
     return map;
   }, [visits]);
 
-  const located = useMemo(
-    () =>
-      workers
-        .filter((w) => w.latitude != null && w.longitude != null)
-        .map((w, i) => ({ ...w, color: COLORS[i % COLORS.length], visit: latestVisitByUser[w.id] })),
-    [workers, latestVisitByUser]
-  );
+  const located = useMemo(() => {
+    const list = workers
+      .filter((w) => w.latitude != null && w.longitude != null)
+      .map((w, i) => ({ ...w, color: COLORS[i % COLORS.length], visit: latestVisitByUser[w.id] }));
+
+    /**
+     * ⚠️ ӨӨРИЙН МАРКЕРЫГ ЗААВАЛ НЭМНЭ.
+     *
+     *    `fetchWorkers` нь `filterVisibleProfiles`-ээр дамждаг бөгөөд
+     *    тэр нь ЗӨВХӨН өөрөөсөө ДООШ зэрэгтэй хүнийг буцаадаг —
+     *    өөрийн профайл (тэнцүү зэрэг) хасагдана. Иймд газрын зурагт
+     *    хэрэглэгч өөрийгөө "би яг хаана байна" гэж хардаггүй байв.
+     *
+     *    Энд `currentUser`-ийн БОДИТ байршлыг тусад нь оруулж, тод
+     *    ялгаж (`isMe`) харуулна. Давхардахаас сэргийлж id-аар шалгана.
+     */
+    const me = currentUser;
+    if (me?.id && me.latitude != null && me.longitude != null && !list.some((w) => w.id === me.id)) {
+      list.unshift({
+        id: me.id,
+        name: me.name || 'Би',
+        avatar_url: me.avatar_url || null,
+        latitude: me.latitude,
+        longitude: me.longitude,
+        last_seen: me.last_seen || new Date().toISOString(),
+        role: me.role,
+        color: '#0099DB',
+        isMe: true,
+        visit: latestVisitByUser[me.id],
+      });
+    }
+    return list;
+  }, [workers, latestVisitByUser, currentUser]);
 
   // Сонголт хийгээгүй бол хамгийн сүүлд дохио өгсөн хүнийг өөрөө сонгоно —
   // дэлгэц нээмэгц хоосон карт харагдахгүй.

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Linking } from 'react-native';
 import * as Application from 'expo-application';
 import * as tracking from './trackingService';
+import * as locationQueue from './locationQueue';
 import { isExpoGo } from '../lib/runtimeEnv';
 
 /**
@@ -70,6 +71,25 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   };
 
   try {
+    /**
+     * ⚠️ Хамгийн ТҮРҮҮНД хойшлогдсон цэгүүдийг нөхөж илгээнэ.
+     *
+     *    Сүлжээ саяхан сэргэсэн бол өмнө тасарсан үеийн бүх цэг
+     *    дараанд хүлээж байгаа — тэдгээрийг эхэлж илгээснээр замнал
+     *    он цагийн дарааллаараа бүрдэнэ. Нэг цэг унавал flush өөрөө
+     *    зогсоод үлдсэнийг хойшлуулна.
+     */
+    await locationQueue.flush(async (p) => {
+      await tracking.updateMyLocation(p.userId, { latitude: p.latitude, longitude: p.longitude });
+      await tracking.logLocation({
+        userId: p.userId,
+        userName: p.userName,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        speed: p.speed,
+      });
+    });
+
     await tracking.updateMyLocation(user.id, coord);
     await tracking.logLocation({
       userId: user.id,
@@ -78,7 +98,22 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
       speed: last.coords.speed,
     });
   } catch (e) {
-    // Сүлжээгүй үед чимээгүй өнгөрнө — дараагийн байрлал дахин оролдоно
+    /**
+     * Сүлжээгүй үед координатыг АЛДАХГҮЙ — дараанд хадгална.
+     *
+     * Өмнө нь энд "чимээгүй өнгөрдөг" байсан тул тасралтын үеийн
+     * бүх цэг бүрмөсөн алга болдог байв.
+     */
+    await locationQueue
+      .enqueue({
+        userId: user.id,
+        userName: user.name,
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        speed: last.coords.speed,
+        at: new Date(last.timestamp || Date.now()).toISOString(),
+      })
+      .catch(() => {});
   }
 });
 
@@ -226,6 +261,40 @@ export async function openBatterySettings() {
     } catch (err) {
       return false;
     }
+  }
+}
+
+/**
+ * Батерейн хэмнэлтээс чөлөөлөх ШУУД диалог.
+ *
+ * ⚠️ `openBatterySettings`-ээс ЯЛГАА:
+ *    Тэр нь тохиргооны дэлгэцийг нээгээд хэрэглэгчийг өөрөө хайж
+ *    олгохыг шаарддаг — олон хүн хаана дарахаа мэдэхгүй орхидог.
+ *
+ *    Энэ нь `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` intent-ээр
+ *    Android-ын НЭГ ТОВЧИЙН системийн цонхыг ("Апп-ыг арын горимд
+ *    ажиллуулахыг зөвшөөрөх үү?") шууд гаргана. "Зөвшөөрөх" дарахад
+ *    л болно.
+ *
+ *    ⚠️ Энэ intent-д `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` зөвшөөрөл
+ *       манифестэд ЗААВАЛ зарлагдсан байх ёстой (app.json-д нэмсэн).
+ *       Байхгүй бол Android цонхыг огт гаргахгүй.
+ *
+ * @returns {Promise<boolean>} диалог гарсан эсэх
+ */
+export async function requestIgnoreBatteryOptimizations() {
+  if (Platform.OS !== 'android') return false;
+  try {
+    const IntentLauncher = require('expo-intent-launcher');
+    const pkg = Application.applicationId || 'com.gennetex.erp';
+    await IntentLauncher.startActivityAsync(
+      'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      { data: `package:${pkg}` }
+    );
+    return true;
+  } catch (e) {
+    // Зарим төхөөрөмж энэ intent-ийг дэмждэггүй — тохиргоо руу шилжинэ.
+    return openBatterySettings();
   }
 }
 

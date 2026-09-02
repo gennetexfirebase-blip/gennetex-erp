@@ -180,7 +180,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.FOREGROUND_SERVICE_CAMERA",
-        "android.permission.READ_PHONE_STATE"
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
       ],
       "blockedPermissions": [
         "android.permission.CALL_PHONE",
