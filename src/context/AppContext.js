@@ -19,6 +19,7 @@ import * as bgLocation from '../services/backgroundLocationService';
 import * as shiftApi from '../services/shiftService';
 import { clearLocalAccess } from '../services/localAccessService';
 import { restoreDemoSession } from '../lib/demoMode';
+import { employeeRef } from '../lib/pendingRef';
 
 const AppContext = createContext(null);
 
@@ -379,9 +380,11 @@ export function AppProvider({ children }) {
     setInventory((prev) => prev.map((it) => (it.id === item.id ? { ...it, quantity: newQty } : it)));
     if (isSupabaseConfigured) {
       try {
+        const ref = employeeRef(employee);
         await invApi.withdrawInventory({
           item,
-          userId: employee.id,
+          userId: ref.id,
+          userEmail: ref.email,
           userName: employee.name || employee.email || 'Ажилтан',
           qty: q,
           photoUrl,

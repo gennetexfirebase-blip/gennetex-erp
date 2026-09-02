@@ -36,6 +36,17 @@ const CAT_ORDER = ['material', 'tool', 'supply'];
  *    болж, дарахад түүний БҮХ бараа, багаж, хангамж ангилалаараа
  *    бүлэглэгдэн тоо ширхэгтэйгээ гарна.
  */
+/** `2026-08-14T09:02:11Z` → `08-14`. Он нь ихэвчлэн энэ жил тул орхино. */
+function shortDate(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return sameYear
+    ? `${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    : `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 export default function ToolAllocationScreen() {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
@@ -96,7 +107,14 @@ export default function ToolAllocationScreen() {
    */
   const rows = useMemo(() => {
     const byId = new Map();
-    holders.forEach((h) => byId.set(String(h.user_id || h.user_name), h));
+    // ⚠️ Хоёр түлхүүрээр индекслэнэ: uuid БА и-мэйл. Аппад ороогүй
+    //    ажилтны мөр нь зөвхөн и-мэйлтэй тул uuid-аар хайвал олдохгүй
+    //    бөгөөд "юу ч аваагүй" гэж буруу харагдана.
+    holders.forEach((h) => {
+      if (h.user_id) byId.set(String(h.user_id), h);
+      if (h.user_email) byId.set(`email:${String(h.user_email).toLowerCase()}`, h);
+      if (!h.user_id && !h.user_email) byId.set(String(h.user_name), h);
+    });
 
     // ⚠️ `fetchEmployees()`-ийн `id` нь `record_id` — бүртгэлтэй хүнд
     //    `profiles.id`, бүртгэлгүйд `pending:<email>`. `stock_movements`
@@ -104,11 +122,14 @@ export default function ToolAllocationScreen() {
     const list = employees
       .filter((e) => e.user_id || e.id)
       .map((e) => {
-        const key = String(e.user_id || e.id);
-        const found = byId.get(key);
-        byId.delete(key);
+        const idKey = String(e.user_id || e.id);
+        const mailKey = e.email ? `email:${String(e.email).toLowerCase()}` : null;
+        const found = byId.get(idKey) || (mailKey ? byId.get(mailKey) : null);
+        byId.delete(idKey);
+        if (mailKey) byId.delete(mailKey);
         return {
           user_id: e.user_id || e.id,
+          user_email: e.email || null,
           user_name: e.name || e.email || 'Ажилтан',
           avatar_url: e.avatar_url || null,
           items: found?.items || [],
@@ -266,9 +287,26 @@ export default function ToolAllocationScreen() {
                       <Text style={styles.groupLabel}>{g.label}</Text>
                       {g.items.map((it, i) => (
                         <View key={`${it.item_id || it.item_name}-${i}`} style={styles.itemRow}>
-                          <Text style={styles.itemName} numberOfLines={2}>
-                            {it.item_name}
-                          </Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.itemName} numberOfLines={2}>
+                              {it.item_name}
+                            </Text>
+                            {/* ⚠️ Хэн олгосныг ЗААВАЛ харуулна. Өмнө нь
+                                `issued_by_name` бүртгэгддэг мөртлөө хаана ч
+                                гардаггүй байсан тул маргаан гарахад "энэ
+                                барааг хэн олгосон юм бэ" гэдгийг мэдэх арга
+                                байгаагүй. */}
+                            {it.issuers?.length ? (
+                              <Text style={styles.issuer} numberOfLines={1}>
+                                <Ionicons name="person-outline" size={11} />{' '}
+                                {it.issuers[0].name} олгосон
+                                {it.issuers.length > 1 ? ` +${it.issuers.length - 1}` : ''}
+                                {it.issuers[0].at ? ` · ${shortDate(it.issuers[0].at)}` : ''}
+                              </Text>
+                            ) : (
+                              <Text style={styles.issuerNone}>олгогч тэмдэглэгдээгүй</Text>
+                            )}
+                          </View>
                           <Text style={styles.itemQty}>
                             {it.quantity} {it.unit || 'ширхэг'}
                           </Text>
@@ -419,8 +457,12 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  itemName: { flex: 1, color: colors.text, fontSize: 14.5 },
+  itemName: { color: colors.text, fontSize: 14.5 },
   itemQty: { color: colors.accent, fontSize: 14.5, fontWeight: '800' },
+  // Олгогчийн мөр — барааны нэрнээс тод ялгарах ёстой, гэхдээ
+  // анхаарлыг татаж болохгүй. Хэрэгтэй үед л уншина.
+  issuer: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
+  issuerNone: { color: colors.textFaint, fontSize: 11.5, marginTop: 2, fontStyle: 'italic' },
 
   tHead: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: colors.border },
   tRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },

@@ -90,15 +90,24 @@ export async function deleteInventory(id) {
 }
 
 // Бараа олгох: тоо хасаад олголтын лог үүсгэнэ
-export async function withdrawInventory({ item, userId, userName, qty, photoUrl, issuedBy, issuedByName }) {
+export async function withdrawInventory({
+  item, userId, userEmail, userName, qty, photoUrl, issuedBy, issuedByName,
+}) {
   const newQty = Math.max(0, (Number(item.quantity) || 0) - qty);
   await updateInventory(item.id, { quantity: newQty });
   const { error } = await supabase.from('stock_movements').insert({
     item_id: item.id,
     item_name: item.name,
     unit: item.unit,
-    // ХЭНД олгосон
+    // ХЭНД олгосон.
+    //
+    // ⚠️ Аппад ороогүй ажилтанд `user_id` БАЙХГҮЙ — тэр нь uuid багана
+    //    тул `pending:<email>` гэж бичвэл өгөгдлийн сан унана. Тийм
+    //    үед `user_email` нь хүнийг заана; тэр хүн хожим нэвтрэхэд
+    //    `link_pending_assignments` trigger нь мөрүүдийг автоматаар
+    //    профайлтай нь холбоно.
     user_id: userId || null,
+    user_email: userEmail || null,
     user_name: userName,
     // ХЭН олгосон — тайланд "аль админ хэнд юу олгосон" гэж харуулна.
     issued_by: issuedBy || null,

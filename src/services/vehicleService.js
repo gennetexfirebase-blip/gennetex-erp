@@ -17,6 +17,30 @@ export async function fetchVehicles() {
   return data || [];
 }
 
+/**
+ * Жолоочийн лавлагааг өгөгдлийн санд бичихэд аюулгүй болгоно.
+ *
+ * ⚠️ Дэлгэц дээрх сонголт нь `admin_list_authorized_users`-ийн `id`-г
+ *    шууд дамжуулдаг. Аппад ОРООГҮЙ ажилтны хувьд тэр нь
+ *    `pending:<email>` гэсэн ТЕКСТ — `vehicles.driver_id` нь uuid тул
+ *    "invalid input syntax for type uuid" гэж унана.
+ *
+ *    Үр дүнд нь шинэ жолоочид машин ОГТ оноож чаддаггүй байв.
+ *
+ *    Энд сервисийн давхаргад цэвэрлэснээр бүх дуудагч (нэмэх, засах,
+ *    хурдан онооx) нэг дор хамгаалагдана.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function driverRef(driverId) {
+  const raw = String(driverId || '');
+  if (UUID_RE.test(raw)) return { id: raw, email: null };
+  if (raw.startsWith('pending:')) {
+    return { id: null, email: raw.slice('pending:'.length).trim().toLowerCase() };
+  }
+  return { id: null, email: null };
+}
+
 export async function insertVehicle({ code, plate_number, liters_per_100km, tank_capacity_liters, driver_name, driver_id }) {
   const { data, error } = await supabase
     .from('vehicles')
@@ -31,7 +55,8 @@ export async function insertVehicle({ code, plate_number, liters_per_100km, tank
       //    таслагдаж алга болдог байв.
       fuel_level_percent: 0,
       driver_name: driver_name?.trim() || null,
-      driver_id: driver_id || null,
+      driver_id: driverRef(driver_id).id,
+      driver_email: driverRef(driver_id).email,
     })
     .select()
     .single();
@@ -45,7 +70,11 @@ export async function updateVehicle(id, { plate_number, liters_per_100km, tank_c
   if (liters_per_100km != null) patch.liters_per_100km = Number(liters_per_100km) || 12;
   if (tank_capacity_liters != null) patch.tank_capacity_liters = Number(tank_capacity_liters) || 60;
   if (driver_name !== undefined) patch.driver_name = driver_name?.trim() || null;
-  if (driver_id !== undefined) patch.driver_id = driver_id || null;
+  if (driver_id !== undefined) {
+    const ref = driverRef(driver_id);
+    patch.driver_id = ref.id;
+    patch.driver_email = ref.email;
+  }
   const { data, error } = await supabase
     .from('vehicles')
     .update(patch)
