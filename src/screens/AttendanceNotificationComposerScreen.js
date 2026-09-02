@@ -19,6 +19,7 @@ import EmployeeSelectSheet from '../components/EmployeeSelectSheet';
 import { useApp } from '../context/AppContext';
 import * as campaignApi from '../services/notificationCampaignService';
 import * as deptApi from '../services/departmentService';
+import * as authApi from '../services/authService';
 import { friendlyError } from '../lib/erpMessages';
 import { colors } from '../theme/attendanceDark';
 import { spacing } from '../theme';
@@ -56,10 +57,62 @@ export default function AttendanceNotificationComposerScreen() {
     }
   }, []);
 
+  const [peopleError, setPeopleError] = useState(null);
+
   useEffect(() => {
     load();
     deptApi.fetchDepartments().then(setDepartments).catch(() => {});
-    fetchEmployees().then(setEmployees).catch(() => {});
+
+    /**
+     * Хүлээн авагчийн жагсаалт.
+     *
+     * ⚠️ Өмнө нь `fetchEmployees().catch(() => {})` байсан тул
+     *    жагсаалт ХООСОН гарахад ШАЛТГААН нь хаана ч харагддаггүй
+     *    байв — "+ Хоосон" гэж зогсоно.
+     *
+     * ⚠️ `fetchEmployees` нь `admin_list_authorized_users` RPC дууддаг
+     *    бөгөөд тэр нь `role_rank(a.role) < actor_rank` гэж шүүдэг:
+     *    энгийн АДМИН нь өөртэйгээ ижил зэрэглэлийн бусад админ,
+     *    системийн админыг ОГТ ХАРАХГҮЙ. Тиймээс "админуудад мэдэгдэл
+     *    илгээх" гэсэн зорилгод тэр функц ганцаараа хангалтгүй.
+     *
+     *    `fetchDirectory` нь `profiles`-ыг шууд уншдаг тул бүх хамт
+     *    олныг буцаана. Хоёуланг нэгтгэж, давхардлыг арилгана.
+     */
+    (async () => {
+      const [adminList, directory] = await Promise.allSettled([
+        fetchEmployees(),
+        authApi.fetchDirectory(),
+      ]);
+
+      const merged = new Map();
+      if (directory.status === 'fulfilled') {
+        (directory.value || []).forEach((p) =>
+          merged.set(String(p.id), { ...p, user_id: p.id })
+        );
+      }
+      // Админы жагсаалт нь бүртгэгдээгүй хүнийг ч агуулдаг тул ДАРАА нь
+      // нэгтгэж, илүү баялаг мэдээллээр дарж бичнэ.
+      if (adminList.status === 'fulfilled') {
+        (adminList.value || []).forEach((e) => {
+          const key = String(e.user_id || e.id);
+          merged.set(key, { ...(merged.get(key) || {}), ...e });
+        });
+      }
+
+      const list = [...merged.values()];
+      setEmployees(list);
+
+      if (!list.length) {
+        setPeopleError(
+          adminList.status === 'rejected'
+            ? adminList.reason?.message || 'Ажилтны жагсаалт уншигдсангүй.'
+            : 'Ажилтан олдсонгүй.'
+        );
+      } else {
+        setPeopleError(null);
+      }
+    })();
   }, [load]);
 
   const openForm = () => {
@@ -238,8 +291,21 @@ export default function AttendanceNotificationComposerScreen() {
                       <Ionicons name="add" size={26} color={colors.primary} />
                     </View>
                     <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 8 }}>
-                      {selectedIds.length ? `${selectedIds.length} ажилтан` : 'Хоосон'}
+                      {selectedIds.length
+                        ? `${selectedIds.length} ажилтан`
+                        : employees.length
+                          ? `Сонгох (${employees.length} ажилтан)`
+                          : 'Ачаалж байна…'}
                     </Text>
+                    {/* ⚠️ Шалтгааныг ЗААВАЛ харуулна. Өмнө нь алдаа
+                        `.catch(() => {})`-д залгигдаж, хэрэглэгч зөвхөн
+                        "Хоосон" гэж хараад яагаад гэдгийг мэдэх аргагүй
+                        байв. */}
+                    {peopleError ? (
+                      <Text style={{ color: colors.warning || '#E5A83B', fontSize: 11.5, marginTop: 4, textAlign: 'center' }}>
+                        {peopleError}
+                      </Text>
+                    ) : null}
                   </TouchableOpacity>
                 ) : null}
               </View>

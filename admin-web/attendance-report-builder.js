@@ -321,11 +321,150 @@ export function buildStockHoldingSheets({ holders = [], orgName = 'ЖЕННЕТ�
 
 /** Preview-д зориулсан хялбар хүснэгт — эхний хуудсын мөрүүд. */
 export function sheetsToPreview(sheets) {
+  /**
+   * ⚠️ Урьдчилан харах хуудас нь ЭХНИЙ МӨРӨӨ толгой гэж үзнэ
+   *    (`rows[0]`). Тиймээс энд нэрлэгдсэн хуудсууд нь гарчиг,
+   *    огнооны мөргүйгээр ШУУД толгойгоор эхэлсэн байх ёстой.
+   *    "Нэгтгэл" хуудас нь байгууллагын нэрээр эхэлдэг тул урьдчилан
+   *    харахад тохирохгүй — нэг нүдтэй толгой гарч, хүснэгт эвдэрнэ.
+   */
   const main =
-    sheets.find((s) => s.name === 'Ирц' || s.name === 'Өдрөөр' || s.name === 'Олголт') || sheets[0];
+    sheets.find((s) =>
+      ['Ирц', 'Өдрөөр', 'Олголт', 'Цэнэглэлт бүр'].includes(s.name)
+    ) || sheets[0];
   return {
     header: main.rows[0] || [],
     body: main.rows.slice(1),
     sheetName: main.name,
   };
 }
+
+/**
+ * Шатахууны зарцуулалтын Excel — машин бүрийн нэгтгэл + цэнэглэлт бүр.
+ *
+ * ⚠️ УЛСЫН ДУГААР бүх хуудсанд ЗААВАЛ орно. Тайланг санхүү рүү
+ *    дамжуулахад "аль машины зардал вэ" гэдэг нь цорын ганц чухал
+ *    багана — код эсвэл жолоочийн нэрээр таних боломжгүй (жолооч
+ *    солигддог, код нь дотоод дугаар).
+ *
+ * @param {Array} vehicles `fetchFuelSpendReport()`-ийн мөрүүд
+ * @param {Array} refuels  Цэнэглэлт бүр (сонголт) — огноо, цаг, литр, үнэ
+ */
+export function buildFuelSpendSheets({
+  vehicles = [],
+  refuels = [],
+  periodLabel = 'Бүх хугацаа',
+  orgName = 'ЖЕННЕТЕКС ХХК',
+}) {
+  const now = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  const stampedAt = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(
+    now.getHours()
+  )}:${p(now.getMinutes())}`;
+
+  const fmtDateTime = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
+      d.getMinutes()
+    )}`;
+  };
+
+  const withSpend = vehicles.filter((v) => (Number(v.totalCost) || 0) > 0);
+  const totalCost = withSpend.reduce((s, v) => s + (Number(v.totalCost) || 0), 0);
+  const totalLiters = withSpend.reduce((s, v) => s + (Number(v.totalLiters) || 0), 0);
+  const totalFills = withSpend.reduce((s, v) => s + (Number(v.refuelCount) || 0), 0);
+
+  const summary = withSpend.map((v, i) => [
+    i + 1,
+    v.plateNumber || '—',
+    v.driverName || '—',
+    FUEL_LABEL[v.fuelType] || v.fuelType || '—',
+    Number(v.refuelCount) || 0,
+    Number((Number(v.totalLiters) || 0).toFixed(2)),
+    Number(v.totalCost) || 0,
+    v.avgPrice == null ? '—' : Number(v.avgPrice),
+    fmtDateTime(v.firstAt),
+    fmtDateTime(v.lastAt),
+  ]);
+
+  const detail = refuels.map((r, i) => [
+    i + 1,
+    r.plate_number || '—',
+    fmtDateTime(r.created_at),
+    Number((Number(r.liters) || 0).toFixed(2)),
+    Number(r.price_per_liter) || 0,
+    Number(r.cost) || 0,
+    r.discounted ? 'Тийм' : '—',
+    r.user_name || '—',
+  ]);
+
+  const sheets = [
+    {
+      name: 'Нэгтгэл',
+      rows: [
+        [orgName],
+        ['Шатахууны зарцуулалт'],
+        ['Хугацаа', periodLabel],
+        ['Тайлан гаргасан', stampedAt],
+        [],
+        ['Машины тоо', withSpend.length],
+        ['Нийт цэнэглэлт', totalFills],
+        ['Нийт литр', Number(totalLiters.toFixed(2))],
+        ['НИЙТ ЗАРДАЛ (₮)', totalCost],
+        [
+          'Дундаж 1 литр (₮)',
+          totalLiters > 0 ? Math.round(totalCost / totalLiters) : '—',
+        ],
+        [],
+        [
+          '№',
+          'Улсын дугаар',
+          'Жолооч',
+          'Түлшний төрөл',
+          'Цэнэглэсэн тоо',
+          'Нийт литр',
+          'Нийт зардал (₮)',
+          'Дундаж 1л (₮)',
+          'Эхний цэнэглэлт',
+          'Сүүлийн цэнэглэлт',
+        ],
+        ...summary,
+      ],
+    },
+  ];
+
+  if (detail.length) {
+    sheets.push({
+      name: 'Цэнэглэлт бүр',
+      // ⚠️ Гарчгийн мөр ОРУУЛАХГҮЙ — энэ хуудас урьдчилан харахад
+      //    ашиглагддаг тул эхний мөр нь толгой байх ёстой.
+      rows: [
+        [
+          '№',
+          'Улсын дугаар',
+          'Огноо, цаг',
+          'Литр',
+          '1 литрийн үнэ (₮)',
+          'Төлсөн дүн (₮)',
+          'Хөнгөлөлттэй',
+          'Цэнэглэсэн',
+        ],
+        ...detail,
+      ],
+    });
+  }
+
+  return sheets;
+}
+
+const FUEL_LABEL = {
+  ai80: 'А-80',
+  ai92: 'АИ-92',
+  ai95: 'АИ-95',
+  diesel: 'Дизель',
+  ai92_euro: 'АИ-92 Евро',
+  ai95_euro: 'АИ-95 Евро',
+  diesel_euro: 'Дизель Евро',
+};

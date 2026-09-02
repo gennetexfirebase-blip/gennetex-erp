@@ -33,6 +33,17 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
 
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState(null);
+
+  /**
+   * Хөнгөлөлтийн карт.
+   *
+   * ⚠️ Байгууллагын карттай үед станц литрийн үнийг хөнгөлдөг. Систем
+   *    зөвхөн НИЙТИЙН үнээр боддог байсан тул хөнгөлөлттэй авахад
+   *    бодит литрээс ЦӨӨН литр бүртгэгдэж, сав дүүрсэн ч систем
+   *    "дутуу" гэж харуулдаг байв.
+   */
+  const [hasCard, setHasCard] = useState(false);
+  const [cardPrice, setCardPrice] = useState('');
   const [loadingPrice, setLoadingPrice] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -41,6 +52,8 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
   useEffect(() => {
     if (!visible) return;
     setAmount('');
+    setHasCard(false);
+    setCardPrice('');
     setSaving(false);
     setLoadingPrice(true);
     fuelApi
@@ -51,10 +64,16 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
   }, [visible, fuelType]);
 
   const amountNum = Number(String(amount).replace(/[^\d]/g, '')) || 0;
+  const cardPriceNum = Number(String(cardPrice).replace(/[^0-9]/g, '')) || 0;
+
+  // Хөнгөлөлт идэвхтэй БА үнэ бичигдсэн үед л түүгээр тооцно.
+  const effectivePrice = hasCard && cardPriceNum ? cardPriceNum : price;
+
   const liters = useMemo(
-    () => (price && amountNum ? amountNum / price : 0),
-    [price, amountNum]
+    () => (effectivePrice && amountNum ? amountNum / effectivePrice : 0),
+    [effectivePrice, amountNum]
   );
+  const saved = hasCard && cardPriceNum && price ? Math.round((price - cardPriceNum) * liters) : 0;
 
   const submit = async () => {
     if (!amountNum) {
@@ -69,9 +88,25 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
       );
       return;
     }
+    if (hasCard && !cardPriceNum) {
+      Alert.alert('Анхаар', 'Хөнгөлөлттэй үнээ оруулна уу.');
+      return;
+    }
+    if (hasCard && cardPriceNum > price) {
+      Alert.alert(
+        'Буруу үнэ',
+        'Хөнгөлсөн үнэ нийтийн үнээс (' + formatMNT(price) + ') их байж болохгүй. ' +
+          'Нийт төлсөн дүнг биш, 1 ЛИТРИЙН үнийг бичнэ үү.'
+      );
+      return;
+    }
     setSaving(true);
     try {
-      const res = await fuelApi.refuelByAmount({ vehicleId: vehicle.id, amountMnt: amountNum });
+      const res = await fuelApi.refuelByAmount({
+        vehicleId: vehicle.id,
+        amountMnt: amountNum,
+        pricePerLiter: hasCard ? cardPriceNum : null,
+      });
       onClose?.();
       await onDone?.();
       Alert.alert(
@@ -145,6 +180,49 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
               ))}
             </View>
 
+            {/* ── Хөнгөлөлтийн карт ──────────────────────────────
+                ⚠️ Байгууллагын карттай үед станц литрийн үнийг
+                   хөнгөлдөг. Системд зөвхөн нийтийн үнэ байсан тул
+                   хөнгөлөлттэй авахад бодит литрээс ЦӨӨН литр
+                   бүртгэгдэж, сав дүүрсэн ч "дутуу" гэж харагддаг
+                   байв. */}
+            <TouchableOpacity
+              style={styles.cardRow}
+              onPress={() => setHasCard((v) => !v)}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name={hasCard ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={hasCard ? colors.primary : colors.textMuted}
+              />
+              <Text style={styles.cardLabel}>Хөнгөлөлтийн карттай юу?</Text>
+            </TouchableOpacity>
+
+            {hasCard ? (
+              <>
+                <Text style={styles.label}>Хөнгөлсөн 1 литрийн үнэ (₮)</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={cardPrice}
+                  onChangeText={(t) => setCardPrice(t.replace(/[^0-9]/g, ''))}
+                  placeholder={price ? String(Math.round(price * 0.97)) : '2950'}
+                  placeholderTextColor={colors.textMuted}
+                />
+                {cardPriceNum && price && cardPriceNum > price ? (
+                  <Text style={styles.cardWarn}>
+                    Нийтийн үнэ {formatMNT(price)}-с их байна. Нийт дүнг биш,
+                    1 ЛИТРИЙН үнийг бичнэ үү.
+                  </Text>
+                ) : saved > 0 ? (
+                  <Text style={styles.cardSaved}>
+                    Хэмнэлт ≈ {formatMNT(saved)}
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
+
             {/* Литр — оруулсан дүнгээс автоматаар */}
             <View style={styles.resultBox}>
               <Text style={styles.resultLabel}>Авах түлш</Text>
@@ -213,6 +291,17 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   priceLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   priceValue: { color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 2 },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingVertical: 6,
+  },
+  cardLabel: { color: colors.text, fontSize: 14.5, fontWeight: '600' },
+  cardWarn: { color: colors.danger, fontSize: 12.5, marginTop: 6 },
+  cardSaved: { color: colors.success, fontSize: 12.5, marginTop: 6, fontWeight: '700' },
+
   priceMissing: {
     color: colors.warning || '#d9863e',
     fontSize: 13,

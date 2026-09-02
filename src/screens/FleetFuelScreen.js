@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import FuelRefillModal from '../components/FuelRefillModal';
 import FuelPriceCard from '../components/FuelPriceCard';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, SectionTitle, Badge, StatCard, EmptyState, formatMNT } from '../components/ui';
 import FuelTankGauge from '../components/FuelTankGauge';
@@ -29,6 +30,7 @@ function fmtRefillDate(iso) {
 }
 
 export default function FleetFuelScreen() {
+  const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
   const { isAdmin, isCloud } = useApp();
@@ -76,7 +78,20 @@ export default function FleetFuelScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Бензин зарцуулалт" subtitle="Машин · км · савны түвшин" />
+      <ScreenHeader
+        title="Бензин зарцуулалт"
+        subtitle="Машин · км · савны түвшин"
+        right={
+          <TouchableOpacity
+            style={styles.reportBtn}
+            onPress={() => navigation.navigate('FuelSpendReport')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cash-outline" size={16} color={colors.primary} />
+            <Text style={styles.reportText}>Зардал</Text>
+          </TouchableOpacity>
+        }
+      />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -183,7 +198,20 @@ export default function FleetFuelScreen() {
 const makeStyles = ({ colors }) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    statRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+    reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reportText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+
+  statRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
     filterRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
     filterChip: {
       paddingHorizontal: 12,

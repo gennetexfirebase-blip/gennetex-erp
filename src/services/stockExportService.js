@@ -10,7 +10,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import XlsxChart from '../../admin-web/xlsx-chart.js';
-import { buildStockHoldingSheets } from '../../admin-web/attendance-report-builder.js';
+import { buildStockHoldingSheets, buildFuelSpendSheets } from '../../admin-web/attendance-report-builder.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -40,4 +40,18 @@ async function writeAndShare(filename, bytes) {
 export async function exportStockHoldingExcel({ holders }) {
   const bytes = XlsxChart.build({ sheets: buildStockHoldingSheets({ holders }) });
   return writeAndShare(`gennetex_ezemshil_${todayStamp()}.xlsx`, bytes);
+}
+
+/**
+ * Шатахууны зарцуулалт → .xlsx
+ *
+ * Хоёр хуудас: машин бүрийн нэгтгэл, цэнэглэлт бүрийн дэлгэрэнгүй.
+ * Улсын дугаар хоёуланд нь орно — санхүү рүү дамжуулахад машиныг
+ * таних цорын ганц найдвартай багана.
+ */
+export async function exportFuelSpendExcel({ vehicles, refuels, periodLabel }) {
+  const bytes = XlsxChart.build({
+    sheets: buildFuelSpendSheets({ vehicles, refuels, periodLabel }),
+  });
+  return writeAndShare(`gennetex_shatahuun_${todayStamp()}.xlsx`, bytes);
 }

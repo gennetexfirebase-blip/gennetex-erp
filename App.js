@@ -23,6 +23,7 @@ import InventoryScreen from './src/screens/InventoryScreen';
 import ToolsHubScreen from './src/screens/ToolsHubScreen';
 import FuelScreen from './src/screens/FuelScreen';
 import FleetFuelScreen from './src/screens/FleetFuelScreen';
+import FuelSpendReportScreen from './src/screens/FuelSpendReportScreen';
 import LiveLocationScreen from './src/screens/LiveLocationScreen';
 import CallsMapScreen from './src/screens/CallsMapScreen';
 import AdminCallsScreen from './src/screens/AdminCallsScreen';
@@ -195,6 +196,7 @@ function AppStack() {
       <Stack.Screen name="Supplies" component={InventoryScreen} initialParams={{ category: 'supply', mode: 'manage' }} />
       <Stack.Screen name="Fuel" component={FuelScreen} />
       <Stack.Screen name="FleetFuel" component={FleetFuelScreen} />
+        <Stack.Screen name="FuelSpendReport" component={FuelSpendReportScreen} />
       <Stack.Screen name="Live" component={LiveLocationScreen} />
       <Stack.Screen name="Calls" component={CallsMapScreen} />
       <Stack.Screen name="AdminCalls" component={AdminCallsScreen} />
