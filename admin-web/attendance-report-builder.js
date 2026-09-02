@@ -418,6 +418,24 @@ export function buildFuelSpendSheets({
           totalLiters > 0 ? Math.round(totalCost / totalLiters) : '—',
         ],
         [],
+        /**
+         * Хамгийн их зарцуулсан машин.
+         *
+         * `withSpend` нь зардлаар буурахаар эрэмбэлэгдсэн ирдэг тул
+         * эхнийх нь тэргүүлэгч. Санхүү тайланг нээмэгц энэ мөрийг
+         * хардаг — доод талын хүснэгтээс хайх шаардлагагүй.
+         */
+        ['ХАМГИЙН ИХ ЗАРЦУУЛСАН'],
+        ['Улсын дугаар', withSpend[0]?.plateNumber || '—'],
+        ['Жолооч', withSpend[0]?.driverName || '—'],
+        ['Зарцуулсан дүн (₮)', withSpend[0]?.totalCost || 0],
+        [
+          'Нийтэд эзлэх хувь',
+          totalCost > 0 && withSpend[0]
+            ? Math.round((withSpend[0].totalCost / totalCost) * 100) + '%'
+            : '—',
+        ],
+        [],
         [
           '№',
           'Улсын дугаар',

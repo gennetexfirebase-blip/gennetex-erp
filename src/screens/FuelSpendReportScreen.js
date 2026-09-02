@@ -109,12 +109,26 @@ export default function FuelSpendReportScreen() {
     const withSpend = rows.filter((r) => r.totalCost > 0);
     const cost = withSpend.reduce((s, r) => s + r.totalCost, 0);
     const liters = withSpend.reduce((s, r) => s + r.totalLiters, 0);
+    /**
+     * Хамгийн их зарцуулсан машин.
+     *
+     * ⚠️ Жагсаалт аль хэдийн зардлаар эрэмбэлэгддэг тул эхнийх нь
+     *    тэргүүлэгч. Гэвч жагсаалт урт үед доош гүйлгэж харьцуулах
+     *    шаардлагатай болдог — төсвийн ярианд хамгийн түрүүнд гарч
+     *    ирдэг тоо тул дээр нь тусад нь гаргана.
+     */
+    const top = withSpend[0] || null;
+
     return {
       vehicles: withSpend.length,
       cost,
       liters,
       fills: withSpend.reduce((s, r) => s + r.refuelCount, 0),
       avg: liters > 0 ? Math.round(cost / liters) : 0,
+      top,
+      // Нийт зардлын хэдэн хувийг эзэлж байгаа нь "их" гэдгийг
+      // харьцангуйгаар хэлнэ — ганц тоо утга багатай.
+      topShare: top && cost > 0 ? Math.round((top.totalCost / cost) * 100) : 0,
     };
   }, [rows]);
 
@@ -198,6 +212,40 @@ export default function FuelSpendReportScreen() {
             color={colors.success}
           />
         </View>
+
+        {/* ── Хамгийн их зарцуулсан ──────────────────────────── */}
+        {totals.top ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setExpanded(expanded === totals.top.vehicleId ? null : totals.top.vehicleId)}
+          >
+            <Card style={styles.topCard}>
+              <View style={styles.topBadge}>
+                <Ionicons name="trending-up" size={13} color="#fff" />
+                <Text style={styles.topBadgeText}>ХАМГИЙН ИХ ЗАРЦУУЛСАН</Text>
+              </View>
+
+              <View style={styles.topBody}>
+                <View style={{ flex: 1 }}>
+                  <MongoliaPlate plate={totals.top.plateNumber} size="sm" />
+                  <Text style={styles.topMeta}>
+                    {totals.top.driverName || 'Жолоочгүй'} ·{' '}
+                    {fuelApi.fuelTypeLabel(totals.top.fuelType)}
+                  </Text>
+                  <Text style={styles.topMeta}>
+                    {totals.top.refuelCount} удаа · {totals.top.totalLiters.toFixed(1)} л
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.topCost}>{formatMNT(totals.top.totalCost)}</Text>
+                  {totals.vehicles > 1 ? (
+                    <Text style={styles.topShare}>нийтийн {totals.topShare}%</Text>
+                  ) : null}
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        ) : null}
 
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
@@ -356,6 +404,27 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   chipTextOn: { color: '#fff' },
 
   statRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+
+  topCard: {
+    marginBottom: spacing.md,
+    padding: 0,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+  },
+  topBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.danger,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+  },
+  topBadgeText: { color: '#fff', fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5 },
+  topBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  topMeta: { color: colors.textMuted, fontSize: 12.5, marginTop: 3 },
+  topCost: { color: colors.danger, fontSize: 20, fontWeight: '900' },
+  topShare: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
 
   card: { marginBottom: spacing.md, padding: 0, overflow: 'hidden' },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
