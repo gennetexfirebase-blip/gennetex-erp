@@ -17,7 +17,8 @@
     "android:apk": "node scripts/fix-android-sdk-path.js && node scripts/patch-incoming-call-rn81.js && cd android && gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a",
     "prebuild:android": "expo prebuild --platform android --clean && node scripts/fix-android-sdk-path.js && node scripts/setup-release-signing.js",
     "android:release": "node scripts/fix-android-sdk-path.js && node scripts/setup-release-signing.js && node scripts/patch-incoming-call-rn81.js && cd android && gradlew assembleRelease",
-    "app:publish": "node scripts/publish-app-build.js"
+    "app:publish": "node scripts/publish-app-build.js",
+    "serve:local": "node scripts/serve-local.js"
   },
   "dependencies": {
     "@config-plugins/react-native-callkeep": "^14.0.1",
