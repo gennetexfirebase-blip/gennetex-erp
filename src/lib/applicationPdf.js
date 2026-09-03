@@ -8,12 +8,46 @@ import * as Sharing from 'expo-sharing';
  * тэр нь зөвхөн хавсаргасан файлыг браузерт нээдэг, анкетын бүрэн агуулгыг
  * (боловсрол, ажлын туршлага, гэр бүл, гарын үсэг) харуулдаггүй байв.
  *
- * Энэ модуль нь `job_applications.form_data` доторх бүтэцлэгдсэн өгөгдлөөс
- * бүтэн хуудас угсарч, `expo-print`-ээр PDF болгоно.
- *
- * Загварыг public-web/src/lib/jobApplicationPaper.ts-тэй нийцүүлсэн —
- * вэб болон мобайлаас гарсан баримт ижил харагдана.
+ * Өгөгдлийн бүтэц нь public-web/src/types/jobApplication.ts-ийн
+ * `JobApplicationFormData`. `form_data` багана байхгүй серверт вэб тал нь
+ * анкетыг `message` дотор `[[GENNETEX_FORM]]` тэмдэгийн ард JSON болгож
+ * хадгалдаг тул мобайл тал ч мөн тэндээс уншина — эс бөгөөс анкет хоосон
+ * харагдаж, харин жагсаалтад JSON нь «код» болж дэлгэрч байв.
  */
+
+/** Бүрэн анкетыг message дотор шахах үед ашигладаг тэмдэг. */
+export const FORM_MARKER = '[[GENNETEX_FORM]]';
+
+/** `form_data` эсвэл `message` доторх JSON-оос анкетыг гаргаж авна. */
+export function parseStoredForm(app) {
+  let fd = app?.form_data;
+  if (typeof fd === 'string') {
+    try {
+      fd = JSON.parse(fd);
+    } catch {
+      fd = null;
+    }
+  }
+  if (fd && typeof fd === 'object' && fd.general) return fd;
+
+  const msg = String(app?.message || '');
+  const idx = msg.indexOf(FORM_MARKER);
+  if (idx < 0) return null;
+  try {
+    const parsed = JSON.parse(msg.slice(idx + FORM_MARKER.length));
+    if (parsed?.general) return parsed;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** Жагсаалтад харуулах цэвэр тайлбар — дотор нь шахсан JSON-г хасна. */
+export function plainMessage(app) {
+  const msg = String(app?.message || '');
+  const idx = msg.indexOf(FORM_MARKER);
+  return (idx < 0 ? msg : msg.slice(0, idx)).trim();
+}
 
 function esc(s) {
   return String(s ?? '')
@@ -21,6 +55,17 @@ function esc(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Гарын үсгийн SVG-г хэвлэхээс өмнө цэвэрлэнэ. */
+function safeSignatureSvg(value) {
+  const svg = String(value || '').trim();
+  if (!/^<svg(?:\s|>)/i.test(svg)) return '';
+  return svg
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, '')
+    .replace(/\son\w+\s*=\s*(["'])[\s\S]*?\1/gi, '')
+    .replace(/javascript:/gi, '');
 }
 
 const DASH = '—';
@@ -59,28 +104,40 @@ function section(no, title, body) {
  * @returns {string} HTML
  */
 export function buildApplicationHtml(app) {
-  const d = app?.form_data || {};
+  const d = parseStoredForm(app) || {};
   const g = d.general || {};
-  const name = [g.lastName || app?.last_name, g.firstName || app?.name]
+  const name =
+    [g.clanName, g.fatherName, g.firstName].filter(Boolean).join(' ').trim() ||
+    [app?.last_name, app?.name].filter(Boolean).join(' ').trim() ||
+    'Нэргүй';
+
+  const photo = g.photoDataUrl || app?.photo_url || '';
+  const sig = safeSignatureSvg(app?.signature_svg || d.signatureSvg);
+  const adminSig = safeSignatureSvg(app?.admin_signature_svg);
+
+  const birthDate = [g.birthYear, g.birthMonth, g.birthDay].filter(Boolean).join('.');
+  const birthPlace = [g.birthProvince, g.birthDistrict, g.birthSubdistrict].filter(Boolean).join(', ');
+  const driverLicense = [g.driverLicenseNo, g.driverLicenseClass && `Ангилал: ${g.driverLicenseClass}`]
     .filter(Boolean)
-    .join(' ')
-    .trim() || app?.name || 'Нэргүй';
+    .join(' · ');
 
-  const photo = app?.photo_url || g.photoUrl;
-  const sig = app?.signature_svg;
+  const family = (d.family?.members || [])
+    .filter((m) => String(m?.fullName || '').trim())
+    .map((m) => [m.fullName, m.relation, m.birthYear, m.workOrSchool, m.phone]);
+  const education = (d.education || [])
+    .filter((e) => String(e?.schoolName || '').trim() || String(e?.location || '').trim())
+    .map((e) => [e.location, e.schoolName, e.enteredYear, e.graduatedYear, e.profession, e.degree, e.gpa]);
+  const work = (d.workExperience || [])
+    .filter((w) => String(w?.companyName || '').trim())
+    .map((w) => [w.companyName, w.duties, w.position, w.startDate, w.endDate, w.salary, w.leaveReason]);
+  const languages = (d.languages || [])
+    .filter((l) => String(l?.language || '').trim())
+    .map((l) => [l.language, l.listening, l.speaking, l.reading, l.writing]);
+  const emergency = (d.emergencyContacts || [])
+    .filter((e) => String(e?.name || '').trim())
+    .map((e) => [e.name, e.relation, e.phone]);
 
-  const family = (d.family?.members || []).map((m) => [
-    m.name, m.relation, m.birthYear, m.workplace, m.phone,
-  ]);
-  const education = (d.education?.items || []).map((e) => [
-    e.place, e.school, e.startYear, e.endYear, e.profession, e.degree, e.certificate,
-  ]);
-  const work = (d.work?.items || []).map((w) => [
-    w.organization, w.activity, w.position, w.startYear, w.endYear, w.salary, w.reason,
-  ]);
-  const languages = (d.languages?.items || []).map((l) => [
-    l.language, l.listening, l.speaking, l.reading, l.writing,
-  ]);
+  const note = plainMessage(app);
 
   return `<!DOCTYPE html><html lang="mn"><head><meta charset="utf-8"/>
 <style>
@@ -126,58 +183,79 @@ export function buildApplicationHtml(app) {
   .sign { margin-top: 18px; display: flex; justify-content: space-between; gap: 24px; }
   .sign-box { flex: 1; }
   .sign-label { font-size: 9.5px; color: #5c5c64; margin-bottom: 3px; }
-  .sign-line { border-bottom: 1px solid #201e1f; height: 34px; }
+  .sign-line { border-bottom: 1px solid #201e1f; min-height: 34px; }
   .sign img, .sign svg { max-height: 34px; }
   .foot { margin-top: 10px; font-size: 8.5px; color: #77777f; text-align: right; }
 </style></head><body>
   <div class="head">
     <div style="width:96px"></div>
     <div class="head-main">
-      <div class="org">ЖЕННЕТЕКС ХХК</div>
-      <div class="doc">Ажилд орохыг хүсэгчийн анкет</div>
+      <div class="org">${esc(d.company || 'ЖЕННЕТЕКС ХХК')}</div>
+      <div class="doc">${esc(d.title || 'Ажилд орохыг хүсэгчийн анкет')}</div>
     </div>
     ${photo
       ? `<img class="photo" src="${esc(photo)}" alt="Зураг"/>`
-      : `<div class="photo-ph">Зураг<br/>байхгүй</div>`}
+      : `<div class="photo-ph">${g.photoAttached ? 'Зураг<br/>хавсаргасан' : '3×4 см<br/>Цээж зураг'}</div>`}
   </div>
 
   ${section(1, 'Ерөнхий мэдээлэл', `<table class="kv">
-    ${row('Овог', g.lastName || app?.last_name)}
-    ${row('Нэр', g.firstName || app?.name)}
-    ${row('Регистрийн дугаар', g.register)}
-    ${row('Төрсөн огноо', g.birthDate)}
-    ${row('Төрсөн газар', g.birthPlace)}
-    ${row('Утас', g.phone || app?.phone)}
+    ${row('Ургийн овог', g.clanName || app?.last_name)}
+    ${row('Эцэг (эх)-ийн нэр', g.fatherName)}
+    ${row('Өөрийн нэр', g.firstName || app?.name)}
+    ${row('Регистрийн дугаар', g.registrationNo)}
+    ${row('Төрсөн огноо', birthDate)}
+    ${row('Төрсөн газар', birthPlace)}
+    ${row('Хүйс', g.gender)}
+    ${row('Яс үндэс', g.ethnicity)}
+    ${row('Цусны бүлэг', g.bloodType)}
+    ${row('Нийгмийн даатгал төлдөг эсэх', g.paysSocialInsurance)}
+    ${row('Гар утас', g.phoneMobile || app?.phone)}
+    ${row('Гэрийн утас', g.phoneHome)}
     ${row('И-мэйл', g.email || app?.email)}
+    ${row('Оршин суух төрөл', g.housingType)}
+    ${row('Жолооны үнэмлэх', driverLicense || 'Байхгүй')}
+    ${row('Хувцас / гутлын размер', [g.clothingSize, g.shoeSize].filter(Boolean).join(' · '))}
     ${row('Оршин суугаа хаяг', g.address)}
-    ${row('Хүсэж буй ажлын байр', d.position || app?.position)}
   </table>`)}
 
-  ${section(2, 'Гэр бүлийн байдал', table(
+  ${section(2, `Гэр бүлийн байдал (гэрлэсэн: ${String(d.family?.married || DASH)})`, table(
     ['Овог нэр', 'Хамаарал', 'Төрсөн он', 'Ажил/сургууль', 'Утас'], family))}
 
   ${section(3, 'Боловсролын байдал', table(
-    ['Байршил', 'Сургууль', 'Элссэн', 'Төгссөн', 'Мэргэжил', 'Зэрэг', 'Гэрчилгээ'], education))}
+    ['Байршил', 'Сургууль', 'Элссэн', 'Төгссөн', 'Мэргэжил', 'Зэрэг', 'Голч'], education))}
 
   ${section(4, 'Ажлын туршлага', table(
-    ['Байгууллага', 'Үйл ажиллагаа', 'Албан тушаал', 'Орсон', 'Гарсан', 'Цалин', 'Шалтгаан'], work))}
+    ['Байгууллага', 'Гүйцэтгэсэн ажил', 'Албан тушаал', 'Орсон', 'Гарсан', 'Цалин', 'Шалтгаан'], work))}
 
   ${section(5, 'Гадаад хэлний мэдлэг', table(
     ['Хэл', 'Сонсох', 'Ярих', 'Унших', 'Бичих'], languages))}
 
-  ${d.message || app?.message
-    ? section(6, 'Нэмэлт тайлбар', `<div style="border:1px solid #d8d8dc;padding:7px 9px;min-height:38px">${val(d.message || app?.message)}</div>`)
+  ${section(6, 'Хувийн онцлог', `<table class="kv">
+    ${row('Давуу тал', d.personal?.strengths)}
+    ${row('Сайжруулах тал', d.personal?.weaknesses)}
+  </table>`)}
+
+  ${section(7, 'Ажилд орох хүсэлт', `<table class="kv">
+    ${row('Сонирхож буй албан тушаал', d.jobInterest?.position || app?.position)}
+    ${row('Хүсэж буй цалин', d.jobInterest?.desiredSalary)}
+  </table>`)}
+
+  ${section(8, 'Яаралтай холбоо барих', table(
+    ['Овог нэр', 'Хэн болох', 'Утас'], emergency))}
+
+  ${note
+    ? section(9, 'Нэмэлт тайлбар', `<div style="border:1px solid #d8d8dc;padding:7px 9px;min-height:38px">${val(note)}</div>`)
     : ''}
 
   <div class="sign">
     <div class="sign-box">
       <div class="sign-label">Анкет бөглөсөн:</div>
-      <div class="sign-line">${sig ? sig : ''}</div>
+      <div class="sign-line">${sig}</div>
       <div class="sign-label" style="margin-top:3px">${esc(name)}</div>
     </div>
     <div class="sign-box">
       <div class="sign-label">Хүлээн авсан:</div>
-      <div class="sign-line">${app?.admin_signature_svg || ''}</div>
+      <div class="sign-line">${adminSig}</div>
       <div class="sign-label" style="margin-top:3px">${val(app?.admin_signed_by_name)}</div>
     </div>
   </div>

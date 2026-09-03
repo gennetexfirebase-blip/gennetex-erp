@@ -5,7 +5,7 @@ import { ScreenHeader, Card, Badge, EmptyState } from '../components/ui';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as appApi from '../services/jobApplicationService';
-import { openApplicationPdf } from '../lib/applicationPdf';
+import { openApplicationPdf, plainMessage } from '../lib/applicationPdf';
 import { accentMap } from '../theme/accents';
 import NativeSignaturePad from '../components/NativeSignaturePad';
 
@@ -119,7 +119,10 @@ export default function AdminApplicationsScreen() {
                 </TouchableOpacity>
               </View>
               {r.position ? <Text style={styles.pos}>{r.position}</Text> : null}
-              {r.message ? <Text style={styles.msg}>{r.message}</Text> : null}
+              {/* Вэб талаас ирсэн анкет нь бүтэн JSON-оо `message` дотор
+                  `[[GENNETEX_FORM]]` тэмдэгийн ард шахаж явуулдаг. Түүхий
+                  утгыг шууд хэвлэхэд картан дээр «код» болж харагдаж байсан. */}
+              {plainMessage(r) ? <Text style={styles.msg}>{plainMessage(r)}</Text> : null}
               <View style={styles.metaRow}>
                 {r.phone ? (
                   <TouchableOpacity onPress={() => Linking.openURL(`tel:${r.phone}`)}>

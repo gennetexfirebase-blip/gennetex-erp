@@ -5,20 +5,29 @@
   <meta name="admin-build-version" content="1.3.10"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ЖЕННЕТЕКС — Admin Panel</title>
-  <link rel="icon" href="/gennetex/admin/logo.png"/>
+  <link rel="icon" id="adminFavicon" href="logo.png"/>
   <script>
-    window.ADMIN_ASSET = function (f) {
-      return (location.pathname.indexOf('/gennetex/admin') >= 0 ? '/gennetex/admin/' : '') + f;
-    };
+    // Энэ панел хоёр замаар үйлчилдэг: `/gennetex/admin/` (React build
+    // байхгүй үед) ба `/gennetex/admin-legacy/`. Өмнө нь base-ийг үргэлж
+    // `/gennetex/admin/` болгодог байсан тул legacy зам дээр дагалдах
+    // скриптүүд (job-application-paper.js г.м) буруу хавтаснаас 404 болж
+    // «job-application-paper.js ачаалагдаагүй» гэж заадаг байв.
     (function () {
+      var m = location.pathname.match(/^(.*\/gennetex\/admin(?:-legacy)?)(?:\/|$)/);
+      window.ADMIN_BASE = m ? m[1] + '/' : '';
+      window.ADMIN_ASSET = function (f) {
+        return window.ADMIN_BASE + String(f == null ? '' : f).replace(/^\/+/, '');
+      };
       var t = localStorage.theme;
       var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.classList.toggle('dark', dark);
       document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-      if (location.pathname.indexOf('/gennetex/admin') >= 0) {
+      if (window.ADMIN_BASE) {
         var base = document.createElement('base');
-        base.href = '/gennetex/admin/';
+        base.href = window.ADMIN_BASE;
         document.head.appendChild(base);
+        var icon = document.getElementById('adminFavicon');
+        if (icon) icon.href = window.ADMIN_ASSET('logo.png');
       }
     })();
   </script>
@@ -1131,7 +1140,7 @@
       showErr('');
       setLoginLoading(true);
       try{
-        const redirectTo=`${location.origin}/gennetex/admin`;
+        const redirectTo=`${location.origin}${window.ADMIN_BASE||'/'}`;
         const { error }=await sb.auth.signInWithOAuth({
           provider:'google',
           options:{redirectTo,queryParams:{prompt:'select_account'}}
