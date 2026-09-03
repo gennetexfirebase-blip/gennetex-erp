@@ -4761,7 +4761,9 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       if(sessRes.error) throw sessRes.error;
       return {
         calls:callsRes.data||[], sessions:sessRes.data||[],
-        // Импортын хүснэгт хараахан үүсээгүй бол тайлан унахгүй.
+        // Импортын хүснэгт хараахан үүсээгүй бол тайлан унахгүй. Гэхдээ
+        // алдааг НУУХГҮЙ — эрхийн (RLS) алдааг «хүснэгт алга» гэж ойлгож
+        // импорт хийсэн мөр яагаад харагдахгүйг олж чадахгүй байсан.
         imported:impRes.error?[]:(impRes.data||[]),
         importError:impRes.error?impRes.error.message:null
       };
@@ -5014,7 +5016,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       });
       const rows=Object.values(byKey).sort((a,b)=>a.work_date.localeCompare(b.work_date));
       if(!rows.length&&!errors.length) errors.push('Хадгалах мөр олдсонгүй.');
-      return {rows,errors,skipped};
+      return {rows,errors,skipped,idx};
     }
     function wpUuid(){
       if(window.crypto&&crypto.randomUUID) return crypto.randomUUID();
@@ -5050,12 +5052,26 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         const errs=parsed.errors.length
           ? `<p class="muted" style="margin-top:12px;color:#b45309"><b>Алгассан ${parsed.skipped} мөр:</b><br>${parsed.errors.slice(0,8).map(wpEsc).join('<br>')}</p>`
           : '';
+        // Тайлан нь айл · байгууллага · хугацаагаар нэгтгэдэг. Гурвуулаа 0
+        // мөр хадгалагдсан ч тайланд ХАРАГДАХГҮЙ — өмнө нь чимээгүй алга
+        // болдог байсан тул хэрэглэгч «импорт хийсэн ч гарахгүй» гэж үздэг.
+        const zeroRows=parsed.rows.filter(r=>!r.ail_count&&!r.baiguulga_count&&!r.duration_minutes).length;
+        const missingCols=[
+          parsed.idx.ail_count<0&&'Айл',
+          parsed.idx.baiguulga_count<0&&'Байгууллага',
+          parsed.idx.duration_minutes<0&&'Хугацаа (мин)'
+        ].filter(Boolean);
+        const zeroWarn=zeroRows
+          ? `<p style="margin-top:12px;color:#d92d20;font-size:13px"><b>Анхаар:</b> ${zeroRows} мөрд айл · байгууллага · хугацаа гурвуулаа 0 байна — тайланд харагдахгүй.${
+              missingCols.length?` Файлд <b>${wpEsc(missingCols.join(', '))}</b> багана олдсонгүй. Багануудыг «Загвар»-тай ижил нэрлэнэ үү.`:''}</p>`
+          : '';
         openModal('Импортлох уу?',`
           <p style="margin:0 0 8px"><b>${wpEsc(file.name)}</b> — хуудас "${wpEsc(name)}" · <b>${parsed.rows.length}</b> мөр</p>
           <div style="max-height:320px;overflow:auto"><table>
             <thead><tr><th>Огноо</th><th>Баг</th><th>Гишүүд</th><th>Айл</th><th>Байг.</th><th>Мин</th></tr></thead>
             <tbody>${preview}</tbody></table></div>
           ${parsed.rows.length>10?'<p class="muted" style="margin-top:8px">… эхний 10 мөрийг харууллаа</p>':''}
+          ${zeroWarn}
           ${errs}
           <p class="muted" style="margin-top:12px">Нэг өдөр · нэг багийн хуучин мөр байвал <b>дарагдана</b> (давхардахгүй).</p>
         `,'Импортлох',wpDoImport,{wide:true});
@@ -5072,7 +5088,18 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         const {data,error}=await sb.from('team_performance_entries')
           .upsert(payload,{onConflict:'work_date,team_name'}).select('id');
         if(error) throw error;
-        toast((data?data.length:payload.length)+' мөр хадгалагдлаа');
+        // Хадгалагдсан мөр нь дэлгэц дээрх мужид байхгүй бол «оруулсан
+        // мөр алга» гэж харагддаг байсан — шүүлтийг мөрүүд рүү нь аваачна.
+        const days=payload.map(r=>r.work_date).sort();
+        const r=wpRangeDates();
+        const outside=days[0]<r.from||days[days.length-1]>r.to;
+        if(outside){
+          wpMode='month';
+          wpAnchor=days[days.length-1].slice(0,7);
+          toast(payload.length+' мөр хадгалагдлаа — '+wpAnchor+' руу шилжлээ');
+        } else {
+          toast((data?data.length:payload.length)+' мөр хадгалагдлаа');
+        }
         wpPending=null;
         wpData=null;
         render();
@@ -5204,7 +5231,11 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const warn=wpError
         ? `<p style="margin:8px 0 0;color:#d92d20;font-size:13px">Алдаа: ${wpEsc(wpError)}</p>`
         : (d.importError
-          ? `<p style="margin:8px 0 0;color:#b45309;font-size:13px">Импортын хүснэгт бэлэн биш — <b>20260821090000_team_performance.sql</b> ажиллуулна уу.</p>`
+          ? `<p style="margin:8px 0 0;color:#b45309;font-size:13px">${
+              /does not exist|schema cache|find the table/i.test(d.importError)
+                ? 'Импортын хүснэгт бэлэн биш — <b>20260821090000_team_performance.sql</b> ажиллуулна уу.'
+                : 'Импортын мөрийг уншиж чадсангүй: '+wpEsc(d.importError)
+            }</p>`
           : '');
 
       c.innerHTML=`
