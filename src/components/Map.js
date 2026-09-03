@@ -61,6 +61,17 @@ export function Circle() {
 Circle.displayName = 'Map.Circle';
 
 /**
+ * Замнал — байршлын түүхийн шугам.
+ *
+ * `react-native-maps`-ийн `Polyline`-тай нийцтэй: `coordinates` массив
+ * ба `strokeColor`. Өөрөө юу ч зурахгүй — props нь WebView руу очно.
+ */
+export function Polyline() {
+  return null;
+}
+Polyline.displayName = 'Map.Polyline';
+
+/**
  * Гүн давхаргатай children-ээс Marker/Circle-ийг цуглуулна.
  *
  * Дуудагч кодууд ихэвчлэн `<>{...}</>` fragment болон массив хольж
@@ -73,6 +84,8 @@ function collect(children, out) {
       out.markers.push(child.props);
     } else if (child.type === Circle) {
       out.circles.push(child.props);
+    } else if (child.type === Polyline) {
+      out.paths.push(child.props);
     } else if (child.props?.children) {
       collect(child.props.children, out);
     }
@@ -108,6 +121,17 @@ function normalizeCircles(list) {
   }));
 }
 
+function normalizePaths(list) {
+  return list.map((p) => ({
+    coords: (p.coordinates || []).map((c) => ({
+      latitude: c.latitude ?? null,
+      longitude: c.longitude ?? null,
+    })),
+    color: p.strokeColor ?? null,
+    weight: p.strokeWidth ?? null,
+  }));
+}
+
 const MapView = forwardRef(function MapView(
   {
     style,
@@ -137,14 +161,19 @@ const MapView = forwardRef(function MapView(
     [scrollEnabled, zoomEnabled, dark]
   );
 
-  const { markers, circles } = useMemo(
-    () => collect(children, { markers: [], circles: [] }),
+  const { markers, circles, paths } = useMemo(
+    () => collect(children, { markers: [], circles: [], paths: [] }),
     [children]
   );
 
   const payload = useMemo(
-    () => JSON.stringify({ markers: normalizeMarkers(markers), circles: normalizeCircles(circles) }),
-    [markers, circles]
+    () =>
+      JSON.stringify({
+        markers: normalizeMarkers(markers),
+        circles: normalizeCircles(circles),
+        paths: normalizePaths(paths),
+      }),
+    [markers, circles, paths]
   );
 
   // Marker/Circle өөрчлөгдөх бүрд төлөвийг WebView руу илгээнэ.
@@ -239,6 +268,7 @@ const MapView = forwardRef(function MapView(
   );
 });
 
+export { MapView };
 export default MapView;
 
 const styles = StyleSheet.create({

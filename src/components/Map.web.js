@@ -19,6 +19,10 @@ export function Circle() {
   return null;
 }
 
+export function Polyline() {
+  return null;
+}
+
 const MapView = React.forwardRef(function MapView({ children, style }, ref) {
   const styles = useStyles(makeStyles);
   React.useImperativeHandle(ref, () => ({

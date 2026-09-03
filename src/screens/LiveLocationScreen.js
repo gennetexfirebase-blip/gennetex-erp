@@ -24,8 +24,11 @@ import {
   Image,
   Modal,
   Pressable,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from '../components/Map';
+import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from '../components/Map';
 import { Badge, ScreenHeader, EmptyState } from '../components/ui';
 import { useApp } from '../context/AppContext';
 import { CALL_TYPES } from '../data/mockData';
@@ -183,6 +186,50 @@ export default function LiveLocationScreen() {
     )[0];
   }, [located, selectedId]);
 
+  /**
+   * Сонгосон ажилтны ТУХАЙН ӨДРИЙН замнал.
+   *
+   * ⚠️ Апп хаалттай үед offline queue-д хуримтлагдаад дараа нь
+   *    илгээгдсэн бүх цэг `location_logs`-д ирдэг тул энэ замнал нь
+   *    тасалдалтай хугацааг ч дүүрэн харуулна — "app haaltai uyd
+   *    ilgeegdsen buh loc"-ийг газрын зурагт зурна.
+   */
+  const [showTrack, setShowTrack] = useState(false);
+  const [track, setTrack] = useState([]);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackDate] = useState(() => {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  });
+
+  useEffect(() => {
+    if (!showTrack || !selected?.id) {
+      setTrack([]);
+      return;
+    }
+    let alive = true;
+    setTrackLoading(true);
+    tracking
+      .fetchDayTrack(selected.id, trackDate)
+      .then((pts) => {
+        if (!alive) return;
+        setTrack(pts);
+        // Замнал бүхэлдээ багтахаар зургийг тохируулна.
+        if (pts.length > 1) {
+          mapRef.current?.fitToCoordinates?.(
+            pts.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+            { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 } }
+          );
+        }
+      })
+      .catch(() => alive && setTrack([]))
+      .finally(() => alive && setTrackLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [showTrack, selected?.id, trackDate]);
+
   const focusOn = (w, delta = 0.008) => {
     if (!w?.latitude) return;
     mapRef.current?.animateToRegion?.(
@@ -317,6 +364,15 @@ export default function LiveLocationScreen() {
               initialRegion={UB_REGION}
               showsUserLocation
             >
+              {/* Замнал — маркерын доор зурагдахын тулд эхэнд байрлана. */}
+              {showTrack && track.length > 1 ? (
+                <Polyline
+                  coordinates={track.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
+                  strokeColor={selected?.isMe ? '#0099DB' : '#7A5AF8'}
+                  strokeWidth={4}
+                />
+              ) : null}
+
               {located.map((w) => (
                 <WorkerMarker
                   key={w.id}
@@ -328,6 +384,34 @@ export default function LiveLocationScreen() {
                 />
               ))}
             </MapView>
+
+            {/* ── Өдрийн замнал харах товч ─────────────────────────── */}
+            {selected ? (
+              <TouchableOpacity
+                style={[styles.trackBtn, showTrack && styles.trackBtnOn]}
+                onPress={() => setShowTrack((v) => !v)}
+                activeOpacity={0.85}
+              >
+                {trackLoading ? (
+                  <ActivityIndicator size="small" color={showTrack ? '#fff' : colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="git-branch-outline"
+                      size={15}
+                      color={showTrack ? '#fff' : colors.primary}
+                    />
+                    <Text style={[styles.trackBtnText, showTrack && { color: '#fff' }]}>
+                      {showTrack
+                        ? track.length
+                          ? `Өнөөдрийн зам (${track.length})`
+                          : 'Өнөөдөр зам алга'
+                        : 'Өнөөдрийн зам'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : null}
 
             {/* Зураг дээр хөвөх "одоогийн байршил" карт */}
             {selected ? (
@@ -542,6 +626,25 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   floatTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   floatSub: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
   locBtn: { alignItems: 'center', paddingHorizontal: spacing.xs },
+
+  trackBtn: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 34,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
+  },
+  trackBtnOn: { backgroundColor: '#7A5AF8', borderColor: '#7A5AF8' },
+  trackBtnText: { color: colors.primary, fontSize: 12.5, fontWeight: '700' },
   locBtnIcon: { color: colors.primary, fontSize: 17, transform: [{ rotate: '-45deg' }] },
   locBtnText: { color: colors.primary, fontSize: 11, fontWeight: '700', marginTop: 2 },
 

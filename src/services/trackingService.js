@@ -98,3 +98,38 @@ export function subscribeWorkers(onChange) {
     .subscribe();
   return () => supabase.removeChannel(channel);
 }
+
+/**
+ * Нэг ажилтны ТУХАЙН ӨДРИЙН бүх байршил — замнал зурах, Excel-д гаргах.
+ *
+ * ⚠️ Апп хаалттай үед offline queue-д хуримтлагдаад дараа нь илгээгдсэн
+ *    цэгүүд ч энд орно (`location_logs`-д бичигддэг тул) — тиймээс энэ
+ *    нь тасалдалтай хугацааг ч дүүрэн харуулна.
+ *
+ * @param {string} userId
+ * @param {string} [dateISO] `YYYY-MM-DD` (өгөхгүй бол өнөөдөр). Орон
+ *   нутгийн өдрөөр шүүнэ — ажилтан "өнөөдөр хаана явсан" гэдгийг
+ *   утасныхаа цагаар ойлгодог.
+ * @returns {Promise<Array<{ latitude, longitude, speed, recorded_at }>>}
+ */
+export async function fetchDayTrack(userId, dateISO) {
+  if (!userId) return [];
+
+  const base = dateISO ? new Date(dateISO + 'T00:00:00') : new Date();
+  const start = new Date(base);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(base);
+  end.setHours(23, 59, 59, 999);
+
+  const { data, error } = await supabase
+    .from('location_logs')
+    .select('latitude, longitude, speed, recorded_at')
+    .eq('user_id', userId)
+    .gte('recorded_at', start.toISOString())
+    .lte('recorded_at', end.toISOString())
+    // Замнал он цагийн дарааллаар зурагдана — эс бөгөөс шугам эргэлдэнэ.
+    .order('recorded_at', { ascending: true })
+    .limit(5000);
+  if (error) throw error;
+  return (data || []).filter((p) => p.latitude != null && p.longitude != null);
+}

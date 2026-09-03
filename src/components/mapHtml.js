@@ -120,6 +120,8 @@ ${ESCAPE_FN}
 
   var markerLayer = L.layerGroup().addTo(map);
   var circleLayer = L.layerGroup().addTo(map);
+  // Замнал (өдрийн байршлын түүх) — маркерын ДООР зурагдана.
+  var pathLayer = L.layerGroup().addTo(map);
 
   function iconFor(m) {
     if (m.avatarUri || m.avatarName) {
@@ -153,6 +155,44 @@ ${ESCAPE_FN}
   window.__mapSet = function (state) {
     markerLayer.clearLayers();
     circleLayer.clearLayers();
+    pathLayer.clearLayers();
+
+    /**
+     * Замнал — байршлын түүхийн шугам ба цэгүүд.
+     *
+     * Апп хаалттай үед offline queue-д хуримтлагдаад дараа нь
+     * илгээгдсэн цэгүүд location_logs-д ирдэг тул энэ шугам нь
+     * тасалдалтай хугацааг ч дүүрэн харуулна.
+     */
+    (state.paths || []).forEach(function (p) {
+      var pts = (p.coords || [])
+        .filter(function (c) { return c && c.latitude != null; })
+        .map(function (c) { return [c.latitude, c.longitude]; });
+      if (pts.length < 1) return;
+
+      if (pts.length >= 2) {
+        L.polyline(pts, {
+          color: p.color || '#0099DB',
+          weight: p.weight || 4,
+          opacity: 0.85,
+          interactive: false,
+        }).addTo(pathLayer);
+      }
+
+      // Цэг бүрийг жижиг тойргоор тэмдэглэнэ — хаана зогссон нь харагдана.
+      pts.forEach(function (pt, idx) {
+        var isEnd = idx === pts.length - 1;
+        var isStart = idx === 0;
+        L.circleMarker(pt, {
+          radius: isStart || isEnd ? 5 : 3,
+          color: isEnd ? '#EF5B5B' : isStart ? '#3FCF8E' : (p.color || '#0099DB'),
+          weight: 2,
+          fillColor: '#fff',
+          fillOpacity: 1,
+          interactive: false,
+        }).addTo(pathLayer);
+      });
+    });
 
     (state.circles || []).forEach(function (c) {
       if (c.latitude == null) return;
