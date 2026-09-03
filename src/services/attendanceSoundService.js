@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 // Ирц амжилттай бүртгэгдсэн үед тоглох дуу хоолой — "амжилттай гэсэн бичвэрийн
 // оронд" (алдаа/pending үед хэвээр Alert ашиглана, зөвхөн шууд амжилттай
@@ -13,13 +13,19 @@ const ZONE_EXIT_SOUND = require('../../assets/sounds/zone_exit.mp3');
 
 async function playSound(asset) {
   try {
-    await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-    const { sound } = await Audio.Sound.createAsync(asset, { shouldPlay: true, volume: 1 });
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.didJustFinish) {
-        sound.unloadAsync().catch(() => {});
-      }
+    await setAudioModeAsync({ playsInSilentMode: true });
+    const player = createAudioPlayer(asset);
+    player.volume = 1;
+    // Дуусмагц натив player-ийг суллана — expo-audio нь өөрөө цэвэрлэдэггүй.
+    let released = false;
+    player.addListener('playbackStatusUpdate', (status) => {
+      if (!status?.didJustFinish || released) return;
+      released = true;
+      try {
+        player.remove();
+      } catch (e) {}
     });
+    player.play();
   } catch (e) {
     // Дуу тоглуулж чадаагүй ч ирц бүртгэл өөрөө амжилттай хэвээр — алгасна.
   }

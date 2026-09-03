@@ -9,13 +9,13 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
 
 /** Одоо тоглож буй дуу — модуль түвшинд, бүх бөмбөлөгт нийтлэг. */
-let currentSound = null;
+let currentPlayer = null;
 let currentStop = null;
 
 const BARS = [8, 14, 20, 12, 18, 24, 10, 16, 22, 12, 18, 9, 15, 21, 11];
@@ -38,7 +38,9 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
   useEffect(() => () => {
     // Дэлгэцээс гарахад дуугаа заавал суллана.
     if (soundRef.current) {
-      soundRef.current.unloadAsync().catch(() => {});
+      try {
+        soundRef.current.remove();
+      } catch (e) {}
       soundRef.current = null;
     }
   }, []);
@@ -46,15 +48,16 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
   const stop = async () => {
     setPlaying(false);
     setProgress(0);
-    if (soundRef.current) {
+    const player = soundRef.current;
+    soundRef.current = null;
+    if (player) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        player.pause();
+        player.remove();
       } catch (e) {}
-      soundRef.current = null;
     }
-    if (currentSound === soundRef.current) {
-      currentSound = null;
+    if (currentPlayer === player) {
+      currentPlayer = null;
       currentStop = null;
     }
   };
@@ -71,18 +74,20 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
       } catch (e) {}
     }
     try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
-      soundRef.current = sound;
-      currentSound = sound;
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      const player = createAudioPlayer({ uri });
+      soundRef.current = player;
+      currentPlayer = player;
       currentStop = stop;
       setPlaying(true);
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
-        if (status.durationMillis) setTotal(status.durationMillis);
-        setProgress(status.positionMillis || 0);
+      // expo-audio нь секундээр хэмждэг — UI нь миллисекунд хүлээдэг.
+      player.addListener('playbackStatusUpdate', (status) => {
+        if (!status?.isLoaded) return;
+        if (status.duration) setTotal(Math.round(status.duration * 1000));
+        setProgress(Math.round((status.currentTime || 0) * 1000));
         if (status.didJustFinish) stop();
       });
+      player.play();
     } catch (e) {
       setPlaying(false);
     }

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,24 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { spacing } from '../theme';
 
 export default function ChatVideoPreview({ uri, onClose }) {
-  const videoRef = useRef(null);
   const [loading, setLoading] = useState(true);
+  // ⚠️ Hook-ууд эрт буцаахаас ӨМНӨ дуудагдана — эс тэгвээс дараалал эвдэрнэ.
+  const player = useVideoPlayer(uri ? { uri } : null, (p) => {
+    p.loop = false;
+    p.play();
+  });
+
+  useEffect(() => {
+    if (!player) return undefined;
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay' || status === 'error') setLoading(false);
+    });
+    return () => sub?.remove?.();
+  }, [player]);
 
   if (!uri) return null;
 
@@ -29,15 +41,12 @@ export default function ChatVideoPreview({ uri, onClose }) {
         </SafeAreaView>
         <View style={styles.body}>
           {loading ? <ActivityIndicator size="large" color="#fff" style={styles.loader} /> : null}
-          <Video
-            ref={videoRef}
-            source={{ uri }}
+          <VideoView
+            player={player}
             style={styles.video}
-            resizeMode={ResizeMode.CONTAIN}
-            useNativeControls
-            shouldPlay
-            onLoad={() => setLoading(false)}
-            onError={() => setLoading(false)}
+            contentFit="contain"
+            nativeControls
+            allowsFullscreen
           />
         </View>
       </View>

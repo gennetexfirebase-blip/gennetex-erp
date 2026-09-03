@@ -8,9 +8,8 @@
  *    энэ нь ДУУГ өөрийг нь дуут мессеж болгож илгээнэ. Хоёулаа зэрэг
  *    байна — хэрэглэгч аль хэрэгтэйг нь сонгоно.
  *
- * ЯАГААД `expo-av` ВЭ: төсөлд аль хэдийн суусан (дуудлагын хонхонд
- * ашиглаж байгаа). `expo-audio` руу шилжихэд native дахин build хийх
- * шаардлагатай тул одоохондоо үүнийг ашиглав.
+ * АУДИО: `expo-audio` — SDK 57-д `expo-av` бүрмөсөн хасагдсан тул
+ * бичлэгийг `useAudioRecorder` дээр хийнэ.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -24,7 +23,12 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
@@ -49,7 +53,9 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
   const [willCancel, setWillCancel] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
-  const recRef = useRef(null);
+  // expo-audio-д бичигч нь тогтмол объект — идэвхтэй эсэхийг өөрсдөө хөтөлнө.
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recActiveRef = useRef(false);
   const startedAt = useRef(0);
   const timerRef = useRef(null);
   const cancelRef = useRef(false);
@@ -80,34 +86,32 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
   /** Бичлэгийг зогсоож, файлын замыг буцаана (эсвэл null). */
   const finishRecording = async () => {
     stopTimer();
-    const rec = recRef.current;
-    recRef.current = null;
-    if (!rec) return null;
+    if (!recActiveRef.current) return null;
+    recActiveRef.current = false;
     try {
-      await rec.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-      return rec.getURI();
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      return recorder.uri;
     } catch (e) {
       return null;
     }
   };
 
   const start = async () => {
-    if (disabled || busyRef.current || recRef.current) return;
+    if (disabled || busyRef.current || recActiveRef.current) return;
     busyRef.current = true;
     cancelRef.current = false;
     setWillCancel(false);
     try {
-      const perm = await Audio.requestPermissionsAsync();
+      const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
         busyRef.current = false;
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording: rec } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recRef.current = rec;
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      recActiveRef.current = true;
       startedAt.current = Date.now();
       setElapsed(0);
       setRecording(true);
@@ -116,14 +120,14 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
       } catch {}
       timerRef.current = setInterval(() => setElapsed(Date.now() - startedAt.current), 200);
     } catch (e) {
-      recRef.current = null;
+      recActiveRef.current = false;
     } finally {
       busyRef.current = false;
     }
   };
 
   const stop = async () => {
-    if (!recRef.current) {
+    if (!recActiveRef.current) {
       setRecording(false);
       return;
     }

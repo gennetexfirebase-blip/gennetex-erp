@@ -1,8 +1,8 @@
 import { Vibration, Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Speech from 'expo-speech';
 
-let sound = null;
+let player = null;
 let ttsTimer = null;
 let vibeTimer = null;
 
@@ -38,28 +38,30 @@ function stopVibration() {
 export async function startIncomingCallAlert(callerName) {
   await stopIncomingCallAlert();
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: false,
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'doNotMix',
+      interruptionModeAndroid: 'doNotMix',
     });
-    try {
-      const { sound: s } = await Audio.Sound.createAsync(RINGTONE_ASSET, {
-        isLooping: true,
-        volume: 1,
-        shouldPlay: true,
-      });
-      sound = s;
-      await sound.playAsync();
-    } catch (assetErr) {
-      // Багцлагдсан файл ачаалахад алдаа гарвал онлайн ringtone
-      const { sound: s } = await Audio.Sound.createAsync(
-        { uri: RINGTONE_FALLBACK_URI },
-        { isLooping: true, volume: 1, shouldPlay: true }
-      );
-      sound = s;
-      await sound.playAsync();
-    }
+    const p = createAudioPlayer(RINGTONE_ASSET);
+    p.loop = true;
+    p.volume = 1;
+    // expo-audio-д ачаалалт асинхрон тул алдаа нь зөвхөн статусаар мэдэгддэг:
+    // багцлагдсан файл уншигдаагүй бол онлайн ringtone руу шилжинэ.
+    let switched = false;
+    p.addListener('playbackStatusUpdate', (status) => {
+      if (!status?.error || switched) return;
+      switched = true;
+      try {
+        p.replace({ uri: RINGTONE_FALLBACK_URI });
+        p.loop = true;
+        p.volume = 1;
+        p.play();
+      } catch (e) {}
+    });
+    player = p;
+    p.play();
   } catch (e) {
     // Ringtone алдаа — TTS + чичиргээ л үлдэнэ
   }
@@ -75,11 +77,11 @@ export async function stopIncomingCallAlert() {
   }
   Speech.stop();
   stopVibration();
-  if (sound) {
+  if (player) {
     try {
-      await sound.stopAsync();
-      await sound.unloadAsync();
+      player.pause();
+      player.remove();
     } catch (e) {}
-    sound = null;
+    player = null;
   }
 }

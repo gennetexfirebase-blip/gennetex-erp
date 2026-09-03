@@ -262,6 +262,13 @@
           "configureAndroidBackup": true
         }
       ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Дуут мессеж бичихэд микрофон ашиглана."
+        }
+      ],
+      "expo-video",
       "expo-web-browser",
       "expo-dev-client",
       [
