@@ -4771,7 +4771,9 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const teamKey=keyOverride||wpTeamKey(members);
       const k=dayK+'|'+teamKey;
       if(!map[k]) map[k]={key:k,dayKey:dayK,teamKey,members:[...members],teamLabel:wpTeamLabel(members),
-        ail:0,baiguulga:0,calls:0,sessions:0,onSiteMs:0,leadMs:0,importedMs:0,sources:[]};
+        ail:0,baiguulga:0,calls:0,sessions:0,onSiteMs:0,leadMs:0,importedMs:0,sources:[],
+        // Excel-ээр орж ирсэн мөрүүдийн id — зөвхөн эдгээрийг устгаж болно.
+        importIds:[]};
       const row=map[k];
       members.forEach(m=>{ if(m&&!row.members.some(x=>x.toLowerCase()===m.toLowerCase())) row.members.push(m); });
       row.teamLabel=wpTeamLabel(row.members);
@@ -4813,6 +4815,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         row.ail+=Number(e.ail_count)||0;
         row.baiguulga+=Number(e.baiguulga_count)||0;
         row.importedMs+=(Number(e.duration_minutes)||0)*60000;
+        if(e.id) row.importIds.push(e.id);
       });
       return Object.values(map)
         .map(r=>Object.assign({},r,{durationMs:wpDurationMs(r),durationSource:wpDurationSource(r)}))
@@ -4833,9 +4836,10 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     function wpGroupByTeam(rows){
       const map={};
       rows.forEach(r=>{
-        if(!map[r.teamKey]) map[r.teamKey]={teamKey:r.teamKey,teamLabel:r.teamLabel,members:[...r.members],days:0,ail:0,baiguulga:0,durationMs:0,lastDay:r.dayKey};
+        if(!map[r.teamKey]) map[r.teamKey]={teamKey:r.teamKey,teamLabel:r.teamLabel,members:[...r.members],days:0,ail:0,baiguulga:0,durationMs:0,lastDay:r.dayKey,importIds:[]};
         const t=map[r.teamKey];
         t.days+=1; t.ail+=r.ail; t.baiguulga+=r.baiguulga; t.durationMs+=r.durationMs;
+        t.importIds=t.importIds.concat(r.importIds||[]);
         if(r.dayKey>t.lastDay) t.lastDay=r.dayKey;
         if(r.teamLabel.length>t.teamLabel.length) t.teamLabel=r.teamLabel;
       });
@@ -5095,6 +5099,23 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         filename:'ajilchdyn_guitsetgel',sheets:wpBuildSheets(wpData),charts:wpBuildCharts(wpData)});
     };
     window.wpRefresh=()=>{ wpData=null; render(); };
+    /**
+     * Excel-ээр оруулсан мөрийг устгана.
+     *
+     * Тайлангийн тоо хоёр эх сурвалжтай: `service_calls`/`field_site_sessions`
+     * (систем өөрөө тооцно) ба `team_performance_entries` (Excel импорт).
+     * Системийн тоог энд устгаж болохгүй — эх бүртгэл нь өөр модульд байна.
+     * Тиймээс зөвхөн импортын мөрүүдийг л устгана.
+     */
+    window.wpDeleteEntries=async(ids,label)=>{
+      const list=String(ids||'').split(',').map(x=>x.trim()).filter(Boolean);
+      if(!list.length){ toast('Энэ мөр системийн бүртгэлээс тооцогдсон — устгах боломжгүй'); return; }
+      if(!confirm((label||'Энэ мөр')+' — Excel-ээр оруулсан '+list.length+' бүртгэлийг устгах уу?')) return;
+      const {error}=await sb.from('team_performance_entries').delete().in('id',list);
+      if(error){ toast('Алдаа: '+error.message); return; }
+      toast(list.length+' бүртгэл устлаа');
+      wpData=null; render();
+    };
     window.setWorkPerfMode=k=>{
       wpAnchor=wpNormalizeAnchor(k,wpAnchor);
       wpMode=k;
@@ -5149,24 +5170,35 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const periodRows=wpMode==='year'?(d.months||[]):(d.days||[]);
       const periodLabel=wpMode==='year'?'Сараар':'Өдрөөр';
 
+      // Устгах товч — зөвхөн Excel-ээр оруулсан мөрөнд идэвхтэй.
+      const delCell=(ids,label)=>{
+        const list=(ids||[]).filter(Boolean);
+        if(!list.length) return `<td class=muted title="Системийн бүртгэлээс тооцогдсон — устгах боломжгүй">—</td>`;
+        return `<td><button class="btn btn-ghost btn-sm" title="Excel-ээр оруулсан ${list.length} бүртгэлийг устгах"
+          onclick="wpDeleteEntries('${list.join(',')}',${JSON.stringify(String(label||'')).replace(/"/g,'&quot;')})">
+          <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle">delete</span></button></td>`;
+      };
+
       let head,body,colCount;
       if(wpTab==='teams'){
-        head=['Баг','Гишүүд','Ажилласан өдөр','Айл','Байгууллага','Өдөрт дундаж айл','Нийт хугацаа','1 айлын дундаж','Сүүлд'];
+        head=['Баг','Гишүүд','Ажилласан өдөр','Айл','Байгууллага','Өдөрт дундаж айл','Нийт хугацаа','1 айлын дундаж','Сүүлд','Устгах'];
         colCount=head.length;
         body=d.teams.map(t=>`<tr><td><b>${wpEsc(t.teamLabel)}</b></td><td class=muted>${wpEsc(t.members.join(', '))}</td>
           <td>${t.days}</td><td><b>${t.ail}</b></td><td>${t.baiguulga}</td><td><b>${wpOne(t.ailPerDay)}</b></td>
-          <td class=muted>${wpDur(t.durationMs)}</td><td class=muted>${wpDur(t.msPerAil)}</td><td class=muted>${t.lastDay}</td></tr>`).join('');
+          <td class=muted>${wpDur(t.durationMs)}</td><td class=muted>${wpDur(t.msPerAil)}</td><td class=muted>${t.lastDay}</td>
+          ${delCell(t.importIds,t.teamLabel)}</tr>`).join('');
       } else if(wpTab==='days'){
         head=[wpMode==='year'?'Сар':'Огноо','Идэвхтэй баг','Ажилласан өдөр','Айл','Байгууллага','1 баг өдөрт айл','Нийт хугацаа'];
         colCount=head.length;
         body=periodRows.map(x=>`<tr><td><b>${wpEsc(x.label)}</b></td><td>${x.teams}</td><td>${x.days}</td><td><b>${x.ail}</b></td>
           <td>${x.baiguulga}</td><td><b>${wpOne(x.ailPerTeam)}</b></td><td class=muted>${wpDur(x.durationMs)}</td></tr>`).join('');
       } else {
-        head=['Огноо','Баг','Гишүүд','Айл','Байгууллага','Дуудлага','Ажлын байр','Хугацаа','Эх сурвалж'];
+        head=['Огноо','Баг','Гишүүд','Айл','Байгууллага','Дуудлага','Ажлын байр','Хугацаа','Эх сурвалж','Устгах'];
         colCount=head.length;
         body=d.rows.map(x=>`<tr><td>${x.dayKey}</td><td><b>${wpEsc(x.teamLabel)}</b></td><td class=muted>${wpEsc(x.members.join(', '))}</td>
           <td><b>${x.ail}</b></td><td>${x.baiguulga}</td><td>${x.calls}</td><td>${x.sessions}</td>
-          <td class=muted>${wpDur(x.durationMs)}</td><td class=muted>${wpEsc(x.durationSource)}</td></tr>`).join('');
+          <td class=muted>${wpDur(x.durationMs)}</td><td class=muted>${wpEsc(x.durationSource)}</td>
+          ${delCell(x.importIds,x.dayKey+' · '+x.teamLabel)}</tr>`).join('');
       }
 
       const warn=wpError
