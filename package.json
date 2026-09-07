@@ -23,6 +23,7 @@
   "dependencies": {
     "@config-plugins/react-native-callkeep": "^14.0.1",
     "@config-plugins/react-native-webrtc": "^15.0.1",
+    "@expo/vector-icons": "^15.0.2",
     "@infinitered/react-native-mlkit-face-detection": "^5.0.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
