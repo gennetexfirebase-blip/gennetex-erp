@@ -17,10 +17,9 @@ export default function HomePage() {
 
   return (
     <>
-      <header className="relative min-h-screen overflow-hidden">
+      <header className="relative overflow-hidden">
         <HeroBackground />
-        <div className="pointer-events-none fixed inset-0 z-[1] backdrop-blur-xl bottom-blur-mask" aria-hidden />
-        <div className="relative z-10 flex min-h-screen flex-col">
+        <div className="relative z-10 flex flex-col">
           <HeroSection />
         </div>
       </header>

@@ -262,6 +262,18 @@ export async function fetchTrips(limit = 30) {
   return data || [];
 }
 
+/** Include currently active trips even when they predate the recent history window. */
+export async function fetchVehicleCheckouts(limit = 300) {
+  const [recent, active] = await Promise.all([
+    fetchTrips(limit),
+    supabase.from('trips').select('*').eq('status', 'active').order('started_at', { ascending: false }),
+  ]);
+  if (active.error) throw active.error;
+  const combined = new Map(recent.map((trip) => [trip.id, trip]));
+  (active.data || []).forEach((trip) => combined.set(trip.id, trip));
+  return Array.from(combined.values()).sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
+}
+
 export async function fetchMyTrips(userId, limit = 50) {
   const { data, error } = await supabase
     .from('trips')

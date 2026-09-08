@@ -51,3 +51,6 @@ credentials/
 admin-web-react/node_modules/
 admin-web-react/dist/
 admin-web-react/tsconfig.tsbuildinfo
+
+# Local verification fixtures, screenshots, exports and temporary databases.
+/tmp/

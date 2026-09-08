@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   INITIAL_INVENTORY,
@@ -50,6 +51,10 @@ export function AppProvider({ children }) {
   // Ажилтан ажил дээрээ байгаа эсэх (ирснээс хойш явах хүртэл).
   // Байршил хянах нь ЗӨВХӨН энэ хугацаанд ажиллана.
   const [onShift, setOnShift] = useState(false);
+  const [shiftStatusReady, setShiftStatusReady] = useState(false);
+  const [confirmedShiftUser, setConfirmedShiftUser] = useState(null);
+  const shiftOwner = useRef(null);
+  shiftOwner.current = authProfile?.id;
   const [shiftStatus, setShiftStatus] = useState({
     checkedIn: false,
     checkedOut: false,
@@ -262,14 +267,27 @@ export function AppProvider({ children }) {
     const uid = authProfile?.id;
     if (!isSupabaseConfigured || !uid) {
       setOnShift(false);
+      setShiftStatusReady(false);
       setShiftStatus({ checkedIn: false, checkedOut: false, onShift: false });
       return;
     }
     try {
-      const st = await shiftApi.fetchTodayStatus(uid);
+      const [st, session] = await Promise.all([shiftApi.fetchTodayStatus(uid), shiftApi.fetchActiveWorkSession(uid)]);
+      if (shiftOwner.current !== uid) return;
       setShiftStatus(st);
-      setOnShift(st.onShift);
+      setOnShift(!!session);
+      setShiftStatusReady(true);
+      setConfirmedShiftUser(uid);
     } catch (e) {
+      const saved = await AsyncStorage.getItem('@bg_location_user').catch(() => null);
+      try {
+        const session = saved ? JSON.parse(saved) : null;
+        if (shiftOwner.current === uid && session?.id === uid && session.expiresAt > Date.now()) {
+          setOnShift(true);
+          setShiftStatusReady(true);
+          setConfirmedShiftUser(uid);
+        }
+      } catch { /* Keep the last confirmed state if the saved record is unreadable. */ }
       // Сүлжээгүй үед өмнөх төлвийг хэвээр үлдээнэ — хяналтыг санамсаргүй
       // унтраах нь мэдээлэл алдагдуулна.
     }
@@ -278,6 +296,9 @@ export function AppProvider({ children }) {
   // Нэвтэрсэн/өдөр солигдоход төлвийг шинэчилнэ
   useEffect(() => {
     refreshShiftStatus();
+    const timer = setInterval(refreshShiftStatus, 60000);
+    const sub = AppState.addEventListener('change', state => { if (state === 'active') refreshShiftStatus(); });
+    return () => { clearInterval(timer); sub.remove(); };
   }, [refreshShiftStatus]);
 
   const fetchEmployees = async () => authApi.fetchEmployees();
@@ -610,6 +631,7 @@ export function AppProvider({ children }) {
     fetchEmployees,
     fetchDirectory,
     onShift,
+    shiftStatusReady: shiftStatusReady && confirmedShiftUser === authProfile?.id,
     shiftStatus,
     refreshShiftStatus,
     inventory,

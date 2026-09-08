@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Search, User } from 'lucide-react';
 import { useSiteContent } from '../context/SiteContentContext';
@@ -9,11 +9,22 @@ export default function Navbar() {
   const { navbar } = useSiteContent();
   const isHome = pathname === '/';
   const close = () => setOpen(false);
+  const menuButton = useRef(null);
+  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event) => {
+      if (event.key === 'Escape') { setOpen(false); menuButton.current?.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   return (
     <>
       <nav
-        className={`relative z-50 flex items-center justify-between px-4 py-4 sm:px-6 md:px-12 md:py-6 ${
+        aria-label="Үндсэн цэс"
+        className={`public-nav relative z-50 flex items-center justify-between px-4 py-4 sm:px-6 md:px-12 md:py-6 ${
           isHome ? '' : 'border-b border-graphite-800 bg-graphite-950/90 backdrop-blur-md'
         }`}
       >
@@ -27,6 +38,7 @@ export default function Navbar() {
             <Link
               key={link.to}
               to={link.to}
+              aria-current={pathname === link.to ? 'page' : undefined}
               className={`animate-blur-fade-up text-sm transition-colors ${
                 pathname === link.to ? 'font-medium text-graphite-50' : 'text-graphite-300 hover:text-graphite-100'
               }`}
@@ -49,6 +61,7 @@ export default function Navbar() {
 
           <Link
             to="/contact"
+            aria-label="Холбоо барих"
             className="animate-blur-fade-up liquid-glass hidden h-10 w-10 items-center justify-center rounded-full sm:flex"
             style={{ animationDelay: '400ms' }}
           >
@@ -57,6 +70,9 @@ export default function Navbar() {
 
           <button
             type="button"
+            ref={menuButton}
+            aria-expanded={open}
+            aria-controls="public-mobile-nav"
             className="animate-blur-fade-up liquid-glass flex h-10 w-10 items-center justify-center rounded-full lg:hidden"
             style={{ animationDelay: '350ms' }}
             onClick={() => setOpen((v) => !v)}
@@ -81,8 +97,11 @@ export default function Navbar() {
       </nav>
 
       <div
+        id="public-mobile-nav"
+        inert={!open}
+        aria-hidden={!open}
         className={`absolute left-0 right-0 top-[72px] z-40 border-b border-t border-graphite-800 bg-graphite-900/95 shadow-2xl backdrop-blur-lg transition-all duration-500 ease-out lg:hidden ${
-          open ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-4 opacity-0'
+          open ? 'visible translate-y-0 opacity-100' : 'invisible pointer-events-none -translate-y-4 opacity-0'
         }`}
       >
         <div className="flex flex-col px-4 py-4">
@@ -112,6 +131,7 @@ export default function Navbar() {
             </Link>
             <Link
               to="/contact"
+              aria-label="Холбоо барих"
               className="liquid-glass flex h-10 w-10 items-center justify-center rounded-full"
               onClick={close}
             >

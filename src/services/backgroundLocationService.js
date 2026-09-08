@@ -3,30 +3,12 @@ import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Linking } from 'react-native';
 import * as Application from 'expo-application';
-import * as tracking from './trackingService';
-import * as locationQueue from './locationQueue';
+import { supabase } from '../lib/supabase';
+import { sendLocation, syncLocations } from '../tracking/services/locationService';
+
 import { isExpoGo } from '../lib/runtimeEnv';
 
-/**
- * Арын байршил хянах.
- *
- * ЯАГААД ХЭРЭГТЭЙ ВЭ:
- *   LocationTracker нь `Location.watchPositionAsync` ашигладаг. Тэр нь ЗӨВХӨН
- *   апп нээлттэй байхад ажиллана — дэлгэц түгжих, апп-аас гарахад OS түүнийг
- *   зогсооно. Тиймээс ажилтан утсаа халаасандаа хийхэд байршил тасардаг байв.
- *
- *   Энэ файл нь `Location.startLocationUpdatesAsync`-ийг TaskManager-ийн
- *   task-тай хослуулна. Энэ хослол нь OS түвшинд бүртгэгддэг тул апп хаагдсан
- *   ч, дэлгэц түгжигдсэн ч, утас дахин асаасны дараа ч үргэлжилнэ.
- *
- * ХЯЗГААР — ЭНЭ НЬ ЗАСАГДАХГҮЙ:
- *   Хэрэглэгч Тохиргоо → Апп → "Clear data" хийвэл Android аппыг албадан
- *   зогсоож, бүх хадгалсан өгөгдөл (нэвтрэлт, зөвшөөрөл, энэ task-ийн бүртгэл)
- *   устгана. Ямар ч апп үүнийг тойрч чадахгүй — үүнийг тойрдог програм нь
- *   хортой програм болно. Дараа нь хэрэглэгч дахин нэвтэрч, зөвшөөрлөө дахин
- *   өгөх шаардлагатай.
- */
-
+// Foreground location service. Android force-stop/reboot can require reopening the app.
 export const LOCATION_TASK = 'gennetex-background-location';
 
 const USER_KEY = '@bg_location_user';
@@ -39,7 +21,7 @@ export async function setTrackedUser(user) {
   }
   await AsyncStorage.setItem(
     USER_KEY,
-    JSON.stringify({ id: user.id, name: user.name || '' })
+    JSON.stringify({ id: user.id, name: user.name || '', expiresAt: user.expiresAt })
   );
 }
 
@@ -57,63 +39,16 @@ async function getTrackedUser() {
 // ---------------------------------------------------------------------------
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
-  const locations = data?.locations || [];
-  if (!locations.length) return;
-
   const user = await getTrackedUser();
-  if (!user?.id) return;
-
-  // Багц болж ирсэн бол хамгийн сүүлийнх нь одоогийн байрлал
-  const last = locations[locations.length - 1];
-  const coord = {
-    latitude: last.coords.latitude,
-    longitude: last.coords.longitude,
-  };
-
-  try {
-    /**
-     * ⚠️ Хамгийн ТҮРҮҮНД хойшлогдсон цэгүүдийг нөхөж илгээнэ.
-     *
-     *    Сүлжээ саяхан сэргэсэн бол өмнө тасарсан үеийн бүх цэг
-     *    дараанд хүлээж байгаа — тэдгээрийг эхэлж илгээснээр замнал
-     *    он цагийн дарааллаараа бүрдэнэ. Нэг цэг унавал flush өөрөө
-     *    зогсоод үлдсэнийг хойшлуулна.
-     */
-    await locationQueue.flush(async (p) => {
-      await tracking.updateMyLocation(p.userId, { latitude: p.latitude, longitude: p.longitude });
-      await tracking.logLocation({
-        userId: p.userId,
-        userName: p.userName,
-        latitude: p.latitude,
-        longitude: p.longitude,
-        speed: p.speed,
-      });
-    });
-
-    await tracking.updateMyLocation(user.id, coord);
-    await tracking.logLocation({
-      userId: user.id,
-      userName: user.name,
-      ...coord,
-      speed: last.coords.speed,
-    });
-  } catch (e) {
-    /**
-     * Сүлжээгүй үед координатыг АЛДАХГҮЙ — дараанд хадгална.
-     *
-     * Өмнө нь энд "чимээгүй өнгөрдөг" байсан тул тасралтын үеийн
-     * бүх цэг бүрмөсөн алга болдог байв.
-     */
-    await locationQueue
-      .enqueue({
-        userId: user.id,
-        userName: user.name,
-        latitude: coord.latitude,
-        longitude: coord.longitude,
-        speed: last.coords.speed,
-        at: new Date(last.timestamp || Date.now()).toISOString(),
-      })
-      .catch(() => {});
+  if (!user?.id || !user.expiresAt || Date.now() >= user.expiresAt) {
+    await stopTracking();
+    return;
+  }
+  for (const location of [...(data?.locations || [])].sort((a, b) => a.timestamp - b.timestamp)) {
+    // A revoked session cannot capture points arriving after End Work.
+    const current = await getTrackedUser();
+    if (current?.id !== user.id) break;
+    await sendLocation(user.id, location).catch(() => {});
   }
 });
 
@@ -132,6 +67,10 @@ export async function isTracking() {
  */
 export async function startTracking(user) {
   if (!user?.id) return { ok: false, reason: 'no-user' };
+  const consentRaw = await AsyncStorage.getItem('@gennetex_location_consent_v1');
+  let consent;
+  try { consent = JSON.parse(consentRaw || 'null'); } catch { consent = null; }
+  if (!consent?.granted || consent.userId !== user.id) return { ok: false, reason: 'consent-pending' };
 
   // Expo Go дээр арын байршил БОДИТ ТӨХӨӨРӨМЖ дээр ажиллахгүй:
   //   Android — огт байхгүй
@@ -167,40 +106,37 @@ export async function startTracking(user) {
   }
   if (bg.status !== 'granted') return { ok: false, reason: 'no-background-permission' };
 
-  await setTrackedUser(user);
+  // Validate the existing attendance session, including launches from settings/consent.
+  const { data: rows, error: sessionError } = await supabase.from('attendance')
+    .select('type,created_at').eq('staff_id', user.id).neq('status', 'rejected')
+    .in('type', ['check_in', 'check_out']).gte('created_at', new Date(Date.now() - 86400000).toISOString())
+    .order('created_at', { ascending: false }).limit(1);
+  const saved = await getTrackedUser();
+  if (sessionError) {
+    if (saved?.id !== user.id || saved.expiresAt <= Date.now()) return { ok: false, reason: 'session-unavailable' };
+  } else if (rows?.[0]?.type !== 'check_in') {
+    await stopTracking();
+    return { ok: false, reason: 'outside-session' };
+  }
+  await setTrackedUser({ ...user, expiresAt: sessionError ? saved.expiresAt : Date.parse(rows[0].created_at) + 86400000 });
 
   if (await isTracking()) return { ok: true };
 
   try {
     await Location.startLocationUpdatesAsync(LOCATION_TASK, {
       accuracy: Location.Accuracy.High,
-      /**
-       * ⚠️ `distanceInterval` 0 БАЙХ ЁСТОЙ.
-       *
-       * Урьд нь `distanceInterval: 30` байсан. Энэ нь "30 метр хөдөлтөл
-       * шинэ цэг илгээхгүй" гэсэн үг. Ажилтан оффис, айлын байранд суугаа
-       * үед 30 метр хөдөлдөггүй тул цэг ОГТ үүсдэггүй байв.
-       *
-       * Үр дүнд нь админы карт дээр байршил хэдэн арван минутаар
-       * шинэчлэгдэхгүй үлдэж, "байршил зогссон", "апп хаагдахаар ирэхээ
-       * больсон" мэт харагддаг байсан. Өгөгдлөөс 28 минутын тасалдал
-       * ажиглагдсан.
-       *
-       * Одоо 0 болгосон тул хөдөлж байгаа эсэхээс үл хамааран цаг
-       * тутамдаа цэг ирнэ — админ ажилтан ажил дээрээ байгааг байнга
-       * харна.
-       */
-      timeInterval: 60000,
+      // Native samples drive adaptive 5s / 12s / 30s transmission.
+      timeInterval: 5000,
       distanceInterval: 0,
       // Зогссон үед OS түр зогсоовол дахин эхлэхгүй байх эрсдэлтэй
       pausesUpdatesAutomatically: false,
-      // Утас дахин асаасны дараа автоматаар сэргэнэ
+      // Restore on next app foreground after validating attendance.
       ...(Platform.OS === 'android'
         ? {
             // Android 8+ дээр арын байршилд заавал харагдах мэдэгдэл шаардана.
             // Энэ нь хэрэглэгчид хяналт явж байгааг ил тод харуулна.
             foregroundService: {
-              notificationTitle: 'Байршил хяналт идэвхтэй',
+              notificationTitle: 'ERP байршлын үйлчилгээ ажиллаж байна',
               notificationBody: 'Ажлын цагт байршлыг админд илгээж байна',
               notificationColor: '#0099db',
               killServiceOnDestroy: false,
@@ -219,12 +155,17 @@ export async function startTracking(user) {
 
 /** Арын хяналтыг зогсооно (гарах үед). */
 export async function stopTracking() {
+  const user = await getTrackedUser();
+  await setTrackedUser(null);
   try {
     if (await isTracking()) {
       await Location.stopLocationUpdatesAsync(LOCATION_TASK);
     }
   } catch (e) {}
-  await setTrackedUser(null);
+  if (user?.id) {
+    await syncLocations(user.id).catch(() => {});
+    try { await supabase.rpc('stop_employee_tracking'); } catch { /* Presence also expires by timestamp. */ }
+  }
 }
 
 /**

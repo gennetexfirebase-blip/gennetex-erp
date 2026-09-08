@@ -24,17 +24,17 @@ export const spacing = {
 export const radius = {
   sm: 10,
   md: 14,
-  lg: 18,
-  xl: 24,
+  lg: 20,
+  xl: 28,
   pill: 999,
   full: 999,
 };
 
 /** Хүрэх талбайн доод хэмжээ — iOS HIG 44pt / Android 48dp. */
 export const touch = {
-  min: 44,
-  icon: 44,
-  compact: 36,
+  min: 48,
+  icon: 48,
+  compact: 44,
 };
 
 /**
@@ -43,8 +43,8 @@ export const touch = {
  *   <Text style={[type.h1, { color: colors.text }]}>
  */
 export const type = {
-  display: { fontSize: 32, fontWeight: '800', letterSpacing: -0.6, lineHeight: 38 },
-  h1: { fontSize: 26, fontWeight: '800', letterSpacing: -0.4, lineHeight: 32 },
+  display: { fontSize: 34, fontWeight: '700', letterSpacing: -0.6, lineHeight: 38 },
+  h1: { fontSize: 28, fontWeight: '700', letterSpacing: -0.4, lineHeight: 32 },
   h2: { fontSize: 20, fontWeight: '700', letterSpacing: -0.2, lineHeight: 26 },
   h3: { fontSize: 16, fontWeight: '700', lineHeight: 22 },
   body: { fontSize: 15, fontWeight: '400', lineHeight: 22 },

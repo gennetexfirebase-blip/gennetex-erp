@@ -440,6 +440,9 @@ export default function ProfileScreen() {
         style={styles.header}
       >
         <SafeAreaView edges={['top']}>
+          <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Буцах" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }}>
+            <Text style={{ color: '#fff', fontSize: 16 }}>‹ Буцах</Text>
+          </Pressable>
           <View style={styles.headerRow}>
             <Pressable
               onPress={changeAvatar}
@@ -739,7 +742,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
   rolePillText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
 
-  body: { padding: spacing.lg, paddingBottom: 120 },
+  body: { padding: spacing.lg, paddingBottom: 144 },
 
   editCard: {
     backgroundColor: colors.surface,

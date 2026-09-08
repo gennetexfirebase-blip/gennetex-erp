@@ -29,7 +29,7 @@ export function navigateFromNotification(data) {
 
   const requested = data.screen || data.route;
   if (requested) {
-    const mainTabs = new Set(['Home', 'Attendance', 'Feed', 'Chat', 'Profile', 'Notifications']);
+    const mainTabs = new Set(['Home', 'Attendance', 'Feed', 'Chat']);
     if (mainTabs.has(requested)) navigationRef.navigate('MainTabs', { screen: requested, params: { ...data, entityId: data.entityId } });
     else navigationRef.navigate(requested, { ...data, entityId: data.entityId });
     return;
@@ -94,7 +94,7 @@ export function navigateFromNotification(data) {
       break;
     case 'admin':
     case 'system':
-      navigationRef.navigate('MainTabs', { screen: 'Notifications' });
+      navigationRef.navigate('Notifications');
       break;
     case 'feed':
       if (data.postId) {

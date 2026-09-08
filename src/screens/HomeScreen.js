@@ -33,6 +33,7 @@ import * as meetingApi from '../services/meetingService';
 import { formatTime, formatDate } from '../lib/formatTime';
 import TodayDashboard from '../components/enhancements/TodayDashboard';
 import HomeAttendanceCard from '../components/HomeAttendanceCard';
+import HeaderAccountActions from '../components/HeaderAccountActions';
 
 const EMPLOYEE_MODULES = [
   { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber' },
@@ -372,7 +373,7 @@ export default function HomeScreen() {
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{greeting()},</Text>
-            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.name} numberOfLines={2}>{name}</Text>
             <View style={[styles.roleChip, isAdmin && styles.roleChipAdmin]}>
               <Text style={[styles.roleChipText, isAdmin && styles.roleChipTextAdmin]}>
                 {roleLabel(authProfile?.role || (isAdmin ? 'admin' : 'employee'))}
@@ -383,16 +384,10 @@ export default function HomeScreen() {
           {/* Цаг агаар — нэр ба цагийн ХООРОНДОХ сул зайд. Толгой хэсгийн
               өндөр, нэр, badge, огноо, цаг, профайл зураг байрандаа хэвээр:
               энэ нь дээд ирмэгтээ наалдсан бие даасан элемент. */}
-          <RealtimeWeather style={styles.headerWeather} />
+          {SCREEN_WIDTH >= 400 ? <RealtimeWeather style={styles.headerWeather} /> : null}
           <View style={styles.headerRight}>
             <Text style={styles.headerClock}>{formatTime(now)}</Text>
-            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-              {authProfile?.avatar_url ? (
-                <Image source={{ uri: authProfile.avatar_url }} style={styles.avatarImg} />
-              ) : (
-                <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
-              )}
-            </TouchableOpacity>
+            <HeaderAccountActions />
           </View>
         </View>
       </SafeAreaView>
@@ -608,7 +603,7 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
-    backgroundColor: colors.surfaceDim,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
@@ -628,7 +623,8 @@ const makeStyles = ({ colors, shadow, isDark }) => {
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+    paddingVertical: 12,
+    minHeight: 50,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
@@ -653,12 +649,12 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   searchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   searchTile: { borderRadius: radius.lg, overflow: 'hidden' },
   searchEmpty: { color: colors.textFaint, fontSize: 13.5, lineHeight: 20 },
-  name: { color: colors.text, fontSize: 24, fontWeight: '800', marginTop: 2, letterSpacing: -0.3 },
+  name: { color: colors.text, fontSize: 28, fontWeight: '700', marginTop: 2, letterSpacing: -0.3 },
   date: { color: colors.textMuted, fontSize: 13, marginTop: 4, textTransform: 'capitalize'},
   avatar: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 18,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -668,7 +664,7 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   },
   avatarImg: { width: '100%', height: '100%', borderRadius: 26 },
   avatarLetter: { color: colors.primary, fontSize: 22, fontWeight: '800'},
-  body: { padding: spacing.lg, paddingBottom: 110 },
+  body: { padding: spacing.lg, paddingBottom: 140 },
   clockCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -693,7 +689,7 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   },
   clockBtnText: { color: '#fff', fontWeight: '800'},
   welcomeSub: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.md },
-  sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: spacing.md, marginTop: spacing.sm },
+  sectionTitle: { color: colors.text, fontSize: 19, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm },
   roleChip: {
     alignSelf: 'flex-start',
     backgroundColor: colors.bgAlt,

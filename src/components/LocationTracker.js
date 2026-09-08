@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, AppState, DeviceEventEmitter, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { useApp } from '../context/AppContext';
-import * as tracking from '../services/trackingService';
+import { sendLocation, subscribeLocationSync } from '../tracking/services/locationService';
 import * as bgLocation from '../services/backgroundLocationService';
 import * as attApi from '../services/attendanceService';
 import { playZoneExitSound, playZoneEnterSound } from '../services/attendanceSoundService';
@@ -13,14 +13,19 @@ import { navigate } from '../lib/navigationRef';
 import { LOCATION_CONSENT_KEY } from '../screens/LocationConsentScreen';
 import { distanceMeters } from '../lib/geo';
 
-const MIN_UPLOAD_MS = 15000; // хамгийн багадаа 15 сек тутам
-const MIN_MOVE_M = 30; // эсвэл 30м хөдөлбөл
+const MIN_UPLOAD_MS = 5000; // хамгийн багадаа 15 сек тутам
+const MIN_MOVE_M = 10; // эсвэл 30м хөдөлбөл
 const ARRIVE_RADIUS_M = 120; // айлд "очсон" гэж тооцох радиус
 
 // UI-гүй. Нэвтэрсэн үед байршлыг автоматаар админд (Supabase) илгээнэ.
 export default function LocationTracker() {
-  const { isCloud, currentUser, calls, setTrackingState, setPendingVisit } = useApp();
+  const { isCloud, currentUser, onShift, shiftStatusReady, calls, setTrackingState, setPendingVisit } = useApp();
   const watchRef = useRef(null);
+  const [consentVersion, setConsentVersion] = useState(0);
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('erp-location-consent', () => setConsentVersion(v => v + 1));
+    return () => sub.remove();
+  }, []);
   const lastUpload = useRef(0);
   const lastCoord = useRef(null);
   const visited = useRef(new Set());
@@ -29,6 +34,10 @@ export default function LocationTracker() {
   // Тиймээс хамгийн сүүлийн утгыг ref-д хадгалж, effect-ийг нэг л удаа асаана.
   const callsRef = useRef(calls);
   callsRef.current = calls;
+  useEffect(() => {
+    if (!isCloud || !currentUser?.id) return;
+    return subscribeLocationSync(currentUser.id);
+  }, [isCloud, currentUser?.id]);
 
   /**
    * Ирц бүртгэх бүсээс ГАРСАН үеийн дуут анхааруулга.
@@ -66,22 +75,15 @@ export default function LocationTracker() {
   }, [isCloud, currentUser?.id]);
 
   useEffect(() => {
-    // Нэвтэрсэн бол БАЙНГА байршил илгээнэ.
-    //
-    // Өмнө нь `onShift` шалгаж, зөвхөн ирц бүртгүүлснээс явах хүртэл
-    // хянадаг байв. Гэвч тэр үед админ ажилтныг ээлжийн гадна огт
-    // харахгүй байсан тул шаардлагаар нь байнгын болгов.
-    //
-    // ⚠️ Үүний үнэ: батерей илүү зарцуулагдана, мөн ажлын бус цагт ч
-    //    байршил бүртгэгдэнэ. Ажилтнуудад үүнийг мэдэгдэх ёстой —
-    //    Android дээр байнга харагдах мэдэгдэл гарч байгаа нь үүнийг
-    //    ил тод болгож байгаа.
-    if (!isCloud || !currentUser?.id) {
+    if (isCloud && currentUser?.id && !shiftStatusReady) return;
+    if (!isCloud || !currentUser?.id || !onShift) {
       bgLocation.stopTracking().catch(() => {});
-      setTrackingState?.({ active: false, reason: 'signed-out' });
+      setTrackingState?.({ active: false, reason: onShift ? 'signed-out' : 'outside-session' });
       return;
     }
     let active = true;
+    lastUpload.current = 0;
+    lastCoord.current = null;
 
     (async () => {
       try {
@@ -109,7 +111,12 @@ export default function LocationTracker() {
         } catch {
           consent = null;
         }
-        if (!consent?.granted) {
+        if (!consent || consent.userId !== currentUser.id) {
+          navigate('LocationConsent');
+          setTrackingState?.({ active: false, reason: 'consent-pending' });
+          return;
+        }
+        if (!consent.granted) {
           setTrackingState?.({ active: false, reason: 'consent-declined' });
           return;
         }
@@ -125,7 +132,7 @@ export default function LocationTracker() {
         // OS түвшний арын task бүртгэнэ. watchPositionAsync нь зөвхөн апп
         // нээлттэй байхад ажилладаг тул ганцаараа хангалтгүй.
         bgLocation.startTracking(currentUser).then(async (res) => {
-          if (!active) return;
+          if (!active) { await bgLocation.stopTracking(); return; }
           if (res.ok) {
             setTrackingState?.({ active: true, background: true });
             return;
@@ -166,10 +173,12 @@ export default function LocationTracker() {
           await handle(first, true);
         } catch (e) {}
 
-        watchRef.current = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.High, timeInterval: 10000, distanceInterval: 20 },
+        if (!active) return;
+        const watcher = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 0 },
           (pos) => handle(pos)
         );
+        if (active) watchRef.current = watcher; else watcher.remove();
       } catch (e) {
         setTrackingState?.({ active: false, reason: e.message });
       }
@@ -217,6 +226,7 @@ export default function LocationTracker() {
     };
 
     const handle = async (pos, force = false) => {
+      if (!active) return;
       const coord = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       const now = Date.now();
       const moved = lastCoord.current ? distanceMeters(lastCoord.current, coord) : Infinity;
@@ -225,13 +235,7 @@ export default function LocationTracker() {
         lastUpload.current = now;
         lastCoord.current = coord;
         try {
-          await tracking.updateMyLocation(currentUser.id, coord);
-          await tracking.logLocation({
-            userId: currentUser.id,
-            userName: currentUser.name,
-            ...coord,
-            speed: pos.coords.speed,
-          });
+          await sendLocation(currentUser.id, pos);
           // Урьд тогтоосон `background` тугийг хадгална — орлуулбал
           // арын хяналт ажиллаж байхад ч "зөвхөн апп нээлттэй" гэж харагдана.
           setTrackingState?.((prev) => ({ ...prev, active: true, error: null, last: { ...coord, at: now } }));
@@ -294,7 +298,7 @@ export default function LocationTracker() {
         watchRef.current = null;
       }
     };
-  }, [isCloud, currentUser?.id]);
+  }, [isCloud, currentUser?.id, onShift, shiftStatusReady, consentVersion]);
 
   return null;
 }

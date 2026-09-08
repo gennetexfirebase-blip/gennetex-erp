@@ -30,6 +30,8 @@ import FuelTankGauge from '../components/FuelTankGauge';
 import { buildVehicleFuelStats, fuelLevelColor, vehicleTankLiters } from '../lib/vehicleFuelStats';
 import { formatPlateInput, normalizePlateNumber } from '../lib/mongoliaPlate';
 import MongoliaPlate from '../components/MongoliaPlate';
+import VehicleCheckoutOverview from '../components/VehicleCheckoutOverview';
+import { useFocusEffect } from '@react-navigation/native';
 
 const EMPTY = { code: '', plate_number: '', liters_per_100km: '12', tank_capacity_liters: '60', driver_name: '', driver_id: '' };
 
@@ -57,7 +59,7 @@ export default function VehiclesAdminScreen() {
     try {
       const [veh, tr, emps] = await Promise.all([
         vehicleApi.fetchVehicles(),
-        vehicleApi.fetchTrips(300),
+        vehicleApi.fetchVehicleCheckouts(300),
         fetchEmployees().catch(() => []),
       ]);
       setList(veh);
@@ -68,9 +70,11 @@ export default function VehiclesAdminScreen() {
     }
   }, [isCloud, fetchEmployees]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     load();
-  }, [load]);
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
+  }, [load]));
 
   const openEdit = (item) => {
     setEditItem(item);
@@ -226,8 +230,8 @@ export default function VehiclesAdminScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title="Машины мэдээлэл солих"
-        subtitle={`${list.length} машин · QR уншуулж засах`}
+        title="Машины хяналт"
+        subtitle={`${list.length} машин · жолооч · аяллын түүх`}
         right={
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <HeaderButton title="QR" onPress={() => setScanVisible(true)} />
@@ -241,6 +245,7 @@ export default function VehiclesAdminScreen() {
         <EmptyState text="Машин бүртгэхэд Supabase холбогдсон байх шаардлагатай." />
       ) : (
         <FlatList
+          ListHeaderComponent={<VehicleCheckoutOverview trips={trips} />}
           data={list}
           keyExtractor={(v) => v.id}
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}

@@ -12,16 +12,16 @@
 import { brand, makeShadow } from './tokens';
 
 export const colors = {
-  background: '#F7F8FA',
+  background: '#F3F6FA',
   surface: '#FFFFFF',
   surfaceAlt: '#F1F3F5',
-  text: '#171717',
-  textMuted: '#737373',
-  textFaint: '#9CA3AF',
-  border: '#E5E7EB',
+  text: '#18283D',
+  textMuted: '#5F7086',
+  textFaint: '#61738A',
+  border: '#DFE6EF',
   disabled: '#D1D5DB',
 
-  primary: brand[500], // #0099DB
+  primary: brand[600], // #0099DB
   primaryDark: brand[600],
   primarySoft: 'rgba(0,153,219,0.08)',
   primaryMedium: 'rgba(0,153,219,0.15)',

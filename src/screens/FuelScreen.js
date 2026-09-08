@@ -15,6 +15,7 @@ import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
 import * as fuelApi from '../services/fuelPriceService';
 import FuelReceiptCard from '../components/FuelReceiptCard';
+import ManualFuelCard from '../components/ManualFuelCard';
 import { formatIdle } from '../lib/fuelCalc';
 
 export default function FuelScreen() {
@@ -102,6 +103,7 @@ export default function FuelScreen() {
 
       {/* Баримт илгээх — ажилтан ч, админ ч ашиглана. ШТС-ийн баримтаа
           зурагдаж илгээхэд бүх админд өөрийнх нь нэрээс чат очно. */}
+      <ManualFuelCard isCloud={isCloud} />
       <FuelReceiptCard sender={currentUser} />
 
       {!isAdmin ? (
@@ -119,9 +121,10 @@ export default function FuelScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Бензиний зарлага"
-        subtitle={isAdmin ? 'Тохиргоо + тайлан' : 'Явсан км · нийт түлш'}
+        subtitle="Миний бүртгэл · нөхөж оруулах · аяллын түүх"
       />
       <FlatList
+        keyboardShouldPersistTaps="handled"
         data={tripRows}
         keyExtractor={(t) => t.id}
         ListHeaderComponent={header}

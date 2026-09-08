@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +45,7 @@ export default function LocationConsentScreen() {
         userId: currentUser?.id || null,
       })
     );
+    DeviceEventEmitter.emit('erp-location-consent');
     navigation.goBack();
   };
 
@@ -103,8 +105,9 @@ export default function LocationConsentScreen() {
         <View style={styles.warn}>
           <Text style={styles.warnTitle}>Аппыг хаасан үед ч цуглуулна</Text>
           <Text style={styles.warnBody}>
-            Ажлын цагт та аппыг хаасан байсан ч байршил илгээгдэнэ. Энэ нь
-            ирцийн бүртгэл тасалдахгүй байхад шаардлагатай.
+            “Ирлээ” бүртгэснээс “Явлаа” бүртгэх хүртэл апп ард ажиллаж,
+            дэлгэц түгжээтэй байсан ч GPS байршил илгээгдэнэ. “Явлаа” дарахад
+            хяналт зогсоно. Замын түүхийг 30 хоног хадгална.
           </Text>
         </View>
 

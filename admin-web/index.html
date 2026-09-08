@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="mn">
 <head>
+  <script src="live-tracking-map.js" defer></script>
+  <script src="live-tracking.js" defer></script>
+  <script src="manual-fuel.js" defer></script>
   <meta charset="UTF-8"/>
   <meta name="admin-build-version" content="1.3.10"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -587,6 +590,8 @@
     .last-sync{font-size:11px;white-space:nowrap}
     @media(max-width:900px){.last-sync{display:none}.card-h .tbl-search input{width:110px}}
   </style>
+  <link rel="stylesheet" href="admin-ui.css"/>
+  <script src="admin-ui.js" defer></script>
 </head>
 <body class="antialiased transition-colors duration-300">
   <button type="button" class="theme-fab" id="themeToggleGlobal" title="Гэрэл / Харанхуй горим">
@@ -611,8 +616,8 @@
           <p class="tagline">ERP удирдлагын нэгдсэн платформ — ирц, агуулах, дуудлага, ажилтнууд бүгд нэг дор.</p>
           <div class="login-features">
             <div class="login-feature"><span class="material-symbols-outlined">shield_lock</span> Зөвхөн админ эрхтэй нэвтрэлт</div>
-            <div class="login-feature"><span class="material-symbols-outlined">dashboard</span> Real-time хяналтын самбар</div>
-            <div class="login-feature"><span class="material-symbols-outlined">cloud_sync</span> Supabase синхрон өгөгдөл</div>
+            <div class="login-feature"><span class="material-symbols-outlined">dashboard</span> Үйл ажиллагааны нэгдсэн хяналт</div>
+            <div class="login-feature"><span class="material-symbols-outlined">cloud_sync</span> Шинэчлэгдсэн мэдээлэл нэг дор</div>
           </div>
         </div>
       </div>
@@ -650,6 +655,7 @@
 
   <!-- App -->
   <div id="app">
+    <a class="skip-link" href="#content">Үндсэн агуулга руу очих</a>
     <div class="layout">
       <aside class="side glass-panel" id="sidebar">
         <div class="brand">
@@ -662,10 +668,10 @@
         <div class="nav-search-wrap">
           <div class="nav-search">
             <span class="material-symbols-outlined">search</span>
-            <input id="navSearch" type="search" placeholder="Цэс хайх...  ( / )" autocomplete="off"/>
+            <input id="navSearch" type="search" placeholder="Цэс хайх...  ( / )" aria-label="Цэс хайх" autocomplete="off"/>
           </div>
         </div>
-        <nav class="nav" id="nav">
+        <nav class="nav" id="nav" aria-label="Үндсэн цэс">
           <div class="nav-empty" id="navEmpty" style="display:none">Илэрц олдсонгүй</div>
           <div class="grp">Үндсэн</div>
           <a data-view="dashboard" class="active"><span class="material-symbols-outlined">dashboard</span><span class="t">Хяналт</span></a>
@@ -712,7 +718,7 @@
       <div class="main">
         <div class="topbar">
           <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:0">
-            <button type="button" class="btn btn-ghost btn-sm" id="menuBtn" style="display:none;padding:8px;flex-shrink:0" onclick="toggleSidebar()" aria-label="Цэс нээх">
+            <button type="button" class="btn btn-ghost btn-sm" id="menuBtn" aria-controls="sidebar" aria-expanded="false" style="display:none;padding:8px;flex-shrink:0" onclick="toggleSidebar()" aria-label="Цэс нээх">
               <span class="material-symbols-outlined">menu</span>
             </button>
             <div style="min-width:0">
@@ -737,7 +743,7 @@
             <button class="btn btn-ghost btn-sm" id="logoutBtn" style="margin-left:4px">Гарах</button>
           </div>
         </div>
-        <div class="content" id="content"></div>
+        <main class="content" id="content" tabindex="-1" aria-labelledby="pageTitle"></main>
       </div>
     </div>
   </div>
@@ -1197,7 +1203,15 @@
     (async()=>{ const {data:s}=await sb.auth.getSession(); if(s.session) afterLogin(s.session.user.id); })();
 
     // ===== Navigation =====
-    document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.view));
+    document.querySelectorAll('#nav a').forEach(a=>{
+      a.setAttribute('role','button');
+      a.tabIndex=0;
+      a.setAttribute('aria-current',a.classList.contains('active')?'page':'false');
+      a.onclick=()=>go(a.dataset.view);
+      a.addEventListener('keydown',e=>{
+        if(e.key==='Enter'||e.key===' '){ e.preventDefault(); a.click(); }
+      });
+    });
     const TITLES={dashboard:'Хяналт',employees:'Ажилчид',workperformance:'Ажилчдын гүйцэтгэл',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
     let activityFilter={year:new Date().getFullYear(),month:0,day:0,user:''};
     const ACTION_LABEL={login:'Нэвтрэлт',leave_request:'Чөлөө хүсэлт',screen:'Дэлгэц нээсэн',tap:'Даралт',location:'Байршил',face_enroll:'Царай бүртгэл',attendance:'Ирц',inventory:'Бараа/багаж',visit:'Айлд очсон',site_work:'Ажлын байр',service_call:'Дуудлага',other:'Бусад'};
@@ -1211,10 +1225,13 @@
     function go(v){
       if(view==='vehicles'&&v!=='vehicles'){ stopVehicleQrScan(); stopAutoboxPoll(); }
       view=v;
-      document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
+      document.querySelectorAll('#nav a').forEach(a=>{
+        a.classList.toggle('active',a.dataset.view===v);
+        a.setAttribute('aria-current',a.dataset.view===v?'page':'false');
+      });
       $('pageTitle').textContent=TITLES[v];
       const sub=$('pageSubtitle'); if(sub) sub.textContent=SUBTITLES[v]||'';
-      if(window.innerWidth<900) toggleSidebar(false);
+      if(window.innerWidth<=900) toggleSidebar(false);
       window.scrollTo(0,0);
       render();
     }
@@ -2056,9 +2073,34 @@
           <div class="card"><div class="card-h"><h3>Бензин зарцуулалт (7 хоног)</h3></div><div class="card-b"><div class="dash-chart-wrap" style="height:260px"><canvas id="dashFuelChart"></canvas></div></div></div>
           <div class="card"><div class="card-h"><h3>Машинаар түлш үлдэгдэл (%)</h3></div><div class="card-b"><div class="dash-chart-wrap" style="height:260px"><canvas id="dashFuelPctChart"></canvas></div></div></div>
         </div>
+        <div class="card" style="margin-bottom:20px"><div class="card-h"><h3>Ажилтны оруулсан зарцуулалт</h3><button class="btn btn-ghost btn-sm" type="button" onclick="loadManualFuelEntries(document.getElementById('manualFuelEntries'))">Шинэчлэх</button></div><div class="card-b" id="manualFuelEntries" aria-live="polite">Ачаалж байна…</div></div>
         <div class="card"><div class="card-h"><h3>Машин бүрээр</h3><button class="btn btn-ghost btn-sm" type="button" onclick="loadAll()">Шинэчлэх</button></div><div class="card-b">${cards}</div></div>`;
+      const fuelPanel=$('manualFuelEntries');
+      if(window.mountManualFuelForm){
+        const form=document.createElement('div');
+        form.style.cssText='padding:0 20px 16px';
+        fuelPanel.parentElement.insertBefore(form,fuelPanel);
+        window.mountManualFuelForm(form,sb,data.vehicles||[],()=>loadManualFuelEntries(fuelPanel));
+      }
+      loadManualFuelEntries(fuelPanel);
       initDashboardCharts();
     }
+    async function loadManualFuelEntries(container){
+      if(!container) return;
+      container.textContent='Ачаалж байна…';
+      try{
+        const {data:entries,error}=await sb.from('manual_fuel_entries').select('*,profiles(name),vehicles(plate_number)').order('consumed_on',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+        if(!container.isConnected) return;
+        if(error) throw error;
+        if(!entries.length){container.innerHTML='<div class="empty">Ажилтны гараар оруулсан зарцуулалтын бүртгэл алга.</div>';return;}
+        const liters=entries.reduce((sum,row)=>sum+Number(row.liters),0);
+        const cost=entries.reduce((sum,row)=>sum+Number(row.cost),0);
+        container.innerHTML=`<p class="muted" style="margin:0 0 16px">Сүүлийн ${entries.length} бүртгэл · ${liters.toFixed(2)} л · ${money(cost)}. GPS аяллын тооцоонд давхар нэмэхгүй.</p><table><thead><tr><th>Огноо</th><th>Ажилтан</th><th>Машин</th><th>Литр</th><th>Зардал</th><th>Км</th><th>Тайлбар</th></tr></thead><tbody>${entries.map(row=>`<tr><td>${esc(row.consumed_on)}</td><td>${esc(row.profiles?.name||'—')}</td><td>${esc(row.vehicles?.plate_number||'—')}</td><td>${Number(row.liters).toFixed(2)}</td><td>${money(row.cost)}</td><td>${Number(row.distance_km).toFixed(1)}</td><td style="min-width:180px;max-width:320px;overflow-wrap:anywhere">${esc(row.note||'—')}</td></tr>`).join('')}</tbody></table>`;
+      }catch(error){
+        if(container.isConnected) container.textContent=['42P01','PGRST205'].includes(error?.code)?'Шинэ бүртгэлийн migration сервер дээр хараахан хийгдээгүй байна.':'Бүртгэл ачаалж чадсангүй. Шинэчлэх товчоор дахин оролдоно уу.';
+      }
+    }
+    window.loadManualFuelEntries=loadManualFuelEntries;
     window.refillVehicleFuel=async(id,plate)=>{
       if(!confirm((plate||'Машин')+' — сав 100% болгох уу?')) return;
       const {error}=await sb.from('vehicles').update({fuel_level_percent:100,fuel_refilled_at:new Date().toISOString()}).eq('id',id);
@@ -2131,7 +2173,10 @@
     }
 
     function renderDashboard(c){
-      c.innerHTML = dashboardHealthBanner()+statCards()+`
+      c.innerHTML = `<section class="dashboard-intro" aria-labelledby="dashboardHeading">
+        <div><span class="dashboard-eyebrow">GENNETEX / УДИРДЛАГА</span><h1 id="dashboardHeading">Үйл ажиллагааны тойм</h1><p>Багийн ирц, ажлын явц, тээврийн мэдээллээ нэг дор хянаарай.</p></div>
+        <div class="dashboard-shortcuts"><button class="btn btn-primary" onclick="go('attendance')"><span class="material-symbols-outlined" aria-hidden="true">badge</span>Ирц харах</button><button class="btn btn-ghost" onclick="go('reports')"><span class="material-symbols-outlined" aria-hidden="true">description</span>Тайлан</button></div>
+        </section>`+dashboardHealthBanner()+statCards()+`
         <div class="card animate-chart-entry" style="margin-bottom:20px;animation-delay:.1s">
           <div class="card-h"><h3>Ирцийн график (7 хоног)</h3></div>
           <div class="card-b"><div class="dash-chart-wrap"><canvas id="dashAttendanceChart"></canvas></div></div>
@@ -2170,6 +2215,7 @@
       initDashboardCharts();
     }
     function renderLocation(c){
+      if(window.mountEmployeeTracking){ window.mountEmployeeTracking(c,sb); return; }
       const shown=visibleWorkers().filter(w=>w.latitude!=null).length;
       const total=visibleWorkers().length;
       // Хэн ч харагдахгүй үед "газрын зураг эвдэрсэн" гэж бодохоос сэргийлж
@@ -4278,7 +4324,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           <div><div id="veh-qr-reader" class="veh-qr-reader"></div><p class="muted" style="font-size:13px;margin-top:8px">Машины QR уншуулна — тухайн машины мэдээллийг засна</p></div>
           <div id="vehEditPanel">${sel?vehicleEditPanelHtml(sel):'<div class="empty" style="padding:28px 12px">QR уншуулж эсвэл доорх жагсаалтаас «Засах» дарна уу</div>'}</div>
         </div></div></div>`;
-      c.innerHTML=scanCard+`<div class="card"><div class="card-h"><h3>Машин (${data.vehicles.length})</h3>
+      c.innerHTML=`<div class="card" style="margin-bottom:20px"><div class="card-h"><h3>Машин авч гарсан бүртгэл</h3><button class="btn btn-ghost btn-sm" onclick="loadVehicleCheckouts(document.getElementById('vehicleCheckouts'))">Шинэчлэх</button></div><div class="card-b" id="vehicleCheckouts" aria-live="polite">Ачаалж байна…</div></div>`+scanCard+`<div class="card"><div class="card-h"><h3>Машин (${data.vehicles.length})</h3>
         <div class="card-h-actions"><button class="btn btn-ghost btn-sm" type="button" onclick="go('fuelconsumption')">Дэлгэрэнгүй</button>
         <button class="btn btn-primary btn-sm" onclick="vehModal()"> Машин нэмэх</button></div></div>
         <div class="card-b" style="padding:0"><table><thead><tr><th>Улсын дугаар</th><th>Код</th><th>100км/л</th><th>Сав (л)</th><th>Км (30х)</th><th>Бензин %</th><th>Жолооч</th><th></th></tr></thead>
@@ -4294,6 +4340,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           <button class="btn btn-danger btn-sm" onclick="delVeh('${v.id}','${v.plate_number}')">Устгах</button></td></tr>`;
         }).join('')||'<tr><td colspan=8 class=empty>Машин алга</td></tr>'}</tbody></table></div>
         <div class="card-b" style="border-top:1px solid var(--line)"><h4 style="margin:0 0 12px;font-size:15px">Бензин зарцуулалт · түвшин</h4>${fuelCards||'<div class="empty" style="padding:20px">Аяллын бүртгэл байхгүй</div>'}</div></div>`;
+      loadVehicleCheckouts($('vehicleCheckouts'));
       setTimeout(()=>{
         if(sel){
           bindVehicleEditForm();
@@ -4303,6 +4350,23 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         startVehicleQrScan();
       },80);
     }
+    async function loadVehicleCheckouts(container){
+      if(!container) return;
+      try{
+        const [recent,active]=await Promise.all([
+          sb.from('trips').select('id,plate_number,driver_name,status,started_at,ended_at,distance_km').order('started_at',{ascending:false}).limit(100),
+          sb.from('trips').select('id,plate_number,driver_name,status,started_at,ended_at,distance_km').eq('status','active').order('started_at',{ascending:false})
+        ]);
+        if(recent.error||active.error) throw recent.error||active.error;
+        if(!container.isConnected) return;
+        const all=new Map((recent.data||[]).map(trip=>[trip.id,trip]));
+        (active.data||[]).forEach(trip=>all.set(trip.id,trip));
+        const rows=Array.from(all.values()).sort((a,b)=>(b.status==='active')-(a.status==='active')||new Date(b.started_at)-new Date(a.started_at));
+        const time=value=>value?esc(new Date(value).toLocaleString('mn-MN')):'—';
+        container.innerHTML=`<p class="muted" style="margin-bottom:16px">Одоо явж байгаа: ${(active.data||[]).length} · сүүлийн 100 аялал болон идэвхтэй аяллууд</p><table><thead><tr><th>Машин</th><th>Авч гарсан ажилтан</th><th>Гарсан цаг</th><th>Дууссан цаг</th><th>Төлөв</th><th>Км</th></tr></thead><tbody>${rows.map(trip=>`<tr><td><b>${esc(trip.plate_number||'—')}</b></td><td>${esc(trip.driver_name||'Нэр бүртгэгдээгүй')}</td><td>${time(trip.started_at)}</td><td>${time(trip.ended_at)}</td><td><span class="pill ${trip.status==='active'?'on':'off'}">${trip.status==='active'?'Явж байгаа':'Дууссан'}</span></td><td>${Number(trip.distance_km||0).toFixed(1)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Аяллын бүртгэл алга</td></tr>'}</tbody></table>`;
+      }catch(error){if(container.isConnected) container.textContent='Аяллын бүртгэл ачаалсангүй. Шинэчлэх товчоор дахин оролдоно уу.';}
+    }
+    window.loadVehicleCheckouts=loadVehicleCheckouts;
     window.vehModal = ()=>{
       const code='VH-'+Math.floor(1000+Math.random()*9000);
       openModal('Шинэ машин нэмэх',`
@@ -5591,11 +5655,17 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       if(m&&(m.classList.contains('modal-photo-wide')||m.classList.contains('modal-photo-id'))) closeModal();
     });
     document.addEventListener('keydown',e=>{
+      if(e.key==='Tab'&&window.innerWidth<=900&&$('sidebar').classList.contains('open')){
+        const items=Array.from($('sidebar').querySelectorAll('input,button,[tabindex="0"]')).filter(el=>!el.disabled&&el.getClientRects().length);
+        const first=items[0],last=items[items.length-1];
+        if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+      }
       if(e.key==='Escape'){
         const ov=$('overlay');
         if(ov&&ov.style.display==='flex'){ closeModal(); return; }
         const side=$('sidebar');
-        if(side&&side.classList.contains('open')&&window.innerWidth<900) toggleSidebar(false);
+        if(side&&side.classList.contains('open')&&window.innerWidth<=900) toggleSidebar(false);
         return;
       }
       if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
@@ -5603,7 +5673,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         if(tag==='input'||tag==='textarea'||tag==='select'||(t&&t.isContentEditable)) return;
         if(!me) return;
         e.preventDefault();
-        if(window.innerWidth<900) toggleSidebar(true);
+        if(window.innerWidth<=900) toggleSidebar(true);
         const ns=$('navSearch'); if(ns){ ns.focus(); ns.select(); }
       }
     });
@@ -5735,8 +5805,14 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const open=typeof force==='boolean'?force:!side.classList.contains('open');
       side.classList.toggle('open',open);
       if(back) back.classList.toggle('open',open);
+      document.body.classList.toggle('nav-open',open);
+      $('menuBtn').setAttribute('aria-expanded',String(open));
+      $('menuBtn').setAttribute('aria-label',open?'Цэс хаах':'Цэс нээх');
+      if(open) $('navSearch').focus();
+      else if(side.contains(document.activeElement)) $('menuBtn').focus();
     }
     window.toggleSidebar=toggleSidebar;
+    window.matchMedia('(max-width: 900px)').addEventListener('change',()=>toggleSidebar(false));
     function applyAdminAssets(){
       document.querySelectorAll('[data-admin-asset]').forEach(el=>{
         el.src=ADMIN_ASSET(el.getAttribute('data-admin-asset'));
@@ -5746,7 +5822,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       applyAdminAssets();
       initTheme();
       document.querySelectorAll('#nav a').forEach(a=>{
-        a.addEventListener('click',()=>{ if(window.innerWidth<900) toggleSidebar(false); });
+        a.addEventListener('click',()=>{ if(window.innerWidth<=900) toggleSidebar(false); });
       });
       const navSearch=$('navSearch');
       if(navSearch&&!navSearch._bound){

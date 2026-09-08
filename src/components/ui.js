@@ -131,6 +131,8 @@ export function Field({
   error,
   hint,
   required,
+  onFocus,
+  onBlur,
   ...props
 }) {
   const { colors } = useTheme();
@@ -161,12 +163,12 @@ export function Field({
           focused && { borderWidth: 1.5 },
           inputStyle,
         ]}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onFocus={(event) => { setFocused(true); onFocus?.(event); }}
+        onBlur={(event) => { setFocused(false); onBlur?.(event); }}
         {...props}
       />
       {error ? (
-        <Text style={[styles.fieldMsg, { color: colors.danger }]}>{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.fieldMsg, { color: colors.danger }]}>{error}</Text>
       ) : hint ? (
         <Text style={[styles.fieldMsg, { color: colors.textFaint }]}>{hint}</Text>
       ) : null}
@@ -197,7 +199,7 @@ export function ScreenHeader({ title, subtitle, right, icon, back, onBackPress }
     <View
       style={[
         styles.header,
-        { backgroundColor: colors.surfaceDim, borderBottomColor: colors.outlineVariant },
+        { backgroundColor: colors.surface, borderBottomColor: colors.outlineVariant },
       ]}
     >
       <SafeAreaView edges={['top']}>
@@ -489,7 +491,7 @@ export function ListRow({
           <Text style={[styles.rowIconText, { color: tint }]}>{icon}</Text>
         </View>
       ) : null}
-      <Text style={[styles.rowLabel, { color: labelColor }]} numberOfLines={1}>
+      <Text style={[styles.rowLabel, { color: labelColor }]} numberOfLines={2}>
         {label}
       </Text>
       {value != null ? (
@@ -652,7 +654,7 @@ export function formatMNT(value) {
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   btn: {
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -723,13 +725,13 @@ const styles = StyleSheet.create({
   backBtn: {
     width: touch.icon,
     height: touch.icon,
-    borderRadius: touch.icon / 2,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   backIcon: { fontSize: 28, fontWeight: '800', marginTop: -4 },
-  headerTitle: { ...type.h2, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  headerTitle: { ...type.h2, fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   headerSub: { ...type.caption, fontSize: 13, marginTop: 2 },
   statCard: {
     flex: 1,
@@ -739,7 +741,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statIcon: { fontSize: 22, marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: '900' },
+  statValue: { fontSize: 26, fontWeight: '700', fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: 12, marginTop: 2, textAlign: 'center' },
   sectionTitle: {
     ...type.h3,
@@ -789,14 +791,14 @@ const styles = StyleSheet.create({
     minHeight: touch.min + 8,
   },
   rowIcon: {
-    width: 30,
-    height: 30,
+    width: 36,
+    height: 36,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowIconText: { fontSize: 15 },
-  rowLabel: { ...type.body, flex: 1, minWidth: 0 },
+  rowLabel: { ...type.bodyStrong, flex: 1, minWidth: 0 },
   rowValue: { ...type.caption, fontSize: 13, flexShrink: 1, textAlign: 'right' },
   rowChevron: { fontSize: 22, fontWeight: '600', marginLeft: 2 },
 

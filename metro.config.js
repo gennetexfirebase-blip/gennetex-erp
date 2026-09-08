@@ -3,6 +3,22 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+// Only crawl the mobile app. Archived checkouts and generated/native build
+// trees contain duplicate packages and stale paths that can stall Expo startup.
+const ignoredRoots = [
+  'android', 'ios', 'tmp', 'dist', 'dist-web', 'public-web', 'admin-web-react',
+  'fix-frontend', 'fix-public-site', 'sitecontent-fallback', 'temp-redeploy-main', 'test',
+];
+const escaped = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const existingBlockList = config.resolver.blockList;
+config.resolver.blockList = [
+  ...(Array.isArray(existingBlockList) ? existingBlockList : existingBlockList ? [existingBlockList] : []),
+  ...ignoredRoots.map(folder => new RegExp('^' + escaped(path.resolve(__dirname, folder) + path.sep))),
+];
+config.fileMapCacheDirectory = path.join(__dirname, '.expo', 'metro-file-map');
+require('node:fs').mkdirSync(config.fileMapCacheDirectory, { recursive: true });
+config.maxWorkers = 2;
+
 // GramJS (telegram) → React Native дээр ажиллуулахад шаардлагатай
 // Node built-in модулиудыг цэвэр-JS шим руу mapping хийнэ.
 const shimDir = path.resolve(__dirname, 'src/lib/telegram/shims');

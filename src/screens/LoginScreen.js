@@ -276,12 +276,12 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
 
   brandPanel: { paddingBottom: spacing.xxl * 2 },
-  brandInner: { alignItems: 'center', paddingTop: spacing.xxl },
+  brandInner: { alignItems: 'center', paddingTop: spacing.xxl, paddingHorizontal: spacing.lg },
   // Логог тойрсон хоёр цагираг — гүн өгнө.
   haloOuter: {
     width: 132,
     height: 132,
-    borderRadius: 66,
+    borderRadius: 36,
     backgroundColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -290,7 +290,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   haloInner: {
     width: 108,
     height: 108,
-    borderRadius: 54,
+    borderRadius: 28,
     backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -327,7 +327,7 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
 
   sheetWrap: { flex: 1, marginTop: -spacing.xxl },
-  sheetScroll: { flexGrow: 1, justifyContent: 'flex-start', padding: spacing.lg },
+  sheetScroll: { flexGrow: 1, justifyContent: 'flex-start', padding: spacing.lg, width: '100%', maxWidth: 520, alignSelf: 'center' },
   sheet: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,

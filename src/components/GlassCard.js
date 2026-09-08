@@ -8,7 +8,7 @@ import { radius, spacing } from '../theme';
 export default function GlassCard({
   children,
   style,
-  intensity = 24,
+  intensity = 0,
   glow = false,
   padded = true,
   radiusSize = radius.lg,
@@ -36,7 +36,7 @@ export default function GlassCard({
   );
 
   // BlurView зөвхөн iOS/Android дээр сайн ажиллана; тохиромжгүй үед solid fallback
-  if (Platform.OS === 'web') return inner;
+  if (Platform.OS === 'web' || intensity === 0) return inner;
 
   return (
     <View style={[{ borderRadius: radiusSize, overflow: 'hidden' }, glow && shadow.glow, !glow && shadow.sm, style]}>

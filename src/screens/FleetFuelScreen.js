@@ -96,6 +96,10 @@ export default function FleetFuelScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        <TouchableOpacity style={[styles.reportBtn, { marginBottom: spacing.lg, alignSelf: 'flex-start' }]} onPress={() => navigation.navigate('Fuel')} accessibilityRole="button">
+          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+          <Text style={styles.reportText}>Өөрийн зарцуулалт бүртгэх / нөхөх</Text>
+        </TouchableOpacity>
         <View style={styles.statRow}>
           <StatCard label="Машин" value={String(rows.length)} color={colors.primary} />
           <StatCard label="Явж байна" value={String(activeCount)} color={colors.success} />

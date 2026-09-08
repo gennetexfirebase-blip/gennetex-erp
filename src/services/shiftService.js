@@ -191,6 +191,17 @@ export async function fetchTodayStatus(userId, date = dayKey()) {
   };
 }
 
+/** Active attendance session, including work continuing across midnight. */
+export async function fetchActiveWorkSession(userId) {
+  const { data, error } = await supabase.from('attendance').select('type,created_at')
+    .eq('staff_id', userId).or('status.neq.rejected,status.is.null')
+    .in('type', ['check_in', 'check_out'])
+    .gte('created_at', new Date(Date.now() - 86400000).toISOString())
+    .lte('created_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1);
+  if (error) throw error;
+  return data?.[0]?.type === 'check_in' ? data[0] : null;
+}
+
 export async function fetchAttendanceForUserDay(userId, date = dayKey()) {
   const start = new Date(`${date}T00:00:00`);
   const end = new Date(`${date}T23:59:59.999`);

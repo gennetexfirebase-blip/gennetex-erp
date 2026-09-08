@@ -25,6 +25,8 @@ import FuelScreen from './src/screens/FuelScreen';
 import FleetFuelScreen from './src/screens/FleetFuelScreen';
 import FuelSpendReportScreen from './src/screens/FuelSpendReportScreen';
 import LiveLocationScreen from './src/screens/LiveLocationScreen';
+import LiveTrackingScreen from './src/screens/LiveTrackingScreen';
+import EmployeeLiveTrackingScreen from './src/screens/EmployeeLiveTrackingScreen';
 import CallsMapScreen from './src/screens/CallsMapScreen';
 import AdminCallsScreen from './src/screens/AdminCallsScreen';
 import AdminVisitsScreen from './src/screens/AdminVisitsScreen';
@@ -171,8 +173,6 @@ function MainTabs() {
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Ирц' }} />
       <Tab.Screen name="Feed" component={FeedScreen} options={{ title: 'Пост' }} />
       <Tab.Screen name="Chat" component={ChatScreen} options={{ title: 'Чат' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Профайл' }} />
-      <Tab.Screen name="Notifications" component={NotificationCenterScreen} options={{ title: 'Мэдэгдэл' }} />
     </Tab.Navigator>
   );
 }
@@ -189,6 +189,8 @@ function AppStack() {
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Notifications" component={NotificationCenterScreen} />
       <Stack.Screen name="Inventory" component={InventoryScreen} initialParams={{ category: 'material', mode: 'manage' }} />
       <Stack.Screen name="Tools" component={InventoryScreen} initialParams={{ category: 'tool', mode: 'manage' }} />
       {/* "Багаж, хангамж" төв цэс — Багаж / Хангамж / Бараа материал руу сална. */}
@@ -197,7 +199,10 @@ function AppStack() {
       <Stack.Screen name="Fuel" component={FuelScreen} />
       <Stack.Screen name="FleetFuel" component={FleetFuelScreen} />
         <Stack.Screen name="FuelSpendReport" component={FuelSpendReportScreen} />
-      <Stack.Screen name="Live" component={LiveLocationScreen} />
+      <Stack.Screen name="Live" component={LiveTrackingScreen} />
+      <Stack.Screen name="LiveTracking" component={LiveTrackingScreen} />
+      <Stack.Screen name="EmployeeLiveTracking" component={EmployeeLiveTrackingScreen} />
+      <Stack.Screen name="LegacyLiveLocation" component={LiveLocationScreen} />
       <Stack.Screen name="Calls" component={CallsMapScreen} />
       <Stack.Screen name="AdminCalls" component={AdminCallsScreen} />
       <Stack.Screen name="AdminVisits" component={AdminVisitsScreen} />

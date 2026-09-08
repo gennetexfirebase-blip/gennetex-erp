@@ -22,7 +22,7 @@ import * as faceCloud from '../services/faceCloudService';
 import * as faceEdge from '../services/faceEdgeService';
 import { friendlyError } from '../lib/erpMessages';
 import * as deviceApi from '../services/deviceAuthService';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
 import { Card, Button, Field, SectionTitle, EmptyState } from '../components/ui';
@@ -55,11 +55,7 @@ import { distanceMeters } from '../lib/geo';
 import { spacing, radius } from '../theme';
 import { colors as employeeColors } from '../theme/attendanceLight';
 import { colors as adminColors } from '../theme/attendanceDark';
-import EmployeeAttendanceMap from '../components/EmployeeAttendanceMap';
-import GeofenceStatusBanner from '../components/GeofenceStatusBanner';
-import MapControlButton from '../components/MapControlButton';
-import AttendanceActionButton from '../components/AttendanceActionButton';
-import AttendanceBottomPanel from '../components/AttendanceBottomPanel';
+import EmployeeAttendanceSummary from '../components/EmployeeAttendanceSummary';
 import ChatAvatar from '../components/ChatAvatar';
 import WorkHoursRing from '../components/WorkHoursRing';
 import SummaryStatCards from '../components/SummaryStatCards';
@@ -209,7 +205,6 @@ export default function AttendanceScreen() {
   // Notch / Dynamic Island-тай зөрчилдөхгүй байхын тулд.
   // `SafeAreaView` нь `position: absolute` дотор inset-ээ зөв тооцдоггүй
   // тул шууд hook ашиглана.
-  const insets = useSafeAreaInsets();
   const { currentUser, isCloud, isAdmin, fetchEmployees, shiftStatus, refreshShiftStatus } = useApp();
   const profile = currentUser;
   const developerEmail = String(process.env.EXPO_PUBLIC_DEVELOPER_EMAIL || '').trim().toLowerCase();
@@ -506,7 +501,6 @@ export default function AttendanceScreen() {
   // нэг удаагийн `getLocation()`-оос ТУСДАА, зөвхөн ДЭЛГЭЦИЙН зурагт зориулав.
   // Одоо байгаа ирц бүртгэх логикт нөлөөлөхгүй.
   const [liveLocation, setLiveLocation] = useState(null);
-  const mapRef = useRef(null);
 
   // 'granted' | 'denied' | null (хараахан шалгаагүй)
   const [locationPermission, setLocationPermission] = useState(null);
@@ -544,7 +538,7 @@ export default function AttendanceScreen() {
 
   useEffect(() => {
     // Админ ч өөрийн (ЗӨВХӨН ӨӨРИЙНХӨӨ, бусдын биш) байршлыг харна.
-    if (!isCloud) return;
+    if (!isCloud || !isAdmin) return;
     let sub;
     let cancelled = false;
     (async () => {
@@ -568,7 +562,7 @@ export default function AttendanceScreen() {
       cancelled = true;
       sub?.remove?.();
     };
-  }, [isCloud]);
+  }, [isCloud, isAdmin]);
 
   // Одоогийн байршлыг зөвшөөрөгдсөн цэгүүдтэй харьцуулна
   /**
@@ -973,6 +967,10 @@ export default function AttendanceScreen() {
 
       // ЯВЛАА дээр буусан байршлаа зургаар баталгаажуулах сонголт.
       // ⚠️ ЗААВАЛ БИШ — "Алгасах" дарвал зураггүй шууд бүртгэнэ.
+      if (type === 'check_out' && !isAdmin) {
+        await finalizeQuickAttendance(type, loc, mode !== 'onsite', distance, locationName);
+        return;
+      }
       if (type === 'check_out') {
         setBusy(false);
         Alert.alert(
@@ -1407,31 +1405,6 @@ ${dates[0]} – ${dates[dates.length - 1]}`
   }
 
   if (!isAdmin) {
-    // Ажлын байрны цэг: миний хуваарьт онооcон байршил байвал түүнийг,
-    // үгүй бол хамгийн ойрхон тохируулсан цэгийг харуулна.
-    const shiftLocation = myShift?.location_id
-      ? locations.find((l) => l.id === myShift.location_id)
-      : null;
-    const nearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
-    const workplace = shiftLocation || nearest.location || locations[0] || null;
-
-    let geofenceStatus = null;
-    if (locations.length > 0 && liveLocation?.latitude != null) {
-      geofenceStatus = nearest.within ? 'inside' : 'outside';
-    }
-
-    // Товчийг ХААХ нь зөвхөн "аль хэдийн бүртгүүлсэн" тохиолдолд.
-    //
-    // ⚠️ Байршил хараахан ирээгүй (`geofenceStatus === null`) байхад товчийг
-    // хаах нь БУРУУ байсан: `quickAttendance()` өөрөө шинээр `getLocation()`
-    // дуудаж, бүсээс гадуур бол хүсэлтийн цонх гаргадаг. Тиймээс GPS
-    // хүлээж байхад ч дарж болно — эс бөгөөс апп нээгээд эхний хэдэн
-    // секундэд товч ямар ч шалтгаангүй унтарсан харагдана.
-    const canCheckIn = !shiftStatus.checkedIn;
-    const canCheckOut = shiftStatus.checkedIn && !shiftStatus.checkedOut;
-    const actionMode = shiftStatus.checkedIn && !shiftStatus.checkedOut ? 'check_out' : 'check_in';
-    const actionEnabled = actionMode === 'check_in' ? canCheckIn : canCheckOut;
-
     const scheduleLabel = todayIsRest
       ? 'Хуваарьгүй · Амралт'
       : myShift
@@ -1442,165 +1415,16 @@ ${dates[0]} – ${dates[dates.length - 1]}`
 
     return (
       <View style={{ flex: 1, backgroundColor: employeeColors.background }}>
-        <EmployeeAttendanceMap
-          mapRef={mapRef}
-          employeeLocation={liveLocation}
-          workplace={workplace}
-          locations={locations}
-          profileUri={profile?.avatar_url}
-          profileName={profile?.name}
-        />
-
-        {/* ⚠️ Header нь MapView-ийн ДЭЭР байх ёстой.
-            MapView бол NATIVE view бөгөөд Android дээр өөрөө бүх touch-ыг
-            барьж авдаг тул `zIndex` + `elevation` ЗААВАЛ хэрэгтэй — эс
-            бөгөөс товчнууд харагдах ч дарагдахгүй.
-            `pointerEvents="box-none"` нь зөвхөн жинхэнэ товчнууд touch авч,
-            бусад хэсгээр map-ыг чирэх боломжтой байлгана. */}
-        <View
-          style={[styles.mapTopBar, { paddingTop: insets.top + 8 }]}
-          pointerEvents="box-none"
-        >
-          <View style={[styles.headerCard, { backgroundColor: employeeColors.surface }]}>
-            <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={46} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text
-                style={{ color: employeeColors.text, fontWeight: '800', fontSize: 16 }}
-                numberOfLines={1}
-              >
-                {profile?.name}
-              </Text>
-              <Text style={{ color: employeeColors.textMuted, fontSize: 12, marginTop: 1 }}>
-                ЖЕННЕТЕКС ХХК
-              </Text>
-            </View>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.headerBtn,
-                { backgroundColor: employeeColors.surfaceAlt },
-                pressed && { opacity: 0.6, transform: [{ scale: 0.96 }] },
-              ]}
-              onPress={() => navigation.navigate('Notifications')}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Мэдэгдэл"
-            >
-              <Ionicons name="notifications-outline" size={21} color={employeeColors.text} />
-              {unreadCount > 0 ? (
-                <View style={styles.headerBadge}>
-                  <Text style={styles.headerBadgeText}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.headerBtn,
-                { backgroundColor: employeeColors.surfaceAlt, marginLeft: 10 },
-                pressed && { opacity: 0.6, transform: [{ scale: 0.96 }] },
-              ]}
-              onPress={() => navigation.navigate('MyShift')}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Хуваарь, тохиргоо"
-            >
-              <Ionicons name="settings-outline" size={21} color={employeeColors.text} />
-            </Pressable>
-          </View>
-
-          {locationPermission === 'denied' ? (
-            <View style={[styles.permBanner, { backgroundColor: employeeColors.surface }]}>
-              <Text style={{ color: employeeColors.danger, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
-                Ирц бүртгэхийн тулд байршлын зөвшөөрөл шаардлагатай
-              </Text>
-              <TouchableOpacity
-                style={[styles.permBtn, { backgroundColor: employeeColors.primary }]}
-                onPress={() => Linking.openSettings()}
-              >
-                <Text style={{ color: employeeColors.onPrimary, fontWeight: '700', fontSize: 13 }}>
-                  Тохиргоо нээх
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <GeofenceStatusBanner
-              status={geofenceStatus}
-              colors={employeeColors}
-              style={{ marginTop: 10, alignSelf: 'center' }}
-            />
-          )}
-        </View>
-
-        <View style={styles.mapControls} pointerEvents="box-none">
-          <MapControlButton
-            icon="navigate"
-            colors={employeeColors}
-            accessibilityLabel="Миний байршил руу төвлөрөх"
-            onPress={() =>
-              liveLocation?.latitude != null &&
-              mapRef.current?.animateToRegion(
-                { ...liveLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-                400
-              )
-            }
-          />
-          <MapControlButton
-            icon="business"
-            colors={employeeColors}
-            accessibilityLabel="Ажлын байршил руу төвлөрөх"
-            onPress={() =>
-              workplace?.latitude != null &&
-              mapRef.current?.animateToRegion(
-                { latitude: workplace.latitude, longitude: workplace.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-                400
-              )
-            }
-          />
-          <MapControlButton
-            icon="time-outline"
-            colors={employeeColors}
-            accessibilityLabel="Өдрийн түүх"
-            onPress={() => navigation.navigate('AttendanceHistory')}
-          />
-        </View>
-
-        {/* Доод панел + таб мөрний дээр байрлана (панелийн өндөр өөрчлөгдвөл
-            энэ тоог мөн тохируулна). */}
-        <View
-          style={[styles.actionBtnWrap, { bottom: insets.bottom + 300 }]}
-          pointerEvents="box-none"
-        >
-          <AttendanceActionButton
-            mode={actionMode}
-            enabled={actionEnabled}
-            loading={busy}
-            colors={employeeColors}
-            onPress={() => quickAttendance(actionMode)}
-          />
-        </View>
-
-        <AttendanceBottomPanel
-          colors={employeeColors}
-          dateLabel={dateLabel}
+        <EmployeeAttendanceSummary
+          profile={profile}
+          shiftStatus={shiftStatus}
+          busy={busy}
           scheduleLabel={scheduleLabel}
-          locations={locations}
-          activeLocationId={workplace?.id}
-          onPressLocation={(l) =>
-            mapRef.current?.animateToRegion(
-              {
-                latitude: Number(l.latitude),
-                longitude: Number(l.longitude),
-                latitudeDelta: 0.008,
-                longitudeDelta: 0.008,
-              },
-              400
-            )
-          }
-          onPressSummary={() => navigation.navigate('AttendanceMonthlySummary')}
-          onPressRequest={() => navigation.navigate('AttendanceRequestForm')}
+          dateLabel={dateLabel}
+          onCheckIn={() => quickAttendance('check_in')}
+          onCheckOut={() => quickAttendance('check_out')}
+          onRefresh={async () => { await loadMyDay(); await refreshShiftStatus(); }}
+          error={error}
         />
 
         <SelfieCamera
