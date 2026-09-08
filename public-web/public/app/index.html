@@ -129,7 +129,7 @@
       </a>
     </p>
     <p class="note" style="margin-top:10px">
-      Файл <b>135 MB</b> тул Wi-Fi дээр татахыг зөвлөж байна. Татаж дууссан файл
+      Файл <b id="sizeHint">~111 MB</b> тул Wi-Fi дээр татахыг зөвлөж байна. Татаж дууссан файл
       ихэвчлэн <b>Файл → Downloads</b> дотор байрлана.
     </p>
   </div>
@@ -187,6 +187,12 @@
       const direct = document.getElementById('direct');
       if (direct) direct.href = info.mirrorUrl || info.url;
       const mb = info.sizeBytes ? (info.sizeBytes / 1048576).toFixed(1) + ' MB · ' : '';
+      // Файлын хэмжээг зааварт ч давхар бичнэ — гараар бичсэн тоо
+      // хувилбар бүрд хоцордог байсан (135 MB гэж үлдсэн байв).
+      const sizeHint = document.getElementById('sizeHint');
+      if (sizeHint && info.sizeBytes) {
+        sizeHint.textContent = '~' + Math.round(info.sizeBytes / 1048576) + ' MB';
+      }
       meta.textContent = `Хувилбар ${info.version || '—'} · ${mb}${info.releasedAt || ''}`;
     } catch (e) {
       // Манифест байхгүй бол товчийг идэвхгүй болгож, шалтгааныг хэлнэ —
