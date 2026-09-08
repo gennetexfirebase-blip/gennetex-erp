@@ -146,6 +146,7 @@ jobs:
 
       - name: Prebuild-ийн дараах засварууд
         run: |
+          node scripts/patch-gradle9-libs.js
           node scripts/patch-incoming-call-rn81.js
           node scripts/sync-google-services.js
           test -f android/app/google-services.json \
