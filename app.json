@@ -3,7 +3,7 @@
     "name": "Gennetex ERP",
     "slug": "gennetex-erp",
     "scheme": "gennetex-erp",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -158,7 +158,7 @@
           }
         ]
       },
-      "buildNumber": "5",
+      "buildNumber": "6",
       "usesAppleSignIn": true
     },
     "android": {
@@ -198,7 +198,7 @@
       },
       "package": "com.gennetex.erp",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 6,
+      "versionCode": 7,
       "allowBackup": false
     },
     "web": {
