@@ -261,10 +261,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ env.RELEASE_TAG }}"
+          ASSET="${{ steps.apk.outputs.path }}"
+          UPLOADS=("$ASSET")
+          # ⚠️ `gennetex.mn/app` хуудас нь `releases/latest/download/gennetex-erp.apk`
+          #    гэсэн ТОГТМОЛ нэр рүү заадаг (хуудсыг release бүрд дахин
+          #    угсрахгүйн тулд). Тэр нэртэй хуулбарыг хавсаргахгүй бол
+          #    татах товч 404 өгнө (2026-09-08-нд v1.3.10 дээр илэрсэн).
+          if [ "${{ env.VARIANT }}" = "release" ]; then
+            cp "$ASSET" gennetex-erp.apk
+            UPLOADS+=(gennetex-erp.apk)
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${{ steps.apk.outputs.path }}" --clobber
+            gh release upload "$TAG" "${UPLOADS[@]}" --clobber
           else
-            gh release create "$TAG" "${{ steps.apk.outputs.path }}" \
+            gh release create "$TAG" "${UPLOADS[@]}" \
               --title "Gennetex ERP $TAG" \
               --notes "Хувилбар ${{ steps.apk.outputs.version }} · ${{ env.VARIANT }} build"
           fi
