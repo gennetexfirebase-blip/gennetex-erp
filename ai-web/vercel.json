@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": ".",
+  "routes": [
+    {
+      "src": "/api/chat",
+      "dest": "https://zkftykocmqzrgdhgwluu.supabase.co/functions/v1/ai-chat"
+    },
+    { "handle": "filesystem" },
+    {
+      "src": "/(.*)",
+      "headers": { "Cache-Control": "no-cache, must-revalidate" },
+      "dest": "/index.html"
+    }
+  ]
+}

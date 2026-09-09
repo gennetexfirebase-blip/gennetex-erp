@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="mn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gennetex AI — Бодож байж хариулдаг хиймэл оюун.</title>
+    <meta
+      name="description"
+      content="Gennetex AI — монгол хэл, латин галигаар ойлгодог, асуулт бүрийг бодож байж хариулдаг хиймэл оюуны систем."
+    />
+    <link rel="icon" href="/logo.png" />
+    <link rel="canonical" href="https://ai.gennetex.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ai.gennetex.com/" />
+    <meta property="og:title" content="Gennetex AI" />
+    <meta
+      property="og:description"
+      content="Монгол хэл, латин галигаар ойлгодог, бодож байж хариулдаг хиймэл оюун."
+    />
+    <meta property="og:image" content="https://ai.gennetex.com/logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ===================================================================
+       * Дизайн токен
+       * =================================================================== */
+      :root {
+        --ink: #111111;
+        --muted: #5c5c5c;
+        --card: rgba(248, 248, 246, 0.97);
+        --shell: 1120px;
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #eef2ee;
+        overflow-x: hidden;
+      }
+
+      body {
+        font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      body.menu-open {
+        overflow: hidden;
+      }
+
+      /* ===================================================================
+       * Дэвсгэр видео — дээр нь ямар ч давхарга байхгүй
+       * =================================================================== */
+      .hero {
+        position: relative;
+        height: 100vh;
+        height: 100svh;
+        min-height: 620px;
+        width: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .hero__bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        animation: fade-in 1.15s var(--ease) both;
+      }
+
+      .hero__bg video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+      }
+
+      .hero__inner {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      /* ===================================================================
+       * Навигаци
+       * =================================================================== */
+      .nav {
+        position: relative;
+        z-index: 70;
+        width: 100%;
+        max-width: var(--shell);
+        margin: 0 auto;
+        padding: 26px 24px 0;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 25px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .brand svg {
+        display: block;
+      }
+
+      .nav__links {
+        display: flex;
+        align-items: center;
+        gap: 42px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .nav__links a {
+        font-size: 15px;
+        font-weight: 400;
+        color: #1a1a1a;
+        text-decoration: none;
+        opacity: 0.9;
+        transition: opacity 0.18s ease;
+      }
+
+      .nav__links a:hover {
+        opacity: 0.55;
+      }
+
+      .nav__cta {
+        justify-self: end;
+      }
+
+      .btn-dark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #141414;
+        color: #fff;
+        font-family: inherit;
+        font-size: 14.5px;
+        font-weight: 500;
+        padding: 13px 22px;
+        border: 0;
+        border-radius: 9px;
+        white-space: nowrap;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.18s ease, transform 0.18s ease;
+      }
+
+      .btn-dark:hover {
+        background: #000;
+        transform: translateY(-1px);
+      }
+
+      /* ---- гамбургер ---- */
+      .nav__toggle {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        margin-right: -10px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .nav__toggle-box {
+        position: relative;
+        display: block;
+        width: 22px;
+        height: 14px;
+      }
+
+      .nav__toggle .bar {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 1.8px;
+        border-radius: 2px;
+        background: #141414;
+        transition: transform 0.55s var(--ease), width 0.45s var(--ease);
+      }
+
+      .bar--top {
+        top: 0;
+      }
+
+      .bar--bot {
+        bottom: 0;
+        width: 70%;
+      }
+
+      .nav__toggle:hover .bar--bot {
+        width: 100%;
+      }
+
+      .nav__toggle[aria-expanded='true'] .bar--top {
+        transform: translateY(6.1px) rotate(45deg);
+      }
+
+      .nav__toggle[aria-expanded='true'] .bar--bot {
+        width: 100%;
+        transform: translateY(-6.1px) rotate(-45deg);
+      }
+
+      /* `.btn-dark { display:inline-flex }` доор зарлагдсан тул `.nav` угтвар
+         заавал хэрэгтэй — эс тэгвэл таблет өргөнд хоёр CTA гарч ирнэ. */
+      .nav .menu__cta {
+        display: none;
+      }
+
+      /* ===================================================================
+       * Төв багана
+       * =================================================================== */
+      .stage {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+        gap: clamp(18px, 2.4vh, 26px);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(0, 0, 0, 0.07);
+        border-radius: 999px;
+        padding: 7px 16px 7px 8px;
+        font-size: 13.5px;
+        color: #4a4a4a;
+      }
+
+      .badge__tag {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(0, 0, 0, 0.07);
+        border-radius: 999px;
+        padding: 3px 12px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #111;
+      }
+
+      .headline {
+        margin: 0;
+        font-size: clamp(32px, 5.7vw, 72px);
+        line-height: 1.03;
+        font-weight: 500;
+        letter-spacing: -0.035em;
+        max-width: 20ch;
+      }
+
+      .sub {
+        margin: 0;
+        font-size: clamp(14px, 1.35vw, 17.5px);
+        line-height: 1.65;
+        font-weight: 400;
+        color: var(--muted);
+        max-width: 66ch;
+      }
+
+      .brk {
+        display: none;
+      }
+
+      @media (min-width: 900px) {
+        .brk {
+          display: inline;
+        }
+        .stage .headline {
+          max-width: none;
+        }
+        .stage .sub {
+          max-width: none;
+        }
+      }
+
+      /* ===================================================================
+       * Асуултын карт
+       * =================================================================== */
+      .prompt {
+        width: min(790px, 100%);
+        background: rgba(255, 255, 255, 0.42);
+        -webkit-backdrop-filter: blur(18px) saturate(1.15);
+        backdrop-filter: blur(18px) saturate(1.15);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 20px;
+        padding: 22px 20px 16px;
+        text-align: left;
+        box-shadow: 0 18px 44px -26px rgba(0, 0, 0, 0.28);
+        margin-top: clamp(6px, 1.6vh, 16px);
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      .prompt__input {
+        width: 100%;
+        border: 0;
+        outline: 0;
+        resize: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 16.5px;
+        line-height: 1.5;
+        color: var(--ink);
+        min-height: clamp(56px, 11vh, 108px);
+        padding: 2px 4px;
+      }
+
+      .prompt__input::placeholder {
+        color: #3d3d3d;
+        opacity: 0.72;
+      }
+
+      .prompt__bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+      }
+
+      .prompt__right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        background: #fff;
+        color: #1a1a1a;
+        cursor: pointer;
+        padding: 0;
+        transition: background 0.18s ease;
+      }
+
+      .icon-btn:hover {
+        background: #f1f1ef;
+      }
+
+      .icon-btn--bare {
+        border: 0;
+        background: transparent;
+        width: 34px;
+      }
+
+      .icon-btn--bare:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .icon-btn--send {
+        background: #141414;
+        border-color: #141414;
+        color: #fff;
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+      }
+
+      .icon-btn--send:hover {
+        background: #000;
+      }
+
+      .icon-btn[disabled] {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .icon-btn svg {
+        width: 19px;
+        height: 19px;
+      }
+
+      .icon-btn--send svg {
+        width: 21px;
+        height: 21px;
+      }
+
+      /* ---- харилцан яриа (хариу ирэхэд нээгдэнэ) ---- */
+      .thread {
+        display: none;
+        max-height: min(38vh, 340px);
+        overflow-y: auto;
+        margin: 0 0 14px;
+        padding: 0 4px 2px;
+        text-align: left;
+        scrollbar-width: thin;
+      }
+
+      .thread.is-active {
+        display: block;
+      }
+
+      .turn {
+        margin: 0 0 14px;
+        font-size: 15px;
+        line-height: 1.62;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .turn__who {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #8a8a8a;
+      }
+
+      .turn--me .turn__body {
+        color: var(--ink);
+      }
+
+      .turn--ai .turn__body {
+        color: #2a2a2a;
+      }
+
+      .turn--error .turn__body {
+        color: #b3261e;
+      }
+
+      .dots span {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        margin-right: 4px;
+        border-radius: 50%;
+        background: #8a8a8a;
+        animation: blink 1.1s var(--ease) infinite;
+      }
+
+      .dots span:nth-child(2) {
+        animation-delay: 0.16s;
+      }
+
+      .dots span:nth-child(3) {
+        animation-delay: 0.32s;
+      }
+
+      @keyframes blink {
+        0%,
+        70%,
+        100% {
+          opacity: 0.25;
+        }
+        35% {
+          opacity: 1;
+        }
+      }
+
+      /* ===================================================================
+       * Ачаалах үеийн хөдөлгөөн
+       * =================================================================== */
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translate3d(0, 18px, 0);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0);
+        }
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .rise {
+        animation: rise 0.9s var(--ease) both;
+        animation-delay: calc(var(--i, 0) * 70ms);
+      }
+
+      /* ===================================================================
+       * Мобайл цэс
+       * =================================================================== */
+      @media (max-width: 900px) {
+        .nav {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 18px 20px 0;
+        }
+
+        .brand,
+        .nav__toggle {
+          position: relative;
+          z-index: 80;
+        }
+
+        .brand {
+          font-size: 21px;
+          margin-right: auto;
+        }
+
+        .brand svg {
+          width: 25px;
+          height: 25px;
+        }
+
+        .btn-dark {
+          padding: 11px 17px;
+          font-size: 13.5px;
+        }
+
+        .nav__toggle {
+          display: inline-flex;
+        }
+
+        .nav__nav {
+          position: fixed;
+          inset: 0;
+          z-index: 60;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 30px;
+          padding: 92px 28px 46px;
+          background: #fafbf9;
+          opacity: 0;
+          visibility: hidden;
+          transform: translateY(-12px);
+          transition: opacity 0.45s var(--ease), transform 0.45s var(--ease),
+            visibility 0s linear 0.45s;
+        }
+
+        .nav__nav.is-open {
+          opacity: 1;
+          visibility: visible;
+          transform: translateY(0);
+          transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), visibility 0s linear 0s;
+        }
+
+        .nav__links {
+          flex-direction: column;
+          gap: 2px;
+          width: 100%;
+          max-width: 340px;
+        }
+
+        .nav__links li {
+          overflow: hidden;
+        }
+
+        .nav__links a {
+          display: block;
+          padding: 9px 0;
+          text-align: center;
+          font-size: clamp(26px, 7.4vw, 34px);
+          font-weight: 500;
+          letter-spacing: -0.03em;
+          opacity: 0;
+          transform: translateY(115%);
+          transition: opacity 0.5s var(--ease), transform 0.7s var(--ease);
+        }
+
+        .nav__links a:hover {
+          opacity: 0;
+        }
+
+        .nav__nav.is-open .nav__links a {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .nav__nav.is-open .nav__links a:hover {
+          opacity: 0.55;
+        }
+
+        .nav__nav.is-open .nav__links li:nth-child(1) a {
+          transition-delay: 0.12s;
+        }
+        .nav__nav.is-open .nav__links li:nth-child(2) a {
+          transition-delay: 0.18s;
+        }
+        .nav__nav.is-open .nav__links li:nth-child(3) a {
+          transition-delay: 0.24s;
+        }
+        .nav__nav.is-open .nav__links li:nth-child(4) a {
+          transition-delay: 0.3s;
+        }
+
+        .nav__links .rise {
+          animation: none;
+        }
+
+        .menu__cta {
+          opacity: 0;
+          transform: translateY(16px);
+          transition: opacity 0.5s var(--ease), transform 0.6s var(--ease), background 0.18s ease;
+        }
+
+        .nav__nav.is-open .menu__cta {
+          opacity: 1;
+          transform: translateY(0);
+          transition-delay: 0.36s;
+        }
+      }
+
+      /* ===================================================================
+       * Утас
+       * =================================================================== */
+      @media (max-width: 640px) {
+        .hero {
+          min-height: 560px;
+        }
+
+        .nav__cta {
+          display: none;
+        }
+
+        .nav .menu__cta {
+          display: inline-flex;
+          width: 100%;
+          max-width: 340px;
+          padding: 15px 22px;
+          font-size: 15px;
+          border-radius: 11px;
+        }
+
+        .stage {
+          padding: 16px 18px 22px;
+          gap: 16px;
+        }
+
+        .headline {
+          font-size: clamp(26px, 7.6vw, 36px);
+          max-width: 13ch;
+          letter-spacing: -0.03em;
+        }
+
+        .sub {
+          font-size: 14px;
+          line-height: 1.6;
+          max-width: 40ch;
+        }
+
+        .badge {
+          font-size: 12px;
+          padding: 6px 13px 6px 6px;
+          gap: 10px;
+        }
+
+        .badge__tag {
+          font-size: 12px;
+          padding: 3px 10px;
+        }
+
+        .prompt {
+          border-radius: 17px;
+          padding: 16px 14px 12px;
+        }
+
+        .prompt__input {
+          font-size: 16px;
+          min-height: 62px;
+        }
+
+        .icon-btn {
+          width: 38px;
+          height: 38px;
+        }
+
+        .icon-btn--bare {
+          width: 32px;
+        }
+
+        .icon-btn--send {
+          width: 42px;
+          height: 42px;
+          border-radius: 11px;
+        }
+
+        .thread {
+          max-height: 30vh;
+        }
+      }
+
+      /* ===================================================================
+       * Хэвтээ утас
+       * =================================================================== */
+      @media (max-height: 560px) and (orientation: landscape) {
+        .hero {
+          height: auto;
+          min-height: 100svh;
+        }
+
+        .stage {
+          padding-block: 34px;
+        }
+
+        .prompt__input {
+          min-height: 48px;
+        }
+      }
+
+      /* ===================================================================
+       * Хөдөлгөөн багасгах
+       * =================================================================== */
+      @media (prefers-reduced-motion: reduce) {
+        .hero__bg video {
+          display: none;
+        }
+
+        .hero__bg,
+        .rise {
+          animation: none !important;
+        }
+
+        .nav__nav,
+        .nav__nav .nav__links a,
+        .menu__cta,
+        .nav__toggle .bar {
+          transition-duration: 0.01ms !important;
+          transition-delay: 0s !important;
+        }
+
+        .nav__nav,
+        .nav__nav .nav__links a,
+        .menu__cta {
+          transform: none !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <section class="hero">
+      <div class="hero__bg">
+        <video
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="auto"
+          poster="https://images.higgs.ai/?default=1&amp;output=webp&amp;url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260831_223518_f11bfa03-4e65-47e1-a4a7-30e42a7a8c2f.png&amp;w=1920&amp;q=85"
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260831_232706_43757be4-2250-4f09-8cd7-23aebbf147ad.mp4"
+            type="video/mp4"
+          />
+        </video>
+      </div>
+
+      <div class="hero__inner">
+        <header class="nav">
+          <a class="brand" href="#">
+            <svg
+              class="rise"
+              style="--i: 0"
+              width="30"
+              height="30"
+              viewBox="0 0 32 32"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M16 2.5 29.5 16 16 29.5 2.5 16 16 2.5Z"
+                stroke="#141414"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+              <path d="M16 9.5 22.5 16 16 22.5 9.5 16 16 9.5Z" fill="#141414" />
+            </svg>
+            <span class="rise" style="--i: 1">Gennetex AI</span>
+          </a>
+
+          <nav class="nav__nav" id="site-menu">
+            <ul class="nav__links">
+              <li class="rise" style="--i: 2"><a href="#">Тусламж</a></li>
+              <li class="rise" style="--i: 3"><a href="#">API</a></li>
+              <li class="rise" style="--i: 4"><a href="https://gennetex.com">Компани</a></li>
+              <li class="rise" style="--i: 5"><a href="https://cv.gennetex.com">Ажлын байр</a></li>
+            </ul>
+            <a class="btn-dark menu__cta" href="https://gennetex.com/contact">Хандах эрх авах</a>
+          </nav>
+
+          <div class="nav__cta rise" style="--i: 6">
+            <a class="btn-dark" href="https://gennetex.com/contact">Хандах эрх авах</a>
+          </div>
+
+          <button
+            class="nav__toggle rise"
+            style="--i: 6"
+            id="menu-toggle"
+            type="button"
+            aria-label="Цэс нээх"
+            aria-expanded="false"
+            aria-controls="site-menu"
+          >
+            <span class="nav__toggle-box" aria-hidden="true">
+              <span class="bar bar--top"></span>
+              <span class="bar bar--bot"></span>
+            </span>
+          </button>
+        </header>
+
+        <div class="stage">
+          <div class="badge rise" style="--i: 8">
+            <span class="badge__tag">Шинэ</span>
+            <span>Gennetex AI монгол хэлээр ярьж эхэллээ</span>
+          </div>
+
+          <h1 class="headline rise" style="--i: 10">
+            Бодож байж хариулдаг<br class="brk" />
+            монгол хиймэл оюун.
+          </h1>
+
+          <p class="sub rise" style="--i: 12">
+            Gennetex AI бол асуулт бүрийг сайтар эргэцүүлж байж хариулдаг систем.<br class="brk" />
+            Монгол кирилл, латин галиг хоёуланг нь ойлгоно — өөрийнхөөрөө л бичээрэй.
+          </p>
+
+          <form class="prompt rise" style="--i: 14" id="chat-form">
+            <div class="thread" id="thread" aria-live="polite"></div>
+
+            <label class="sr-only" for="prompt-input">Gennetex AI-аас асуух</label>
+            <textarea
+              id="prompt-input"
+              class="prompt__input"
+              rows="3"
+              placeholder="Юу ч асуугаарай… (Ji ch asuugaarai)"
+            ></textarea>
+
+            <div class="prompt__bar">
+              <button
+                class="icon-btn rise"
+                style="--i: 16"
+                type="button"
+                aria-label="Хавсралт нэмэх"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M12 5v14M5 12h14" stroke-width="1.9" stroke-linecap="round" />
+                </svg>
+              </button>
+
+              <div class="prompt__right">
+                <button
+                  class="icon-btn icon-btn--bare rise"
+                  style="--i: 17"
+                  type="button"
+                  id="mic-btn"
+                  aria-label="Микрофон ашиглах"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect
+                      x="9"
+                      y="2.5"
+                      width="6"
+                      height="11"
+                      rx="3"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+
+                <button
+                  class="icon-btn icon-btn--send rise"
+                  style="--i: 18"
+                  type="submit"
+                  id="send-btn"
+                  aria-label="Илгээх"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      d="M4 12h15M13 6l6 6-6 6"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      /* =====================================================================
+       * 1. Мобайл цэс
+       * =================================================================== */
+      (function () {
+        var toggle = document.getElementById('menu-toggle');
+        var menu = document.getElementById('site-menu');
+        if (!toggle || !menu) return;
+
+        function isOpen() {
+          return toggle.getAttribute('aria-expanded') === 'true';
+        }
+
+        function setMenu(open) {
+          toggle.setAttribute('aria-expanded', String(open));
+          toggle.setAttribute('aria-label', open ? 'Цэс хаах' : 'Цэс нээх');
+          menu.classList.toggle('is-open', open);
+          document.body.classList.toggle('menu-open', open);
+        }
+
+        toggle.addEventListener('click', function () {
+          setMenu(!isOpen());
+        });
+
+        menu.addEventListener('click', function (e) {
+          if (e.target.closest('a')) setMenu(false);
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && isOpen()) {
+            setMenu(false);
+            toggle.focus();
+          }
+        });
+
+        window.addEventListener('resize', function () {
+          if (window.innerWidth > 900 && isOpen()) setMenu(false);
+        });
+      })();
+
+      /* =====================================================================
+       * 2. Чат
+       *
+       * Хүсэлт нь Supabase Edge Function (`ai-chat`) руу очно. Тэр нь
+       * харилцан яриаг хадгалж, өмнөх мэдлэгээ ачаалаад загвар руу дамжуулна.
+       * Хөтөч дээр загварын хаяг ч, түлхүүр ч ОГТ байхгүй.
+       * =================================================================== */
+      (function () {
+        var ENDPOINT = window.__AI_ENDPOINT__ || '/api/chat';
+
+        var form = document.getElementById('chat-form');
+        var input = document.getElementById('prompt-input');
+        var thread = document.getElementById('thread');
+        var sendBtn = document.getElementById('send-btn');
+        if (!form || !input || !thread || !sendBtn) return;
+
+        // Нэг зочны яриаг үргэлжлүүлэхэд ашиглана. Сервер талд энэ ID-аар
+        // өмнөх мөрүүдийг олж контекст болгоно.
+        var conversationId = null;
+        try {
+          conversationId = localStorage.getItem('gx-ai-conversation');
+        } catch (e) {
+          /* хувийн горим — санах ойд л үлдэнэ */
+        }
+
+        var history = [];
+        var busy = false;
+
+        function addTurn(who, text, kind) {
+          var wrap = document.createElement('div');
+          wrap.className = 'turn turn--' + kind;
+
+          var label = document.createElement('span');
+          label.className = 'turn__who';
+          label.textContent = who;
+
+          var body = document.createElement('div');
+          body.className = 'turn__body';
+          body.textContent = text;
+
+          wrap.appendChild(label);
+          wrap.appendChild(body);
+          thread.appendChild(wrap);
+          thread.classList.add('is-active');
+          thread.scrollTop = thread.scrollHeight;
+          return body;
+        }
+
+        function thinking() {
+          var body = addTurn('Gennetex AI', '', 'ai');
+          body.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+          return body;
+        }
+
+        function send() {
+          var text = input.value.trim();
+          if (!text || busy) return;
+
+          busy = true;
+          sendBtn.disabled = true;
+          input.value = '';
+          addTurn('Та', text, 'me');
+          var target = thinking();
+
+          fetch(ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              conversationId: conversationId,
+              history: history.slice(-8),
+            }),
+          })
+            .then(function (r) {
+              return r.json().then(function (d) {
+                if (!r.ok) throw new Error(d.error || 'Хариу авч чадсангүй.');
+                return d;
+              });
+            })
+            .then(function (data) {
+              target.textContent = data.reply || '(хоосон хариу)';
+              history.push({ role: 'user', content: text });
+              history.push({ role: 'assistant', content: data.reply || '' });
+              if (data.conversationId) {
+                conversationId = data.conversationId;
+                try {
+                  localStorage.setItem('gx-ai-conversation', conversationId);
+                } catch (e) {
+                  /* ignore */
+                }
+              }
+            })
+            .catch(function (err) {
+              target.parentElement.className = 'turn turn--error';
+              target.textContent = err.message || 'Сүлжээний алдаа гарлаа.';
+            })
+            .finally(function () {
+              busy = false;
+              sendBtn.disabled = false;
+              thread.scrollTop = thread.scrollHeight;
+              input.focus();
+            });
+        }
+
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          send();
+        });
+
+        // Enter илгээнэ, Shift+Enter мөр таслана.
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            send();
+          }
+        });
+
+        /* ---- Микрофон — хөтчийн ярианы таних (боломжтой бол) ---- */
+        var micBtn = document.getElementById('mic-btn');
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (micBtn && SR) {
+          var rec = new SR();
+          rec.lang = 'mn-MN';
+          rec.interimResults = false;
+          var listening = false;
+
+          rec.addEventListener('result', function (e) {
+            var said = e.results[0][0].transcript;
+            input.value = input.value ? input.value + ' ' + said : said;
+            input.focus();
+          });
+          rec.addEventListener('end', function () {
+            listening = false;
+          });
+
+          micBtn.addEventListener('click', function () {
+            if (listening) {
+              rec.stop();
+              return;
+            }
+            try {
+              rec.start();
+              listening = true;
+            } catch (e) {
+              /* аль хэдийн ажиллаж байна */
+            }
+          });
+        } else if (micBtn) {
+          micBtn.disabled = true;
+          micBtn.setAttribute('aria-label', 'Энэ хөтөч дуу таних дэмжихгүй');
+        }
+      })();
+    </script>
+  </body>
+</html>
