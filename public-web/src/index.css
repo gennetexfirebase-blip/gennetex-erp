@@ -1,21 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * GENNETEX — цайвар дизайн систем.
+ *
+ *   --color-bg-base     #EDEEF5  хуудасны суурь
+ *   --color-brand-green #9fff00  өргөлт
+ *   --font-sans         Inter
+ *   --font-display      Outfit
+ *
+ * Компонентуудын хуучин класс нэрс (public-nav, section-glass, job-*,
+ * action-primary …) хэвээр байгаа — зөвхөн өнгө нь цайвар руу шилжив.
+ */
+:root {
+  color-scheme: light;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+
+  --color-bg-base: #edeef5;
+  --color-brand-green: #9fff00;
+
+  --ink: #1a1a1a;
+  --ink-soft: #8e8e8e;
+  --line: rgba(26, 26, 26, 0.1);
+  --surface: #ffffff;
+}
 
 @layer base {
   html {
     scroll-behavior: smooth;
   }
+
   body {
-    font-family: 'Inter', sans-serif;
+    @apply bg-bg-base text-zinc-900 font-sans antialiased;
+    margin: 0;
+  }
+
+  ::selection {
+    background: var(--color-brand-green);
+    color: #000;
+  }
+
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  button,
+  a {
+    touch-action: manipulation;
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Хөдөлгөөн
+ * ------------------------------------------------------------------------- */
 @keyframes blurFadeUp {
   from {
     opacity: 0;
-    filter: blur(20px);
-    transform: translateY(40px);
+    filter: blur(14px);
+    transform: translateY(28px);
   }
   to {
     opacity: 1;
@@ -26,52 +86,7 @@
 
 .animate-blur-fade-up {
   opacity: 0;
-  animation: blurFadeUp 1s ease-out forwards;
-}
-
-.liquid-glass {
-  background: rgba(255, 255, 255, 0.01);
-  background-blend-mode: luminosity;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.liquid-glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.4px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.45) 0%,
-    rgba(255, 255, 255, 0.15) 20%,
-    rgba(255, 255, 255, 0) 40%,
-    rgba(255, 255, 255, 0) 60%,
-    rgba(255, 255, 255, 0.15) 80%,
-    rgba(255, 255, 255, 0.45) 100%
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-.bottom-blur-mask {
-  -webkit-mask-image: linear-gradient(to top, black 0%, transparent 45%);
-  mask-image: linear-gradient(to top, black 0%, transparent 45%);
-}
-
-.hero-watermark {
-  font-size: clamp(4rem, 18vw, 14rem);
-  line-height: 1;
-  transform: rotate(-6deg);
+  animation: blurFadeUp 0.9s ease-out forwards;
 }
 
 @keyframes heroMarquee {
@@ -87,38 +102,146 @@
   animation: heroMarquee 40s linear infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-marquee {
-    animation: none;
-  }
+/* ---------------------------------------------------------------------------
+ * Гадаргуу
+ * ------------------------------------------------------------------------- */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 2px rgba(26, 26, 26, 0.04);
+  color: var(--ink);
 }
 
 .section-glass {
-  @apply rounded-2xl border border-graphite-800 bg-graphite-900/40 backdrop-blur-md;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(26, 26, 26, 0.03);
 }
 
-/* Ажилд орох анкет — input/select/textarea (Tailwind-ээс үл хамааран тод харагдана) */
+.section-glass h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  color: var(--ink);
+}
+
+.section-glass p {
+  line-height: 1.8;
+  color: #71717a;
+}
+
+.bottom-blur-mask {
+  -webkit-mask-image: linear-gradient(to top, black 0%, transparent 45%);
+  mask-image: linear-gradient(to top, black 0%, transparent 45%);
+}
+
+.public-skip {
+  position: fixed;
+  left: 20px;
+  top: -90px;
+  z-index: 100;
+  padding: 14px 20px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 12px;
+}
+
+.public-skip:focus {
+  top: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Хуудасны толгой ба үйлдлүүд
+ * ------------------------------------------------------------------------- */
+.public-page-header {
+  position: relative;
+  padding-top: 140px;
+  padding-bottom: 56px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent);
+  border-bottom: 1px solid var(--line);
+}
+
+.public-page-header h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.public-page-header p {
+  line-height: 1.75;
+  color: #71717a;
+}
+
+.action-primary,
+.action-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 22px;
+  min-height: 48px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    background 0.18s,
+    transform 0.18s,
+    border-color 0.18s;
+}
+
+.action-primary {
+  background: var(--ink);
+  color: #fff;
+}
+
+.action-primary:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+.action-secondary {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+}
+
+.action-secondary:hover {
+  background: #fff;
+  border-color: rgba(26, 26, 26, 0.25);
+}
+
+/* ---------------------------------------------------------------------------
+ * Ажилд орох анкет
+ * ------------------------------------------------------------------------- */
 @layer components {
   .job-label {
-    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-graphite-300;
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500;
   }
 
   .job-input {
-    @apply w-full rounded-xl border border-graphite-600 bg-graphite-900 px-3.5 py-2.5 text-sm outline-none transition-colors;
-    color: #f7f7f8 !important;
-    -webkit-text-fill-color: #f7f7f8;
-    background-color: #201e1f !important;
-    caret-color: #f7f7f8;
+    @apply w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors;
+    min-height: 46px;
+    color: #1a1a1a !important;
+    -webkit-text-fill-color: #1a1a1a;
+    background-color: #ffffff !important;
+    border-color: rgba(26, 26, 26, 0.14) !important;
+    caret-color: #1a1a1a;
   }
 
   .job-input::placeholder {
-    color: #77777f;
+    color: #a1a1aa;
     opacity: 1;
   }
 
   .job-input:focus {
-    border-color: #0099db;
-    box-shadow: 0 0 0 3px rgba(0, 153, 219, 0.28);
+    border-color: #1a1a1a !important;
+    box-shadow: 0 0 0 3px rgba(159, 255, 0, 0.45);
   }
 
   .job-input:disabled {
@@ -127,12 +250,34 @@
   }
 
   .job-input option {
-    color: #f7f7f8;
-    background-color: #201e1f;
+    color: #1a1a1a;
+    background-color: #fff;
   }
 
   .job-section {
-    @apply rounded-xl border border-graphite-700/80 bg-graphite-900/60 p-4 sm:p-5;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 16px;
+  }
+
+  .job-subsection {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fafbff;
+    padding: 16px;
+  }
+
+  .job-subsection-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    color: #52525b;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .job-register-grid {
@@ -146,90 +291,51 @@
     padding-right: 6px;
     text-align: center;
   }
+}
 
-  .job-subsection {
-    border: 1px solid rgb(72 71 77 / 0.8);
-    border-radius: 14px;
-    background: rgb(20 19 20 / 0.58);
-    padding: 16px;
-  }
-
-  .job-subsection-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    color: rgb(200 200 205);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+@media (min-width: 640px) {
+  .job-section {
+    padding: 20px;
   }
 }
 
 @media (max-width: 480px) {
-  .job-register-grid { grid-template-columns: 64px 64px minmax(0, 1fr); }
+  .job-register-grid {
+    grid-template-columns: 64px 64px minmax(0, 1fr);
+  }
 }
 
-/* Chrome autofill — харанхуй талбарт цагаан текст */
 .job-input:-webkit-autofill,
 .job-input:-webkit-autofill:hover,
 .job-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #f7f7f8 !important;
-  box-shadow: 0 0 0 1000px #201e1f inset !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
   transition: background-color 9999s ease-out 0s;
 }
-/* GENNETEX: shared public interface, aligned with the mobile and admin palette. */
-:root{color-scheme:dark;--public-ink:#0b1422;--public-surface:#132238;--public-line:#263a52;--public-muted:#a9bad0;--public-accent:#63cafa}
-body{margin:0;background:var(--public-ink);color:#edf3fb;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-::selection{background:#0075ad;color:white}
-a,button,input,select,textarea{-webkit-tap-highlight-color:transparent}
-a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--public-accent);outline-offset:4px}
-button,a{touch-action:manipulation}
-.public-skip{position:fixed;left:20px;top:-90px;z-index:100;padding:14px 20px;background:white;color:#132238;border-radius:12px}
-.public-skip:focus{top:16px}
-.public-nav{background:rgba(11,20,34,.96);border-bottom:1px solid var(--public-line);min-height:88px}
-.public-nav a[aria-current=page]{color:#63cafa}
-.public-nav .liquid-glass{min-height:44px}
-.public-hero{max-width:1280px;margin:auto;min-height:720px;padding:86px 48px 68px;display:grid;grid-template-columns:1.35fr 1fr;gap:72px;align-items:center}
-.hero-atmosphere{position:absolute;inset:0;background:radial-gradient(ellipse at 85% 25%,rgba(0,153,219,.14),transparent 55%);pointer-events:none}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(119,175,220,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(119,175,220,.035) 1px,transparent 1px);background-size:64px 64px;mask-image:linear-gradient(90deg,transparent,#000)}
-.eyebrow{display:flex;align-items:center;gap:10px;color:#63cafa;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;margin-bottom:26px}
-.eyebrow>span{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 5px rgba(99,202,250,.1)}
-.hero-copy h1{font-size:clamp(38px,4.6vw,66px);line-height:1.12;font-weight:650;letter-spacing:-.05em;margin:0 0 26px;overflow-wrap:break-word}
-.hero-copy h1>span{color:#63cafa}
-.hero-description{color:#b7c8dc;font-size:17px;line-height:1.85;max-width:560px}
-.hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px}
-.action-primary,.action-secondary{display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:15px 22px;min-height:52px;border-radius:10px;font-size:14px;font-weight:600;transition:background .18s,transform .18s}
-.action-primary{background:#63cafa;color:#09243a;box-shadow:0 6px 22px rgba(0,153,219,.12)}
-.action-primary:hover{background:#91dbff;transform:translateY(-2px)}
-.action-secondary{border:1px solid #3b506b;background:rgba(19,34,56,.55);color:#edf3fb}
-.action-secondary:hover{background:#1d324b}
-.hero-tagline{color:#a9bad0;font-size:13px;line-height:1.7;margin-top:20px}
-.hero-proof{display:flex;flex-wrap:wrap;gap:22px;margin-top:40px;padding-top:24px;border-top:1px solid var(--public-line);font-size:12px;font-weight:600;color:#c7d5e6}
-.hero-proof>div{flex:1;min-width:100px}
-.hero-solutions{border:1px solid #304760;border-radius:24px;background:linear-gradient(145deg,rgba(27,49,74,.95),rgba(14,28,46,.95));padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.18)}
-.solutions-heading{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#b7c8dc}
-.network-art{height:200px;position:relative;display:grid;place-items:center;overflow:hidden}
-.network-orbit{position:absolute;border:1px solid rgba(99,202,250,.19);border-radius:50%;width:160px;height:160px}
-.orbit-two{width:260px;height:260px;border-style:dashed;transform:rotate(35deg)}
-.network-center{display:grid;place-items:center;width:84px;height:84px;border-radius:24px;color:#72d0fc;background:#1b3c56;border:1px solid #376681;box-shadow:0 0 60px rgba(0,153,219,.1);transform:rotate(-6deg)}
-.network-point{position:absolute;width:10px;height:10px;background:#63cafa;box-shadow:0 0 0 5px #1a3c55;border-radius:50%}
-.point-one{top:32px;left:34%}.point-two{bottom:40px;right:30%}.point-three{left:14%;bottom:80px;background:#b0e8d3}
-.solution-links{display:grid;gap:10px}
-.solution-link{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #2c435d;border-radius:12px;background:rgba(11,20,34,.36);font-size:13px;font-weight:500;transition:background .2s,border-color .2s}
-.solution-link:hover{background:#1d354e;border-color:#63cafa}.solution-link>span:nth-child(2){flex:1}
-.solution-icon{display:grid;place-items:center;color:#63cafa;width:34px;height:34px;border-radius:9px;background:rgba(99,202,250,.08)}
-.solutions-footer{display:flex;align-items:center;justify-content:space-between;margin-top:22px;font-size:12px;color:#b7c8dc}
-.public-page-header{position:relative;background:radial-gradient(ellipse at 90% 0,rgba(0,153,219,.13),transparent 65%);padding-top:80px;padding-bottom:72px}
-.public-page-header h1{font-weight:600;line-height:1.18}.public-page-header p{line-height:1.8}
-.section-glass{background:#132238;border-color:#263a52;border-radius:20px;backdrop-filter:none;box-shadow:0 8px 24px rgba(0,0,0,.06)}
-.section-glass h3{font-size:18px;margin-top:8px;margin-bottom:12px}.section-glass p{line-height:1.8;color:#a9bad0}
-.liquid-glass{background:rgba(35,57,82,.5);border:1px solid #344960;box-shadow:none}.liquid-glass::before{display:none}
-.job-input{min-height:48px;background-color:#132238!important;border-color:#3b506b!important;border-radius:10px}
-.job-input:focus{border-color:#63cafa!important}.job-input::placeholder{color:#97abc2}.job-label{line-height:1.6}
-.job-section{background:#132238;border-color:#304760;border-radius:18px}.job-subsection{background:#0e1c2e;border-color:#304760}
-footer{position:relative}footer a:hover{color:#63cafa}
-@media(max-width:1023px){.public-hero{gap:32px;padding:64px 32px}.hero-copy h1{font-size:44px}.hero-proof{gap:12px}.public-nav{min-height:76px}}
-@media(max-width:767px){.public-hero{grid-template-columns:1fr;padding:52px 24px 48px;gap:36px;min-height:auto}.hero-copy h1{font-size:clamp(36px,8.5vw,54px)}.hero-description{font-size:15px}.hero-solutions{padding:20px}.network-art{height:150px}.hero-proof{margin-top:28px}.hero-actions>a{flex:1;white-space:nowrap}.public-page-header{padding:48px 24px}.public-page-header h1{font-size:34px}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.animate-blur-fade-up{opacity:1;transform:none;filter:none}}
+
+/* ---------------------------------------------------------------------------
+ * Хариу үзүүлэлт ба хөдөлгөөн багасгах
+ * ------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .public-page-header {
+    padding-top: 112px;
+    padding-bottom: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .animate-blur-fade-up {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

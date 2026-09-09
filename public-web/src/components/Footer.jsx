@@ -13,7 +13,7 @@ export default function Footer() {
           <span className="font-semibold tracking-tight">{footer.brand}</span>
         </div>
         {/* Нууцлал, нөхцөл — Microsoft Teams App-ын шаардлагаар нээлттэй байх ёстой */}
-        <nav className="flex items-center gap-4 text-sm text-gray-500">
+        <nav className="flex items-center gap-4 text-sm text-zinc-500">
           <Link to="/privacy" className="transition-colors hover:text-graphite-200">
             Нууцлал
           </Link>
@@ -27,7 +27,7 @@ export default function Footer() {
             Бүртгэл устгах
           </Link>
         </nav>
-        <p className="text-sm text-gray-500">{formatCopyright(footer.copyright)}</p>
+        <p className="text-sm text-zinc-500">{formatCopyright(footer.copyright)}</p>
       </div>
     </footer>
   );

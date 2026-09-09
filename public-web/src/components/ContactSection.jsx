@@ -27,13 +27,13 @@ export default function ContactSection({ embedded = false }) {
               <div key={item.label} className="flex items-start gap-4">
                 <item.icon className="mt-0.5 h-5 w-5 shrink-0 text-graphite-500" />
                 <div>
-                  <div className="text-xs font-medium text-gray-500">{item.label}</div>
+                  <div className="text-xs font-medium text-zinc-500">{item.label}</div>
                   {item.href ? (
-                    <a href={item.href} className="text-white transition hover:text-gray-300">
+                    <a href={item.href} className="text-ink transition hover:text-zinc-600">
                       {item.value}
                     </a>
                   ) : (
-                    <div className="text-white">{item.value}</div>
+                    <div className="text-ink">{item.value}</div>
                   )}
                 </div>
               </div>
@@ -45,12 +45,12 @@ export default function ContactSection({ embedded = false }) {
               <Clock className="h-5 w-5 text-graphite-500" />
               <h3 className="text-lg font-medium">{contact.hoursTitle}</h3>
             </div>
-            <div className="space-y-2 text-gray-300">
+            <div className="space-y-2 text-zinc-600">
               <p>{contact.hoursWeekday}</p>
               <p>{contact.hoursSaturday}</p>
               <p>{contact.hoursSunday}</p>
             </div>
-            <p className="mt-6 text-sm text-gray-400">{contact.hoursNote}</p>
+            <p className="mt-6 text-sm text-zinc-500">{contact.hoursNote}</p>
           </div>
         </div>
       </div>

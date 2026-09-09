@@ -1,145 +1,158 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Search, User } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useSiteContent } from '../context/SiteContentContext';
+
+/**
+ * Тогтмол (fixed) шилэн навигаци.
+ *
+ * 12 баганын сүлжээ: 1–3 брэнд · 4–9 цэс · 10–12 үйлдэл.
+ * Дээрээс доош бүдгэрэх градиент + backdrop-blur нь хуудасны #EDEEF5
+ * суурьтай уусан, гүйлгэх үед агуулга доогуур нь зөөлөн өнгөрнө.
+ */
+
+/** Геометр цэцэг — брэндийн тэмдэг. */
+function CloverMark({ className = '' }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="#1a1a1a" aria-hidden="true">
+      <path d="M12 2c1.9 0 3.4 1.5 3.4 3.4 0 .9-.3 1.6-.9 2.2.6-.6 1.4-.9 2.2-.9C18.5 6.7 20 8.2 20 10.1s-1.5 3.4-3.4 3.4c-.8 0-1.6-.3-2.2-.9.6.6.9 1.4.9 2.2 0 1.9-1.5 3.4-3.4 3.4s-3.4-1.5-3.4-3.4c0-.8.3-1.6.9-2.2-.6.6-1.4.9-2.2.9C5.5 13.5 4 12 4 10.1s1.5-3.4 3.4-3.4c.8 0 1.6.3 2.2.9-.6-.6-.9-1.3-.9-2.2C8.6 3.5 10.1 2 12 2Z" />
+      <circle cx="12" cy="21" r="1.6" />
+    </svg>
+  );
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const { navbar } = useSiteContent();
-  const isHome = pathname === '/';
-  const close = () => setOpen(false);
   const menuButton = useRef(null);
-  useEffect(() => { setOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event) => {
-      if (event.key === 'Escape') { setOpen(false); menuButton.current?.focus(); }
+      if (event.key === 'Escape') {
+        setOpen(false);
+        menuButton.current?.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
   return (
-    <>
-      <nav
-        aria-label="Үндсэн цэс"
-        className={`public-nav relative z-50 flex items-center justify-between px-4 py-4 sm:px-6 md:px-12 md:py-6 ${
-          isHome ? '' : 'border-b border-graphite-800 bg-graphite-950/90 backdrop-blur-md'
-        }`}
-      >
-        <Link to="/" className="animate-blur-fade-up flex items-center gap-2" style={{ animationDelay: '0ms' }}>
-          <img src="/logo.png" alt={navbar.brand} className="h-8 w-auto md:h-10" />
-          <span className="text-lg font-semibold tracking-tight md:text-xl">{navbar.brand}</span>
-        </Link>
-
-        <div className="hidden items-center gap-8 lg:flex">
-          {navbar.links.map((link, i) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              aria-current={pathname === link.to ? 'page' : undefined}
-              className={`animate-blur-fade-up text-sm transition-colors ${
-                pathname === link.to ? 'font-medium text-graphite-50' : 'text-graphite-300 hover:text-graphite-100'
-              }`}
-              style={{ animationDelay: `${100 + i * 50}ms` }}
-            >
-              {link.label}
-            </Link>
-          ))}
+    <nav
+      aria-label="Үндсэн цэс"
+      className="fixed left-0 top-0 z-50 w-full bg-gradient-to-b from-[#f1f1f1]/80 to-transparent py-6 backdrop-blur-[2px] md:py-8"
+    >
+      <div className="mx-auto grid max-w-7xl grid-cols-12 items-center gap-x-4 px-6 md:px-10 lg:px-16">
+        {/* 1–3 · брэнд */}
+        <div className="col-span-6 flex items-center gap-2 md:col-span-3">
+          <Link to="/" className="flex items-center gap-2">
+            <CloverMark className="h-6 w-6 md:h-7 md:w-7" />
+            <span className="font-display text-lg font-medium tracking-tight text-ink md:text-xl">
+              {navbar.brand}
+            </span>
+          </Link>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/careers"
-            className="animate-blur-fade-up liquid-glass hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-medium sm:flex md:px-6"
-            style={{ animationDelay: '350ms' }}
-          >
-            <Search size={18} />
-            <span>{navbar.ctaCareers}</span>
-          </Link>
+        {/* 4–9 · цэс (зөвхөн дэлгэц дээр) */}
+        <div className="col-span-6 hidden items-center justify-center gap-7 lg:flex">
+          {navbar.links.map((link) => {
+            const active = pathname === link.to;
+            return (
+              <Link
+                key={link.to}
+                to={link.to}
+                aria-current={active ? 'page' : undefined}
+                className={`text-[13px] transition-colors ${
+                  active ? 'text-ink' : 'text-zinc-500 hover:text-ink'
+                }`}
+              >
+                {link.label.toLowerCase()}
+              </Link>
+            );
+          })}
+        </div>
 
+        {/* 10–12 · үйлдэл */}
+        <div className="col-span-6 flex items-center justify-end gap-3 md:col-span-3">
           <Link
             to="/contact"
-            aria-label="Холбоо барих"
-            className="animate-blur-fade-up liquid-glass hidden h-10 w-10 items-center justify-center rounded-full sm:flex"
-            style={{ animationDelay: '400ms' }}
+            className="hidden text-[13px] text-zinc-500 transition-colors hover:text-ink lg:inline"
           >
-            <User size={18} />
+            холбоо барих
           </Link>
+          <a
+            href="https://cv.gennetex.com"
+            className="hidden items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[13px] font-medium text-white transition-transform hover:-translate-y-px sm:inline-flex"
+          >
+            {navbar.ctaCareers} <span aria-hidden="true">→</span>
+          </a>
 
           <button
-            type="button"
             ref={menuButton}
+            type="button"
             aria-expanded={open}
             aria-controls="public-mobile-nav"
-            className="animate-blur-fade-up liquid-glass flex h-10 w-10 items-center justify-center rounded-full lg:hidden"
-            style={{ animationDelay: '350ms' }}
-            onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Цэс хаах' : 'Цэс нээх'}
+            onClick={() => setOpen((v) => !v)}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/70 backdrop-blur lg:hidden"
           >
-            <span className="relative flex h-5 w-5 items-center justify-center">
-              <Menu
-                size={20}
-                className={`absolute transition-all duration-500 ease-out ${
-                  open ? 'rotate-180 scale-50 opacity-0' : 'rotate-0 scale-100 opacity-100'
+            <span className="relative flex h-3 w-4 flex-col justify-between">
+              <span
+                className={`h-[1.5px] w-full origin-center bg-ink transition-transform duration-300 ${
+                  open ? 'translate-y-[5.25px] rotate-45' : ''
                 }`}
               />
-              <X
-                size={20}
-                className={`absolute transition-all duration-500 ease-out ${
-                  open ? 'rotate-0 scale-100 opacity-100' : '-rotate-180 scale-50 opacity-0'
+              <span
+                className={`h-[1.5px] w-full bg-ink transition-opacity duration-200 ${
+                  open ? 'opacity-0' : ''
+                }`}
+              />
+              <span
+                className={`h-[1.5px] w-full origin-center bg-ink transition-transform duration-300 ${
+                  open ? '-translate-y-[5.25px] -rotate-45' : ''
                 }`}
               />
             </span>
           </button>
         </div>
-      </nav>
-
-      <div
-        id="public-mobile-nav"
-        inert={!open}
-        aria-hidden={!open}
-        className={`absolute left-0 right-0 top-[72px] z-40 border-b border-t border-graphite-800 bg-graphite-900/95 shadow-2xl backdrop-blur-lg transition-all duration-500 ease-out lg:hidden ${
-          open ? 'visible translate-y-0 opacity-100' : 'invisible pointer-events-none -translate-y-4 opacity-0'
-        }`}
-      >
-        <div className="flex flex-col px-4 py-4">
-          {navbar.links.map((link, i) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              onClick={close}
-              className="rounded-lg px-3 py-3 text-sm text-graphite-200 transition-all hover:bg-graphite-800/60"
-              style={{
-                transitionDelay: open ? `${i * 50}ms` : '0ms',
-                transform: open ? 'translateX(0)' : 'translateX(-12px)',
-                opacity: open ? 1 : 0,
-              }}
-            >
-              {link.label}
-            </Link>
-          ))}
-          <div className="mt-4 flex gap-3 border-t border-graphite-800 pt-4 sm:hidden">
-            <Link
-              to="/careers"
-              className="liquid-glass flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm"
-              onClick={close}
-            >
-              <Search size={18} />
-              {navbar.ctaCareers}
-            </Link>
-            <Link
-              to="/contact"
-              aria-label="Холбоо барих"
-              className="liquid-glass flex h-10 w-10 items-center justify-center rounded-full"
-              onClick={close}
-            >
-              <User size={18} />
-            </Link>
-          </div>
-        </div>
       </div>
-    </>
+
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            id="public-mobile-nav"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="mx-6 mt-4 rounded-2xl border border-black/10 bg-white/90 p-3 shadow-lg backdrop-blur-xl lg:hidden"
+          >
+            <div className="flex flex-col">
+              {navbar.links.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className="rounded-xl px-3 py-3 text-sm text-zinc-700 transition-colors hover:bg-black/[0.04]"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <a
+                href="https://cv.gennetex.com"
+                className="mt-2 flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white"
+              >
+                {navbar.ctaCareers} <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </nav>
   );
 }

@@ -17,7 +17,7 @@ export default function ProjectsSection({ embedded = false }) {
           {projects.stats.map((s) => (
             <div key={s.label} className="section-glass p-6 text-center">
               <div className="text-3xl font-semibold tracking-tight md:text-4xl">{s.value}</div>
-              <div className="mt-2 text-sm text-gray-400">{s.label}</div>
+              <div className="mt-2 text-sm text-zinc-500">{s.label}</div>
             </div>
           ))}
         </div>
@@ -26,7 +26,7 @@ export default function ProjectsSection({ embedded = false }) {
           <h3 className="mb-6 text-xl font-medium">{projects.highlightsTitle}</h3>
           <ul className="space-y-4">
             {projects.highlights.map((h) => (
-              <li key={h} className="flex gap-3 text-gray-300">
+              <li key={h} className="flex gap-3 text-zinc-600">
                 <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/60" />
                 <span className="leading-relaxed">{h}</span>
               </li>

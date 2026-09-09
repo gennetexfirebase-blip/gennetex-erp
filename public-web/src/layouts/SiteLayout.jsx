@@ -9,7 +9,7 @@ export default function SiteLayout({ showFooter = true }) {
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [pathname]);
 
   return (
-    <div className={isHome ? 'bg-graphite-950 text-graphite-50' : 'min-h-screen bg-graphite-950 text-graphite-50'}>
+    <div className={isHome ? 'bg-bg-base text-zinc-900' : 'min-h-screen bg-bg-base text-zinc-900'}>
       <a href="#main-content" className="public-skip">Үндсэн агуулга руу очих</a>
       <Navbar />
       <main id="main-content" tabIndex={-1}><Outlet /></main>

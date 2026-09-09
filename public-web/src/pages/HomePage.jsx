@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import HeroBackground from '../components/HeroBackground';
-import HeroSection from '../components/HeroSection';
+import Hero from '../components/Hero';
 import { useSiteContent } from '../context/SiteContentContext';
 import { ArrowRight, Briefcase, Layers, Mail, Users } from 'lucide-react';
 
@@ -17,12 +16,7 @@ export default function HomePage() {
 
   return (
     <>
-      <header className="relative overflow-hidden">
-        <HeroBackground />
-        <div className="relative z-10 flex flex-col">
-          <HeroSection />
-        </div>
-      </header>
+      <Hero />
 
       <section className="relative z-20 border-t border-graphite-800 bg-graphite-950 px-4 py-16 sm:px-6 md:px-12 md:py-24">
         <div className="mx-auto max-w-6xl">

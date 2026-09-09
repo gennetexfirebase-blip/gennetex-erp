@@ -22,7 +22,7 @@ export default function ServicesSection({ embedded = false }) {
               <div key={s.title + i} className="section-glass group p-6 transition-all hover:border-graphite-600 hover:bg-graphite-900/60">
                 <Icon className="mb-4 h-7 w-7 text-graphite-300 transition-colors group-hover:text-graphite-50" strokeWidth={1.5} />
                 <h3 className="mb-2 font-medium">{s.title}</h3>
-                <p className="text-sm leading-relaxed text-gray-400">{s.text}</p>
+                <p className="text-sm leading-relaxed text-zinc-500">{s.text}</p>
               </div>
             );
           })}
