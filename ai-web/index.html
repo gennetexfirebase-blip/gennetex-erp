@@ -988,6 +988,12 @@
       (function () {
         var ENDPOINT = window.__AI_ENDPOINT__ || '/api/chat';
 
+        /* Edge Function нь Supabase-ийн үүдэнд JWT шалгадаг тул зочин ч
+           байсан ил (anon) түлхүүрийг явуулна. Энэ түлхүүр нь ил байхаар
+           зориулагдсан — RLS нь бодит хамгаалалтыг хийнэ. */
+        var SUPABASE_ANON_KEY =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZnR5a29jbXF6cmdkaGd3bHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNTAyNDYsImV4cCI6MjEwMTgyNjI0Nn0.FwZ0yK6lS5Ngh3Rd2WaEJw08EA3WGW4Ac_uKNx7oTQ0";
+
         var form = document.getElementById('chat-form');
         var input = document.getElementById('prompt-input');
         var thread = document.getElementById('thread');
@@ -1044,7 +1050,11 @@
 
           fetch(ENDPOINT, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+            },
             body: JSON.stringify({
               message: text,
               conversationId: conversationId,
