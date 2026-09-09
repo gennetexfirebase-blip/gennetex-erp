@@ -58,26 +58,6 @@
   ],
   "rewrites": [
     {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "admin.gennetex.com"
-        }
-      ],
-      "destination": "/gennetex/admin/index.html"
-    },
-    {
-      "source": "/((?!gennetex/admin/).*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "admin.gennetex.com"
-        }
-      ],
-      "destination": "/gennetex/admin/index.html"
-    },
-    {
       "source": "/app",
       "destination": "/app/index.html"
     },

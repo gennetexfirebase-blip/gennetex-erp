@@ -15,7 +15,7 @@ import StockIssuesPage from './pages/StockIssues';
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
   return (
-    <BrowserRouter basename="/gennetex/admin">
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/home" replace />} />
