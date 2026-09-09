@@ -2,26 +2,33 @@
 <html lang="mn">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="admin-build-version" content="1.0.5"/>
+  <meta name="admin-build-version" content="1.3.10"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ЖЕННЕТЕКС — Admin Panel</title>
-  <link rel="icon" href="logo.png"/>
+  <link rel="icon" id="adminFavicon" href="logo.png"/>
   <script>
-    // Энэ хувилбар нь /gennetex/admin-v1/ дор ч сууж болох тул суурь
-    // замыг өөрийн байрлалаас нь гаргаж авна — тогтмол бичвэл v1 нь
-    // шинэ панелийн файлуудыг татаж эхэлнэ.
-    window.ADMIN_BASE = location.pathname.replace(/[^/]*$/, '');
-    window.ADMIN_ASSET = function (f) {
-      return window.ADMIN_BASE + f;
-    };
+    // Энэ панел хоёр замаар үйлчилдэг: `/gennetex/admin/` (React build
+    // байхгүй үед) ба `/gennetex/admin-legacy/`. Өмнө нь base-ийг үргэлж
+    // `/gennetex/admin/` болгодог байсан тул legacy зам дээр дагалдах
+    // скриптүүд (job-application-paper.js г.м) буруу хавтаснаас 404 болж
+    // «job-application-paper.js ачаалагдаагүй» гэж заадаг байв.
     (function () {
+      var m = location.pathname.match(/^(.*\/gennetex\/admin(?:-legacy|-v1)?)(?:\/|$)/);
+      window.ADMIN_BASE = m ? m[1] + '/' : '';
+      window.ADMIN_ASSET = function (f) {
+        return window.ADMIN_BASE + String(f == null ? '' : f).replace(/^\/+/, '');
+      };
       var t = localStorage.theme;
       var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.classList.toggle('dark', dark);
       document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-      var base = document.createElement('base');
-      base.href = window.ADMIN_BASE;
-      document.head.appendChild(base);
+      if (window.ADMIN_BASE) {
+        var base = document.createElement('base');
+        base.href = window.ADMIN_BASE;
+        document.head.appendChild(base);
+        var icon = document.getElementById('adminFavicon');
+        if (icon) icon.href = window.ADMIN_ASSET('logo.png');
+      }
     })();
   </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -35,48 +42,48 @@
         extend: {
           colors: {
             graphite: {
-              50: '#fafafa',
-              100: '#f4f4f5',
-              200: '#e4e4e7',
-              300: '#d4d4d8',
-              400: '#a1a1aa',
-              500: '#71717a',
-              600: '#52525b',
-              700: '#3f3f46',
-              800: '#27272a',
-              900: '#18181b',
-              950: '#09090b',
+              50: '#f7f7f8',
+              100: '#efeff1',
+              200: '#e2e2e5',
+              300: '#c8c8cd',
+              400: '#9c9ca4',
+              500: '#77777f',
+              600: '#5c5c64',
+              700: '#48474d',
+              800: '#333237',
+              900: '#201e1f',
+              950: '#141314',
             },
-            'inverse-on-surface': '#fafafa',
-            'primary-container': '#3b82f6',
-            'inverse-surface': '#18181b',
-            'on-surface-variant': '#71717a',
-            'error': '#dc2626',
-            'secondary-container': '#e4e4e7',
-            'outline-variant': '#e4e4e7',
-            'surface-container-high': '#f4f4f5',
-            'outline': '#d4d4d8',
+            'inverse-on-surface': '#f7f7f8',
+            'primary-container': '#0099db',
+            'inverse-surface': '#201e1f',
+            'on-surface-variant': '#77777f',
+            'error': '#d92d20',
+            'secondary-container': '#e2e2e5',
+            'outline-variant': '#e2e2e5',
+            'surface-container-high': '#efeff1',
+            'outline': '#c8c8cd',
             'on-primary': '#ffffff',
-            'surface-variant': '#f4f4f5',
+            'surface-variant': '#efeff1',
             'surface-container': '#ffffff',
-            'primary': '#18181b',
+            'primary': '#201e1f',
             'on-primary-container': '#ffffff',
             'surface-bright': '#ffffff',
-            'background': '#fafafa',
-            'surface-container-low': '#f4f4f5',
+            'background': '#f7f7f8',
+            'surface-container-low': '#efeff1',
             'surface': '#ffffff',
-            'primary-fixed-dim': '#3b82f6',
+            'primary-fixed-dim': '#0099db',
             'surface-container-lowest': '#ffffff',
             'error-container': '#fef2f2',
-            'inverse-primary': '#60a5fa',
-            'surface-container-highest': '#e4e4e7',
-            'tertiary-container': '#71717a',
-            'on-surface': '#09090b',
-            'on-background': '#09090b',
-            'success': '#16a34a',
-            'warning': '#d97706',
-            'danger': '#dc2626',
-            'accent': '#3b82f6'
+            'inverse-primary': '#33b0e4',
+            'surface-container-highest': '#e2e2e5',
+            'tertiary-container': '#77777f',
+            'on-surface': '#141314',
+            'on-background': '#141314',
+            'success': '#0b7a44',
+            'warning': '#b45309',
+            'danger': '#d92d20',
+            'accent': '#0099db'
           },
           borderRadius: { '2xl': '1rem' },
           spacing: {
@@ -102,12 +109,14 @@
   </script>
   <style>
     :root{
-      --bg:#fafafa;--card:#ffffff;--line:#e4e4e7;--text:#09090b;--muted:#71717a;
-      --primary:#18181b;--primary-soft:#f4f4f5;--accent:#2563eb;--success:#16a34a;--warning:#d97706;--danger:#dc2626;
+      --bg:#f7f7f8;--card:#ffffff;--line:#e2e2e5;--text:#141314;--muted:#77777f;
+      --primary:#201e1f;--primary-soft:#efeff1;--accent:#007cb4;--success:#0b7a44;--warning:#b45309;--danger:#d92d20;
+      --on-accent:#ffffff;--on-success:#ffffff;--on-warning:#ffffff;--on-danger:#ffffff;--focus-ring:rgba(0,153,219,.20);
     }
     .dark{
-      --bg:#09090b;--card:#18181b;--line:#27272a;--text:#fafafa;--muted:#a1a1aa;
-      --primary:#fafafa;--primary-soft:#27272a;--accent:#3b82f6;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+      --bg:#141314;--card:#201e1f;--line:#333237;--text:#f7f7f8;--muted:#9c9ca4;
+      --primary:#f7f7f8;--primary-soft:#333237;--accent:#0099db;--success:#3fcf8e;--warning:#f5b544;--danger:#ff6b60;
+      --on-accent:#06222e;--on-success:#062616;--on-warning:#2e1c00;--on-danger:#3a0b07;--focus-ring:rgba(0,153,219,.32);
     }
     *{box-sizing:border-box}
     body{
@@ -122,7 +131,7 @@
     input,select,textarea{font-family:inherit;font-size:14px;line-height:1.5;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);width:100%;transition:border-color .15s,box-shadow .15s,background .15s}
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]){min-height:44px}
     textarea{min-height:96px;resize:vertical;line-height:1.55;padding:12px 14px}
-    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--focus-ring)}
     input::placeholder,textarea::placeholder{color:var(--muted);opacity:.85}
     input:disabled,select:disabled,textarea:disabled{opacity:.65;cursor:not-allowed;background:var(--primary-soft)!important;color:var(--muted)!important;-webkit-text-fill-color:var(--muted)}
     /* Tailwind CDN forms plugin цагаан input-ийг дарж, харанхуй горимд уншигдахуйц болгоно */
@@ -157,21 +166,21 @@
     .dark .psc-field input,.dark .psc-field textarea{box-shadow:inset 0 1px 2px rgba(0,0,0,.2)}
     .psc-field input{min-height:44px}
     .psc-field textarea{min-height:110px;resize:vertical;line-height:1.55}
-    .psc-field input:focus,.psc-field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+    .psc-field input:focus,.psc-field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--focus-ring)}
     .psc-field-wide{grid-column:1/-1}
     .psc-item{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card);margin-bottom:12px}
     .psc-item-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px}
     .psc-item-title{font-size:12px;font-weight:800;color:var(--accent);letter-spacing:.02em}
     .psc-item-path{font-size:11px;color:var(--muted);font-family:JetBrains Mono,monospace}
-    .psc-actions{position:sticky;bottom:0;padding:14px 20px;border-top:1px solid var(--line);background:rgba(250,250,250,.92);backdrop-filter:blur(10px);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .dark .psc-actions{background:rgba(24,24,27,.92)}
+    .psc-actions{position:sticky;bottom:0;padding:14px 20px;border-top:1px solid var(--line);background:rgba(247,247,248,.92);backdrop-filter:blur(10px);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .dark .psc-actions{background:rgba(32,30,31,.92)}
     .psc-preview-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
     .psc-preview-link:hover{background:var(--primary-soft)}
     @media(max-width:768px){.psc-editor{grid-template-columns:1fr}.psc-sidebar{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);padding:8px}.psc-sidebar-title{display:none}.psc-nav-btn{flex:0 0 auto;white-space:nowrap;padding:8px 12px}.psc-nav-btn span:last-child{display:none}.psc-body{padding:14px}.psc-actions{padding:12px 14px}}
     .login-input-wrap input{min-height:48px;font-size:15px}
     .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;font-size:20px;line-height:1}
     .glass-panel{background:rgba(255,255,255,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:1px solid var(--line)}
-    .dark .glass-panel{background:rgba(24,24,27,.88)}
+    .dark .glass-panel{background:rgba(32,30,31,.88)}
     .stat-card{transition:all .3s ease}
     .stat-card:hover{transform:translateY(-4px);box-shadow:0 10px 15px -3px rgba(0,0,0,.08)}
     @keyframes chart-fade-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -180,24 +189,24 @@
     .btn{border-radius:10px;padding:10px 16px;font-size:14px;transition:opacity .15s,transform .1s,background .15s}
     .btn:hover{opacity:.94}
     .btn:active{transform:scale(.98)}
-    .btn-primary{background:var(--accent);color:#fff}
-    .dark .btn-primary{background:var(--accent);color:#fff}
-    .btn-success{background:var(--success);color:#fff}
-    .btn-danger{background:var(--danger);color:#fff}
+    .btn-primary{background:var(--accent);color:var(--on-accent)}
+    .dark .btn-primary{background:var(--accent);color:var(--on-accent)}
+    .btn-success{background:var(--success);color:var(--on-success)}
+    .btn-danger{background:var(--danger);color:var(--on-danger)}
     .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--muted)}
     .btn-sm{padding:6px 10px;font-size:13px;border-radius:8px}
 
     #login{
       min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
       position:relative;overflow:hidden;
-      background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(59,130,246,.14),transparent 55%),
-        radial-gradient(ellipse 70% 50% at 90% 90%,rgba(99,102,241,.12),transparent 50%),
-        linear-gradient(160deg,#f8fafc 0%,#f4f4f5 45%,#e4e4e7 100%);
+      background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(0,153,219,.14),transparent 55%),
+        radial-gradient(ellipse 70% 50% at 90% 90%,rgba(0,124,180,.12),transparent 50%),
+        linear-gradient(160deg,#f7f7f8 0%,#efeff1 45%,#e2e2e5 100%);
     }
     .dark #login{
-      background:radial-gradient(ellipse 80% 60% at 15% 5%,rgba(59,130,246,.18),transparent 55%),
-        radial-gradient(ellipse 70% 50% at 85% 95%,rgba(99,102,241,.14),transparent 50%),
-        linear-gradient(160deg,#09090b 0%,#18181b 50%,#0f0f12 100%);
+      background:radial-gradient(ellipse 80% 60% at 15% 5%,rgba(0,153,219,.18),transparent 55%),
+        radial-gradient(ellipse 70% 50% at 85% 95%,rgba(0,124,180,.14),transparent 50%),
+        linear-gradient(160deg,#141314 0%,#201e1f 50%,#141314 100%);
     }
     .login-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
     .login-grid{
@@ -210,8 +219,8 @@
       background-image:linear-gradient(to right,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.04) 1px,transparent 1px);
     }
     .login-orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:login-float 12s ease-in-out infinite}
-    .login-orb-1{width:320px;height:320px;background:rgba(59,130,246,.35);top:-80px;left:-60px}
-    .login-orb-2{width:280px;height:280px;background:rgba(99,102,241,.28);bottom:-60px;right:-40px;animation-delay:-4s}
+    .login-orb-1{width:320px;height:320px;background:rgba(0,153,219,.35);top:-80px;left:-60px}
+    .login-orb-2{width:280px;height:280px;background:rgba(0,124,180,.28);bottom:-60px;right:-40px;animation-delay:-4s}
     @keyframes login-float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(12px,-16px) scale(1.05)}}
     @keyframes login-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
     .login-shell{
@@ -225,13 +234,13 @@
     .dark .login-shell{border-color:rgba(255,255,255,.08);box-shadow:0 32px 80px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.06)}
     .login-brand-panel{
       padding:40px 36px;display:flex;flex-direction:column;justify-content:space-between;
-      background:linear-gradient(145deg,rgba(24,24,27,.94) 0%,rgba(39,39,42,.88) 100%);
-      color:#fafafa;position:relative;overflow:hidden;
+      background:linear-gradient(145deg,rgba(32,30,31,.94) 0%,rgba(39,39,42,.88) 100%);
+      color:#f7f7f8;position:relative;overflow:hidden;
     }
     .login-brand-panel::before{
       content:'';position:absolute;inset:0;
-      background:radial-gradient(circle at 30% 20%,rgba(59,130,246,.25),transparent 50%),
-        radial-gradient(circle at 80% 80%,rgba(99,102,241,.2),transparent 45%);
+      background:radial-gradient(circle at 30% 20%,rgba(0,153,219,.25),transparent 50%),
+        radial-gradient(circle at 80% 80%,rgba(0,124,180,.2),transparent 45%);
       pointer-events:none;
     }
     .login-brand-inner{position:relative;z-index:1}
@@ -243,18 +252,18 @@
     }
     .login-brand-logo img{height:100%;width:100%;object-fit:contain}
     .login-brand-panel h1{margin:0 0 8px;font-size:28px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
-    .login-brand-panel .tagline{margin:0 0 28px;font-size:14px;color:rgba(250,250,250,.65);line-height:1.55;max-width:280px}
+    .login-brand-panel .tagline{margin:0 0 28px;font-size:14px;color:rgba(247,247,248,.65);line-height:1.55;max-width:280px}
     .login-features{display:flex;flex-direction:column;gap:12px;margin-top:auto}
     .login-feature{
-      display:flex;align-items:center;gap:12px;font-size:13px;color:rgba(250,250,250,.8);
+      display:flex;align-items:center;gap:12px;font-size:13px;color:rgba(247,247,248,.8);
       padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
     }
-    .login-feature .material-symbols-outlined{font-size:20px;color:#60a5fa;flex-shrink:0}
+    .login-feature .material-symbols-outlined{font-size:20px;color:#33b0e4;flex-shrink:0}
     .login-card{
       background:rgba(255,255,255,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
       padding:40px 36px;display:flex;flex-direction:column;justify-content:center;
     }
-    .dark .login-card{background:rgba(24,24,27,.88)}
+    .dark .login-card{background:rgba(32,30,31,.88)}
     .login-card-head{margin-bottom:28px}
     .login-card-head h2{margin:0 0 6px;font-size:22px;font-weight:800;letter-spacing:-.3px;color:var(--text)}
     .login-card-head p{margin:0;color:var(--muted);font-size:14px}
@@ -275,7 +284,7 @@
     .login-btn{
       width:100%;margin-top:8px;padding:14px 18px;font-size:15px;font-weight:700;
       border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;
-      background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);
+      background:linear-gradient(135deg,#007cb4 0%,#00628f 100%);
       color:#fff;box-shadow:0 8px 24px rgba(37,99,235,.35);
       transition:transform .15s,box-shadow .15s,opacity .15s;
     }
@@ -329,8 +338,8 @@
     .nav .ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
     .side .foot{padding:14px 18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
     .main{flex:1;margin-left:260px;background:var(--bg);min-height:100vh;display:flex;flex-direction:column;min-width:0}
-    .topbar{background:rgba(250,250,250,.8);backdrop-filter:blur(12px);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);flex-wrap:wrap}
-    .dark .topbar{background:rgba(24,24,27,.85)}
+    .topbar{background:rgba(247,247,248,.8);backdrop-filter:blur(12px);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);flex-wrap:wrap}
+    .dark .topbar{background:rgba(32,30,31,.85)}
     .topbar h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.2px}
     .user{display:flex;align-items:center;gap:10px}
     .avatar{width:38px;height:38px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;border:1px solid var(--line)}
@@ -360,7 +369,7 @@
     table{width:100%;border-collapse:collapse}
     th,td{text-align:left;padding:13px 20px;font-size:14px;border-bottom:1px solid var(--line)}
     th{color:var(--muted);font-weight:600;background:var(--primary-soft);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-    .dark th{background:rgba(94,90,219,.15)}
+    .dark th{background:rgba(0,153,219,.15)}
     tbody tr{transition:background .12s}
     tbody tr:hover{background:var(--primary-soft)}
     tr:last-child td{border-bottom:none}
@@ -438,14 +447,14 @@
     .qrbox{text-align:center}
     .qrbox .qr-code-img{background:var(--card);padding:10px;border:1px solid var(--line);border-radius:12px}
     .qrbox .mn-plate__soy,.qrbox .mn-plate__mgl,.qrbox .mn-plate__car{background:none;padding:0;border:none;border-radius:0;box-shadow:none}
-    .pill.on{background:rgba(16,185,129,.15);color:#047857}.dark .pill.on{background:rgba(52,211,153,.2);color:#6ee7b7}
+    .pill.on{background:rgba(16,185,129,.15);color:#0b7a44}.dark .pill.on{background:rgba(52,211,153,.2);color:#3fcf8e}
     .pill.off{background:var(--primary-soft);color:var(--muted)}
-    .pill.in{background:rgba(16,185,129,.15);color:#047857}.dark .pill.in{background:rgba(52,211,153,.2);color:#6ee7b7}
+    .pill.in{background:rgba(16,185,129,.15);color:#0b7a44}.dark .pill.in{background:rgba(52,211,153,.2);color:#3fcf8e}
     .pill.out{background:#ffdad6;color:#93000a}.dark .pill.out{background:rgba(186,26,26,.25);color:#fecaca}
-    .pill.admin{background:#e2dfff;color:#3730b4}.dark .pill.admin{background:rgba(94,90,219,.35);color:#c3c1ff}
-    .pill.emp{background:#dae2fd;color:#453fc1}.dark .pill.emp{background:rgba(94,90,219,.25);color:#c3c1ff}
+    .pill.admin{background:#d2eefc;color:#00628f}.dark .pill.admin{background:rgba(0,153,219,.35);color:#6ec6f0}
+    .pill.emp{background:#e2e2e5;color:#48474d}.dark .pill.emp{background:rgba(0,153,219,.25);color:#6ec6f0}
     .plate{display:inline-block;border:2px solid var(--primary);border-radius:8px;padding:6px 14px;font-weight:900;font-size:20px;letter-spacing:1px}
-    .mn-plate{display:inline-flex;align-items:center;background:#fff;border:1px solid #dee2e6;border-radius:8px;vertical-align:middle;font-family:system-ui,-apple-system,sans-serif;line-height:1}
+    .mn-plate{display:inline-flex;align-items:center;background:#fff;border:1px solid #e2e2e5;border-radius:8px;vertical-align:middle;font-family:system-ui,-apple-system,sans-serif;line-height:1}
     .mn-plate--sm{padding:4px 10px;gap:5px}
     .mn-plate--md{padding:5px 12px;gap:6px}
     .mn-plate--lg{padding:7px 14px;gap:8px}
@@ -470,10 +479,10 @@
     .mn-plate-wrap--lg .mn-plate__car{width:110px;height:auto}
     .mn-plate-preview{display:flex;justify-content:center;margin:10px 0 4px}
     .toast{position:fixed;bottom:24px;right:24px;z-index:3000;display:flex;flex-direction:column;gap:10px;align-items:flex-end;pointer-events:none}
-    .toast-item{display:flex;align-items:flex-start;gap:10px;max-width:min(420px,calc(100vw - 32px));background:#302f38;color:#f3effa;padding:13px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:14px;line-height:1.45;pointer-events:auto;border-left:4px solid #3b82f6;animation:toast-in .25s cubic-bezier(.16,1,.3,1)}
-    .toast-item .material-symbols-outlined{font-size:19px;flex-shrink:0;margin-top:1px;color:#60a5fa}
-    .toast-item.success{border-left-color:#22c55e}.toast-item.success .material-symbols-outlined{color:#4ade80}
-    .toast-item.error{border-left-color:#ef4444}.toast-item.error .material-symbols-outlined{color:#f87171}
+    .toast-item{display:flex;align-items:flex-start;gap:10px;max-width:min(420px,calc(100vw - 32px));background:#201e1f;color:#f7f7f8;padding:13px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:14px;line-height:1.45;pointer-events:auto;border-left:4px solid #0099db;animation:toast-in .25s cubic-bezier(.16,1,.3,1)}
+    .toast-item .material-symbols-outlined{font-size:19px;flex-shrink:0;margin-top:1px;color:#33b0e4}
+    .toast-item.success{border-left-color:#3fcf8e}.toast-item.success .material-symbols-outlined{color:#3fcf8e}
+    .toast-item.error{border-left-color:#ff6b60}.toast-item.error .material-symbols-outlined{color:#ff6b60}
     .toast-item.leaving{animation:toast-out .2s ease forwards}
     @keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
     @keyframes toast-out{to{opacity:0;transform:translateY(6px)}}
@@ -490,7 +499,7 @@
     .excel-sheet-pill{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--muted)}
     #qr-reader{border-radius:12px;overflow:hidden;min-height:260px}
     .veh-scan-grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:20px;align-items:start}
-  .veh-qr-reader{border-radius:12px;overflow:hidden;min-height:240px;background:#0a0a0c}
+  .veh-qr-reader{border-radius:12px;overflow:hidden;min-height:240px;background:#141314}
   .veh-edit-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
   .veh-edit-form{display:grid;gap:12px;margin-bottom:20px}
   .veh-edit-form .row{align-items:flex-end}
@@ -503,9 +512,9 @@
   .abox-wrap table th,.abox-wrap table td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
   .abox-wrap table thead th,.abox-wrap table tbody th{background:var(--bg);font-weight:700}
   .abox-wrap .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
-  .abox-wrap .badge-success{color:#15803d;background:#dcfce7}
-  .abox-wrap .badge-warning{color:#a16207;background:#fef9c3}
-  .abox-wrap .badge-danger{color:#b91c1c;background:#fee2e2}
+  .abox-wrap .badge-success{color:#0b7a44;background:#dcfce7}
+  .abox-wrap .badge-warning{color:#b45309;background:#fef9c3}
+  .abox-wrap .badge-danger{color:#d92d20;background:#fee2e2}
   @media(max-width:900px){.veh-scan-grid{grid-template-columns:1fr}}
     #sidebarBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:45}
     #sidebarBackdrop.open{display:block}
@@ -554,7 +563,7 @@
     /* UX сайжруулалт: цэс хайлт, skeleton, хүснэгт хайлт, modal хөдөлгөөн */
     .nav-search-wrap{padding:12px 12px 0}
     .nav-search{display:flex;align-items:center;gap:8px;background:var(--primary-soft);border:1px solid var(--line);border-radius:10px;padding:0 10px;transition:border-color .15s,box-shadow .15s}
-    .nav-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+    .nav-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--focus-ring)}
     .nav-search .material-symbols-outlined{font-size:18px;color:var(--muted);flex-shrink:0}
     .nav-search-wrap .nav-search input{background-color:transparent!important;border:none!important;box-shadow:none!important;min-height:0;padding:9px 0;font-size:13px;border-radius:0}
     .nav-search-wrap .nav-search input:focus{outline:none;box-shadow:none!important}
@@ -617,30 +626,13 @@
         </div>
         <div class="login-card-head">
           <h2>Нэвтрэх</h2>
-          <p>Админ имэйл, нууц үгээ оруулна уу</p>
+          <p>Зөвшөөрөгдсөн Gmail хаягаараа нэвтэрнэ үү</p>
         </div>
         <form id="loginForm" onsubmit="return false">
-          <div class="login-field">
-            <label for="email">Имэйл</label>
-            <div class="login-input-wrap">
-              <span class="field-icon material-symbols-outlined">mail</span>
-              <input id="email" type="email" placeholder="admin@gennetex.mn" autocomplete="username"/>
-            </div>
-          </div>
-          <div class="login-field">
-            <label for="password">Нууц үг</label>
-            <div class="login-input-wrap">
-              <span class="field-icon material-symbols-outlined">lock</span>
-              <input id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
-              <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="Нууц үг харуулах" title="Нууц үг харуулах">
-                <span class="material-symbols-outlined" id="pwdToggleIcon">visibility</span>
-              </button>
-            </div>
-          </div>
           <button type="submit" class="login-btn" id="loginBtn">
             <span class="spinner" aria-hidden="true"></span>
-            <span class="btn-label">Нэвтрэх</span>
-            <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+            <span class="btn-label">Google-ээр нэвтрэх</span>
+            <span class="material-symbols-outlined" style="font-size:18px">login</span>
           </button>
           <div class="err" id="loginErr" role="alert">
             <span class="material-symbols-outlined">error</span>
@@ -678,6 +670,7 @@
           <div class="grp">Үндсэн</div>
           <a data-view="dashboard" class="active"><span class="material-symbols-outlined">dashboard</span><span class="t">Хяналт</span></a>
           <a data-view="employees"><span class="material-symbols-outlined">group</span><span class="t">Ажилчид</span></a>
+          <a data-view="workperformance"><span class="material-symbols-outlined">insights</span><span class="t">Ажилчдын гүйцэтгэл</span></a>
           <a data-view="reports"><span class="material-symbols-outlined">description</span><span class="t">Тайлан</span></a>
           <a data-view="feedback"><span class="material-symbols-outlined">forum</span><span class="t">Санал гомдол</span></a>
           <a data-view="applications"><span class="material-symbols-outlined">assignment</span><span class="t">Ажлын байрны анкет</span></a>
@@ -704,7 +697,6 @@
           <a data-view="feedposts"><span class="material-symbols-outlined">feed</span><span class="t">Gennetex Post</span></a>
           <a data-view="meetings"><span class="material-symbols-outlined">videocam</span><span class="t">Хурал</span></a>
           <a data-view="livestreams"><span class="material-symbols-outlined">live_tv</span><span class="t">Live stream хянах</span></a>
-          <a data-view="screenshare"><span class="material-symbols-outlined">screenshot_monitor</span><span class="t">Дэлгэц хянах</span></a>
           <div class="grp">Лог</div>
           <a data-view="activitylogs"><span class="material-symbols-outlined">history</span><span class="t">Нийт лог</span></a>
           <div class="grp">Excel</div>
@@ -714,7 +706,7 @@
           <button class="btn btn-ghost btn-sm" id="logoutBtnSide" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
             <span class="material-symbols-outlined" style="font-size:18px">logout</span> Гарах
           </button>
-          <span id="appVersionFoot">ЖЕННЕТЕКС v1.0.5</span>
+          <span id="appVersionFoot">ЖЕННЕТЕКС v1.3.10</span>
         </div>
       </aside>
       <div class="main">
@@ -759,16 +751,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Excel-д ЖИНХЭНЭ график суулгах (SheetJS үүнийг чаддаггүй). Мобайл апп
+       мөн ЯГ ЭНЭ файлыг ашигладаг — тайлан хоёр талд ижил гарна. -->
+  <script src="xlsx-chart.js"></script>
   <script src="job-application-paper.js"></script>
   <script src="public-site-content.js"></script>
   <script>
-    const SUPABASE_URL = 'https://xhxyrzzgmksjlibfrmlx.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoeHlyenpnbWtzamxpYmZybWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4ODEwMjYsImV4cCI6MjA5ODQ1NzAyNn0.nYWs_N09RLHvhmEUCdbS6M8yvthsKJ5TkXjdRv4VMag';
+    const SUPABASE_URL = 'https://zkftykocmqzrgdhgwluu.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZnR5a29jbXF6cmdkaGd3bHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNTAyNDYsImV4cCI6MjEwMTgyNjI0Nn0.FwZ0yK6lS5Ngh3Rd2WaEJw08EA3WGW4Ac_uKNx7oTQ0';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
     const $ = id => document.getElementById(id);
-    const COLORS = ['#453fc1','#10b981','#f59e0b','#ba1a1a','#5e5adb','#06b6d4'];
+    // theme/accents.js-тэй ижил дараалал: brand · green · amber · rose · violet · teal
+    const COLORS = ['#007cb4','#0b7a44','#b45309','#d92d20','#6d4aa8','#0f766e'];
     const money = n => new Intl.NumberFormat('mn-MN').format(Math.round(n||0))+'₮';
     const SAMPLE_NAMES=new Set(['Бат-Эрдэнэ','Бат Эрдэнэ','Оюунчимэг','Ганбаатар']);
     const isSampleName=n=>SAMPLE_NAMES.has(String(n||'').trim());
@@ -776,15 +772,51 @@
     const ERP_NOT_FOUND='ERP-аас олдсонгүй';
     const searchEmpty=(q,def)=>String(q||'').trim()?ERP_NOT_FOUND:def;
     const isSuperAdmin=r=>r==='superadmin';
+
+    /**
+     * Серверийн алдааг ойлгомжтой болгоно.
+     *
+     * Сервер нь `permission_denied`, `department_required` гэх мэт богино
+     * код буцаадаг. Түүнийг шууд харуулбал админ "яагаад болдоггүй юм бол"
+     * гэж эргэлзэнэ — юу хийхийг нь хэлж өгөх ёстой.
+     */
+    const rpcErr=(m='')=>{
+      const t=String(m||'');
+      if(/permission_denied/.test(t)) return 'Танд ажилтан удирдах эрх олгогдоогүй байна. Хөгжүүлэгчид хандана уу.';
+      if(/department_required/.test(t)) return 'Танд хэлтэс оноогоогүй байна. Хөгжүүлэгчээр хэлтэст харьяалуулна уу.';
+      if(/department_forbidden/.test(t)) return 'Зөвхөн өөрийн хэлтсийн ажилтныг удирдана.';
+      if(/department_not_found/.test(t)) return 'Хэлтэс олдсонгүй.';
+      if(/role_forbidden/.test(t)) return 'Зөвхөн "Ажилтан" эрхтэй хүн нэмэх боломжтой.';
+      if(/forbidden_target/.test(t)) return 'Танд энэ хэрэглэгчийг удирдах эрх байхгүй.';
+      if(/already_linked/.test(t)) return 'Энэ хэрэглэгч аль хэдийн нэвтэрсэн байна.';
+      if(/target_not_found/.test(t)) return 'Хэрэглэгч олдсонгүй.';
+      if(/invalid_email/.test(t)) return 'Имэйл буруу байна.';
+      if(/name_required/.test(t)) return 'Нэр оруулна уу.';
+      if(/invalid_role/.test(t)) return 'Ийм эрх байхгүй байна.';
+      if(/forbidden/.test(t)) return 'Танд энэ үйлдэл хийх эрх байхгүй.';
+      return t||'Алдаа гарлаа.';
+    };
     const isAdminRole=r=>r==='admin' ||r==='superadmin';
-    const roleLabel=r=>r==='superadmin' ?'Хөгжүүлэгч':r==='admin' ?'Админ':'Ажилтан';
+    const roleLabel=r=>r==='superadmin' ?'Хөгжүүлэгч':r==='admin' ?'Админ':r==='menejer' ?'Менежер':r==='ahlah' ?'Ахлах':'Ажилтан';
     const visibleWorkers=()=>{
       // Системийн админ: бүгд; энгийн админ: superadmin-аас бусад бүгд (ажилтан + админ)
       const list=data.workers||[];
       if(isSuperAdmin(me?.role)) return list;
       return list.filter(w=>w.role!=='superadmin');
     };
-    const fieldWorkers=()=>visibleWorkers().filter(w=>w.role==='employee');
+    const fieldWorkers=()=>visibleWorkers().filter(w=>w.role==='employee'&&w.active!==false);
+    /**
+     * Ажилд байгаа / ажлаас гарсан.
+     *
+     * Ажлаас гарсан ажилтан УСТГАГДАХГҮЙ — зөвхөн нуугдана. Дахин ажилд
+     * орвол буцааж авахад ирц, байршил, багажны олголт зэрэг бүх түүх нь
+     * хэвээр сэргэнэ.
+     *
+     * Хуучин сервер `active` талбар буцаахгүй тул `!==false` гэж шалгана.
+     */
+    const activeWorkers=()=>visibleWorkers().filter(w=>w.active!==false);
+    const formerWorkers=()=>visibleWorkers().filter(w=>w.active===false);
+    let empShowFormer=false;
     // Дуудлага авах: ажилтан болон админ admin эрхээрээ; системийн админ (Хөгжүүлэгч) хамаарахгүй
     const callTakers=()=>visibleWorkers().filter(w=>w.role!=='superadmin');
 
@@ -799,6 +831,14 @@
       });
     }
     async function loadProfilesOrdered(){
+      const approved=await sb.rpc('admin_list_authorized_users');
+      if(!approved.error){
+        return {
+          data:(approved.data||[]).map(w=>({...w,id:w.record_id,pending:!w.registered})),
+          error:null
+        };
+      }
+      console.error('authorized users:',approved.error);
       const full=await sb.from('profiles').select('*').order('name');
       if(!full.error) return full;
       console.error('profiles:',full.error);
@@ -917,8 +957,8 @@
     }
     function invThumb(it){ const src=it.image_url||invImg(it.name,it.category||'material'); return `<img class="inv-thumb" src="${String(src).replace(/"/g,'&quot;')}" alt="" loading="lazy" style="object-fit:cover">`; }
 
-    let me=null, map=null, markers=[], view='dashboard', timer=null, dataLoaded=false;
-    let data = {workers:[],attendance:[],visits:[],trips:[],tripGroups:[],tripGroupsToday:[],tripGroupsArchive:[],siteSessions:[],serviceCalls:[],inventory:[],vehicles:[],movements:[],reports:[],shifts:[],attLocations:[],breakSchedules:[],posts:[],lives:[],meetings:[]};
+    let me=null, map=null, markers=[], markerByUid={}, locationCh=null, view='dashboard', timer=null, dataLoaded=false;
+    let data = {workers:[],attendance:[],visits:[],trips:[],tripGroups:[],tripGroupsToday:[],tripGroupsArchive:[],siteSessions:[],serviceCalls:[],inventory:[],vehicles:[],movements:[],reports:[],shifts:[],attLocations:[],breakSchedules:[],posts:[],meetings:[]};
     let companionTab='today';
     let usageTab='balances';
     let excelArchives=[];
@@ -967,16 +1007,16 @@
     };
     window.setUsageTab=(tab)=>{ usageTab=tab; render(); };
     const CALL_TYPES=[
-      {key:'new',label:'Шинэ айл',icon: '',color:'#22c55e'},
-      {key:'t30',label:'Шилжүүлэг 30k',icon: '',color:'#3b82f6'},
-      {key:'t100',label:'Шилжүүлэг 100k',icon: '',color:'#8b5cf6'},
-      {key:'gombol',label:'Гомбол',icon: '',color:'#f59e0b'},
-      {key:'repair',label:'Засвар',icon: '',color:'#06b6d4'},
-      {key:'other',label:'Бусад',icon: '',color:'#64748b'}
+      {key:'new',label:'Шинэ айл',icon: '',color:'#3fcf8e'},
+      {key:'t30',label:'Шилжүүлэг 30k',icon: '',color:'#0099db'},
+      {key:'t100',label:'Шилжүүлэг 100k',icon: '',color:'#6d4aa8'},
+      {key:'gombol',label:'Гомбол',icon: '',color:'#b45309'},
+      {key:'repair',label:'Засвар',icon: '',color:'#0f766e'},
+      {key:'other',label:'Бусад',icon: '',color:'#5c5c64'}
     ];
     const SITE_KINDS=[
-      {key:'ail',label:'Айл',color:'#22c55e'},
-      {key:'baiguulga',label:'Байгууллага',color:'#3b82f6'}
+      {key:'ail',label:'Айл',color:'#3fcf8e'},
+      {key:'baiguulga',label:'Байгууллага',color:'#0099db'}
     ];
     const callTypeMeta=k=>CALL_TYPES.find(t=>t.key===k)||CALL_TYPES[CALL_TYPES.length-1];
     const siteKindMeta=k=>SITE_KINDS.find(t=>t.key===k)||SITE_KINDS[0];
@@ -1098,14 +1138,14 @@
     }
     async function doLogin(){
       showErr('');
-      const email=$('email').value.trim();
-      const password=$('password').value;
-      if(!email||!password){ showErr('Имэйл болон нууц үгээ оруулна уу'); return; }
       setLoginLoading(true);
       try{
-        const { data:d, error }=await sb.auth.signInWithPassword({ email, password });
+        const redirectTo=`${location.origin}${window.ADMIN_BASE||'/'}`;
+        const { error }=await sb.auth.signInWithOAuth({
+          provider:'google',
+          options:{redirectTo,queryParams:{prompt:'select_account'}}
+        });
         if(error){ showErr(error.message); return; }
-        await afterLogin(d.user.id);
       }catch(e){
         showErr(e.message||'Нэвтрэхэд алдаа гарлаа');
       }finally{
@@ -1131,7 +1171,7 @@
     async function afterLogin(uid){
       let p=null;
       try{
-        const { data:boot, error:be }=await sb.rpc('bootstrap_profile');
+        const { data:boot, error:be }=await sb.rpc('claim_authorized_profile');
         if(!be&&boot) p=boot;
       }catch(e){}
       if(!p){
@@ -1140,7 +1180,7 @@
         p=data;
       }
       if(!p || !isAdminRole(p.role)){
-        showErr('Зөвхөн админ нэвтэрнэ. Системийн админ эрх шаардлагатай.');
+        showErr('Зөвхөн энгийн админ эсвэл Хөгжүүлэгч нэвтэрнэ.');
         await sb.auth.signOut(); return;
       }
       me=p; $('uName').textContent=p.name||'Админ'; $('uAvatar').textContent=(p.name||'A').charAt(0).toUpperCase();
@@ -1158,7 +1198,7 @@
 
     // ===== Navigation =====
     document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.view));
-    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',screenshare:'Дэлгэц хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
+    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',workperformance:'Ажилчдын гүйцэтгэл',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
     let activityFilter={year:new Date().getFullYear(),month:0,day:0,user:''};
     const ACTION_LABEL={login:'Нэвтрэлт',leave_request:'Чөлөө хүсэлт',screen:'Дэлгэц нээсэн',tap:'Даралт',location:'Байршил',face_enroll:'Царай бүртгэл',attendance:'Ирц',inventory:'Бараа/багаж',visit:'Айлд очсон',site_work:'Ажлын байр',service_call:'Дуудлага',other:'Бусад'};
     const fmtLogTime=ts=>{
@@ -1167,7 +1207,7 @@
       const p=n=>String(n).padStart(2,'0');
       return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     };
-    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',screenshare:'Дэлгэц хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
+    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',workperformance:'Хэдэн баг · өдөрт хэдэн айл · хэр хугацаанд',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
     function go(v){
       if(view==='vehicles'&&v!=='vehicles'){ stopVehicleQrScan(); stopAutoboxPoll(); }
       view=v;
@@ -1221,7 +1261,6 @@
         sb.from('employee_break_schedules').select('*').order('user_name').order('day_of_week'),
         sb.from('activity_logs').select('*').order('created_at',{ascending:false}).limit(2000),
         sb.from('posts').select('*').order('created_at',{ascending:false}).limit(300),
-        sb.from('live_streams').select('*').order('started_at',{ascending:false}).limit(100),
         sb.from('meetings').select('*').order('started_at',{ascending:false}).limit(100),
         sb.from('leave_requests').select('*').order('created_at',{ascending:false}).limit(200)
       ]);
@@ -1240,9 +1279,11 @@
       const br=pickSbResult(results[12],'employee_break_schedules');
       const alogs=pickSbResult(results[13],'activity_logs');
       const posts=pickSbResult(results[14],'posts');
-      const lives=pickSbResult(results[15],'live_streams');
-      const meetings=pickSbResult(results[16],'meetings');
-      const lr=pickSbResult(results[17],'leave_requests');
+      // live_streams-ийг татахаа больсон: тэр хүснэгт нь meetings (kind='live')
+      // рүү нэгтгэгдсэн бөгөөд энд татсан өгөгдөл нь хаана ч ашиглагддаггүй
+      // байсан — хуудас ачаалах бүрд илүү нэг хүсэлт явуулж байв.
+      const meetings=pickSbResult(results[15],'meetings');
+      const lr=pickSbResult(results[16],'leave_requests');
       if(rep.error){ console.error('employee_reports:', rep.error); toast('Тайлан ачаалахад алдаа: '+rep.error.message); }
       if(w.error){ console.error('profiles:', w.error); toast('Ажилчид ачаалахад алдаа: '+w.error.message); }
       if(mov.error){ console.error('stock_movements:', mov.error); toast('Барааны бүртгэл ачаалахад алдаа: '+mov.error.message); }
@@ -1253,7 +1294,6 @@
       if(br.error && String(br.error.message).includes('employee_break_schedules')) toast('Амралт: migration_break_schedules.sql ажиллуулна уу');
       if(alogs.error && String(alogs.error.message).includes('activity_logs')) toast('Нийт лог: migration_activity_logs.sql ажиллуулна уу');
       if(posts.error && String(posts.error.message).includes('posts')) toast('Post: migration_feed.sql ажиллуулна уу');
-      if(lives.error && String(lives.error.message).includes('live_streams')) toast('Live: migration_live_streams.sql ажиллуулна уу');
       if(meetings.error && String(meetings.error.message).includes('meetings')) toast('Хурал: migration_meetings.sql ажиллуулна уу');
       if(lr.error && String(lr.error.message).includes('leave_requests')) toast('Чөлөө: migration_leave_requests.sql ажиллуулна уу');
       if(inv.error) toast('Агуулах: '+inv.error.message+(String(inv.error.message).includes('category')?' — schema.sql (inventory.category) ажиллуулна уу':''));
@@ -1329,7 +1369,6 @@
         attLocations:al.data||[],breakSchedules:dropSampleRows(br.data,['user_name']),
         activityLogs:dropSampleRows(alogs.data||[],['user_name']),
         posts:dropSampleRows(posts.data||[],['author_name']),
-        lives:lives.data||[],
         meetings:meetings.data||[],
         feedback:feedbackRows,
         aiReports:aiReports,
@@ -1362,8 +1401,18 @@
     function render(){
       const c=$('content');
       if(!dataLoaded){ c.innerHTML=renderSkeleton(); return; }
+      // Байршлын дэлгэцээс гарахад realtime сувгийг хаана — эс тэгвээс
+      // цэс солих бүрд шинэ суваг нэмэгдэж, нээлттэй холболт хуримтлагдана.
+      if(view!=='location' && view!=='dashboard') stopLocationRealtime();
+      // Гүйцэтгэлийн графикууд DOM-оос салахад Chart.js обьект нь үлддэг —
+      // цэс солиход шууд устгана.
+      if(view!=='workperformance' && Object.keys(wpCharts).length){
+        Object.values(wpCharts).forEach(ch=>{ try{ch.destroy();}catch(e){} });
+        wpCharts={};
+      }
       if(view==='dashboard') return renderDashboard(c);
       if(view==='employees') return renderEmployees(c);
+      if(view==='workperformance'){ renderWorkPerformance(c); return; }
       if(view==='reports') return renderReports(c);
       if(view==='feedback') return renderFeedback(c);
       if(view==='applications') return renderApplications(c);
@@ -1387,7 +1436,8 @@
       if(view==='feedposts') return renderFeedPosts(c);
       if(view==='meetings') return renderMeetings(c);
       if(view==='livestreams'){ renderLiveStreams(c); return; }
-      if(view==='screenshare'){ renderScreenShare(c); return; }
+      // "Дэлгэц хянах" хэсгийг хассан — ажилтны дэлгэцийг шууд харах
+      // боломж байхгүй. Доорх renderScreenShare/... код нь дуудагдахгүй.
       if(view==='activitylogs') return renderActivityLogs(c);
       if(view==='excelarchive') return renderExcelArchive(c);
     }
@@ -1410,7 +1460,7 @@
       }).join('')||'<tr><td colspan=5 class=empty>Пост алга</td></tr>';
 
       const meetNote=activeMeetings.length
-        ? `<p style="margin:0 0 12px;font-size:13px"><span class="pill" style="background:#fee2e2;color:#b91c1c;font-weight:800">ХУРАЛ</span> Идэвхтэй хурал байна — <a href="#" onclick="go('meetings');return false">Хурал цэс</a> рүү орно уу.</p>`
+        ? `<p style="margin:0 0 12px;font-size:13px"><span class="pill" style="background:#fee2e2;color:#d92d20;font-weight:800">ХУРАЛ</span> Идэвхтэй хурал байна — <a href="#" onclick="go('meetings');return false">Хурал цэс</a> рүү орно уу.</p>`
         : `<p class="muted" style="margin:0 0 12px;font-size:13px">Хурал эхлүүлэхийн тулд <b>Хурал</b> цэсийг ашиглана.</p>`;
 
       c.innerHTML=`
@@ -1549,8 +1599,8 @@
         const screen=online?(p.screen_label||p.screen||'Апп'):'Апп хаалттай';
         const t=online&&p.at?new Date(p.at).toLocaleTimeString('mn-MN'):'—';
         const status=online
-          ?`<span class="pill" style="background:#dcfce7;color:#166534;font-weight:800">LIVE</span>`
-          :`<span class="pill" style="background:#f1f5f9;color:#64748b">Офлайн</span>`;
+          ?`<span class="pill" style="background:#dcfce7;color:#0b6b3d;font-weight:800">LIVE</span>`
+          :`<span class="pill" style="background:#efeff1;color:#5c5c64">Офлайн</span>`;
         return `<tr style="${active?'background:#eff6ff':''}">
           <td><b>${esc(name)}</b><div class="muted" style="font-size:11px">${esc(w.role||'')}</div></td>
           <td>${status}</td>
@@ -1588,7 +1638,7 @@
               <b>Бүх ажилтан</b> жагсаалтад харагдана. Апп нээлттэй бол <b>LIVE</b> гэж тэмдэглэгдэнэ.
               Дэлгэцийн зураг <b>database-д хадгалагдахгүй</b> — зөвхөн шууд харагдана. Ажилтанд мэдэгдэл гарахгүй.
             </p>
-            <p style="margin:8px 0 0;font-size:13px">Нийт: <b>${workers.length}</b> · Апп нээлттэй: <b style="color:#166534">${liveCount}</b></p>
+            <p style="margin:8px 0 0;font-size:13px">Нийт: <b>${workers.length}</b> · Апп нээлттэй: <b style="color:#0b6b3d">${liveCount}</b></p>
           </div></div>
 
         <div class="grid2">
@@ -1599,8 +1649,8 @@
 
           <div class="card"><div class="card-h"><h3>Live дэлгэц — ${esc(selName)}</h3>
             <span class="muted" id="screenLiveMeta" style="font-size:12px">${online?'Апп нээлттэй':'Апп хаалттай / холбогдоогүй'}</span></div>
-            <div class="card-b" style="padding:12px;background:#0b0f1a;min-height:420px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
-              <p id="screenLiveWait" class="muted" style="color:#94a3b8;text-align:center;${hasFrame?'display:none':''}">
+            <div class="card-b" style="padding:12px;background:#141314;min-height:420px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
+              <p id="screenLiveWait" class="muted" style="color:#9c9ca4;text-align:center;${hasFrame?'display:none':''}">
                 ${!screenPresenceSelected
                   ? 'Зүүн жагсаалтаас ажилтан сонгоно уу'
                   : (online
@@ -1635,7 +1685,7 @@
       }
 
       const activeHtml=active.map(m=>`<tr>
-        <td><span class="pill" style="background:#fee2e2;color:#b91c1c;font-weight:800">LIVE</span></td>
+        <td><span class="pill" style="background:#fee2e2;color:#d92d20;font-weight:800">LIVE</span></td>
         <td><b>${(m.host_name||'—').replace(/</g,'&lt;')}</b></td>
         <td>${(m.title||'Live').replace(/</g,'&lt;')}</td>
         <td class="muted">${m.started_at?new Date(m.started_at).toLocaleString('mn-MN'):'—'}</td>
@@ -1696,7 +1746,7 @@
       if(!w){
         const title=`LIVE — ${String(name).replace(/</g,'&lt;')}`;
         $('overlay').innerHTML=`<div class="modal" style="max-width:960px;width:100%">
-          <div class="modal-h"><span><span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:900;margin-right:8px">LIVE</span>${title}</span>
+          <div class="modal-h"><span><span style="background:#ff6b60;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:900;margin-right:8px">LIVE</span>${title}</span>
           <button type="button" class="x" onclick="closeModal()" aria-label="Хаах">×</button></div>
           <div class="modal-b" style="padding:16px;text-align:center">
             <p class="muted">Popup блоклогдсон. Доорх холбоосоор нээнэ үү.</p>
@@ -1722,7 +1772,7 @@
       const active=list.filter(m=>m.status==='active');
       const past=list.filter(m=>m.status==='ended').slice(0,40);
       const activeHtml=active.map(m=>`<tr>
-        <td><span class="pill" style="background:#fee2e2;color:#b91c1c;font-weight:800">ИДЭВХТЭЙ</span></td>
+        <td><span class="pill" style="background:#fee2e2;color:#d92d20;font-weight:800">ИДЭВХТЭЙ</span></td>
         <td><b>${(m.host_name||'Админ').replace(/</g,'&lt;')}</b></td>
         <td>${(m.title||'Админ хурал').replace(/</g,'&lt;')}</td>
         <td class="muted">${m.started_at?new Date(m.started_at).toLocaleString('mn-MN'):'—'}</td>
@@ -1887,18 +1937,18 @@
       if(empty) parts.push('<b>Өгөгдөл хоосон харагдаж байна.</b> Нэвтрэлт болон Supabase RLS эрхийг шалгана уу.');
       if(errList.length) parts.push('<b>Ачаалах алдаа:</b> '+errList.join(' · '));
       parts.push(`<span class="muted">Session: ${me?.email||'—'} · ${SUPABASE_URL.replace(/</g,'')}</span>`);
-      return `<div class="card" style="margin-bottom:16px;border-color:#f59e0b"><div class="card-b" style="padding:14px 16px;font-size:13px;line-height:1.5">${parts.join('<br>')}</div></div>`;
+      return `<div class="card" style="margin-bottom:16px;border-color:#b45309"><div class="card-b" style="padding:14px 16px;font-size:13px;line-height:1.5">${parts.join('<br>')}</div></div>`;
     }
 
     function statCards(){
       const today=new Date();today.setHours(0,0,0,0);
       const msym=(name,color)=>`<span class="material-symbols-outlined" style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:${color}18;color:${color};font-size:22px">${name}</span>`;
       const s=[
-        {ic:msym('group','#453fc1'),v:visibleWorkers().length,l:'Ажилтан'},
-        {ic:msym('wifi','#10b981'),v:visibleWorkers().filter(online).length,l:'Online'},
-        {ic:msym('work','#059669'),v:countTodayBags(),l:'Өнөөдрийн баг'},
-        {ic:msym('badge','#5e5adb'),v:data.attendance.filter(r=>r.type==='check_in'&&new Date(r.created_at)>=today).length,l:'Өнөөдрийн ирц'},
-        {ic:msym('directions_car','#f59e0b'),v:data.vehicles.length,l:'Машин'}];
+        {ic:msym('group','#007cb4'),v:visibleWorkers().length,l:'Ажилтан'},
+        {ic:msym('wifi','#0b7a44'),v:visibleWorkers().filter(online).length,l:'Online'},
+        {ic:msym('work','#0b7a44'),v:countTodayBags(),l:'Өнөөдрийн баг'},
+        {ic:msym('badge','#4054b2'),v:data.attendance.filter(r=>r.type==='check_in'&&new Date(r.created_at)>=today).length,l:'Өнөөдрийн ирц'},
+        {ic:msym('directions_car','#b45309'),v:data.vehicles.length,l:'Машин'}];
       return `<div class="stats animate-chart-entry">${s.map(x=>`<div class="stat stat-card">${x.ic}<div><div class="v">${x.v}</div><div class="l">${x.l}</div></div></div>`).join('')}</div>`;
     }
 
@@ -1909,9 +1959,9 @@
     }
     function fuelLevelColor(pct){
       const p=Number(pct)||0;
-      if(p<=15) return '#ef4444';
-      if(p<=35) return '#f59e0b';
-      return '#22c55e';
+      if(p<=15) return '#ff6b60';
+      if(p<=35) return '#b45309';
+      return '#3fcf8e';
     }
     const MN_CYR='АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯӨҮ';
     const MN_LATIN={A:'А',B:'В',C:'С',D:'Д',E:'Е',F:'Ф',G:'Г',H:'Х',I:'И',J:'Ж',K:'К',L:'Л',M:'М',N:'Н',O:'О',P:'П',Q:'К',R:'Р',S:'С',T:'Т',U:'У',V:'В',W:'В',X:'Х',Y:'Ы',Z:'З'};
@@ -2001,7 +2051,7 @@
       const active=rows.filter(r=>r.active).length;
       const totalKm=rows.reduce((s,r)=>s+r.totalKm,0);
       const cards=rows.length?`<div class="fuel-fleet-grid">${rows.map(r=>`<div class="fuel-fleet-card"><div class="fuel-fleet-top">${fuelTankVizHtml(r.currentLevel,r.levelColor,r.tank,r.remainingLiters)}<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${mongoliaPlateHtml(r.plate,'sm')}${r.active?'<span class="pill on">Явж байна</span>':''}</div><div class="muted" style="font-size:13px;margin-top:4px">Жолооч: ${r.driver}</div><div style="margin-top:8px;font-size:14px"><b>${r.totalKm.toFixed(1)} км</b> · ${r.periodLiters.toFixed(1)} л зарцуулалт</div><div style="margin-top:4px;font-size:13px;color:${r.levelColor}"><b>${r.currentLevel}%</b> бензин үлдсэн (${r.remainingLiters.toFixed(1)} / ${r.tank} л)</div>${r.cost?`<div class="muted" style="font-size:12px;margin-top:4px">Зардал: ${money(r.cost)}</div>`:''}${r.vehicle?.id?`<button class="btn btn-ghost btn-sm" type="button" style="margin-top:10px" onclick="refillVehicleFuel('${r.vehicle.id}','${String(r.plate).replace(/'/g,"\\'")}')">Сав дүүргэх (100%)</button>`:''}</div></div><div class="fuel-gauge-bar" style="margin-top:12px"><div class="fuel-gauge-fill" style="width:${r.currentLevel}%;background:${r.levelColor}"></div></div></div>`).join('')}</div>`:'<div class="empty" style="padding:32px">Машин эсвэл аяллын бүртгэл алга</div>';
-      c.innerHTML=`<div class="stats" style="margin-bottom:16px"><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#f59e0b">local_gas_station</span><div><div class="v">${rows.length}</div><div class="l">Машин</div></div></div><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#22c55e">speed</span><div><div class="v">${active}</div><div class="l">Явж байна</div></div></div><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#3b82f6">route</span><div><div class="v">${totalKm.toFixed(0)}</div><div class="l">Нийт км (30 хоног)</div></div></div></div>
+      c.innerHTML=`<div class="stats" style="margin-bottom:16px"><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#b45309">local_gas_station</span><div><div class="v">${rows.length}</div><div class="l">Машин</div></div></div><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#3fcf8e">speed</span><div><div class="v">${active}</div><div class="l">Явж байна</div></div></div><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#0099db">route</span><div><div class="v">${totalKm.toFixed(0)}</div><div class="l">Нийт км (30 хоног)</div></div></div></div>
         <div class="grid2" style="margin-bottom:20px">
           <div class="card"><div class="card-h"><h3>Бензин зарцуулалт (7 хоног)</h3></div><div class="card-b"><div class="dash-chart-wrap" style="height:260px"><canvas id="dashFuelChart"></canvas></div></div></div>
           <div class="card"><div class="card-h"><h3>Машинаар түлш үлдэгдэл (%)</h3></div><div class="card-b"><div class="dash-chart-wrap" style="height:260px"><canvas id="dashFuelPctChart"></canvas></div></div></div>
@@ -2120,16 +2170,70 @@
       initDashboardCharts();
     }
     function renderLocation(c){
-      c.innerHTML=`<div class="card"><div class="card-h"><h3>Real-time байршил</h3><button class="btn btn-ghost btn-sm" onclick="loadAll()">Шинэчлэх</button></div><div class="card-b" style="padding:12px"><div id="map" style="height:520px"></div></div></div>`;
+      const shown=visibleWorkers().filter(w=>w.latitude!=null).length;
+      const total=visibleWorkers().length;
+      // Хэн ч харагдахгүй үед "газрын зураг эвдэрсэн" гэж бодохоос сэргийлж
+      // ЯАГААД хоосон байгааг тодорхой хэлнэ.
+      const note=shown?`<span class="muted" style="font-size:12px">${shown}/${total} ажилтан байршил илгээсэн · <span id="liveDot" style="color:#0b7a44">● шууд</span></span>`
+        :`<span class="muted" style="font-size:12px">Нэг ч ажилтан байршил илгээгээгүй байна — утсан дээрээ байршлын зөвшөөрөл өгсөн эсэхийг шалгана уу</span>`;
+      c.innerHTML=`<div class="card"><div class="card-h"><h3>Real-time байршил</h3><div class="card-h-actions">${note}<button class="btn btn-ghost btn-sm" onclick="loadAll()">Шинэчлэх</button></div></div><div class="card-b" style="padding:12px"><div id="map" style="height:520px"></div></div></div>`;
       setupMap();
     }
     function setupMap(){
       const el=$('map'); if(!el) return;
       if(map){ map.remove(); map=null; }
-      map=L.map(el).setView([47.9185,106.9176],12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+      map=L.map(el,{zoomControl:true}).setView([47.9185,106.9176],12);
+      buildBaseLayers(map);
       refreshMarkers();
+      // Байршилтай ажилтнууд байвал бүгдийг багтаана — Улаанбаатарын
+      // төвд тогтмол харуулбал хөдөө байгаа ажилтан харагдахгүй.
+      const pts=visibleWorkers().filter(w=>w.latitude!=null).map(w=>[w.latitude,w.longitude]);
+      if(pts.length===1) map.setView(pts[0],15);
+      else if(pts.length>1) map.fitBounds(L.latLngBounds(pts).pad(0.2));
+      startLocationRealtime();
     }
+    /**
+     * Газрын зургийн суурь давхаргууд.
+     *
+     * Энгийн OpenStreetMap-ийн оронд 3 сонголт. Бүгд API түлхүүр
+     * ШААРДАХГҮЙ — Google Maps-д зөвхөн түлхүүр биш, төлбөрийн данс
+     * холбох шаардлагатай тул түүнээс зайлсхийв.
+     *
+     *   Гудамж      — CARTO Voyager: OSM-ээс цэвэрхэн, тод, шошго уншигдахуйц
+     *   Хиймэл дагуул — Esri World Imagery: барилга, хашаа таних боломжтой
+     *   Харанхуй    — CARTO Dark: шөнийн ээлж хянахад нүд гэмтээхгүй
+     *
+     * Сонголт нь localStorage-д хадгалагдана — админ хуудсаа шинэчлэх
+     * бүрд дахин сонгох шаардлагагүй.
+     */
+    const MAP_LAYER_KEY='gennetex_map_layer';
+    function buildBaseLayers(m){
+      const streets=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+        maxZoom:20, subdomains:'abcd',
+        attribution:'© OpenStreetMap · © CARTO'
+      });
+      const satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+        maxZoom:19,
+        attribution:'© Esri · Maxar · Earthstar Geographics'
+      });
+      // Хиймэл дагуулын зураг дээр гудамжны нэр байхгүй тул нэрийн
+      // давхаргыг тусад нь давхарлана — эс тэгвээс хаана байгааг олоход хэцүү.
+      const labels=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',{
+        maxZoom:20, subdomains:'abcd', pane:'shadowPane'
+      });
+      const satelliteGroup=L.layerGroup([satellite,labels]);
+      const dark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+        maxZoom:20, subdomains:'abcd',
+        attribution:'© OpenStreetMap · © CARTO'
+      });
+
+      const bases={'Гудамж':streets,'Хиймэл дагуул':satelliteGroup,'Харанхуй':dark};
+      const saved=localStorage.getItem(MAP_LAYER_KEY);
+      (bases[saved]||streets).addTo(m);
+      L.control.layers(bases,null,{position:'topright'}).addTo(m);
+      m.on('baselayerchange',e=>{ try{ localStorage.setItem(MAP_LAYER_KEY,e.name); }catch(err){} });
+    }
+
     function workerMapIcon(w, col) {
       const name = (w.name || 'А').charAt(0).toUpperCase();
       if (w.avatar_url) {
@@ -2147,18 +2251,62 @@
         iconAnchor: [22, 22],
       });
     }
+    function markerPopupHtml(w){
+      return w.avatar_url
+        ? `<div style="text-align:center"><div style="background:#fff;padding:8px;border-radius:10px;border:1px solid #e2e2e5;display:inline-block;margin-bottom:8px"><img src="${w.avatar_url}" style="width:120px;height:150px;object-fit:contain;background:#fff;display:block" alt=""></div><br><b>${w.name||'Ажилтан'}</b><br>${timeAgo(w.last_seen)} өмнө</div>`
+        : `<b>${w.name||'Ажилтан'}</b><br>${timeAgo(w.last_seen)} өмнө`;
+    }
+    // Ажилтны мөрийн жинхэнэ profile id. `id` нь record_id (pending:email
+    // байж болно) тул байршил тааруулахад user_id-г эхэлж үзнэ.
+    const workerUid = w => w.user_id || w.id;
+
     function refreshMarkers(){
       if(!map) return;
       markers.forEach(m=>map.removeLayer(m)); markers=[];
+      markerByUid={};
       visibleWorkers().filter(w=>w.latitude!=null).forEach((w,i)=>{
         const col=COLORS[i%COLORS.length];
-        const icon=workerMapIcon(w,col);
-        const popup=w.avatar_url
-          ? `<div style="text-align:center"><div style="background:#fff;padding:8px;border-radius:10px;border:1px solid #e5e7eb;display:inline-block;margin-bottom:8px"><img src="${w.avatar_url}" style="width:120px;height:150px;object-fit:contain;background:#fff;display:block" alt=""></div><br><b>${w.name||'Ажилтан'}</b><br>${timeAgo(w.last_seen)} өмнө</div>`
-          : `<b>${w.name||'Ажилтан'}</b><br>${timeAgo(w.last_seen)} өмнө`;
-        markers.push(L.marker([w.latitude,w.longitude],{icon}).addTo(map).bindPopup(popup));
+        const m=L.marker([w.latitude,w.longitude],{icon:workerMapIcon(w,col)}).addTo(map).bindPopup(markerPopupHtml(w));
+        markers.push(m);
+        markerByUid[workerUid(w)]=m;
       });
       if($('onl')) $('onl').textContent=visibleWorkers().filter(online).length+'online';
+    }
+
+    /**
+     * Real-time байршил.
+     *
+     * ӨМНӨ: зөвхөн 15 секунд тутмын `loadAll()` — 17 асуулга дахин явуулж
+     * бүх маркерыг устгаад дахин зурдаг байв. Хоцролт их, зураг анивчдаг.
+     *
+     * ОДОО: profiles-ын UPDATE-г шууд сонсоод тухайн НЭГ маркерыг
+     * зөөнө. Хоцролт ~1 секунд, бусад өгөгдлийг дахин татахгүй.
+     */
+    function startLocationRealtime(){
+      stopLocationRealtime();
+      if(!sb) return;
+      locationCh=sb.channel('admin-live-locations-'+Math.random().toString(36).slice(2))
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'profiles'},({new:row})=>{
+          if(!row||row.latitude==null||row.longitude==null) return;
+          const w=(data.workers||[]).find(x=>workerUid(x)===row.id);
+          if(!w) return;
+          // Локал өгөгдлөө шинэчилнэ — өөр дэлгэц рүү орж ирэхэд ч зөв байна
+          w.latitude=row.latitude; w.longitude=row.longitude; w.last_seen=row.last_seen||w.last_seen;
+          if(!map) return;
+          const m=markerByUid[workerUid(w)];
+          if(m){
+            m.setLatLng([row.latitude,row.longitude]);
+            m.setPopupContent(markerPopupHtml(w));
+          }else{
+            // Анх удаа байршил илгээж буй ажилтан — маркер шинээр нэмнэ
+            refreshMarkers();
+          }
+          if($('onl')) $('onl').textContent=visibleWorkers().filter(online).length+'online';
+        })
+        .subscribe();
+    }
+    function stopLocationRealtime(){
+      if(locationCh){ try{ sb.removeChannel(locationCh); }catch(e){} locationCh=null; }
     }
 
     function renderTableCard(c,title,headers,rows,exportFn){
@@ -2192,7 +2340,7 @@
     const EXCEL_CAT_LABEL={
       irts:'Ирц',ocson_log:'Очсон лог',ajlyn_bair:'Ажлын байр',ayalal:'Аялал',
       baraa_hereglee:'Барааны хэрэглээ',hamt_yvaa_bag:'Хамт яваа баг',negtgesen:'Нэгтгэсэн',
-      niit_log:'Нийт лог',
+      niit_log:'Нийт лог',ajilchdyn_guitsetgel:'Ажилчдын гүйцэтгэл',
     };
     const ymdFromDate=(v)=>{
       const d=v?new Date(v):new Date();
@@ -2214,14 +2362,24 @@
       }catch(e){ excelArchives=[]; }
     }
 
-    async function exportAndArchive({category,title,filename,sheets}){
+    /**
+     * Excel татаж, ижил файлыг архивт хадгална.
+     *
+     * `charts` дамжуулбал SheetJS-ийн оронд `xlsx-chart.js`-ээр угсарна —
+     * учир нь SheetJS ГРАФИК бичиж чаддаггүй. Бусад тайлангийн хувьд
+     * (charts байхгүй) хуучин зам хэвээрээ.
+     */
+    async function exportAndArchive({category,title,filename,sheets,charts}){
       if(typeof XLSX==='undefined'){ toast('Excel сан ачаалагдаагүй байна'); return; }
+      const withCharts=!!(charts&&charts.length&&window.XlsxChart);
+      if(charts&&charts.length&&!window.XlsxChart) toast('Графикийн сан ачаалагдаагүй — зөвхөн хүснэгт татагдана');
       const now=new Date();
       const y=now.getFullYear(),m=now.getMonth()+1,day=now.getDate();
       const wb=XLSX.utils.book_new();
       const sheetNames=[];
       const sheetCounts={};
       let rowCount=0;
+      if(withCharts){ sheetNames.push('График'); sheetCounts['График']=0; }
       (sheets||[]).forEach((sh,i)=>{
         const name=(sh.name||`Sheet${i+1}`).slice(0,31);
         const rows=sh.rows||[[]];
@@ -2229,15 +2387,25 @@
         sheetNames.push(name);
         sheetCounts[name]=body;
         rowCount+=body;
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name);
+        if(!withCharts) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name);
       });
       const stamp=`${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const fileBase=`${filename}_${stamp}`;
       const localName=`${fileBase}.xlsx`;
-      XLSX.writeFile(wb,localName);
+      const MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      // Графиктай файлыг өөрсдөө угсарна — SheetJS график бичиж чаддаггүй.
+      const bytes=withCharts?XlsxChart.build({sheets,charts,chartSheetName:'График'}):null;
+      if(withCharts){
+        const url=URL.createObjectURL(new Blob([bytes],{type:MIME}));
+        const a=document.createElement('a');
+        a.href=url; a.download=localName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      } else XLSX.writeFile(wb,localName);
       try{
-        const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-        const blob=new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const blob=withCharts
+          ? new Blob([bytes],{type:MIME})
+          : new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:MIME});
         const storagePath=`${y}/${String(m).padStart(2,'0')}/${String(day).padStart(2,'0')}/${fileBase}_${Date.now()}.xlsx`;
         const {error:upErr}=await sb.storage.from('excel-exports').upload(storagePath,blob,{
           contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -2448,7 +2616,7 @@
           .meta{color:#666;font-size:12px;margin-bottom:16px}
           table{width:100%;border-collapse:collapse;font-size:11px}
           th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
-          th{background:#f3f4f6}
+          th{background:#efeff1}
           @media print{body{padding:0}}
         </style></head><body>
         <h1>Gennetex ERP — Нийт лог</h1>
@@ -2675,7 +2843,7 @@
       const w=window.open('','_blank');
       if(!w){ toast('Popup блоклогдсон'); return; }
       w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Санал гomдol</title>
-        <style>body{font-family:system-ui,sans-serif;padding:24px;color:#111}h1{font-size:18px;margin:0 0 8px}.meta{color:#666;font-size:12px;margin-bottom:16px}h2{font-size:15px;margin:20px 0 8px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f3f4f6}@media print{body{padding:0}}</style></head><body>
+        <style>body{font-family:system-ui,sans-serif;padding:24px;color:#111}h1{font-size:18px;margin:0 0 8px}.meta{color:#666;font-size:12px;margin-bottom:16px}h2{font-size:15px;margin:20px 0 8px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}th{background:#efeff1}@media print{body{padding:0}}</style></head><body>
         <h1>Gennetex ERP — Санал гomдol</h1>
         <div class="meta">Нийт ${list.length} · ${new Date().toLocaleString('mn-MN')}</div>
         ${table('📛 Гомдол',gomdol)}
@@ -2834,7 +3002,7 @@
       return {
         company:'ЖЕННЕТЕКС ХХК',
         title:'Ажилд орохыг хүсэгчийн анкет',
-        general:{clanName:'',fatherName:r.last_name||'',firstName:r.name||'',birthYear:'',birthMonth:'',birthDay:'',birthProvince:'',birthDistrict:'',ethnicity:'',gender:'',registrationNo:'',email:r.email||'',paysSocialInsurance:'',phoneMobile:r.phone||'',phoneHome:'',driverLicenseNo:'',driverLicenseClass:'',bloodType:'',address:'',housingType:'',bodySize:'',clothingSize:'',shoeSize:'',univisionContractNo:'',photoDataUrl:r.photo_url||''},
+        general:{clanName:'',fatherName:r.last_name||'',firstName:r.name||'',birthYear:'',birthMonth:'',birthDay:'',birthProvince:'',birthDistrict:'',birthSubdistrict:'',ethnicity:'',gender:'',registrationNo:'',email:r.email||'',paysSocialInsurance:'',phoneMobile:r.phone||'',phoneHome:'',driverLicenseNo:'',driverLicenseClass:'',bloodType:'',address:'',housingType:'',bodySize:'',clothingSize:'',shoeSize:'',univisionContractNo:'',photoDataUrl:r.photo_url||''},
         family:{married:'',members:[]},
         education:[],workExperience:[],languages:[],
         personal:{strengths:'',weaknesses:''},
@@ -2859,16 +3027,23 @@
       const html=buildJobApplicationPaperHtml(fd,{
         logoUrl:typeof ADMIN_ASSET==='function'?ADMIN_ASSET('logo.png'):'logo.png',
         signatureSvg:r.signature_svg||fd.signatureSvg||'',
-        signedAt:r.signed_at||fd.signedAt||''
+        signedAt:r.signed_at||fd.signedAt||'',
+        adminSignatureSvg:r.admin_signature_svg||'',
+        adminSignedAt:r.admin_signed_at||'',
+        adminName:r.admin_signed_by_name||'',
+        stampUrl:'/company-stamp.png'
       });
       window._jobPaperCache[id]=html;
       const body=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <button class="btn btn-primary btn-sm" type="button" onclick="printJobAppCached('${String(r.id).replace(/'/g,"\\'")}')">
           <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle">picture_as_pdf</span> PDF / Хэвлэх
         </button>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="openAdminJobSignature('${String(r.id).replace(/'/g,"\\'")}')">
+          <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle">draw</span> ${r.admin_signature_svg?'Дахин батлах':'Баталж гарын үсэг зурах'}
+        </button>
         <span class="muted" style="font-size:12px">Цаасан анкетын загвар — 3×4 цээж зураг цагаан дэвсгэртэй</span>
       </div>
-      <iframe id="jobPaperPreview" title="Ажлын байрны анкет" style="width:100%;height:min(75vh,920px);border:1px solid var(--line);border-radius:12px;background:#d4d4d4"></iframe>`;
+      <iframe id="jobPaperPreview" title="Ажлын байрны анкет" style="width:100%;height:min(75vh,920px);border:1px solid var(--line);border-radius:12px;background:#c8c8cd"></iframe>`;
       openModal('Ажлын байрны анкет',body,'Хаах',()=>true,{wide:true,appView:true});
       setTimeout(()=>{
         const f=document.getElementById('jobPaperPreview');
@@ -2879,6 +3054,34 @@
       },60);
     }
     window.viewJobApplication=viewJobApplication;
+    function openAdminJobSignature(id){
+      const r=(data.jobApplications||[]).find(x=>x.id===id);
+      if(!r){ toast('Олдсонгүй'); return; }
+      window._adminJobSignatureSvg='';
+      const body=`<p class="muted" style="margin-top:0">Админ: <b>${String(me?.name||'Админ').replace(/</g,'&lt;')}</b>. Цагаан талбайд гарын үсгээ зурна уу.</p>
+        <canvas id="adminJobSignatureCanvas" width="600" height="180" style="display:block;width:100%;height:180px;background:#fff;border:1px solid var(--line);border-radius:12px;touch-action:none"></canvas>
+        <button class="btn btn-ghost btn-sm" id="clearAdminJobSignature" type="button" style="margin-top:8px">Цэвэрлэх</button>`;
+      openModal('Анкет батлах',body,'Баталж хадгалах',async()=>{
+        if(!window._adminJobSignatureSvg){ toast('Гарын үсгээ зурна уу'); return false; }
+        const payload={admin_signature_svg:window._adminJobSignatureSvg,admin_signed_at:new Date().toISOString(),admin_signed_by:me?.id||null,admin_signed_by_name:me?.name||'Админ'};
+        const {error}=await sb.from('job_applications').update(payload).eq('id',id);
+        if(error){ toast('Алдаа: '+error.message); return false; }
+        Object.assign(r,payload); toast('Анкетыг баталлаа'); setTimeout(()=>loadAll(),50); return true;
+      },{wide:true});
+      setTimeout(()=>{
+        const canvas=document.getElementById('adminJobSignatureCanvas');
+        if(!canvas) return;
+        const ctx=canvas.getContext('2d'); let drawing=false,hasInk=false;
+        ctx.strokeStyle='#201e1f'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+        const point=e=>{ const rect=canvas.getBoundingClientRect(); const src=e.touches?e.touches[0]:e; return {x:(src.clientX-rect.left)*canvas.width/rect.width,y:(src.clientY-rect.top)*canvas.height/rect.height}; };
+        const start=e=>{ e.preventDefault(); drawing=true; const p=point(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+        const move=e=>{ if(!drawing)return; e.preventDefault(); const p=point(e); ctx.lineTo(p.x,p.y); ctx.stroke(); hasInk=true; };
+        const end=()=>{ if(!drawing)return; drawing=false; if(hasInk){ const png=canvas.toDataURL('image/png'); window._adminJobSignatureSvg='<svg xmlns="http://www.w3.org/2000/svg" width="600" height="180"><image href="'+png+'" width="600" height="180"/></svg>'; } };
+        canvas.addEventListener('pointerdown',start); canvas.addEventListener('pointermove',move); canvas.addEventListener('pointerup',end); canvas.addEventListener('pointerleave',end);
+        document.getElementById('clearAdminJobSignature').onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);hasInk=false;window._adminJobSignatureSvg='';};
+      },50);
+    }
+    window.openAdminJobSignature=openAdminJobSignature;
     async function setAppStatus(id,status){
       const {error}=await sb.from('job_applications').update({status}).eq('id',id);
       if(error) toast('Алдаа: '+error.message); else { toast('Төлөв шинэчиллээ'); loadAll(); }
@@ -2994,7 +3197,7 @@
     async function collectWebAppUsageStats(from,to){
       const [logsRes,profRes]=await Promise.all([
         sb.from('activity_logs').select('*').gte('created_at',from).lte('created_at',to).order('created_at',{ascending:false}).limit(8000),
-        sb.from('profiles').select('id,name,email,role,last_seen').in('role',['employee','admin','superadmin']).order('name'),
+        sb.from('profiles').select('id,name,email,role,last_seen').in('role',['employee','ahlah','menejer','admin','superadmin']).order('name'),
       ]);
       const logs=logsRes.error?[]:(logsRes.data||[]);
       const profiles=(profRes.data||[]).filter(p=>p.id&&(p.name||p.email));
@@ -3512,7 +3715,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const rest=data.attendance.filter(r=>r.status!=='pending');
       const badge=(r)=>{
         let b=`<span class="pill ${r.type==='check_in' ?'in':'out'}">${r.type==='check_in' ?'Ирсэн':'Явсан'}</span>`;
-        if(r.is_remote) b+='<span class="pill" style="background:#efe9ff;color:#6d4bd6">Зайнаас</span>';
+        if(r.is_remote) b+='<span class="pill" style="background:#f0eaf8;color:#6d4aa8">Зайнаас</span>';
         if(r.status==='rejected') b+='<span class="pill out">Татгалзсан</span>';
         return b;
       };
@@ -3583,7 +3786,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         <button class="btn btn-ghost btn-sm" onclick="loadAll()">Шинэчлэх</button></div></div>
         <div class="card-b" style="padding:0"><table><thead><tr><th></th><th>Ажилтан</th><th>Төрөл</th><th>Байршил</th><th>Огноо</th>${isSuperAdmin(me?.role)?'<th></th>':''}</tr></thead>
         <tbody>${rest.length?rest.map(r=>`<tr><td>${attPhotoCell(r)}</td><td><b>${r.staff_name||'—'}</b></td>
-          <td>${badge(r)}${(r.note||'').startsWith('[Админ')?'<span class="pill" style="background:#fff3cd;color:#856404">Админ</span>':''}</td>
+          <td>${badge(r)}${(r.note||'').startsWith('[Админ')?'<span class="pill" style="background:#fff3cd;color:#b45309">Админ</span>':''}</td>
           <td class=muted>${r.location_name||(r.is_remote&&r.distance_m!=null?`~${r.distance_m}м зайд`:'—')}${r.note&&(r.note||'').startsWith('[Админ')?'<br><span class=muted style="font-size:11px">'+String(r.note).replace(/</g,'&lt;')+'</span>':''}</td>
           <td class=muted>${new Date(r.created_at).toLocaleString('mn-MN')}</td>
           ${isSuperAdmin(me?.role)?`<td><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="toggleAttType('${r.id}','${r.type}')">${r.type==='check_in'?'→Явсан':'→Ирсэн'}</button>
@@ -3595,7 +3798,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const empOpts=fieldWorkers().map(w=>`<option value="${w.id}"${w.id===uid?'selected':''}>${w.name||w.email}</option>`).join('');
       const dayRows=WEEKDAYS.map(day=>{
         const on=uid?data.breakSchedules.some(b=>b.user_id===uid&&b.day_of_week===day.d):false;
-        return `<label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:${on?'#efe9ff':'transparent'}">
+        return `<label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:${on?'#f0eaf8':'transparent'}">
           <b>${day.l}</b>
           <span><input type="checkbox" id="br_d_${day.d}"${on?'checked':''}> Амралт</span>
         </label>`;
@@ -3615,7 +3818,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           await sb.from('employee_break_schedules').delete().eq('user_id',uid);
           if(rows.length){
             const {error}=await sb.from('employee_break_schedules').insert(rows);
-            if(error){ mErr(error.message); return false; }
+            if(error){ mErr(rpcErr(error.message)); return false; }
           }
           closeModal(); toast('Амралтын өдөр хадгалагдлаа'); loadAll(); return false;
         });
@@ -3639,7 +3842,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             location_id:$('sh_loc').value||null,note:$('sh_note').value.trim()||null,created_by:me.id};
           const {data:ex}=await sb.from('employee_shifts').select('id').eq('user_id',uid).eq('shift_date',row.shift_date).maybeSingle();
           const q=ex?.id?sb.from('employee_shifts').update(row).eq('id',ex.id):sb.from('employee_shifts').insert(row);
-          const {error}=await q; if(error){ mErr(error.message); return false; }
+          const {error}=await q; if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Хуваарь хадгалагдлаа'); loadAll(); return false;
         });
     };
@@ -3670,7 +3873,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           if(!Number.isFinite(lat)||!Number.isFinite(lng)){ mErr('Эхлээд GPS авах дарна уу'); return false; }
           const row={name,latitude:lat,longitude:lng,radius_m:Number($('al_rad').value)||200,wifi_gateway_ip:wifi,active:true};
           const {error}=await sb.from('attendance_locations').insert(row);
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Байршил нэмэгдлээ'); loadAll(); return false;
         });
     };
@@ -3689,7 +3892,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             radius_m:Number($('al_rad').value)||200,wifi_gateway_ip:$('al_wifi').value.trim()||null};
           if(!row.name){ mErr('Нэр оруулна уu'); return false; }
           const {error}=await sb.from('attendance_locations').update(row).eq('id',id);
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Байршил шинэчлэгдлээ'); loadAll(); return false;
         });
     };
@@ -3713,7 +3916,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
             location_name:locRow?.name||null,latitude:locRow?.latitude??null,longitude:locRow?.longitude??null,
             note:`[Админ: ${adminName}] ${note}`};
           const {error}=await sb.from('attendance').insert(row);
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Ирц бүртгэгдлээ'); loadAll(); return false;
         });
     };
@@ -3747,19 +3950,87 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     function empRolePill(w){
       if(w.role==='superadmin') return '<span class="pill admin">Хөгжүүлэгч</span>';
       if(w.role==='admin') return '<span class="pill admin">Админ</span>';
+      if(w.role==='menejer') return '<span class="pill admin">Менежер</span>';
+      if(w.role==='ahlah') return '<span class="pill admin">Ахлах</span>';
       return '<span class="pill emp">Ажилтан</span>';
     }
     function renderEmployees(c){
-      const list=visibleWorkers();
+      const actives=activeWorkers();
+      const formers=formerWorkers();
+      const list=empShowFormer?formers:actives;
       const loadErr=data.loadErrors?.workers;
-      c.innerHTML=`<div class="card"><div class="card-h"><h3>Ажилчид (${list.length})</h3>
-        <button class="btn btn-primary btn-sm" onclick="empModal()"> Ажилтан нэмэх</button></div>
+      c.innerHTML=`<div class="card"><div class="card-h"><h3>${empShowFormer?'Ажлаас гарсан':'Ажилчид'} (${list.length})</h3>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn ${empShowFormer?'btn-ghost':'btn-primary'} btn-sm" onclick="empTab(false)">Ажилчид (${actives.length})</button>
+          <button class="btn ${empShowFormer?'btn-primary':'btn-ghost'} btn-sm" onclick="empTab(true)">Ажлаас гарсан (${formers.length})</button>
+          ${empShowFormer?'':'<button class="btn btn-primary btn-sm" onclick="empModal()"> Ажилтан нэмэх</button>'}
+        </div></div>
         ${loadErr?`<div class="card-b" style="padding:12px 16px"><p class="err" style="margin:0">Ажилчид ачаалахад алдаа: ${String(loadErr).replace(/</g,'&lt;')}</p></div>`:''}
         <div class="card-b" style="padding:0"><table><thead><tr><th>Ажилтан</th><th>Имэйл</th><th>Утас</th><th>Хаяг</th><th>Эрх</th><th></th></tr></thead>
-        <tbody>${list.map(w=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${w.avatar_url?`<img class="av-id" src="${w.avatar_url}" alt="">`:`<span class="av-sm av-ph">${(w.name||' ?').charAt(0).toUpperCase()}</span>`}<div><b>${empDisplayName(w)}</b>${w.position?`<br><span class=muted style="font-size:12px">${w.position}</span>`:''}</div></div></td><td class=muted>${w.email||'—'}</td><td class=muted>${w.phone||'—'}</td><td class=muted>${w.address||'—'}</td>
+        <tbody>${list.map(w=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${w.avatar_url?`<img class="av-id" src="${w.avatar_url}" alt="">`:`<span class="av-sm av-ph">${(w.name||' ?').charAt(0).toUpperCase()}</span>`}<div><b>${empDisplayName(w)}</b>${w.position?`<br><span class=muted style="font-size:12px">${w.position}</span>`:''}${w.pending?'<br><span class="muted" style="font-size:11px;color:#b45309">Google нэвтрэлт хүлээгдэж байна</span>':''}</div></div></td><td class=muted>${w.email||'—'}</td><td class=muted>${w.phone||'—'}</td><td class=muted>${w.address||'—'}</td>
           <td>${empRolePill(w)}</td>
-          <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button><button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${isSuperAdmin(me.role)?`<button class="btn btn-ghost btn-sm" onclick='resetPwModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Нууц үг</button>`:''}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${w.pending?'':`<button class="btn btn-ghost btn-sm" onclick='openEmpStockModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Бараа</button>`}<button class="btn btn-ghost btn-sm" onclick='editEmpModal(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Засах</button>${w.id===me.id?'':`<button class="btn btn-ghost btn-sm" onclick="setEmployment('${String(w.email||'').replace(/'/g,"&#39;")}',${w.active===false})">${w.active===false?'Буцааж авах':'Ажлаас гаргах'}</button>`}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin' ?`<button class="btn btn-ghost btn-sm" onclick="toggleRole('${w.id}','${w.role}')">${w.role==='admin' ?'→ Ажилтан':w.role==='employee' ?'→ Админ':'Эрх'}</button>`:''}${isSuperAdmin(me.role)&&w.id!==me.id&&w.role!=='superadmin'?`<button class="btn btn-danger btn-sm" onclick='deleteEmp(${JSON.stringify(w.id)},${JSON.stringify(w.email||"")},${JSON.stringify(empDisplayName(w))})'>Устгах</button>`:''}${w.id===me.id?'<span class=muted>та</span>':''}</div></td></tr>`).join('')||`<tr><td colspan=6 class=empty>${loadErr?'Дээрх алдааг шалгана уу':'Ажилтан алга'}</td></tr>`}</tbody></table></div></div>`;
     }
+    window.empTab=(showFormer)=>{ empShowFormer=!!showFormer; loadAll(); };
+
+    /**
+     * Ажилтныг БҮРМӨСӨН устгах — зөвхөн Хөгжүүлэгчид.
+     *
+     * ⚠️ ЭРГЭЛТ БУЦАЛТГҮЙ: ирц, байршил, багажны олголт, чат бүгд алга
+     *    болно. Ихэнх тохиолдолд "Ажлаас гаргах" нь зөв сонголт —
+     *    түүх нь хадгалагдаж, дахин ажилд орвол сэргэнэ.
+     *
+     * Тиймээс баталгаажуулалт нь ХОЁР шаттай: эхлээд юу болохыг хэлж,
+     * дараа нь нэрийг нь бичүүлнэ. Санамсаргүй дарахаас сэргийлнэ.
+     *
+     * Google-ээр нэвтрээгүй хүнд `auth.users` мөр байхгүй тул устгахын
+     * оронд зөвшөөрлийг нь цуцална — мобайл апп ч мөн адил ажилладаг.
+     */
+    window.deleteEmp=async (id,email,name)=>{
+      const label=name||email||'энэ хэрэглэгч';
+      if(!confirm(
+        `${label}-ийг БҮРМӨСӨН устгах уу?\n\n`
+        +'• Ирц, байршил, багажны олголт, чат бүгд АЛГА БОЛНО\n'
+        +'• Сэргээх боломжгүй\n\n'
+        +'Түүхийг нь хадгалахыг хүсвэл "Ажлаас гаргах" ашиглана уу.'
+      )) return;
+      const typed=prompt(`Баталгаажуулахын тулд нэрийг нь бичнэ үү:\n${label}`);
+      if(typed===null) return;
+      if(String(typed).trim()!==String(label).trim()){ toast('Нэр таарсангүй — устгасангүй'); return; }
+
+      let error;
+      if(String(id).startsWith('pending:')){
+        ({ error }=await sb.rpc('admin_revoke_authorization',{ p_email:String(id).slice(8) }));
+      } else {
+        ({ error }=await sb.rpc('admin_delete_user',{ target_id:id }));
+      }
+      if(error){ toast(rpcErr(error.message)); return; }
+      toast('Устгагдлаа');
+      loadAll();
+    };
+
+    /**
+     * Ажлаас гаргах / буцааж авах.
+     *
+     * Ажилтныг УСТГАХГҮЙ — зөвхөн "ажилд байгаа" тугийг сольно. Ирц,
+     * байршил, багажны олголт зэрэг бүх түүх хэвээр үлдэж, буцааж авахад
+     * тэр чигээрээ сэргэнэ.
+     *
+     * Ажлаас гарсан үед тэр хүн апп руу нэвтэрч чадахгүй болно —
+     * `claim_authorized_profile` нь энэ тугийг шалгадаг.
+     */
+    window.setEmployment=async (email,bringBack)=>{
+      if(!email) return;
+      const msg=bringBack
+        ? 'Дахин ажилд авах уу?\n\nӨмнөх бүх мэдээлэл нь хэвээр сэргэж, апп руу нэвтрэх боломжтой болно.'
+        : 'Ажлаас гаргах уу?\n\n• Апп руу нэвтэрч чадахгүй болно\n• Мэдээлэл нь УСТАХГҮЙ — ирц, байршил, багажны олголт хэвээр\n• Дахин ажилд орвол буцааж авахад бүгд сэргэнэ';
+      if(!confirm(msg)) return;
+      const { error }=await sb.rpc('admin_set_employment',{ p_email:email, p_active:!!bringBack });
+      if(error){ toast(rpcErr(error.message)); return; }
+      toast(bringBack?'Дахин ажилд орлоо':'Ажлаас гарлаа');
+      loadAll();
+    };
+
     window.openEmpStockModal=(w)=>{
       const items=computeStockBalances(data.movements,{userId:w.id});
       const mat=items.filter(it=>it.category!=='tool');
@@ -3775,20 +4046,14 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       `,'Хаах',()=>false);
     };
     window.editEmpModal=(w)=>{
-      if(w.role!=='employee'&&!isSuperAdmin(me.role)){ toast('Зөвхөн ажилтны мэдээлэл засна. Эрхийг системийн админ өөрчилнө.'); return; }
+      if(w.role!=='employee'&&!isSuperAdmin(me.role)){ toast('Зөвхөн ажилтны мэдээлэл засна. Эрхийг Хөгжүүлэгч өөрчилнө.'); return; }
       if(w.role==='superadmin'&&!isSuperAdmin(me.role)){ toast('Энэ хэрэглэгчийг засах эрхгүй'); return; }
       const roleOpts=isSuperAdmin(me.role)
-        ? `<option value="employee"${w.role==='employee' ?'selected':''}>Ажилтан</option><option value="admin"${w.role==='admin' ?'selected':''}>Админ</option><option value="superadmin"${w.role==='superadmin' ?'selected':''}>Хөгжүүлэгч</option>`
+        ? `<option value="employee"${w.role==='employee' ?'selected':''}>Ажилтан</option><option value="ahlah"${w.role==='ahlah' ?'selected':''}>Ахлах</option><option value="menejer"${w.role==='menejer' ?'selected':''}>Менежер</option><option value="admin"${w.role==='admin' ?'selected':''}>Админ</option><option value="superadmin"${w.role==='superadmin' ?'selected':''}>Хөгжүүлэгч</option>`
         : `<option value="employee"selected>Ажилтан</option>`;
       const roleField=isSuperAdmin(me.role)
         ? `<label>Эрх</label><select id="e_role">${roleOpts}</select>`
-        : `<label>Эрх</label><input value="Ажилтан"disabled style="opacity:.65"><p class="muted" style="font-size:12px;margin-top:8px">Эрх өөрчлөхийг зөвхөн системийн админ хийнэ.</p>`;
-      const pwField=isSuperAdmin(me.role)
-        ? `<hr style="margin:16px 0;border:none;border-top:1px solid var(--border)">
-        <label>Шинэ нууц үг</label>
-        <div style="display:flex;gap:8px"><input id="e_pw" type="text" placeholder="Хоосон бол солихгүй" style="flex:1"><button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('e_pw').value=genPw()">Авто</button></div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:500;font-size:13px"><input type="checkbox" id="e_pw_force"checked> Анх нэвтрэхэд заавал солино</label>`
-        : '';
+        : `<label>Эрх</label><input value="Ажилтан"disabled style="opacity:.65"><p class="muted" style="font-size:12px;margin-top:8px">Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ.</p>`;
       openModal('Ажилтан засах',`
         <label>Овог</label><input id="e_lname" value="${(w.last_name||'').replace(/"/g,'&quot;')}">
         <label>Нэр</label><input id="e_name" value="${(w.name||'').replace(/"/g,'&quot;')}">
@@ -3797,102 +4062,56 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         <label>Утас</label><input id="e_phone" value="${(w.phone||'').replace(/"/g,'&quot;')}">
         <label>Хаяг</label><input id="e_addr" value="${(w.address||'').replace(/"/g,'&quot;')}">
         ${roleField}
-        ${pwField}
         <div class="err" id="m_err"></div>`,
         'Хадгалах', async ()=>{
           const name=$('e_name').value.trim(); if(!name){ mErr('Нэр оруулна уу'); return false; }
-          const patch={
-            name,
-            last_name:$('e_lname').value.trim()||null,
-            position:$('e_pos').value.trim()||null,
-            phone:$('e_phone').value.trim()||null,
-            address:$('e_addr').value.trim()||null,
-          };
-          if(isSuperAdmin(me.role)) patch.role=$('e_role').value;
-          const { error } = await sb.from('profiles').update(patch).eq('id',w.id);
-          if(error){ mErr(error.message); return false; }
-          const newPw=$('e_pw')?.value?.trim();
-          if(isSuperAdmin(me.role)&&newPw){
-            if(newPw.length<6){ mErr('Нууц үг 6+ тэмдэгт'); return false; }
-            const { error:pe }=await sb.rpc('admin_reset_user_password',{target_user_id:w.id,new_password:newPw,force_change:$('e_pw_force')?.checked??true});
-            if(pe){ mErr(mapPwErr(pe.message)); return false; }
-            closeModal();
-            openModal('Нууц үг солигдлоо',`<p><b>${empDisplayName(w)}</b> (${w.email||'—'})</p>
-              <div class="card" style="padding:16px;margin-top:12px"><b>Шинэ нууц үг:</b> <span style="font-size:18px;color:var(--primary)">${newPw}</span></div>
-              <p class="muted" style="font-size:13px;margin-top:10px">Энэ мэдээллийг хэрэглэгчид өгнө үү.</p>`,'Ойлголоо',()=>{closeModal();loadAll();return true;});
-            return false;
-          }
+          const { error }=await sb.rpc('admin_authorize_gmail',{
+            p_email:w.email,
+            p_name:name,
+            p_last_name:$('e_lname').value.trim()||null,
+            p_position:$('e_pos').value.trim()||null,
+            p_phone:$('e_phone').value.trim()||null,
+            p_address:$('e_addr').value.trim()||null,
+            p_role:isSuperAdmin(me.role)?$('e_role').value:'employee'
+          });
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); toast('Мэдээлэл шинэчлэгдлээ'); loadAll(); return false;
         });
     };
-    window.resetPwModal=(w)=>{
-      if(!isSuperAdmin(me.role)){ toast('Зөвхөн системийн админ'); return; }
-      const pw=genPw();
-      openModal('Нууц үг солих',`
-        <p class="muted" style="margin-bottom:12px"><b>${empDisplayName(w)}</b><br>${w.email||'—'} · ${roleLabel(w.role)}</p>
-        <label>Шинэ нууц үг</label>
-        <div style="display:flex;gap:8px"><input id="rp_pw" type="text" value="${pw}" style="flex:1;font-size:18px"><button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('rp_pw').value=genPw()">Дахин</button></div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:500;font-size:13px"><input type="checkbox" id="rp_force"checked> Анх нэвтрэхэд заавал солино</label>
-        <div class="err" id="m_err"></div>`,
-        'Солих', async ()=>{
-          const newPw=$('rp_pw').value.trim();
-          if(newPw.length<6){ mErr('Нууц үг 6+ тэмдэгт'); return false; }
-          const { error }=await sb.rpc('admin_reset_user_password',{target_user_id:w.id,new_password:newPw,force_change:$('rp_force')?.checked??true});
-          if(error){ mErr(mapPwErr(error.message)); return false; }
-          closeModal();
-          openModal('Нууц үг солигдлоо',`<p><b>${empDisplayName(w)}</b></p>
-            <div class="card" style="padding:16px;margin-top:12px"><b>Имэйл:</b> ${w.email||'—'}<br><b>Шинэ нууц үг:</b> <span style="font-size:18px;color:var(--primary)">${newPw}</span></div>`,'Ойлголоо',()=>{closeModal();return true;});
-          return false;
-        });
-    };
-    function mapPwErr(m=''){
-      if(/forbidden/i.test(m)) return 'Зөвхөн системийн админ нууц үг солино.';
-      if(/password_too_short/i.test(m)) return 'Нууц үг 6+ тэмдэгт байх ёстой.';
-      if(/user_not_found/i.test(m)) return ERP_NOT_FOUND;
-      if(/Could not find the function/i.test(m)) return 'Supabase дээр migration_admin_reset_password.sql ажиллуулна уу.';
-      return m;
-    }
     window.toggleRole = async (id,role)=>{
-      if(!isSuperAdmin(me.role)){ toast('Эрх өөрчлөхийг зөвхөн системийн админ хийнэ'); return; }
+      if(!isSuperAdmin(me.role)){ toast('Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ'); return; }
       if(role==='superadmin'){ toast('Энэ хэрэглэгчийг засах боломжгүй'); return; }
       const nr = role==='admin' ?'employee':'admin';
-      await sb.from('profiles').update({role:nr}).eq('id',id); toast('Эрх өөрчлөгдлөө'); loadAll();
+      const w=(data.workers||[]).find(x=>x.id===id);
+      if(!w){ toast('Хэрэглэгч олдсонгүй'); return; }
+      const {error}=await sb.rpc('admin_authorize_gmail',{p_email:w.email,p_name:w.name,p_last_name:w.last_name||null,p_position:w.position||null,p_phone:w.phone||null,p_address:w.address||null,p_role:nr});
+      if(error){toast(rpcErr(error.message));return;} toast('Эрх өөрчлөгдлөө'); loadAll();
     };
     window.empModal = ()=>{
       const roleField=isSuperAdmin(me.role)
-        ? `<label>Эрх</label><select id="m_role"><option value="employee">Ажилтан</option><option value="admin">Админ</option><option value="superadmin">Хөгжүүлэгч</option></select>`
+        ? `<label>Эрх</label><select id="m_role"><option value="employee">Ажилтан</option><option value="ahlah">Ахлах</option><option value="menejer">Менежер</option><option value="admin">Админ</option><option value="superadmin">Хөгжүүлэгч</option></select>`
         : `<p class="muted" style="font-size:12px;margin-bottom:8px">Шинэ хэрэглэгч ажилтны эрхтэй үүснэ.</p>`;
       openModal('Шинэ ажилтан нэмэх',`
         <label>Овог</label><input id="m_lname" placeholder="Овог">
         <label>Нэр</label><input id="m_name">
-        <label>Имэйл</label><input id="m_email" type="email">
+        <label>Gmail</label><input id="m_email" type="email" placeholder="name@gmail.com">
         <div class="row"><div><label>Албан тушаал</label><input id="m_pos"></div><div><label>Утас</label><input id="m_phone"></div></div>
         ${roleField}
-        <label>Нууц үг (хоосон бол авто)</label><input id="m_pw">
+        <p class="muted" style="font-size:12px">Нууц үг үүсгэхгүй. Энэ Gmail Google Sign-In-д зөвшөөрөгдөнө.</p>
         <div class="err" id="m_err"></div>`,
         'Үүсгэх', async ()=>{
           const last_name=$('m_lname').value.trim();
           const name=$('m_name').value.trim(), email=$('m_email').value.trim();
           if(!name||!email){ mErr('Нэр, имэйл шаардлагатай'); return false; }
-          const pw = $('m_pw').value || genPw();
           const newRole=isSuperAdmin(me.role)?($('m_role')?.value||'employee'):'employee';
-          const temp = supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-          const { data: signupData, error } = await temp.auth.signUp({email,password:pw,options:{data:{name,last_name:last_name||null,position:$('m_pos').value.trim(),phone:$('m_phone').value.trim(),role:newRole,must_change_password:true}}});
-          if(error){ mErr(error.message); return false; }
-          if(signupData?.user?.id && last_name){
-            await sb.from('profiles').update({last_name}).eq('id',signupData.user.id);
-          }
+          const { error }=await sb.rpc('admin_authorize_gmail',{p_email:email,p_name:name,p_last_name:last_name||null,p_position:$('m_pos').value.trim()||null,p_phone:$('m_phone').value.trim()||null,p_address:null,p_role:newRole});
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal();
-          openModal('Ажилтан үүслээ',`<p>Дараах нэвтрэх мэдээллийг ажилтанд өгнө үү:</p>
-            <div class="card" style="padding:16px"><b>Нэр:</b> ${[last_name,name].filter(Boolean).join(' ')||name}<br><b>Имэйл:</b> ${email}<br><b>Нууц үг:</b> <span style="font-size:18px;color:var(--primary)">${pw}</span></div>
-            <p class="muted" style="font-size:13px">Ажилтан анх нэвтэрмэгц нууц үгээ солино.</p>`,'Ойлголоо',()=>{closeModal();return true;});
-          setTimeout(loadAll,1500);
+          openModal('Gmail зөвшөөрөгдлөө',`<div class="card" style="padding:16px"><b>Нэр:</b> ${[last_name,name].filter(Boolean).join(' ')||name}<br><b>Gmail:</b> ${email}</div><p class="muted" style="font-size:13px">Хэрэглэгч mobile app эсвэл admin web дээр Google-ээр шууд нэвтэрнэ.</p>`,'Ойлголоо',()=>{closeModal();loadAll();return true;});
           return false;
         });
     };
     function mErr(m){ const e=$('m_err'); if(e){e.textContent=m;e.style.display='block';} }
-    function genPw(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<8;i++)o+=c[Math.floor(Math.random()*c.length)]; return o; }
-
     // ===== Машин / QR =====
     let vehQrScanner=null, autoboxPollTimer=null, autoboxLastHash='';
     function plateToAutoboxQuery(raw){
@@ -4096,7 +4315,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         'Үүсгэх + QR', async ()=>{
           const plate=formatPlateInput($('v_plate').value.trim()); if(!plate){ mErr('Улсын дугаар оруулна уу'); return false; }
           const { data:saved, error } = await sb.from('vehicles').insert({code:$('v_code').value.trim(),plate_number:plate,liters_per_100km:Number($('v_lit').value)||12,tank_capacity_liters:Number($('v_tank').value)||60,driver_name:$('v_drv').value.trim()||null}).select().single();
-          if(error){ mErr(error.message); return false; }
+          if(error){ mErr(rpcErr(error.message)); return false; }
           closeModal(); loadAll(); qrModal(saved); return false;
         });
       bindPlateInputPreview();
@@ -4112,7 +4331,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const w=window.open('','_blank');
       const base=location.href.replace(/[^/]*$/,'');
       const plateHtml=mongoliaPlateHtml(v.plate_number,'lg',false);
-      const plateCss=`.mn-plate-wrap{display:inline-flex;align-items:center;gap:12px}.mn-plate__car{width:110px;height:auto;object-fit:contain}.mn-plate{display:inline-flex;align-items:center;background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:7px 14px;gap:8px;font-family:system-ui,sans-serif}.mn-plate__text{color:#111;font-weight:900;font-size:24px;letter-spacing:.5px}.mn-plate__soy{width:12px;height:auto}.mn-plate__mgl{width:38px;height:auto;margin-left:6px}`;
+      const plateCss=`.mn-plate-wrap{display:inline-flex;align-items:center;gap:12px}.mn-plate__car{width:110px;height:auto;object-fit:contain}.mn-plate{display:inline-flex;align-items:center;background:#fff;border:1px solid #e2e2e5;border-radius:8px;padding:7px 14px;gap:8px;font-family:system-ui,sans-serif}.mn-plate__text{color:#111;font-weight:900;font-size:24px;letter-spacing:.5px}.mn-plate__soy{width:12px;height:auto}.mn-plate__mgl{width:38px;height:auto;margin-left:6px}`;
       w.document.write(`<html><head><style>${plateCss}</style></head><body style="text-align:center;font-family:sans-serif;padding:24px">${plateHtml}<p style="margin-top:12px">${v.code}</p><img src="${url}" style="width:420px;height:420px"></body></html>`);
       w.document.close(); setTimeout(()=>w.print(),400);
     }
@@ -4126,11 +4345,11 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const active=list.filter(s=>s.status==='on_site').length;
       const submitted=list.filter(s=>s.status==='submitted').length;
       c.innerHTML=`<div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
-        <div class="stat"><span class="ic" style="background:#05966918;color:#059669"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#0b7a4418;color:#0b7a44"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2"/></svg></span>
           <div><div class="v">${todayN}</div><div class="l">Өнөөдөр гарсан баг</div></div></div>
-        <div class="stat"><span class="ic" style="background:#1fbf7518;color:#1fbf75"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#3fcf8e18;color:#3fcf8e"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/></svg></span>
           <div><div class="v">${active}</div><div class="l">Одоо байр дээр</div></div></div>
-        <div class="stat"><span class="ic" style="background:#4f6ef718;color:#4f6ef7"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#007cb418;color:#007cb4"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/></svg></span>
           <div><div class="v">${submitted}</div><div class="l">Илгээсэн тайлан</div></div></div>
       </div>
       <div class="card"><div class="card-h"><h3>Ажлын байрын бүртгэл (${list.length})</h3>
@@ -4228,13 +4447,13 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           <th>Захиалагч</th><th>Утас / Хаяг</th><th>Юу болохгүй байгаа</th><th>Инженер</th><th>Илгээсэн</th><th>Үйлчилгээ</th><th>Төлөв</th><th></th>
         </tr></thead><tbody>${callRows(rows)}</tbody></table></div></div>`;
       c.innerHTML=`<div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
-        <div class="stat"><span class="ic" style="background:#0891b218;color:#0891b2"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#0f766e18;color:#0f766e"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
           <div><div class="v">${list.length}</div><div class="l">Нийт дуудлага</div></div></div>
-        <div class="stat"><span class="ic" style="background:#22c55e18;color:#22c55e"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#3fcf8e18;color:#3fcf8e"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>
           <div><div class="v">${ailList.length}</div><div class="l">Айл</div></div></div>
-        <div class="stat"><span class="ic" style="background:#3b82f618;color:#3b82f6"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V9h6v12"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#0099db18;color:#0099db"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V9h6v12"/></svg></span>
           <div><div class="v">${orgList.length}</div><div class="l">Байгууллага</div></div></div>
-        <div class="stat"><span class="ic" style="background:#f59e0b18;color:#f59e0b"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <div class="stat"><span class="ic" style="background:#b4530918;color:#b45309"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
           <div><div class="v">${pending}</div><div class="l">Хүлээгдэж буй</div></div></div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
@@ -4408,6 +4627,736 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         ${delBtn}
       `,'Хаах',()=>false);
     };
+
+    // ===== Ажилчдын гүйцэтгэл =====
+    // Багийн ӨДРИЙН үзүүлэлт: нийт хэдэн баг · өдөрт хэдэн айл · нийт хэр
+    // хугацаанд хийсэн · 1 баг өдөрт хэдэн айл.
+    //
+    // ХЭМЖИХ НЭГЖ НЬ «БАГ × ӨДӨР». Ажилтан тус бүрээр бодвол хосоороо
+    // явсан хоёр инженерийн ажил хоёр дахин тоологдоно.
+    //
+    // ⚠️ Томьёо нь src/services/teamPerformanceService.js-тэй ЯГ ИЖИЛ.
+    //    Энэ файл build-гүй тул тэр модулийг import хийж чадахгүй. Аль
+    //    нэгийг засвал НӨГӨӨГ НЬ ДАГУУЛЖ засна — эс тэгвээс апп ба вэб
+    //    дээр ижил тайлан өөр тоо харуулна.
+    const WP_DONE='Дууссан';
+    const WP_HEADER=['Огноо','Баг','Гишүүд','Айл','Байгууллага','Хугацаа (мин)','Тайлбар'];
+    const WP_HINTS=['YYYY-MM-DD','Багийн нэр','Нэрсийг таслалаар','Тоо','Тоо','Тоо','Заавал биш'];
+    // Шүүлт нь ӨДӨР · САР · ЖИЛ. Сонгосон горим нь татах мужийг ба
+    // графикийн баганыг зэрэг шийднэ (өдөр→баг, сар→өдөр, жил→сар).
+    const WP_MODES=[{key:'day',label:'Өдөр'},{key:'month',label:'Сар'},{key:'year',label:'Жил'}];
+    const WP_MONTHS=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
+    const WP_CHART_SHEET='График өгөгдөл', WP_TEAM_SHEET='Багаар';
+    // Графикт хэт олон багана орвол уншигдахгүй болно.
+    const WP_MAX_CHART_POINTS=31;
+    // Дуудлага мужаас өмнө үүсээд мужид хаагдсан байж болно.
+    const WP_CREATED_BUFFER_DAYS=45;
+    let wpMode='month', wpAnchor=null, wpTab='teams',
+        wpData=null, wpLoading=false, wpError=null, wpPending=null, wpCharts={};
+
+    const wpClean=v=>String(v==null?'':v).replace(/\s+/g,' ').trim();
+    const wpDay=d=>{const x=new Date(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;};
+    const wpMin=ms=>Math.round((ms||0)/60000);
+    const wpOne=n=>(Math.round((Number(n)||0)*10)/10).toFixed(1);
+    // admin-web-ийн formatDuration нь СЕКУНД авдаг, тооцоо нь ms.
+    const wpDur=ms=>formatDuration(Math.round((ms||0)/1000));
+    const wpEsc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    /** Багийн түлхүүр — гишүүдийн нэрийн эрэмбэлсэн бүрдэл (дараалал хамаагүй). */
+    function wpTeamKey(names){
+      const u=[...new Set((names||[]).map(wpClean).filter(Boolean).map(n=>n.toLowerCase()))];
+      return u.length?u.sort().join('|'):'—';
+    }
+    function wpTeamLabel(names){
+      const seen=new Map();
+      (names||[]).forEach(n=>{const c=wpClean(n); if(c&&!seen.has(c.toLowerCase())) seen.set(c.toLowerCase(),c);});
+      const l=[...seen.values()];
+      return l.length?l.join(' + '):'Тодорхойгүй';
+    }
+    const wpSplitMembers=t=>String(t||'').split(/[,;+/]/).map(wpClean).filter(Boolean);
+    const wpClosedAt=c=>(c&&c.close_meta&&c.close_meta.closed_at)||c?.updated_at||c?.created_at||null;
+    function wpCallLeadMs(c){
+      const end=wpClosedAt(c);
+      if(!c?.created_at||!end) return 0;
+      const ms=new Date(end)-new Date(c.created_at);
+      return ms>0?ms:0;
+    }
+    function wpSessionMs(s){
+      if(!s?.arrived_at) return 0;
+      const end=s.departed_at?new Date(s.departed_at):(s.status==='on_site'?new Date():null);
+      if(!end) return 0;
+      const ms=end-new Date(s.arrived_at);
+      return ms>0?ms:0;
+    }
+    /** Ажлын байрны бүртгэл байвал ТЭР нь үнэн, үгүй бол дуудлагын хугацаа. */
+    function wpDurationMs(r){
+      if(r.onSiteMs>0) return r.onSiteMs;
+      if(r.importedMs>0) return r.importedMs;
+      return r.leadMs;
+    }
+    function wpDurationSource(r){
+      if(r.onSiteMs>0) return 'Ажлын байр';
+      if(r.importedMs>0) return 'Импорт';
+      if(r.leadMs>0) return 'Дуудлагын хугацаа';
+      return '—';
+    }
+
+    // ---- Огнооны шүүлт: өдөр · сар · жил -------------------------------
+    const wpMonthLabel=k=>WP_MONTHS[Number(String(k).slice(5,7))-1]||k;
+
+    /** Тухайн горимын «одоо» цэг: 2026-08-21 / 2026-08 / 2026 */
+    function wpCurrentAnchor(mode){
+      const k=wpDay(new Date());
+      return mode==='year'?k.slice(0,4):mode==='month'?k.slice(0,7):k;
+    }
+    /** Горим солиход тулгуурыг тухайн горимын урт руу тааруулна. */
+    function wpNormalizeAnchor(mode,anchor){
+      const a=String(anchor||'');
+      const fb=wpCurrentAnchor(mode);
+      if(mode==='year') return /^\d{4}/.test(a)?a.slice(0,4):fb;
+      if(mode==='month') return /^\d{4}-\d{2}/.test(a)?a.slice(0,7):fb;
+      return /^\d{4}-\d{2}-\d{2}/.test(a)?a.slice(0,10):fb;
+    }
+    /** Өмнөх/дараах өдөр · сар · жил рүү шилжинэ. */
+    function wpShiftAnchor(mode,anchor,delta){
+      const a=wpNormalizeAnchor(mode,anchor);
+      if(mode==='year') return String(Number(a.slice(0,4))+delta);
+      if(mode==='month'){
+        const d=new Date(Number(a.slice(0,4)),Number(a.slice(5,7))-1+delta,1);
+        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      }
+      const d=new Date(a+'T12:00:00');
+      d.setDate(d.getDate()+delta);
+      return wpDay(d);
+    }
+    const wpAtLatest=()=>wpNormalizeAnchor(wpMode,wpAnchor)>=wpCurrentAnchor(wpMode);
+
+    /** Горим + тулгуур → татах муж ба гарчиг. */
+    function wpRangeDates(){
+      const a=wpNormalizeAnchor(wpMode,wpAnchor);
+      wpAnchor=a;
+      if(wpMode==='year') return {from:a+'-01-01',to:a+'-12-31',label:a+' он'};
+      if(wpMode==='month'){
+        const y=Number(a.slice(0,4)), m=Number(a.slice(5,7));
+        const last=new Date(y,m,0).getDate();
+        return {from:a+'-01',to:a+'-'+String(last).padStart(2,'0'),label:y+' оны '+wpMonthLabel(a+'-01')};
+      }
+      return {from:a,to:a,label:a};
+    }
+
+    async function wpFetch(from,to){
+      const createdFrom=new Date(from+'T00:00:00');
+      createdFrom.setDate(createdFrom.getDate()-WP_CREATED_BUFFER_DAYS);
+      const endIso=new Date(to+'T23:59:59.999').toISOString();
+      const [callsRes,sessRes,impRes]=await Promise.all([
+        sb.from('service_calls')
+          .select('id,site_kind,status,engineer_name,partner_engineer_name,team_name,close_meta,created_at,updated_at')
+          .gte('created_at',createdFrom.toISOString()).lte('created_at',endIso).limit(5000),
+        sb.from('field_site_sessions')
+          .select('id,driver_name,passengers,arrived_at,departed_at,status')
+          .gte('arrived_at',new Date(from+'T00:00:00').toISOString()).lte('arrived_at',endIso).limit(5000),
+        sb.from('team_performance_entries').select('*').gte('work_date',from).lte('work_date',to).limit(5000)
+      ]);
+      if(callsRes.error) throw callsRes.error;
+      if(sessRes.error) throw sessRes.error;
+      return {
+        calls:callsRes.data||[], sessions:sessRes.data||[],
+        // Импортын хүснэгт хараахан үүсээгүй бол тайлан унахгүй. Гэхдээ
+        // алдааг НУУХГҮЙ — эрхийн (RLS) алдааг «хүснэгт алга» гэж ойлгож
+        // импорт хийсэн мөр яагаад харагдахгүйг олж чадахгүй байсан.
+        imported:impRes.error?[]:(impRes.data||[]),
+        importError:impRes.error?impRes.error.message:null
+      };
+    }
+
+    function wpTouch(map,dayK,members,source,keyOverride){
+      const teamKey=keyOverride||wpTeamKey(members);
+      const k=dayK+'|'+teamKey;
+      if(!map[k]) map[k]={key:k,dayKey:dayK,teamKey,members:[...members],teamLabel:wpTeamLabel(members),
+        ail:0,baiguulga:0,calls:0,sessions:0,onSiteMs:0,leadMs:0,importedMs:0,sources:[],
+        // Excel-ээр орж ирсэн мөрүүдийн id — зөвхөн эдгээрийг устгаж болно.
+        importIds:[]};
+      const row=map[k];
+      members.forEach(m=>{ if(m&&!row.members.some(x=>x.toLowerCase()===m.toLowerCase())) row.members.push(m); });
+      row.teamLabel=wpTeamLabel(row.members);
+      if(!row.sources.includes(source)) row.sources.push(source);
+      return row;
+    }
+
+    function wpBuildRows(raw,from,to){
+      const map={};
+      const inRange=d=>(!from||d>=from)&&(!to||d<=to);
+      (raw.calls||[]).forEach(c=>{
+        if(c?.status!==WP_DONE) return;
+        const closed=wpClosedAt(c); if(!closed) return;
+        const dayK=wpDay(new Date(closed)); if(!inRange(dayK)) return;
+        let members=[c.engineer_name,c.partner_engineer_name].map(wpClean).filter(Boolean);
+        if(!members.length) members=['Тодорхойгүй'];
+        const row=wpTouch(map,dayK,members,'system');
+        row.calls+=1;
+        if((c.site_kind||'ail')==='baiguulga') row.baiguulga+=1; else row.ail+=1;
+        row.leadMs+=wpCallLeadMs(c);
+      });
+      (raw.sessions||[]).forEach(s=>{
+        if(!s?.arrived_at) return;
+        const dayK=wpDay(new Date(s.arrived_at)); if(!inRange(dayK)) return;
+        let members=[s.driver_name].concat(Array.isArray(s.passengers)?s.passengers.map(p=>p&&p.name):[])
+          .map(wpClean).filter(Boolean);
+        if(!members.length) members=['Тодорхойгүй'];
+        const row=wpTouch(map,dayK,members,'system');
+        row.sessions+=1;
+        row.onSiteMs+=wpSessionMs(s);
+      });
+      (raw.imported||[]).forEach(e=>{
+        const dayK=String(e?.work_date||'').slice(0,10);
+        if(!dayK||!inRange(dayK)) return;
+        const members=wpSplitMembers(e.members);
+        const keyOverride=members.length?null:('import:'+wpClean(e.team_name).toLowerCase());
+        const row=wpTouch(map,dayK,members.length?members:[wpClean(e.team_name)],'import',keyOverride);
+        if(wpClean(e.team_name)) row.teamLabel=wpClean(e.team_name);
+        row.ail+=Number(e.ail_count)||0;
+        row.baiguulga+=Number(e.baiguulga_count)||0;
+        row.importedMs+=(Number(e.duration_minutes)||0)*60000;
+        if(e.id) row.importIds.push(e.id);
+      });
+      return Object.values(map)
+        .map(r=>Object.assign({},r,{durationMs:wpDurationMs(r),durationSource:wpDurationSource(r)}))
+        .filter(r=>r.ail||r.baiguulga||r.sessions||r.durationMs)
+        .sort((a,b)=>a.dayKey===b.dayKey?a.teamLabel.localeCompare(b.teamLabel):b.dayKey.localeCompare(a.dayKey));
+    }
+
+    function wpSummarize(rows){
+      const teams=new Set(), days=new Set();
+      let ail=0,baiguulga=0,durationMs=0,sessions=0;
+      rows.forEach(r=>{ teams.add(r.teamKey); days.add(r.dayKey); ail+=r.ail; baiguulga+=r.baiguulga; durationMs+=r.durationMs; sessions+=r.sessions; });
+      const teamDays=rows.length;
+      return {teams:teams.size,days:days.size,teamDays,ail,baiguulga,total:ail+baiguulga,sessions,durationMs,
+        ailPerDay:days.size?ail/days.size:0,
+        ailPerTeamDay:teamDays?ail/teamDays:0,
+        msPerAil:ail?durationMs/ail:0};
+    }
+    function wpGroupByTeam(rows){
+      const map={};
+      rows.forEach(r=>{
+        if(!map[r.teamKey]) map[r.teamKey]={teamKey:r.teamKey,teamLabel:r.teamLabel,members:[...r.members],days:0,ail:0,baiguulga:0,durationMs:0,lastDay:r.dayKey,importIds:[]};
+        const t=map[r.teamKey];
+        t.days+=1; t.ail+=r.ail; t.baiguulga+=r.baiguulga; t.durationMs+=r.durationMs;
+        t.importIds=t.importIds.concat(r.importIds||[]);
+        if(r.dayKey>t.lastDay) t.lastDay=r.dayKey;
+        if(r.teamLabel.length>t.teamLabel.length) t.teamLabel=r.teamLabel;
+      });
+      return Object.values(map)
+        .map(t=>Object.assign({},t,{ailPerDay:t.days?t.ail/t.days:0,msPerAil:t.ail?t.durationMs/t.ail:0}))
+        .sort((a,b)=>b.ail-a.ail||b.days-a.days);
+    }
+    /** Хугацааны нэгжээр (өдөр/сар) нэгтгэнэ. */
+    function wpGroupByPeriod(rows,unit){
+      const map={};
+      rows.forEach(r=>{
+        const key=unit==='month'?r.dayKey.slice(0,7):r.dayKey;
+        if(!map[key]) map[key]={key,teams:new Set(),days:new Set(),teamDays:0,ail:0,baiguulga:0,durationMs:0};
+        const g=map[key];
+        g.teams.add(r.teamKey); g.days.add(r.dayKey);
+        // Мөр бүр нь НЭГ баг × НЭГ өдөр — шууд тоолж болно.
+        g.teamDays+=1;
+        g.ail+=r.ail; g.baiguulga+=r.baiguulga; g.durationMs+=r.durationMs;
+      });
+      return Object.values(map)
+        .map(g=>({key:g.key,label:unit==='month'?wpMonthLabel(g.key):g.key,
+          teams:g.teams.size,days:g.days.size,teamDays:g.teamDays,
+          ail:g.ail,baiguulga:g.baiguulga,durationMs:g.durationMs,
+          ailPerTeam:g.teamDays?g.ail/g.teamDays:0,
+          msPerAil:g.ail?g.durationMs/g.ail:0}))
+        .sort((a,b)=>b.key.localeCompare(a.key));
+    }
+    function wpGroupByDay(rows){ return wpGroupByPeriod(rows,'day').map(g=>Object.assign({},g,{dayKey:g.key})); }
+    function wpGroupByMonth(rows){ return wpGroupByPeriod(rows,'month').map(g=>Object.assign({},g,{monthKey:g.key})); }
+
+    /**
+     * Графикийн багануудыг бэлдэнэ. Горим бүр өөр асуултад хариулна:
+     *   өдөр — «энэ өдөр аль баг хэдэн айл хийв»
+     *   сар  — «сарын дотор өдөр бүр хэд хийв»
+     *   жил  — «жилийн дотор сар бүр хэд хийв»
+     */
+    function wpBuildChartData(res,mode){
+      if(mode==='day'){
+        const points=(res.teams||[]).slice(0,12).map(t=>({label:t.teamLabel,ail:t.ail,baiguulga:t.baiguulga,
+          perTeam:Math.round((t.ailPerDay||0)*10)/10,minPerAil:wpMin(t.msPerAil)}));
+        return {kind:'team',unitLabel:'Баг',points};
+      }
+      const groups=mode==='year'?(res.months||[]):(res.days||[]);
+      // Хүснэгт нь шинэ→хуучин, график нь ЗҮҮНЭЭС БАРУУН ТИЙШ.
+      const asc=groups.slice().sort((a,b)=>a.key.localeCompare(b.key)).slice(-WP_MAX_CHART_POINTS);
+      return {kind:mode==='year'?'month':'day',unitLabel:mode==='year'?'Сар':'Өдөр',
+        points:asc.map(g=>({label:mode==='year'?g.label:g.key.slice(8),fullLabel:g.key,
+          ail:g.ail,baiguulga:g.baiguulga,perTeam:Math.round((g.ailPerTeam||0)*10)/10,minPerAil:wpMin(g.msPerAil)}))};
+    }
+
+    /** Excel-ийн хуудсууд — мобайл аппын татдагтай ижил бүтэц. */
+    function wpBuildSheets(res){
+      const s=res.summary;
+      const chart=res.chart||wpBuildChartData(res,res.mode||'month');
+      return [
+        {name:'Нэгтгэл',rows:[
+          ['Үзүүлэлт','Утга'],
+          ['Хугацааны муж',res.from+' — '+res.to],
+          ['Нийт баг',s.teams],
+          ['Ажилласан өдөр',s.days],
+          ['Баг × өдөр',s.teamDays],
+          ['Нийт айл',s.ail],
+          ['Нийт байгууллага',s.baiguulga],
+          ['Нийт ажил',s.total],
+          ['Өдөрт дундаж айл',Number(wpOne(s.ailPerDay))],
+          ['1 баг өдөрт дундаж айл',Number(wpOne(s.ailPerTeamDay))],
+          ['Нийт хугацаа (мин)',wpMin(s.durationMs)],
+          ['Нийт хугацаа (цаг)',Number(wpOne(s.durationMs/3600000))],
+          ['1 айлд ногдох дундаж (мин)',wpMin(s.msPerAil)]
+        ]},
+        {name:WP_TEAM_SHEET,rows:[
+          ['Баг','Гишүүд','Ажилласан өдөр','Айл','Байгууллага','Өдөрт дундаж айл','Нийт хугацаа (мин)','1 айлын дундаж (мин)','Сүүлд ажилласан'],
+          ...res.teams.map(t=>[t.teamLabel,t.members.join(', '),t.days,t.ail,t.baiguulga,Number(wpOne(t.ailPerDay)),wpMin(t.durationMs),wpMin(t.msPerAil),t.lastDay])
+        ]},
+        {name:'Өдрөөр',rows:[
+          ['Огноо','Идэвхтэй баг','Айл','Байгууллага','1 баг өдөрт айл','Нийт хугацаа (мин)'],
+          ...res.days.map(d=>[d.dayKey,d.teams,d.ail,d.baiguulga,Number(wpOne(d.ailPerTeam)),wpMin(d.durationMs)])
+        ]},
+        {name:'Баг-өдөр дэлгэрэнгүй',rows:[
+          ['Огноо','Баг','Гишүүд','Айл','Байгууллага','Дуудлага','Ажлын байр (тоо)','Хугацаа (мин)','Хугацааны эх сурвалж'],
+          ...res.rows.map(r=>[r.dayKey,r.teamLabel,r.members.join(', '),r.ail,r.baiguulga,r.calls,r.sessions,wpMin(r.durationMs),r.durationSource])
+        ]},
+        // ГРАФИКИЙН эх өгөгдөл. Excel доторх график ЯГ энэ хуудсан руу
+        // заана — тоог нь засвал график шууд дагаж өөрчлөгдөнө.
+        {name:WP_CHART_SHEET,rows:[
+          [chart.unitLabel,'Айл','Байгууллага','1 баг өдөрт айл','1 айлын дундаж (мин)'],
+          ...chart.points.map(p=>[p.label,p.ail,p.baiguulga,p.perTeam,p.minPerAil])
+        ]},
+        // Энэ хуудсыг бөглөөд ШУУД буцааж импортлож болно.
+        {name:'Импорт загвар',rows:[
+          WP_HEADER,
+          ...res.rows.map(r=>[r.dayKey,r.teamLabel,r.members.join(', '),r.ail,r.baiguulga,wpMin(r.durationMs),''])
+        ]}
+      ];
+    }
+
+    /**
+     * Excel файлд суулгах ГРАФИКУУД. `xlsx-chart.js` эдгээрийг Excel-ийн
+     * жинхэнэ график болгоно. `sheet`/`col` нь дээрх хуудсуудтай ЯГ таарна.
+     */
+    function wpBuildCharts(res){
+      const chart=res.chart||wpBuildChartData(res,res.mode||'month');
+      return [
+        {title:chart.unitLabel+' тус бүрийн ажил — айл ба байгууллага',type:'bar',sheet:WP_CHART_SHEET,catCol:0,
+          series:[{col:1,name:'Айл',color:'0099DB'},{col:2,name:'Байгууллага',color:'0B7A44'}]},
+        {title:'1 баг өдөрт хэдэн айл',type:'line',sheet:WP_CHART_SHEET,catCol:0,
+          series:[{col:3,name:'1 баг өдөрт айл',color:'6D4AA8'}]},
+        {title:'1 айлд ногдох дундаж хугацаа (мин)',type:'line',sheet:WP_CHART_SHEET,catCol:0,
+          series:[{col:4,name:'Минут',color:'B45309'}]},
+        {title:'Багууд — нийт хийсэн ажил',type:'bar',sheet:WP_TEAM_SHEET,catCol:0,
+          series:[{col:3,name:'Айл',color:'0099DB'},{col:4,name:'Байгууллага',color:'0B7A44'}]}
+      ];
+    }
+
+    // ---- Импорт --------------------------------------------------------
+    function wpHeaderIndex(cells){
+      const norm=v=>wpClean(v).toLowerCase().replace(/\(.*?\)/g,'').trim();
+      const c=(cells||[]).map(norm);
+      const find=(...al)=>c.findIndex(x=>al.some(a=>x===a||x.startsWith(a)));
+      return {work_date:find('огноо','date','өдөр'),team_name:find('баг','team'),members:find('гишүүд','гишүүн','member'),
+        ail_count:find('айл','ail'),baiguulga_count:find('байгууллага','baiguulga'),
+        duration_minutes:find('хугацаа','минут','duration'),note:find('тайлбар','note')};
+    }
+    function wpDateCell(v){
+      if(v==null||v==='') return null;
+      if(v instanceof Date&&!isNaN(v.getTime())) return wpDay(v);
+      const s=wpClean(v);
+      if(/^\d{5}$/.test(s)){
+        const d=new Date(Date.UTC(1899,11,30)+Number(s)*86400000);
+        return isNaN(d.getTime())?null:wpDay(d);
+      }
+      let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+      if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+      m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+      if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+      const d=new Date(s);
+      return isNaN(d.getTime())?null:wpDay(d);
+    }
+    function wpNumCell(v){
+      const n=Number(String(v==null?'':v).replace(/[^\d.,-]/g,'').replace(',','.'));
+      return isFinite(n)&&n>0?Math.round(n):0;
+    }
+    function wpParseMatrix(matrix){
+      const grid=(matrix||[]).filter(r=>Array.isArray(r)&&r.some(c=>wpClean(c)));
+      if(!grid.length) return {rows:[],errors:['Файл хоосон байна.'],skipped:0};
+      const idx=wpHeaderIndex(grid[0]);
+      if(idx.work_date<0||idx.team_name<0)
+        return {rows:[],errors:['Толгой мөр таарахгүй байна. Багана: '+WP_HEADER.join(' · ')],skipped:0};
+      const errors=[], byKey={};
+      let skipped=0;
+      grid.slice(1).forEach((cells,i)=>{
+        const lineNo=i+2;
+        const workDate=wpDateCell(cells[idx.work_date]);
+        const teamName=wpClean(cells[idx.team_name]);
+        if(!workDate&&!teamName) return;
+        if(!workDate){ errors.push(lineNo+'-р мөр: огноо буруу ('+(wpClean(cells[idx.work_date])||'хоосон')+')'); skipped+=1; return; }
+        if(!teamName){ errors.push(lineNo+'-р мөр: багийн нэр хоосон'); skipped+=1; return; }
+        const row={work_date:workDate,team_name:teamName,
+          members:idx.members>=0?(wpClean(cells[idx.members])||null):null,
+          ail_count:idx.ail_count>=0?wpNumCell(cells[idx.ail_count]):0,
+          baiguulga_count:idx.baiguulga_count>=0?wpNumCell(cells[idx.baiguulga_count]):0,
+          duration_minutes:idx.duration_minutes>=0?wpNumCell(cells[idx.duration_minutes]):0,
+          note:idx.note>=0?(wpClean(cells[idx.note])||null):null};
+        // Нэг файлд нэг өдөр·баг хоёр удаа байвал НЭМЖ нэгтгэнэ — үгүй бол
+        // upsert дээр эхнийх нь чимээгүй алга болно.
+        const key=row.work_date+'|'+row.team_name.toLowerCase();
+        if(byKey[key]){
+          byKey[key].ail_count+=row.ail_count;
+          byKey[key].baiguulga_count+=row.baiguulga_count;
+          byKey[key].duration_minutes+=row.duration_minutes;
+        } else byKey[key]=row;
+      });
+      const rows=Object.values(byKey).sort((a,b)=>a.work_date.localeCompare(b.work_date));
+      if(!rows.length&&!errors.length) errors.push('Хадгалах мөр олдсонгүй.');
+      return {rows,errors,skipped,idx};
+    }
+    function wpUuid(){
+      if(window.crypto&&crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-axxx-xxxxxxxxxxxx'.replace(/x/g,()=>Math.floor(Math.random()*16).toString(16));
+    }
+
+    window.wpPickImport=()=>{ const el=$('wpFile'); if(el) el.click(); };
+    window.wpFileChosen=async(input)=>{
+      const file=input.files&&input.files[0];
+      input.value='';
+      if(!file) return;
+      if(typeof XLSX==='undefined'&&!window.XlsxChart){ toast('Excel сан ачаалагдаагүй байна'); return; }
+      try{
+        const buf=await file.arrayBuffer();
+        // Бидний татсан файлыг буцааж оруулбал «Импорт загвар» хуудас нь
+        // зөв бүтэцтэй — түүнийг эхэлж хайна.
+        const prefer=/импорт|загвар|import/i;
+        let matrix, name;
+        // .xlsx-ийг өөрсдийн уншигчаар — мобайл апптай ЯГ ижил зам.
+        if(/\.xlsx$/i.test(file.name)&&window.XlsxChart){
+          const sheet=XlsxChart.readSheetMatrix(new Uint8Array(buf),{prefer});
+          matrix=sheet.matrix; name=sheet.sheetName;
+        } else {
+          const wb=XLSX.read(buf,{type:'array',cellDates:true});
+          name=wb.SheetNames.find(n=>prefer.test(n))||wb.SheetNames[0];
+          matrix=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});
+        }
+        const parsed=wpParseMatrix(matrix);
+        if(!parsed.rows.length){ toast('Импорт: '+(parsed.errors[0]||'мөр олдсонгүй')); return; }
+        wpPending={rows:parsed.rows,fileName:file.name};
+        const preview=parsed.rows.slice(0,10).map(r=>
+          `<tr><td>${wpEsc(r.work_date)}</td><td>${wpEsc(r.team_name)}</td><td>${wpEsc(r.members||'—')}</td><td>${r.ail_count}</td><td>${r.baiguulga_count}</td><td>${r.duration_minutes}</td></tr>`).join('');
+        const errs=parsed.errors.length
+          ? `<p class="muted" style="margin-top:12px;color:#b45309"><b>Алгассан ${parsed.skipped} мөр:</b><br>${parsed.errors.slice(0,8).map(wpEsc).join('<br>')}</p>`
+          : '';
+        // Тайлан нь айл · байгууллага · хугацаагаар нэгтгэдэг. Гурвуулаа 0
+        // мөр хадгалагдсан ч тайланд ХАРАГДАХГҮЙ — өмнө нь чимээгүй алга
+        // болдог байсан тул хэрэглэгч «импорт хийсэн ч гарахгүй» гэж үздэг.
+        const zeroRows=parsed.rows.filter(r=>!r.ail_count&&!r.baiguulga_count&&!r.duration_minutes).length;
+        const missingCols=[
+          parsed.idx.ail_count<0&&'Айл',
+          parsed.idx.baiguulga_count<0&&'Байгууллага',
+          parsed.idx.duration_minutes<0&&'Хугацаа (мин)'
+        ].filter(Boolean);
+        const zeroWarn=zeroRows
+          ? `<p style="margin-top:12px;color:#d92d20;font-size:13px"><b>Анхаар:</b> ${zeroRows} мөрд айл · байгууллага · хугацаа гурвуулаа 0 байна — тайланд харагдахгүй.${
+              missingCols.length?` Файлд <b>${wpEsc(missingCols.join(', '))}</b> багана олдсонгүй. Багануудыг «Загвар»-тай ижил нэрлэнэ үү.`:''}</p>`
+          : '';
+        openModal('Импортлох уу?',`
+          <p style="margin:0 0 8px"><b>${wpEsc(file.name)}</b> — хуудас "${wpEsc(name)}" · <b>${parsed.rows.length}</b> мөр</p>
+          <div style="max-height:320px;overflow:auto"><table>
+            <thead><tr><th>Огноо</th><th>Баг</th><th>Гишүүд</th><th>Айл</th><th>Байг.</th><th>Мин</th></tr></thead>
+            <tbody>${preview}</tbody></table></div>
+          ${parsed.rows.length>10?'<p class="muted" style="margin-top:8px">… эхний 10 мөрийг харууллаа</p>':''}
+          ${zeroWarn}
+          ${errs}
+          <p class="muted" style="margin-top:12px">Нэг өдөр · нэг багийн хуучин мөр байвал <b>дарагдана</b> (давхардахгүй).</p>
+        `,'Импортлох',wpDoImport,{wide:true});
+      }catch(e){ toast('Файл уншихад алдаа: '+(e.message||e)); }
+    };
+    async function wpDoImport(){
+      if(!wpPending?.rows?.length){ toast(ERP_NOT_FOUND); return false; }
+      const batchId=wpUuid();
+      const payload=wpPending.rows.map(r=>Object.assign({},r,{
+        batch_id:batchId,batch_name:wpPending.fileName||null,
+        created_by:me?.id||null,created_by_name:me?.name||null,
+        updated_at:new Date().toISOString()}));
+      try{
+        const {data,error}=await sb.from('team_performance_entries')
+          .upsert(payload,{onConflict:'work_date,team_name'}).select('id');
+        if(error) throw error;
+        // Хадгалагдсан мөр нь дэлгэц дээрх мужид байхгүй бол «оруулсан
+        // мөр алга» гэж харагддаг байсан — шүүлтийг мөрүүд рүү нь аваачна.
+        const days=payload.map(r=>r.work_date).sort();
+        const r=wpRangeDates();
+        const outside=days[0]<r.from||days[days.length-1]>r.to;
+        if(outside){
+          wpMode='month';
+          wpAnchor=days[days.length-1].slice(0,7);
+          toast(payload.length+' мөр хадгалагдлаа — '+wpAnchor+' руу шилжлээ');
+        } else {
+          toast((data?data.length:payload.length)+' мөр хадгалагдлаа');
+        }
+        wpPending=null;
+        wpData=null;
+        render();
+        return true;
+      }catch(e){
+        toast(String(e.message||'').includes('team_performance_entries')
+          ? 'Импортын хүснэгт алга — 20260821090000_team_performance.sql ажиллуулна уу'
+          : 'Хадгалахад алдаа: '+(e.message||e));
+        return false;
+      }
+    }
+
+    window.wpDownloadTemplate=()=>{
+      if(typeof XLSX==='undefined'){ toast('Excel сан ачаалагдаагүй байна'); return; }
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+        WP_HEADER,WP_HINTS,[wpDay(new Date()),'Баг 1','Болд, Дорж',5,1,420,'Жишээ мөр — устгаад бөглөнө үү']
+      ]),'Импорт загвар');
+      XLSX.writeFile(wb,'ajilchdyn_guitsetgel_zagvar.xlsx');
+    };
+    window.exportWorkPerformance=()=>{
+      if(!wpData?.rows.length){ toast('Татах мэдээлэл алга'); return; }
+      exportAndArchive({category:'ajilchdyn_guitsetgel',title:'Ажилчдын гүйцэтгэл',
+        filename:'ajilchdyn_guitsetgel',sheets:wpBuildSheets(wpData),charts:wpBuildCharts(wpData)});
+    };
+    window.wpRefresh=()=>{ wpData=null; render(); };
+    /**
+     * Excel-ээр оруулсан мөрийг устгана.
+     *
+     * Тайлангийн тоо хоёр эх сурвалжтай: `service_calls`/`field_site_sessions`
+     * (систем өөрөө тооцно) ба `team_performance_entries` (Excel импорт).
+     * Системийн тоог энд устгаж болохгүй — эх бүртгэл нь өөр модульд байна.
+     * Тиймээс зөвхөн импортын мөрүүдийг л устгана.
+     */
+    window.wpDeleteEntries=async(ids,label)=>{
+      const list=String(ids||'').split(',').map(x=>x.trim()).filter(Boolean);
+      if(!list.length){ toast('Энэ мөр системийн бүртгэлээс тооцогдсон — устгах боломжгүй'); return; }
+      if(!confirm((label||'Энэ мөр')+' — Excel-ээр оруулсан '+list.length+' бүртгэлийг устгах уу?')) return;
+      const {error}=await sb.from('team_performance_entries').delete().in('id',list);
+      if(error){ toast('Алдаа: '+error.message); return; }
+      toast(list.length+' бүртгэл устлаа');
+      wpData=null; render();
+    };
+    window.setWorkPerfMode=k=>{
+      wpAnchor=wpNormalizeAnchor(k,wpAnchor);
+      wpMode=k;
+      // Жилийн горимд өдрийн дэлгэрэнгүй хэт урт болно.
+      if(wpTab==='detail'&&k==='year') wpTab='days';
+      wpData=null; render();
+    };
+    window.wpShift=d=>{ wpAnchor=wpShiftAnchor(wpMode,wpAnchor,d); wpData=null; render(); };
+    window.wpNow=()=>{ wpAnchor=wpCurrentAnchor(wpMode); wpData=null; render(); };
+    /** Огнооны сонголтоос (<input type=date|month|number>) шууд үсрэх. */
+    window.wpPickAnchor=v=>{ if(!v) return; wpAnchor=wpNormalizeAnchor(wpMode,String(v)); wpData=null; render(); };
+    window.setWorkPerfTab=k=>{ wpTab=k; render(); };
+
+    async function renderWorkPerformance(c){
+      const r=wpRangeDates();
+      if(!wpData||wpData.from!==r.from||wpData.to!==r.to||wpData.mode!==wpMode){
+        if(wpLoading) return;
+        wpLoading=true; wpError=null;
+        c.innerHTML=renderSkeleton();
+        try{
+          const raw=await wpFetch(r.from,r.to);
+          const rows=wpBuildRows(raw,r.from,r.to);
+          wpData={from:r.from,to:r.to,mode:wpMode,rows,summary:wpSummarize(rows),teams:wpGroupByTeam(rows),
+            days:wpGroupByDay(rows),months:wpGroupByMonth(rows),importError:raw.importError};
+        }catch(e){
+          wpError=e.message||String(e);
+          wpData={from:r.from,to:r.to,mode:wpMode,rows:[],summary:wpSummarize([]),teams:[],days:[],months:[],importError:null};
+        }finally{ wpLoading=false; }
+        wpData.chart=wpBuildChartData(wpData,wpMode);
+        if(view!=='workperformance') return;
+      }
+      const d=wpData, s=d.summary;
+      const msym=(n,col)=>`<span class="material-symbols-outlined" style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:${col}18;color:${col};font-size:22px">${n}</span>`;
+      const stats=[
+        {ic:msym('groups','#007cb4'),v:s.teams,l:`Нийт баг · ${s.days} өдөр`},
+        {ic:msym('home_pin','#0b7a44'),v:wpOne(s.ailPerDay),l:`Өдөрт айл · нийт ${s.ail}`},
+        {ic:msym('speed','#6d4aa8'),v:wpOne(s.ailPerTeamDay),l:`1 баг өдөрт айл · ${s.teamDays} баг×өдөр`},
+        {ic:msym('schedule','#b45309'),v:wpDur(s.durationMs),l:`Нийт хугацаа · 1 айлд ${wpDur(s.msPerAil)}`},
+        {ic:msym('apartment','#0f766e'),v:s.baiguulga,l:`Байгууллага · нийт ажил ${s.total}`}
+      ];
+      const chip=(k,label)=>`<button class="btn btn-sm ${wpMode===k?'btn-primary':'btn-ghost'}" onclick="setWorkPerfMode('${k}')">${label}</button>`;
+      const tab=(k,label)=>`<button class="btn btn-sm ${wpTab===k?'btn-primary':'btn-ghost'}" onclick="setWorkPerfTab('${k}')">${label}</button>`;
+
+      // Огноо шууд сонгох талбар — горим бүрт өөр төрөл.
+      const anchorInput=wpMode==='year'
+        ? `<input type="number" min="2020" max="2100" step="1" value="${wpAnchor}" style="width:96px" onchange="wpPickAnchor(this.value)"/>`
+        : wpMode==='month'
+          ? `<input type="month" value="${wpAnchor}" onchange="wpPickAnchor(this.value)"/>`
+          : `<input type="date" value="${wpAnchor}" onchange="wpPickAnchor(this.value)"/>`;
+
+      // Жилийн горимд өдрийн жагсаалт 365 мөр болно — сараар харуулна.
+      const periodRows=wpMode==='year'?(d.months||[]):(d.days||[]);
+      const periodLabel=wpMode==='year'?'Сараар':'Өдрөөр';
+
+      // Устгах товч — зөвхөн Excel-ээр оруулсан мөрөнд идэвхтэй.
+      const delCell=(ids,label)=>{
+        const list=(ids||[]).filter(Boolean);
+        if(!list.length) return `<td class=muted title="Системийн бүртгэлээс тооцогдсон — устгах боломжгүй">—</td>`;
+        return `<td><button class="btn btn-ghost btn-sm" title="Excel-ээр оруулсан ${list.length} бүртгэлийг устгах"
+          onclick="wpDeleteEntries('${list.join(',')}',${JSON.stringify(String(label||'')).replace(/"/g,'&quot;')})">
+          <span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle">delete</span></button></td>`;
+      };
+
+      let head,body,colCount;
+      if(wpTab==='teams'){
+        head=['Баг','Гишүүд','Ажилласан өдөр','Айл','Байгууллага','Өдөрт дундаж айл','Нийт хугацаа','1 айлын дундаж','Сүүлд','Устгах'];
+        colCount=head.length;
+        body=d.teams.map(t=>`<tr><td><b>${wpEsc(t.teamLabel)}</b></td><td class=muted>${wpEsc(t.members.join(', '))}</td>
+          <td>${t.days}</td><td><b>${t.ail}</b></td><td>${t.baiguulga}</td><td><b>${wpOne(t.ailPerDay)}</b></td>
+          <td class=muted>${wpDur(t.durationMs)}</td><td class=muted>${wpDur(t.msPerAil)}</td><td class=muted>${t.lastDay}</td>
+          ${delCell(t.importIds,t.teamLabel)}</tr>`).join('');
+      } else if(wpTab==='days'){
+        head=[wpMode==='year'?'Сар':'Огноо','Идэвхтэй баг','Ажилласан өдөр','Айл','Байгууллага','1 баг өдөрт айл','Нийт хугацаа'];
+        colCount=head.length;
+        body=periodRows.map(x=>`<tr><td><b>${wpEsc(x.label)}</b></td><td>${x.teams}</td><td>${x.days}</td><td><b>${x.ail}</b></td>
+          <td>${x.baiguulga}</td><td><b>${wpOne(x.ailPerTeam)}</b></td><td class=muted>${wpDur(x.durationMs)}</td></tr>`).join('');
+      } else {
+        head=['Огноо','Баг','Гишүүд','Айл','Байгууллага','Дуудлага','Ажлын байр','Хугацаа','Эх сурвалж','Устгах'];
+        colCount=head.length;
+        body=d.rows.map(x=>`<tr><td>${x.dayKey}</td><td><b>${wpEsc(x.teamLabel)}</b></td><td class=muted>${wpEsc(x.members.join(', '))}</td>
+          <td><b>${x.ail}</b></td><td>${x.baiguulga}</td><td>${x.calls}</td><td>${x.sessions}</td>
+          <td class=muted>${wpDur(x.durationMs)}</td><td class=muted>${wpEsc(x.durationSource)}</td>
+          ${delCell(x.importIds,x.dayKey+' · '+x.teamLabel)}</tr>`).join('');
+      }
+
+      const warn=wpError
+        ? `<p style="margin:8px 0 0;color:#d92d20;font-size:13px">Алдаа: ${wpEsc(wpError)}</p>`
+        : (d.importError
+          ? `<p style="margin:8px 0 0;color:#b45309;font-size:13px">${
+              /does not exist|schema cache|find the table/i.test(d.importError)
+                ? 'Импортын хүснэгт бэлэн биш — <b>20260821090000_team_performance.sql</b> ажиллуулна уу.'
+                : 'Импортын мөрийг уншиж чадсангүй: '+wpEsc(d.importError)
+            }</p>`
+          : '');
+
+      c.innerHTML=`
+        <div class="stats animate-chart-entry" style="margin-bottom:20px">
+          ${stats.map(x=>`<div class="stat stat-card">${x.ic}<div><div class="v">${x.v}</div><div class="l">${x.l}</div></div></div>`).join('')}
+        </div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-h"><h3>${wpEsc(r.label)}</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              ${WP_MODES.map(p=>chip(p.key,p.label)).join('')}
+              <button class="btn btn-ghost btn-sm" onclick="wpShift(-1)" title="Өмнөх">‹</button>
+              ${anchorInput}
+              <button class="btn btn-ghost btn-sm" ${wpAtLatest()?'disabled':''} onclick="wpShift(1)" title="Дараах">›</button>
+              ${wpAtLatest()?'':`<button class="btn btn-ghost btn-sm" onclick="wpNow()">Одоо</button>`}
+            </div>
+          </div>
+          <div class="card-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+            <div style="height:260px;position:relative"><canvas id="wpChartWork"></canvas></div>
+            <div style="height:260px;position:relative"><canvas id="wpChartRate"></canvas></div>
+            <div style="height:260px;position:relative"><canvas id="wpChartTeams"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Ажилчдын гүйцэтгэл</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="exportWorkPerformance()">Excel + график татах</button>
+              <button class="btn btn-ghost btn-sm" onclick="wpPickImport()">Excel импорт</button>
+              <button class="btn btn-ghost btn-sm" onclick="wpDownloadTemplate()">Загвар</button>
+              <button class="btn btn-ghost btn-sm" onclick="wpRefresh()">Шинэчлэх</button>
+            </div>
+          </div>
+          <div class="card-b" style="padding:12px 16px">
+            <p class="muted" style="margin:0;font-size:13px">
+              <b>${d.from} — ${d.to}</b>. Нэг баг = хамт ажилласан хүмүүсийн бүрдэл (инженер + хамтрагч,
+              эсвэл ажлын байрны жолооч + хамт явагчид). Хийсэн ажлыг <b>дууссан</b> дуудлагаар,
+              хугацааг ажлын байрны ирсэн/явсан бүртгэлээр — байхгүй бол дуудлага үүсэхээс хаагдтал
+              хугацаагаар тооцов. Excel-ээр оруулсан мөр мөн нэгтгэлд орно.
+            </p>
+            ${warn}
+          </div>
+          <div class="card-b" style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap">
+            ${tab('teams','Багаар ('+d.teams.length+')')}${tab('days',periodLabel+' ('+periodRows.length+')')}${tab('detail','Дэлгэрэнгүй ('+d.rows.length+')')}
+          </div>
+          <div class="card-b" style="padding:0"><table>
+            <thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+            <tbody>${body||`<tr><td colspan=${colCount} class=empty>Энэ хугацаанд бүртгэгдсэн ажил алга</td></tr>`}</tbody>
+          </table></div>
+        </div>
+        <input type="file" id="wpFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="wpFileChosen(this)"/>`;
+
+      wpDrawCharts(d);
+    }
+
+    /** Дэлгэц дээрх гурван график. innerHTML тавьсны ДАРАА дуудагдана. */
+    function wpDrawCharts(d){
+      Object.values(wpCharts).forEach(ch=>{ try{ch.destroy();}catch(e){} });
+      wpCharts={};
+      if(typeof Chart==='undefined') return;
+      const chart=d.chart||wpBuildChartData(d,d.mode||'month');
+      const pts=chart.points||[];
+      const grid=chartGridColor();
+      const base={responsive:true,maintainAspectRatio:false};
+
+      const workCtx=$('wpChartWork');
+      if(workCtx&&pts.length){
+        wpCharts.work=new Chart(workCtx.getContext('2d'),{
+          type:'bar',
+          data:{labels:pts.map(p=>p.label),datasets:[
+            {label:'Айл',data:pts.map(p=>p.ail),backgroundColor:'#0099db',borderRadius:6},
+            {label:'Байгууллага',data:pts.map(p=>p.baiguulga),backgroundColor:'#0b7a44',borderRadius:6}
+          ]},
+          options:Object.assign({},base,{
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+              title:{display:true,text:chart.unitLabel+' тус бүрийн ажил'}},
+            scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:grid},ticks:{precision:0}}}
+          })
+        });
+      }
+
+      const rateCtx=$('wpChartRate');
+      if(rateCtx&&pts.length){
+        wpCharts.rate=new Chart(rateCtx.getContext('2d'),{
+          type:'line',
+          data:{labels:pts.map(p=>p.label),datasets:[
+            {label:'1 баг өдөрт айл',data:pts.map(p=>p.perTeam),borderColor:'#6d4aa8',backgroundColor:'#6d4aa833',
+              borderWidth:2,tension:.3,pointRadius:3,yAxisID:'y'},
+            {label:'1 айлын дундаж (мин)',data:pts.map(p=>p.minPerAil),borderColor:'#b45309',backgroundColor:'#b4530933',
+              borderWidth:2,tension:.3,pointRadius:3,yAxisID:'y1'}
+          ]},
+          options:Object.assign({},base,{
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+              title:{display:true,text:'Хурд ба хугацаа'}},
+            scales:{x:{grid:{display:false}},
+              y:{position:'left',grid:{color:grid},title:{display:true,text:'айл'}},
+              y1:{position:'right',grid:{display:false},title:{display:true,text:'мин'}}}
+          })
+        });
+      }
+
+      const teamRows=(d.teams||[]).slice(0,10);
+      const teamsCtx=$('wpChartTeams');
+      if(teamsCtx&&teamRows.length){
+        wpCharts.teams=new Chart(teamsCtx.getContext('2d'),{
+          type:'bar',
+          data:{labels:teamRows.map(t=>t.teamLabel),datasets:[
+            {label:'Айл',data:teamRows.map(t=>t.ail),backgroundColor:'#0099db',borderRadius:6},
+            {label:'Байгууллага',data:teamRows.map(t=>t.baiguulga),backgroundColor:'#0b7a44',borderRadius:6}
+          ]},
+          options:Object.assign({},base,{
+            indexAxis:'y',
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+              title:{display:true,text:'Багууд — хийсэн ажил'},
+              tooltip:{callbacks:{afterBody:items=>{
+                const t=teamRows[items[0].dataIndex];
+                return `${t.days} өдөр · өдөрт ${wpOne(t.ailPerDay)} айл · 1 айлд ${wpDur(t.msPerAil)}`;
+              }}}},
+            scales:{x:{stacked:true,grid:{color:grid},ticks:{precision:0}},y:{stacked:true,grid:{display:false}}}
+          })
+        });
+      }
+    }
 
     // ===== Барааны хэрэглээ / үлдэгдэл =====
     function renderUsage(c){
@@ -4662,7 +5611,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     // ===== Shell UI (theme, sidebar, charts) =====
     let dashCharts={};
     function isDark(){ return document.documentElement.classList.contains('dark'); }
-    function chartTextColor(){ return isDark() ? '#c7c4d6' : '#777585'; }
+    function chartTextColor(){ return isDark() ? '#c8c8cd' : '#77777f'; }
     function chartGridColor(){ return isDark() ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)'; }
     function destroyDashCharts(){ Object.values(dashCharts).forEach(c=>{ try{c.destroy();}catch(e){} }); dashCharts={}; }
 
@@ -4697,16 +5646,16 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       if(typeof Chart==='undefined') return;
       Chart.defaults.font.family="'Inter',sans-serif";
       Chart.defaults.color=chartTextColor();
-      const primary='#3b82f6';
+      const primary='#0099db';
       const attCtx=$('dashAttendanceChart');
       if(attCtx){
         const g=attCtx.getContext('2d');
         const grad=g.createLinearGradient(0,0,0,280);
-        grad.addColorStop(0,'rgba(59,130,246,.35)');
-        grad.addColorStop(1,'rgba(59,130,246,0)');
+        grad.addColorStop(0,'rgba(0,153,219,.35)');
+        grad.addColorStop(1,'rgba(0,153,219,0)');
         dashCharts.att=new Chart(g,{
           type:'line',
-          data:{labels:last7DayLabels(),datasets:[{label:'Ирц',data:attendanceByDay(),borderColor:primary,backgroundColor:grad,borderWidth:2,tension:.4,fill:true,pointRadius:3,pointBackgroundColor:isDark()?'#18181b':'#fff',pointBorderColor:primary}]},
+          data:{labels:last7DayLabels(),datasets:[{label:'Ирц',data:attendanceByDay(),borderColor:primary,backgroundColor:grad,borderWidth:2,tension:.4,fill:true,pointRadius:3,pointBackgroundColor:isDark()?'#201e1f':'#fff',pointBorderColor:primary}]},
           options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:chartGridColor()},ticks:{precision:0}}}}
         });
       }
@@ -4714,13 +5663,13 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       if(callCtx){
         dashCharts.calls=new Chart(callCtx.getContext('2d'),{
           type:'doughnut',
-          data:{labels:['Нээлттэй','Явж байгаа','Дууссан'],datasets:[{data:callsByStatus(),backgroundColor:[primary,'#71717a','#22c55e'],borderWidth:0}]},
+          data:{labels:['Нээлттэй','Явж байгаа','Дууссан'],datasets:[{data:callsByStatus(),backgroundColor:[primary,'#77777f','#3fcf8e'],borderWidth:0}]},
           options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}}}
         });
       }
       const fuelCtx=$('dashFuelChart');
       if(fuelCtx){
-        const fuelColor='#f59e0b';
+        const fuelColor='#b45309';
         const fg=fuelCtx.getContext('2d');
         const fgrad=fg.createLinearGradient(0,0,0,260);
         fgrad.addColorStop(0,'rgba(245,158,11,.35)');
@@ -4750,9 +5699,9 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         dashCharts.perf=new Chart(perfCtx.getContext('2d'),{
           type:'bar',
           data:{labels:perfRows.map(r=>r.name),datasets:[
-            {label:'Дууссан дуудлага',data:perfRows.map(r=>r.done),backgroundColor:'#3b82f6',borderRadius:6},
-            {label:'Очсон лог',data:perfRows.map(r=>r.visits),backgroundColor:'#10b981',borderRadius:6},
-            {label:'Ирц (өдөр)',data:perfRows.map(r=>r.attendance),backgroundColor:'#8b5cf6',borderRadius:6}
+            {label:'Дууссан дуудлага',data:perfRows.map(r=>r.done),backgroundColor:'#0099db',borderRadius:6},
+            {label:'Очсон лог',data:perfRows.map(r=>r.visits),backgroundColor:'#0b7a44',borderRadius:6},
+            {label:'Ирц (өдөр)',data:perfRows.map(r=>r.attendance),backgroundColor:'#6d4aa8',borderRadius:6}
           ]},
           options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:chartGridColor()},ticks:{precision:0}}}}
         });

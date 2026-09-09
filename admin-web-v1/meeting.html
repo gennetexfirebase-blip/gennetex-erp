@@ -39,8 +39,14 @@
     </div>
   </div>
   <script>
-    const SUPABASE_URL = 'https://xhxyrzzgmksjlibfrmlx.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoeHlyenpnbWtzamxpYmZybWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4ODEwMjYsImV4cCI6MjA5ODQ1NzAyNn0.nYWs_N09RLHvhmEUCdbS6M8yvthsKJ5TkXjdRv4VMag';
+    // ⚠️ 2026-08-31 аудит: энэ хоёр нь ӨӨР Supabase төсөл рүү заасан
+    //    байв (`xhxyrzzgmksjlibfrmlx`). Тэр төсөл нь энэ аппын өгөгдлийг
+    //    агуулдаггүй тул уулзалтын хуудас чимээгүй ажиллахгүй байсан —
+    //    алдаа заахгүй, зүгээр л хоосон жагсаалт харуулна.
+    //
+    //    Одоо `admin-web/index.html`-тэй ижил төсөл рүү заана.
+    const SUPABASE_URL = 'https://zkftykocmqzrgdhgwluu.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZnR5a29jbXF6cmdkaGd3bHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNTAyNDYsImV4cCI6MjEwMTgyNjI0Nn0.FwZ0yK6lS5Ngh3Rd2WaEJw08EA3WGW4Ac_uKNx7oTQ0';
     const params = new URLSearchParams(location.search);
     const MEETING_ID = String(params.get('id') || '').replace(/[^a-zA-Z0-9-]/g, '');
     const IS_HOST = params.get('role') === 'host';
