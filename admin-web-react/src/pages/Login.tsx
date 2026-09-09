@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LogIn, ShieldAlert } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { clearAuthErrorFromUrl, readOAuthError } from '../lib/authError';
 import { Button } from '../components/ui';
 
 /**
@@ -17,6 +18,15 @@ import { Button } from '../components/ui';
 export default function LoginPage({ error }: { error?: string | null }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Google-ээс алдаатай буцаж ирсэн бол шалтгааныг нь харуулна.
+  useEffect(() => {
+    const err = readOAuthError();
+    if (err) {
+      setMsg(err);
+      clearAuthErrorFromUrl();
+    }
+  }, []);
 
   const signIn = async () => {
     if (!isSupabaseConfigured) {

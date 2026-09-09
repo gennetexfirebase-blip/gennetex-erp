@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { FileSpreadsheet, LogIn, ShieldAlert } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { clearAuthErrorFromUrl, readOAuthError } from '../lib/authError';
 
 /**
  * Нэвтрэлтийн хаалга.
@@ -48,6 +49,15 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
 function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Google-ээс алдаатай буцаж ирсэн бол шалтгааныг нь харуулна.
+  useEffect(() => {
+    const err = readOAuthError();
+    if (err) {
+      setMsg(err);
+      clearAuthErrorFromUrl();
+    }
+  }, []);
 
   const signIn = async () => {
     if (!isSupabaseConfigured) {
