@@ -20,13 +20,13 @@ export function Card({
 }) {
   return (
     <section
-      className={`rounded-[var(--radius)] border border-line bg-card shadow-panel ${className}`}
+      className={`surface ${className}`}
     >
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+        <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
             {icon ? <span className="text-brand">{icon}</span> : null}
-            <h2 className="truncate text-[15px] font-semibold text-ink">{title}</h2>
+            <h2 className="truncate text-[16px] font-semibold tracking-tight text-ink">{title}</h2>
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-1.5">{actions}</div> : null}
         </header>
@@ -204,10 +204,12 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <p className="mb-1 text-[12px] text-subtle">Нүүр › {crumb || title}</p>
-        <h1 className="text-[26px] font-bold leading-tight text-ink">{title}</h1>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtle">
+          {crumb || 'Тойм'}
+        </p>
+        <h1 className="text-[34px] font-semibold leading-none tracking-tight text-ink">{title}</h1>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -250,5 +252,55 @@ export function Avatar({
     >
       {initials}
     </span>
+  );
+}
+
+/**
+ * Үзүүлэлтийн карт — «Command Center»-ийн дээд эгнээ.
+ *
+ * `delta` эерэг бол ногоон, сөрөг бол улаан бөглөмөл шошго болно; тэмдгийг
+ * дуудагч талаас нь оруулна (жишээ нь "+12.4%" эсвэл "-0.3%").
+ */
+export function StatCard({
+  label,
+  value,
+  delta,
+  deltaTone = 'up',
+  note,
+}: {
+  label: string;
+  value: ReactNode;
+  delta?: string;
+  deltaTone?: 'up' | 'down';
+  note?: string;
+}) {
+  return (
+    <div className="surface p-5">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[13px] text-muted">{label}</span>
+        {delta ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              deltaTone === 'up'
+                ? 'bg-success-soft text-success'
+                : 'bg-danger-soft text-danger'
+            }`}
+          >
+            {delta}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 text-[30px] font-semibold leading-none tracking-tight text-ink">{value}</p>
+      {note ? <p className="mt-2 text-[12px] text-subtle">{note}</p> : null}
+    </div>
+  );
+}
+
+/** Хувь хэмжээний нарийн зураас — эх сурвалж, багтаамж зэрэгт. */
+export function Meter({ pct, color = 'var(--brand)' }: { pct: number; color?: string }) {
+  return (
+    <div className="meter">
+      <span style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: color }} />
+    </div>
   );
 }

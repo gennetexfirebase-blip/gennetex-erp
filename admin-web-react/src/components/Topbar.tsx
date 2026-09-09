@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Settings, PanelLeftClose, PanelLeftOpen, Mail, Menu, LogOut, User } from 'lucide-react';
+import { Bell, Settings, PanelLeftClose, PanelLeftOpen, Menu, LogOut, Plus, Search, User } from 'lucide-react';
 import { Avatar } from './ui';
 
 /** timely_clone_prompt.md §2.2 — дээд topbar. */
@@ -21,7 +21,7 @@ export default function Topbar({
   const [menu, setMenu] = useState<null | 'user' | 'bell'>(null);
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-topbar px-4">
+    <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 bg-topbar px-4 backdrop-blur-xl lg:px-8">
       <button
         className="focus-ring rounded-[var(--radius-sm)] p-2 text-muted hover:bg-hover hover:text-ink lg:hidden"
         onClick={onOpenMobile}
@@ -37,12 +37,21 @@ export default function Topbar({
         {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
       </button>
 
-      <button className="focus-ring hidden items-center gap-2 rounded-[var(--radius-sm)] border border-warning/40 px-3 py-2 text-[13px] font-semibold text-warning hover:bg-warning-soft sm:inline-flex">
-        <Mail size={15} />
-        Санал хүсэлт илгээх
-      </button>
+      <div className="ml-auto flex items-center gap-2">
+        {/* Ажлын талбарын хайлт — «/» товчлолтой */}
+        <label className="hidden items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-[13px] text-muted backdrop-blur md:flex">
+          <Search size={15} className="text-subtle" />
+          <input
+            className="w-40 bg-transparent text-ink outline-none placeholder:text-subtle lg:w-56"
+            placeholder="Хайх…"
+            aria-label="Хайх"
+          />
+        </label>
 
-      <div className="ml-auto flex items-center gap-1.5">
+        <button className="cta-gradient focus-ring hidden items-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] sm:inline-flex">
+          <Plus size={15} /> Шинэ тайлан
+        </button>
+
         <div className="relative">
           <button
             className="focus-ring relative rounded-[var(--radius-sm)] p-2 text-muted hover:bg-hover hover:text-ink"

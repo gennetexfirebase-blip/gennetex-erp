@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { LayoutDashboard } from 'lucide-react';
-import { PageHeader, Card, Loading, EmptyState, Badge } from '../components/ui';
+import { PageHeader, Card, Loading, EmptyState, Badge, StatCard } from '../components/ui';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
 
 const TABS = ['Ажилтнууд', 'Ирц Бүртгэл', 'Цагийн Хүсэлт', 'Цалин, Татвар'] as const;
@@ -16,13 +16,24 @@ export default function DashboardPage() {
 
   const kpis = useMemo(
     () => [
-      { label: 'Нийт ажилтан', value: employees.length, unit: 'хүн' },
-      { label: 'Бүртгүүлсэн', value: employees.filter((e) => e.registered).length, unit: 'хүн' },
-      { label: 'Хүлээгдэж буй', value: employees.filter((e) => !e.registered).length, unit: 'хүн' },
+      { label: 'Нийт ажилтан', value: employees.length, unit: 'хүн', note: 'Бүртгэлтэй бүх ажилтан' },
+      {
+        label: 'Бүртгүүлсэн',
+        value: employees.filter((e) => e.registered).length,
+        unit: 'хүн',
+        note: 'Апп руу нэвтэрсэн',
+      },
+      {
+        label: 'Хүлээгдэж буй',
+        value: employees.filter((e) => !e.registered).length,
+        unit: 'хүн',
+        note: 'Урилга хүлээж байна',
+      },
       {
         label: 'Хэлтэстэй',
         value: employees.filter((e) => e.department_id).length,
         unit: 'хүн',
+        note: 'Хэлтэст хуваарилагдсан',
       },
     ],
     [employees]
@@ -52,7 +63,7 @@ export default function DashboardPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`focus-ring rounded-full px-4 py-2 text-[13px] font-semibold transition ${
-              tab === t ? 'bg-brand text-white' : 'bg-card text-muted hover:bg-hover'
+              tab === t ? 'cta-gradient' : 'border border-line bg-card text-muted hover:bg-hover'
             }`}
           >
             {t}
@@ -66,16 +77,17 @@ export default function DashboardPage() {
         <>
           <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {kpis.map((k) => (
-              <div
+              <StatCard
                 key={k.label}
-                className="rounded-[var(--radius)] border border-line bg-card p-5 shadow-panel"
-              >
-                <p className="text-[12px] text-muted">{k.label}</p>
-                <p className="mt-1.5 text-[28px] font-bold leading-none text-ink">
-                  {k.value}
-                  <span className="ml-1.5 text-[13px] font-normal text-subtle">{k.unit}</span>
-                </p>
-              </div>
+                label={k.label}
+                value={
+                  <>
+                    {k.value}
+                    <span className="ml-1.5 text-[13px] font-normal text-subtle">{k.unit}</span>
+                  </>
+                }
+                note={k.note}
+              />
             ))}
           </div>
 

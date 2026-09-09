@@ -40,9 +40,9 @@ export default function LoginPage({ error }: { error?: string | null }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-app p-6">
-      <div className="w-full max-w-sm rounded-[var(--radius-lg)] border border-line bg-card p-8 shadow-panel">
+      <div className="surface w-full max-w-sm p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-xl font-black text-white">
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#4d8dfd] to-[#4fe0b8] text-xl font-black text-[#05121f]">
             G
           </span>
           <h1 className="text-[22px] font-bold text-ink">GENNETEX Админ</h1>

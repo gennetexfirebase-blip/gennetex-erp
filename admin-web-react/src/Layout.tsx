@@ -121,10 +121,10 @@ export default function Layout() {
           unread={counts.requests}
           onSignOut={() => supabase.auth.signOut().then(() => window.location.reload())}
         />
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 px-4 pb-8 pt-2 lg:px-8">
           <Outlet />
         </main>
-        <footer className="border-t border-line px-6 py-4 text-center text-[12px] text-subtle">
+        <footer className="px-6 py-6 text-center text-[12px] text-subtle">
           © Developed by <span className="text-danger">♥</span> GENNETEX
         </footer>
       </div>
