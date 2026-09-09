@@ -1,19 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
+  "installCommand": "npm install --no-audit --no-fund && npm install --prefix ../public-web --no-audit --no-fund",
   "outputDirectory": "dist",
   "framework": "vite",
-  "cleanUrls": true,
-  "headers": [
+  "routes": [
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
+      "src": "/assets/(.*)",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "continue": true
+    },
+    { "handle": "filesystem" },
+    {
+      "src": "/(.*)",
+      "headers": { "Cache-Control": "no-cache, must-revalidate" },
+      "dest": "/index.html"
     }
-  ],
-  "installCommand": "npm install --no-audit --no-fund && npm install --prefix ../public-web --no-audit --no-fund"
+  ]
 }
