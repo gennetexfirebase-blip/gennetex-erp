@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#fce4ec"/>
+  <rect x="20" y="28" width="40" height="28" rx="5" fill="#fff" stroke="#c2185b" stroke-width="2"/><circle cx="30" cy="42" r="2.5" fill="#c2185b"/><circle cx="40" cy="42" r="2.5" fill="#c2185b"/><circle cx="50" cy="42" r="2.5" fill="#c2185b"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#c2185b">MC</text>
+</svg>

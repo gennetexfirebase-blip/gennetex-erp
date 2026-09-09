@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#e8edff"/>
+  <rect x="20" y="28" width="40" height="28" rx="5" fill="#fff" stroke="#4f6ef7" stroke-width="2"/><circle cx="30" cy="42" r="2.5" fill="#4f6ef7"/><circle cx="40" cy="42" r="2.5" fill="#4f6ef7"/><circle cx="50" cy="42" r="2.5" fill="#4f6ef7"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#4f6ef7">MAT</text>
+</svg>

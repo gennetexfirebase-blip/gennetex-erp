@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#fffde7"/>
+  <path d="M22 22 L30 58 M58 22 L50 58" fill="none" stroke="#f9a825" stroke-width="3" stroke-linecap="round"/><ellipse cx="40" cy="40" rx="8" ry="12" fill="none" stroke="#f9a825" stroke-width="2"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#f9a825">STR</text>
+</svg>

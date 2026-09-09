@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Gennetex — Live үзэх</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:#0b0f1a;color:#fff;font-family:system-ui,sans-serif}
+    #bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#111827}
+    .live{background:#ef4444;font-weight:900;font-size:11px;padding:3px 8px;border-radius:6px}
+    #title{flex:1;font-weight:700}
+    .btn{border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;background:#333;color:#fff}
+    .btn-primary{background:#4f6ef7}
+    #meet{height:calc(100% - 52px);background:#000}
+    #fallback{display:none;padding:32px;text-align:center;max-width:520px;margin:40px auto}
+    #fallback h2{margin:0 0 12px}
+    #fallback p{color:#94a3b8;line-height:1.5}
+    #fallback a{display:inline-block;margin:8px;padding:12px 18px;background:#4f6ef7;color:#fff;border-radius:10px;text-decoration:none;font-weight:700}
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <span class="live">LIVE</span>
+    <div id="title">Live үзэж байна</div>
+    <button class="btn" type="button" id="openTab">Шинэ цонхонд нээх</button>
+    <button class="btn" type="button" id="closeBtn">Хаах</button>
+  </div>
+  <div id="meet"></div>
+  <div id="fallback">
+    <h2>Холбогдож чадсангүй</h2>
+    <p>meet.ffmuc.net iframe/холболт татгалзсан эсвэл сервер ажиллахгүй байна. Доорх товчоор шууд нээнэ үү.</p>
+    <a id="directLink" href="#" target="_blank" rel="noopener">Live өрөө нээх</a>
+    <a href="index.html">Админ руу буцах</a>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const room = String(params.get('room') || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const hostName = String(params.get('name') || 'Ажилтан').replace(/[<>]/g, '');
+    const DOMAINS = ['meet.ffmuc.net', 'jitsi.member.fsf.org', 'meet.jit.si'];
+
+    if (!room) {
+      document.getElementById('meet').style.display = 'none';
+      document.getElementById('fallback').style.display = 'block';
+      document.getElementById('fallback').querySelector('h2').textContent = 'Room олдсонгүй';
+    }
+
+    document.getElementById('title').textContent = hostName + ' — Live';
+    const directUrl = 'https://' + DOMAINS[0] + '/' + room + '#userInfo.displayName=%22Admin%22&config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true';
+    document.getElementById('directLink').href = directUrl;
+    document.getElementById('openTab').onclick = () => window.open(directUrl, '_blank', 'noopener');
+    document.getElementById('closeBtn').onclick = () => { window.close(); location.href = 'index.html'; };
+
+    let domainIndex = 0;
+    let api = null;
+
+    function showFallback() {
+      document.getElementById('meet').style.display = 'none';
+      document.getElementById('fallback').style.display = 'block';
+    }
+
+    function loadScript(domain) {
+      return new Promise((resolve, reject) => {
+        const prev = document.getElementById('jitsi-api');
+        if (prev) prev.remove();
+        const s = document.createElement('script');
+        s.id = 'jitsi-api';
+        s.src = 'https://' + domain + '/external_api.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('script'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function start(domain) {
+      try {
+        await loadScript(domain);
+        if (!window.JitsiMeetExternalAPI) throw new Error('no api');
+        document.getElementById('meet').innerHTML = '';
+        document.getElementById('meet').style.display = 'block';
+        document.getElementById('fallback').style.display = 'none';
+        api = new JitsiMeetExternalAPI(domain, {
+          roomName: room,
+          parentNode: document.getElementById('meet'),
+          width: '100%',
+          height: '100%',
+          userInfo: { displayName: 'Admin' },
+          configOverwrite: {
+            prejoinPageEnabled: false,
+            prejoinConfig: { enabled: false },
+            disableDeepLinking: true,
+            startWithAudioMuted: true,
+            startWithVideoMuted: true,
+            disableInviteFunctions: true,
+          },
+          interfaceConfigOverwrite: {
+            MOBILE_APP_PROMO: false,
+            SHOW_JITSI_WATERMARK: false,
+            TOOLBAR_BUTTONS: ['hangup', 'tileview', 'filmstrip'],
+          },
+        });
+        document.getElementById('directLink').href =
+          'https://' + domain + '/' + room + '#config.prejoinPageEnabled=false&userInfo.displayName=%22Admin%22';
+        document.getElementById('openTab').onclick = () =>
+          window.open(document.getElementById('directLink').href, '_blank', 'noopener');
+      } catch (e) {
+        domainIndex += 1;
+        if (domainIndex < DOMAINS.length) {
+          start(DOMAINS[domainIndex]);
+        } else {
+          showFallback();
+        }
+      }
+    }
+
+    if (room) {
+      // Эхлээд шууд цонхонд нээх нь iframe блокоос найдвартай
+      // Гэхдээ энд embed оролдоно; амжилтгүй бол fallback
+      start(DOMAINS[0]);
+      // 8 сек дотор холбогдохгүй бол fallback харуулна
+      setTimeout(() => {
+        const meet = document.getElementById('meet');
+        if (meet && meet.children.length === 0) showFallback();
+      }, 8000);
+    }
+  </script>
+</body>
+</html>

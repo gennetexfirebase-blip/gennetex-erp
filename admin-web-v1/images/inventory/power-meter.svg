@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#f3e5f5"/>
+  <rect x="20" y="26" width="40" height="32" rx="5" fill="#fff" stroke="#8e24aa" stroke-width="2"/><rect x="26" y="32" width="28" height="14" rx="2" fill="#8e24aa" opacity="0.2"/><line x1="30" y1="52" x2="50" y2="52" stroke="#8e24aa" stroke-width="2"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#8e24aa">PM</text>
+</svg>

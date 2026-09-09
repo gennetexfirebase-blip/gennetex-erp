@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#e8f5e9"/>
+  <path d="M16 44 C28 24, 52 24, 64 44" fill="none" stroke="#388e3c" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="44" r="4" fill="#388e3c"/><circle cx="64" cy="44" r="4" fill="#388e3c"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#388e3c">UTP</text>
+</svg>

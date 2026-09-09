@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="14" fill="#eceff1"/>
+  <path d="M20 50 L52 30" stroke="#37474f" stroke-width="3" stroke-linecap="round"/><rect x="48" y="24" width="12" height="8" rx="2" fill="#fff" stroke="#37474f" stroke-width="2"/>
+  <text x="40" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#37474f">CLV</text>
+</svg>

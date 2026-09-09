@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '..');
 const publicDist = path.join(root, 'public-web', 'dist');
 const adminReactDist = path.join(root, 'admin-web-react', 'dist');
 const adminLegacy = path.join(root, 'admin-web');
+const adminV1 = path.join(root, 'admin-web-v1');
 const output = path.join(root, 'dist-web');
 const adminOutput = path.join(output, 'gennetex', 'admin');
 
@@ -42,6 +43,16 @@ if (fs.existsSync(adminReactDist) && fs.existsSync(adminLegacy)) {
   const legacyOutput = path.join(output, 'gennetex', 'admin-legacy');
   fs.cpSync(adminLegacy, legacyOutput, { recursive: true });
   console.log('Legacy admin kept at /gennetex/admin-legacy');
+}
+
+// Хамгийн АНХНЫ (v1.0.5) админ панел — /gennetex/admin-v1
+//
+// Хожим нэмэгдсэн admin-ui.css/glass загвараас өмнөх, анхны цагаан
+// харагдацтай хувилбар. Аль загвар нь тохирохыг ХАРЬЦУУЛЖ шийдэхийн
+// тулд зэрэг байрлуулав — одоогийн панелууд юу ч алдахгүй.
+if (fs.existsSync(adminV1)) {
+  fs.cpSync(adminV1, path.join(output, 'gennetex', 'admin-v1'), { recursive: true });
+  console.log('First admin panel kept at /gennetex/admin-v1');
 }
 
 console.log(`Vercel output prepared at ${output}`);
