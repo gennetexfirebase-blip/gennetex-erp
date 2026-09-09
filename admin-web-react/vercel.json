@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build -- --base=/",
   "outputDirectory": "dist",
-  "framework": null,
+  "framework": "vite",
   "cleanUrls": true,
   "headers": [
     {
@@ -22,12 +22,6 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ]
 }
