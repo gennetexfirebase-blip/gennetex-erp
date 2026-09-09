@@ -9,6 +9,47 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      /*
+       * Нэвтрэлтийн гүүр.
+       *
+       * Supabase нь Redirect URLs-д байхгүй хаяг руу буцахаас татгалзаад,
+       * токеныг Site URL (энэ сайт) руу хаядаг. Тэр тохиолдолд хэрэглэгч
+       * нүүр хуудсан дээр, хаягийн мөрөндөө токентой, нэвтэрч чадалгүй
+       * үлддэг.
+       *
+       * Дэд домэйнүүд нэвтрэхийнхээ өмнө буцах хаягаа `.gennetex.com`
+       * cookie-д бичиж үлдээдэг. Энд түүнийг уншиж, токеныг эзэн апп руу
+       * нь буцаана. Хэрэв тэмдэглэл алга бол токеныг хаягаас арчина —
+       * нүүр хуудасны URL дээр токен үлдээх нь зохисгүй.
+       *
+       * React ачаалахаас ӨМНӨ ажиллах ёстой тул энд, inline байрлана.
+       */
+      (function () {
+        var h = location.hash || '';
+        var q = location.search || '';
+        var hasAuth = /(access_token|refresh_token|error_description|error=)/.test(h + q);
+        if (!hasAuth) return;
+
+        var m = document.cookie.match(/(?:^|;\s*)gx_auth_return=([^;]*)/);
+        var target = m ? decodeURIComponent(m[1]) : '';
+
+        // Cookie-г шууд арилгана — нэг удаад л ашиглана.
+        document.cookie =
+          'gx_auth_return=; domain=.' +
+          location.hostname.split('.').slice(-2).join('.') +
+          '; path=/; max-age=0';
+
+        // Зөвхөн өөрийн домэйны дэд хаяг руу л дамжуулна.
+        if (/^https:\/\/[a-z0-9-]+\.gennetex\.com\//i.test(target)) {
+          location.replace(target.replace(/\/+$/, '/') + h + (h ? '' : q));
+          return;
+        }
+
+        // Хаана буцахыг мэдэхгүй бол ядаж хаягаа цэвэрлэнэ.
+        history.replaceState(null, '', location.pathname);
+      })();
+    </script>
   </head>
   <body class="bg-bg-base text-zinc-900 antialiased">
     <div id="root"></div>

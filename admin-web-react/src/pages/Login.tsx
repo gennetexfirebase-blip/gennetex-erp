@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LogIn, ShieldAlert } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { clearAuthErrorFromUrl, readOAuthError } from '../lib/authError';
+import { rememberAuthReturn } from '../lib/authReturn';
 import { Button } from '../components/ui';
 
 /**
@@ -35,11 +36,15 @@ export default function LoginPage({ error }: { error?: string | null }) {
     }
     setBusy(true);
     setMsg(null);
+    const returnTo = `${location.origin}${import.meta.env.BASE_URL}`;
+    // Supabase энэ хаягийг зөвшөөрөөгүй бол gennetex.com руу хаяна —
+    // тэнд байрлах гүүр биднийг эргүүлж авчирна.
+    rememberAuthReturn(returnTo);
     try {
       const { error: e } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${location.origin}${import.meta.env.BASE_URL}`,
+          redirectTo: returnTo,
           queryParams: { prompt: 'select_account' },
         },
       });

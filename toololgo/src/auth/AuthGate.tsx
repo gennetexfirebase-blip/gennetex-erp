@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { FileSpreadsheet, LogIn, ShieldAlert } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { clearAuthErrorFromUrl, readOAuthError } from '../lib/authError';
+import { rememberAuthReturn } from '../lib/authReturn';
 
 /**
  * Нэвтрэлтийн хаалга.
@@ -66,11 +67,15 @@ function LoginScreen() {
     }
     setBusy(true);
     setMsg(null);
+    const returnTo = `${location.origin}/`;
+    // Supabase энэ хаягийг зөвшөөрөөгүй бол gennetex.com руу хаяна —
+    // тэнд байрлах гүүр биднийг эргүүлж авчирна.
+    rememberAuthReturn(returnTo);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: location.origin,
+          redirectTo: returnTo,
           queryParams: { prompt: 'select_account' },
         },
       });
