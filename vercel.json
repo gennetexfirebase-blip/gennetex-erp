@@ -70,40 +70,8 @@
       "destination": "/gennetex/admin/index.html"
     },
     {
-      "source": "/about",
-      "destination": "/"
-    },
-    {
-      "source": "/services",
-      "destination": "/"
-    },
-    {
-      "source": "/projects",
-      "destination": "/"
-    },
-    {
-      "source": "/contact",
-      "destination": "/"
-    },
-    {
-      "source": "/careers",
-      "destination": "/"
-    },
-    {
-      "source": "/delete-account",
-      "destination": "/"
-    },
-    {
-      "source": "/privacy",
-      "destination": "/"
-    },
-    {
-      "source": "/terms",
-      "destination": "/"
-    },
-    {
-      "source": "/support",
-      "destination": "/"
+      "source": "/((?!gennetex/|app/|app$|assets/).*)",
+      "destination": "/index.html"
     }
   ]
 }

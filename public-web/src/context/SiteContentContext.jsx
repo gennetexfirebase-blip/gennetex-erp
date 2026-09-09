@@ -8,8 +8,13 @@ const SiteContentContext = createContext({
   reload: () => {},
 });
 
-export function SiteContentProvider({ children }) {
-  const [content, setContent] = useState(DEFAULT_SITE_CONTENT);
+/**
+ * `initial` — build үед (prerender) Supabase-аас татсан агуулга. Байвал
+ * анхны зураалт нь шууд зөв агуулгатай гарч, "хоосон -> дүүрэн" анивчилт
+ * үүсэхгүй. Браузерт ачаалсны дараа шинэчилж дахин уншсаар байна.
+ */
+export function SiteContentProvider({ children, initial }) {
+  const [content, setContent] = useState(initial || DEFAULT_SITE_CONTENT);
   const [updatedAt, setUpdatedAt] = useState(null);
 
   const reload = useCallback(async () => {

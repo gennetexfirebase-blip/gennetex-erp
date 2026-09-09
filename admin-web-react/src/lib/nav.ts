@@ -85,6 +85,7 @@ export const NAV: NavItem[] = [
     label: '⋯ (+4)',
     icon: MoreHorizontal,
     children: [
+      { label: 'Вэбсайтын агуулга', to: '/site-content' },
       { label: 'Тохиргоо', to: '/more/settings' },
       { label: 'Төлбөр', to: '/more/billing' },
       { label: 'Маркет', to: '/more/market' },

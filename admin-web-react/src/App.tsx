@@ -11,6 +11,7 @@ import LocationsPage from './pages/Locations';
 import Placeholder from './pages/Placeholder';
 import LegacyPage from './pages/Legacy';
 import StockIssuesPage from './pages/StockIssues';
+import SiteContentPage from './pages/SiteContent';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/payroll/auto" element={<Placeholder title="Автомат тооцоолол" />} />
           <Route path="/payroll/payslip" element={<Placeholder title="Задаргаа илгээх" />} />
 
+          <Route path="/site-content" element={<SiteContentPage />} />
           <Route path="/more/settings" element={<Placeholder title="Тохиргоо" />} />
           <Route path="/more/billing" element={<Placeholder title="Төлбөр" />} />
           <Route path="/more/market" element={<Placeholder title="Маркет" />} />

@@ -38,3 +38,8 @@ declare module '*/admin-web/xlsx-chart.js' {
   };
   export default XlsxChart;
 }
+
+/** Public вэбсайтын анхдагч агуулга — `public-web/`-тэй хуваалцана. */
+declare module '*/public-web/src/lib/siteContentDefaults.js' {
+  export const DEFAULT_SITE_CONTENT: Record<string, unknown>;
+}

@@ -18,10 +18,14 @@ import DeleteAccountPage from './pages/DeleteAccountPage';
 // App Store Connect · Support URL (заавал талбар)
 import SupportPage from './pages/SupportPage';
 
-export default function App() {
+/**
+ * Замын тодорхойлолт — router-ээс ТУСДАА.
+ *
+ * Build үеийн prerender нь үүнийг `StaticRouter` дотор, браузер нь
+ * `BrowserRouter` дотор ашиглана (`entry-server.jsx` -> `AppRoutes`).
+ */
+export function AppRoutes() {
   return (
-    <SiteContentProvider>
-    <BrowserRouter>
       <Routes>
         <Route element={<SiteLayout />}>
           <Route path="/" element={<HomePage />} />
@@ -37,7 +41,15 @@ export default function App() {
           <Route path="*" element={<section className="mx-auto max-w-3xl px-6 py-24"><p className="mb-4 text-accent">404</p><h1 className="mb-4 text-4xl font-semibold">Хуудас олдсонгүй</h1><p className="mb-8 text-graphite-300">Холбоос өөрчлөгдсөн эсвэл буруу хаягаар орсон байна.</p><Link className="action-primary" to="/">Нүүр хуудас руу буцах</Link></section>} />
         </Route>
       </Routes>
-    </BrowserRouter>
+  );
+}
+
+export default function App({ initialContent }) {
+  return (
+    <SiteContentProvider initial={initialContent}>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </SiteContentProvider>
   );
 }
