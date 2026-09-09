@@ -5,8 +5,11 @@ import { Button } from '../components/ui';
 
 /**
  * Google-ээр нэвтрэх — хуучин vanilla admin-web-тэй ЯГ ИЖИЛ урсгал
- * (`signInWithOAuth`, `prompt: select_account`, буцах хаяг нь
- * `/gennetex/admin`).
+ * (`signInWithOAuth`, `prompt: select_account`).
+ *
+ * Буцах хаяг нь `BASE_URL`-ээс гардаг тул admin.gennetex.com дээр «/»,
+ * харин gennetex.com дээр «/gennetex/admin/» болно — нэг код хоёр
+ * байрлалд зөв ажиллана.
  *
  * ⚠️ Нэвтрэлтгүйгээр бүх RPC нь `is_admin_user()` шалгалт дээр унадаг
  * тул өгөгдөл ОГТ харагдахгүй. Тиймээс энэ дэлгэц заавал хэрэгтэй.
@@ -26,7 +29,7 @@ export default function LoginPage({ error }: { error?: string | null }) {
       const { error: e } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${location.origin}/gennetex/admin`,
+          redirectTo: `${location.origin}${import.meta.env.BASE_URL}`,
           queryParams: { prompt: 'select_account' },
         },
       });
