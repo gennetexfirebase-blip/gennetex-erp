@@ -64,6 +64,18 @@ export default function App() {
               element={<LegacyModule view={m.view} title={m.label} />}
             />
           ))}
+          {/* Анхны загварын панел — glass загвар (admin-ui.css) орж
+              ирэхээс өмнөх сүүлчийн хувилбар. */}
+          <Route
+            path="/legacy-v1"
+            element={
+              <LegacyModule
+                view="dashboard"
+                title="Анхны загвар (v1.3.10)"
+                base="/gennetex/admin-v1/"
+              />
+            }
+          />
           <Route path="/legacy" element={<LegacyPage />} />
           <Route path="/more/help" element={<Placeholder title="Тусламж" />} />
 

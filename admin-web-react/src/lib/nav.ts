@@ -126,5 +126,6 @@ export const NAV: NavItem[] = [
     icon: Boxes,
     children: LEGACY_MODULES.map((m) => ({ label: m.label, to: `/legacy/${m.view}` })),
   },
+  { label: 'Анхны загвар (v1.3.10)', to: '/legacy-v1', icon: ExternalLink },
   { label: 'Хуучин панел (бүтнээр)', to: '/legacy', icon: ExternalLink },
 ];

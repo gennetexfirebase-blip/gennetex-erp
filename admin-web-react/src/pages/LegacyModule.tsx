@@ -12,8 +12,17 @@ import { PageHeader, Button } from '../components/ui';
  * дуудлага, аялал, түлш, гэрээ, лог…) шинэ панелийн цэснээс нэг дор
  * гарч ирнэ — өгөгдөл нь ижил, нэг л Supabase сан.
  */
-export default function LegacyModule({ view, title }: { view: string; title: string }) {
-  const src = `/gennetex/admin-legacy/?embed=1#${view}`;
+export default function LegacyModule({
+  view,
+  title,
+  base = '/gennetex/admin-legacy/',
+}: {
+  view: string;
+  title: string;
+  /** Аль хуучин панелаас дуудах вэ — одоогийнх эсвэл анхны загвар (v1). */
+  base?: string;
+}) {
+  const src = `${base}?embed=1#${view}`;
 
   return (
     <>
@@ -23,7 +32,7 @@ export default function LegacyModule({ view, title }: { view: string; title: str
         actions={
           <Button
             icon={<ExternalLink size={15} />}
-            onClick={() => window.open(`/gennetex/admin-legacy/#${view}`, '_blank', 'noopener')}
+            onClick={() => window.open(`${base}#${view}`, '_blank', 'noopener')}
           >
             Шинэ цонхонд нээх
           </Button>
