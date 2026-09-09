@@ -15,7 +15,7 @@ import { PageHeader, Button } from '../components/ui';
 export default function LegacyModule({
   view,
   title,
-  base = '/gennetex/admin-legacy/',
+  base = '/gennetex/admin-v1/',
 }: {
   view: string;
   title: string;

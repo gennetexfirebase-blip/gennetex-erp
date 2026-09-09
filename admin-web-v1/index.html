@@ -587,6 +587,15 @@
     .last-sync{font-size:11px;white-space:nowrap}
     @media(max-width:900px){.last-sync{display:none}.card-h .tbl-search input{width:110px}}
   </style>
+  <style id="embed-mode">
+    /* Шинэ React панел дотор iframe-ээр суусан үед (?embed=1):
+       энэ панелийн хажуугийн цэс, дээд мөрийг нууж, зөвхөн модулийн
+       агуулгыг үлдээнэ — нэг л панел мэт харагдана. */
+    body.embedded .side{display:none}
+    body.embedded .topbar{display:none}
+    body.embedded .main{margin-left:0}
+    body.embedded .content{padding-top:20px}
+  </style>
 </head>
 <body class="antialiased transition-colors duration-300">
   <button type="button" class="theme-fab" id="themeToggleGlobal" title="Гэрэл / Харанхуй горим">
@@ -1189,7 +1198,7 @@
       document.body.classList.add('logged-in');
       $('login').style.display='none'; $('app').style.display='block';
       initShellUi();
-      go('dashboard'); startRefresh();
+      go(initialView()); startRefresh();
     }
     const doLogout=async()=>{ await sb.auth.signOut(); location.reload(); };
     $('logoutBtn').onclick=doLogout;
@@ -1219,6 +1228,22 @@
       render();
     }
     window.go=go;
+
+    /* ===== Гүн холбоос (deep-link) =====
+       Шинэ панел энэ панелийн модулиудыг
+       /gennetex/admin-v1/?embed=1#inventory  хэлбэрээр дуудна. */
+    function viewFromHash(){
+      const v=(location.hash||'').replace(/^#/,'').trim();
+      return Object.prototype.hasOwnProperty.call(TITLES,v)?v:'';
+    }
+    function initialView(){ return viewFromHash()||'dashboard'; }
+    window.addEventListener('hashchange',()=>{
+      const v=viewFromHash();
+      if(v&&v!==view) go(v);
+    });
+    if(new URLSearchParams(location.search).get('embed')==='1'){
+      document.body.classList.add('embedded');
+    }
 
     // ===== Data =====
     function startRefresh(){ loadAll(); if(timer)clearInterval(timer); timer=setInterval(()=>loadAll(true),15000); }
