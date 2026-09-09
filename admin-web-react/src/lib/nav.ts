@@ -31,6 +31,31 @@ export type NavItem = {
   children?: NavChild[];
 };
 
+
+/** Хуучин панел дээр л байдаг модулиуд — шинэ панел дотор iframe-ээр ажиллана. */
+export const LEGACY_MODULES: { view: string; label: string }[] = [
+  { view: 'workperformance', label: 'Ажилчдын гүйцэтгэл' },
+  { view: 'applications', label: 'Ажлын байрны анкет' },
+  { view: 'contracts', label: 'Хөдөлмөрийн гэрээ' },
+  { view: 'devices', label: 'Төхөөрөмж зөвшөөрөл' },
+  { view: 'aiappusage', label: 'AI апп хэрэглээ' },
+  { view: 'aiperformance', label: 'AI гүйцэтгэл' },
+  { view: 'visits', label: 'Очсон лог' },
+  { view: 'vehicles', label: 'Машины мэдээлэл солих' },
+  { view: 'fuelconsumption', label: 'Бензин зарцуулалт' },
+  { view: 'trips', label: 'Аялал' },
+  { view: 'companions', label: 'Хамт яваа багууд' },
+  { view: 'servicecalls', label: 'Дуудлага' },
+  { view: 'sitework', label: 'Ажлын байр' },
+  { view: 'inventory', label: 'Агуулах' },
+  { view: 'usage', label: 'Барааны хэрэглээ' },
+  { view: 'feedposts', label: 'Gennetex Post' },
+  { view: 'meetings', label: 'Хурал' },
+  { view: 'livestreams', label: 'Live stream хянах' },
+  { view: 'activitylogs', label: 'Нийт лог' },
+  { view: 'excelarchive', label: 'Excel архив' },
+];
+
 /** timely_clone_prompt.md §7 — sidebar навигацийн бүрэн мод. */
 export const NAV: NavItem[] = [
   { label: 'Нүүр', to: '/home', icon: Home },
@@ -96,5 +121,10 @@ export const NAV: NavItem[] = [
   // (агуулах, багаж, дуудлага, аялал, түлш, санал гомдол…).
   // Шинэ панел бэлэн болтол ажил зогсохгүй байхын тулд шууд холбоно.
   { label: 'Багаж олголт', to: '/stock-issues', icon: Package },
-  { label: 'Хуучин панел', to: '/legacy', icon: ExternalLink },
+  {
+    label: 'Хуучин модулиуд',
+    icon: Boxes,
+    children: LEGACY_MODULES.map((m) => ({ label: m.label, to: `/legacy/${m.view}` })),
+  },
+  { label: 'Хуучин панел (бүтнээр)', to: '/legacy', icon: ExternalLink },
 ];

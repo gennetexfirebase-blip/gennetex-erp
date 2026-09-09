@@ -12,6 +12,8 @@ import Placeholder from './pages/Placeholder';
 import LegacyPage from './pages/Legacy';
 import StockIssuesPage from './pages/StockIssues';
 import SiteContentPage from './pages/SiteContent';
+import LegacyModule from './pages/LegacyModule';
+import { LEGACY_MODULES } from './lib/nav';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -25,7 +27,7 @@ export default function App() {
 
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/report/daily" element={<AttendancePage />} />
-          <Route path="/report/employee" element={<Placeholder title="Тайлан — Ажилтнаар" />} />
+          <Route path="/report/employee" element={<LegacyModule view="reports" title="Тайлан — Ажилтнаар" />} />
           <Route path="/report/general" element={<AttendancePage />} />
 
           <Route path="/request" element={<RequestsPage />} />
@@ -35,11 +37,11 @@ export default function App() {
           <Route path="/location" element={<LocationsPage />} />
 
           <Route path="/internal/notify" element={<Placeholder title="Мэдэгдэл илгээх" />} />
-          <Route path="/internal/news" element={<Placeholder title="Мэдээ" />} />
+          <Route path="/internal/news" element={<LegacyModule view="feedposts" title="Мэдээ — Gennetex Post" />} />
           <Route path="/internal/poll" element={<Placeholder title="Санал хураалт" />} />
           <Route path="/internal/work-report" element={<Placeholder title="Ажлын тайлан" />} />
-          <Route path="/internal/sent-locations" element={<Placeholder title="Илгээсэн байршил" />} />
-          <Route path="/internal/feedback" element={<Placeholder title="Санал хүсэлт" />} />
+          <Route path="/internal/sent-locations" element={<LegacyModule view="visits" title="Илгээсэн байршил / Очсон лог" />} />
+          <Route path="/internal/feedback" element={<LegacyModule view="feedback" title="Санал хүсэлт / гомдол" />} />
           <Route path="/internal/safety" element={<Placeholder title="ХАБ" />} />
 
           <Route path="/aux/survey" element={<Placeholder title="Дотоод судалгаа" />} />
@@ -53,6 +55,15 @@ export default function App() {
           <Route path="/more/billing" element={<Placeholder title="Төлбөр" />} />
           <Route path="/more/market" element={<Placeholder title="Маркет" />} />
           <Route path="/stock-issues" element={<StockIssuesPage />} />
+          {/* Хуучин панелийн модулиуд — nav.ts дахь жагсаалтаас автоматаар
+              route үүсгэнэ. Ингэснээр цэс ба route хоёр хэзээ ч зөрөхгүй. */}
+          {LEGACY_MODULES.map((m) => (
+            <Route
+              key={m.view}
+              path={`/legacy/${m.view}`}
+              element={<LegacyModule view={m.view} title={m.label} />}
+            />
+          ))}
           <Route path="/legacy" element={<LegacyPage />} />
           <Route path="/more/help" element={<Placeholder title="Тусламж" />} />
 
