@@ -78,6 +78,15 @@ export const SITE_ROUTES = [
     ssr: true,
   },
   {
+    // Vercel нь олдоогүй замд `dist/404.html`-ийг автоматаар үзүүлдэг.
+    // Ингэснээр rewrite шаардлагагүйгээр сайтын өөрийн 404 гарна.
+    path: '/404',
+    file: '404.html',
+    title: 'Хуудас олдсонгүй — Gennetex',
+    description: 'Хайсан хуудас олдсонгүй.',
+    ssr: true,
+  },
+  {
     path: '/support',
     file: 'support/index.html',
     title: 'Тусламж — Gennetex',
