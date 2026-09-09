@@ -73,5 +73,18 @@
       "source": "/((?!gennetex/|app/|app$|assets/).*)",
       "destination": "/index.html"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "missing": [
+        {
+          "type": "host",
+          "value": "(www\\.)?gennetex\\.com"
+        }
+      ],
+      "destination": "https://gennetex.com/$1",
+      "permanent": true
+    }
   ]
 }
