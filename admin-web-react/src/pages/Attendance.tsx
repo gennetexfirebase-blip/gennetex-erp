@@ -2,13 +2,23 @@ import { useMemo, useState } from 'react';
 import { Calendar, Filter, RotateCw, FileSpreadsheet, Download } from 'lucide-react';
 import { PageHeader, Card, Button, Input, Select, Avatar, EmptyState, Loading, ErrorState, Badge } from '../components/ui';
 import ExcelIcon from '../components/ExcelIcon';
-import { fetchAttendanceToday, fetchDepartments, useAsync, type AttendanceRow } from '../lib/data';
+import {
+  DEFAULT_COMPANY_SETTINGS,
+  companyLateFromLabel,
+  companyWorkStartLabel,
+  fetchAttendanceToday,
+  fetchCompanySettings,
+  fetchDepartments,
+  formatAttendanceMinutes,
+  useAsync,
+  type AttendanceRow,
+} from '../lib/data';
 import AttendanceDetailDrawer from '../components/AttendanceDetailDrawer';
 import ExcelPreviewModal from '../components/ExcelPreviewModal';
 import { downloadDailyExcel } from '../lib/attendanceExport';
 
 const STATUS_LABEL: Record<string, string> = {
-  on_time: 'Ирсэн',
+  on_time: 'Цагтаа ирсэн',
   late: 'Хоцорсон',
   absent: 'Тасалсан',
   early_leave: 'Эрт явсан',
@@ -44,6 +54,11 @@ export default function AttendancePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const { data: departments } = useAsync(fetchDepartments, [], [] as any[]);
+  const { data: companySettings } = useAsync(
+    () => fetchCompanySettings().catch(() => DEFAULT_COMPANY_SETTINGS),
+    [],
+    DEFAULT_COMPANY_SETTINGS
+  );
   const { data: rows, loading, error, reload } = useAsync<AttendanceRow[]>(
     () => fetchAttendanceToday(date, deptId || null),
     [date, deptId],
@@ -65,7 +80,7 @@ export default function AttendancePage() {
     const by = (s: string) => rows.filter((r) => r.status === s).length;
     return [
       { key: 'all', label: 'Бүгд', value: rows.length },
-      { key: 'on_time', label: 'Ирсэн', value: by('on_time') },
+      { key: 'on_time', label: 'Цагтаа', value: by('on_time') },
       { key: 'late', label: 'Хоцорсон', value: by('late') },
       { key: 'absent', label: 'Тасалсан', value: by('absent') },
       { key: 'leave', label: 'Чөлөөтэй', value: by('leave') },
@@ -102,6 +117,10 @@ export default function AttendancePage() {
           </>
         }
       />
+
+      <div className="mb-5 rounded-[var(--radius)] border border-brand/25 bg-brand-soft px-4 py-3 text-[13px] font-medium text-brand">
+        Ирэх цаг {companyWorkStartLabel(companySettings)} · {companyWorkStartLabel(companySettings)} хүртэл цагтаа · {companyLateFromLabel(companySettings)}-ээс хоцорсон гэж тооцно.
+      </div>
 
       {/* KPI картууд */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -216,9 +235,9 @@ export default function AttendancePage() {
                     <td className="px-4 py-3 text-ink">{hhmm(r.check_out_at)}</td>
                     <td className="px-4 py-3">
                       {r.late_minutes ? (
-                        <span className="font-semibold text-danger">{r.late_minutes}м</span>
+                        <span className="font-semibold text-danger">{formatAttendanceMinutes(r.late_minutes)}</span>
                       ) : r.early_leave_minutes ? (
-                        <span className="font-semibold text-warning">-{r.early_leave_minutes}м</span>
+                        <span className="font-semibold text-warning">-{formatAttendanceMinutes(r.early_leave_minutes)}</span>
                       ) : (
                         <span className="text-subtle">--</span>
                       )}

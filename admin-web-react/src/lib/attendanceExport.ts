@@ -1,10 +1,6 @@
 // Хуваалцсан JS модулиуд — mobile апптай НЭГ эх сурвалж, тиймээс хоёр
 // талаас татсан Excel яг ижил гарна.
 //
-// ⚠️ `xlsx-chart.js` нь UMD (CommonJS + global) бөгөөд ESM `default`
-// export ГАРГАДАГГҮЙ. Metro нь interop хийдэг ч Rollup хийдэггүй тул
-// side-effect-ээр ачаалаад `globalThis.XlsxChart`-аас уншина.
-import '../../../admin-web/xlsx-chart.js';
 import {
   buildDailyAttendanceSheets,
   sheetsToPreview,
@@ -13,7 +9,13 @@ import {
 import type { AttendanceRow } from './data';
 
 type XlsxChartApi = { build: (o: unknown) => Uint8Array };
-const XlsxChart = (globalThis as unknown as { XlsxChart: XlsxChartApi }).XlsxChart;
+
+async function loadXlsxChart() {
+  // Тайлан татах хүртэл том OOXML угсрагчийг үндсэн bundle-д оруулахгүй.
+  // UMD модуль тул dynamic import-ийн дараа globalThis-ээс API-г авна.
+  await import('../../../admin-web/xlsx-chart.js');
+  return (globalThis as unknown as { XlsxChart: XlsxChartApi }).XlsxChart;
+}
 
 export type Sheet = { name: string; rows: (string | number)[][] };
 export type Preview = { header: string[]; body: (string | number)[][]; sheetName: string };
@@ -33,7 +35,8 @@ export function toPreview(sheets: Sheet[]): Preview {
  * татуулна. Мобайл тал ЯГ ижил bytes-ыг файл болгож хадгалдаг тул хоёр
  * талаас татсан файл ялгаагүй.
  */
-export function downloadDailyExcel(date: string, rows: AttendanceRow[]) {
+export async function downloadDailyExcel(date: string, rows: AttendanceRow[]) {
+  const XlsxChart = await loadXlsxChart();
   const bytes = XlsxChart.build({ sheets: dailySheets(date, rows) });
   // `Uint8Array<ArrayBufferLike>`-ийг Blob хүлээж авахын тулд ArrayBuffer
   // болгож хуулна (TS-ийн шинэ lib дээр шууд дамжуулахыг зөвшөөрдөггүй).
@@ -52,7 +55,8 @@ export function downloadDailyExcel(date: string, rows: AttendanceRow[]) {
 }
 
 /** Багаж/бараа олголтын тайланг .xlsx болгож татна. */
-export function downloadStockExcel(from: string, to: string, rows: unknown[]) {
+export async function downloadStockExcel(from: string, to: string, rows: unknown[]) {
+  const XlsxChart = await loadXlsxChart();
   const bytes = XlsxChart.build({ sheets: buildStockIssueSheets({ from, to, rows }) });
   const blob = new Blob([new Uint8Array(bytes).buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

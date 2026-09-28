@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSiteContent } from '../context/SiteContentContext';
+import { COMPANY_COPY } from '../data/companyProfile';
 
 /**
  * Тогтмол (fixed) шилэн навигаци.
@@ -23,13 +24,16 @@ function CloverMark({ className = '' }) {
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
-  const { navbar } = useSiteContent();
+  const { pathname, hash } = useLocation();
+  const { navbar, language, setLanguage } = useSiteContent();
+  const isEn = language === 'en';
+  const sectionIds = ['introduction', 'values', 'activities', 'experience', 'partners', 'projects', 'contact'];
+  const links = COMPANY_COPY[language].nav.map((label, index) => ({ label, to: `/#${sectionIds[index]}` }));
   const menuButton = useRef(null);
 
   useEffect(() => {
     setOpen(false);
-  }, [pathname]);
+  }, [pathname, hash]);
 
   useEffect(() => {
     if (!open) return;
@@ -45,12 +49,12 @@ export default function Navbar() {
 
   return (
     <nav
-      aria-label="Үндсэн цэс"
-      className="fixed left-0 top-0 z-50 w-full bg-gradient-to-b from-[#f1f1f1]/80 to-transparent py-6 backdrop-blur-[2px] md:py-8"
+      aria-label={isEn ? 'Main navigation' : 'Үндсэн цэс'}
+      className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-[#f5f6f8]/95 py-4 backdrop-blur-xl"
     >
-      <div className="mx-auto grid max-w-7xl grid-cols-12 items-center gap-x-4 px-6 md:px-10 lg:px-16">
+      <div className="mx-auto grid max-w-7xl grid-cols-12 items-center gap-x-2 gap-y-4 px-4 md:px-10 lg:px-16">
         {/* 1–3 · брэнд */}
-        <div className="col-span-6 flex items-center gap-2 md:col-span-3">
+        <div className="col-span-6 flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2">
             <CloverMark className="h-6 w-6 md:h-7 md:w-7" />
             <span className="font-display text-lg font-medium tracking-tight text-ink md:text-xl">
@@ -60,9 +64,9 @@ export default function Navbar() {
         </div>
 
         {/* 4–9 · цэс (зөвхөн дэлгэц дээр) */}
-        <div className="col-span-6 hidden items-center justify-center gap-7 lg:flex">
-          {navbar.links.map((link) => {
-            const active = pathname === link.to;
+        <div className="order-3 col-span-12 hidden items-center justify-between gap-4 lg:flex">
+          {links.map((link) => {
+            const active = `${pathname}${hash}` === link.to;
             return (
               <Link
                 key={link.to}
@@ -72,33 +76,24 @@ export default function Navbar() {
                   active ? 'text-ink' : 'text-zinc-500 hover:text-ink'
                 }`}
               >
-                {link.label.toLowerCase()}
+                {link.label}
               </Link>
             );
           })}
         </div>
 
         {/* 10–12 · үйлдэл */}
-        <div className="col-span-6 flex items-center justify-end gap-3 md:col-span-3">
-          <Link
-            to="/contact"
-            className="hidden text-[13px] text-zinc-500 transition-colors hover:text-ink lg:inline"
-          >
-            холбоо барих
-          </Link>
-          <a
-            href="https://cv.gennetex.com"
-            className="hidden items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[13px] font-medium text-white transition-transform hover:-translate-y-px sm:inline-flex"
-          >
-            {navbar.ctaCareers} <span aria-hidden="true">→</span>
-          </a>
+        <div className="col-span-6 flex items-center justify-end gap-2">
+          <div className="flex rounded-full border border-black/10 bg-white/80 p-1" role="group" aria-label="Language">
+            {['mn', 'en'].map(value => <button key={value} type="button" aria-pressed={language === value} onClick={() => setLanguage(value)} className={`rounded-full px-2.5 py-2 text-xs font-semibold ${language === value ? 'bg-ink text-white' : 'text-zinc-600 hover:bg-black/5'}`}>{value.toUpperCase()}</button>)}
+          </div>
 
           <button
             ref={menuButton}
             type="button"
             aria-expanded={open}
             aria-controls="public-mobile-nav"
-            aria-label={open ? 'Цэс хаах' : 'Цэс нээх'}
+            aria-label={isEn ? (open ? 'Close menu' : 'Open menu') : (open ? 'Цэс хаах' : 'Цэс нээх')}
             onClick={() => setOpen((v) => !v)}
             className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/70 backdrop-blur lg:hidden"
           >
@@ -134,7 +129,7 @@ export default function Navbar() {
             className="mx-6 mt-4 rounded-2xl border border-black/10 bg-white/90 p-3 shadow-lg backdrop-blur-xl lg:hidden"
           >
             <div className="flex flex-col">
-              {navbar.links.map((link) => (
+              {links.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
@@ -143,12 +138,6 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <a
-                href="https://cv.gennetex.com"
-                className="mt-2 flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white"
-              >
-                {navbar.ctaCareers} <span aria-hidden="true">→</span>
-              </a>
             </div>
           </motion.div>
         ) : null}

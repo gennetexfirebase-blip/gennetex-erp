@@ -13,6 +13,8 @@ type Profile = {
   avatar_url?: string | null;
   email?: string | null;
   role?: string | null;
+  department_id?: string | null;
+  permissions?: Record<string, boolean> | null;
 };
 
 /** Админ эрх — `role_rank() >= 3` -тэй ижил дүрэм (админ, хөгжүүлэгч). */
@@ -48,7 +50,7 @@ export default function Layout() {
       }
       const { data: p } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, email, role')
+        .select('id, name, avatar_url, email, role, department_id, permissions')
         .eq('id', uid)
         .maybeSingle();
       if (cancelled) return;
@@ -122,7 +124,7 @@ export default function Layout() {
           onSignOut={() => supabase.auth.signOut().then(() => window.location.reload())}
         />
         <main className="flex-1 px-4 pb-8 pt-2 lg:px-8">
-          <Outlet />
+        <Outlet context={{ profile }} />
         </main>
         <footer className="px-6 py-6 text-center text-[12px] text-subtle">
           © Developed by <span className="text-danger">♥</span> GENNETEX

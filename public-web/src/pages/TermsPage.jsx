@@ -1,23 +1,28 @@
 /**
  * Үйлчилгээний нөхцөл — /terms
  *
- * Microsoft Teams Developer Portal-д шаардагдах public хуудас.
- * Нэвтрэлт шаардахгүй (vercel.json дээр rewrite нэмсэн).
+ * Нэвтрэлт шаардахгүй үйлчилгээний нөхцөлийн public хуудас.
  */
 import PageHeader from '../components/PageHeader';
 import { LegalBody, LegalList, LegalNote, LegalSection } from '../components/LegalContent';
 import useDocumentMeta from '../lib/useDocumentMeta';
 import { absoluteUrl, APP_INFO } from '../lib/siteUrl';
+import { useSiteContent } from '../context/SiteContentContext';
+import TermsEnglish from './TermsEnglish';
 
 const UPDATED_AT = '2026-08-17';
 
 export default function TermsPage() {
+  const { language } = useSiteContent();
   useDocumentMeta({
-    title: 'Үйлчилгээний нөхцөл — Gennetex ERP',
-    description:
-      'Gennetex ERP системийг ашиглах нөхцөл: хэрэглэгчийн эрх үүрэг, Microsoft Teams integration, аюулгүй байдал, хариуцлага.',
+    title: language === 'en' ? 'Terms of Service — Gennetex ERP' : 'Үйлчилгээний нөхцөл — Gennetex ERP',
+    description: language === 'en'
+      ? 'Terms for using Gennetex ERP, including account responsibilities, work communications, security, and access rights.'
+      : 'Gennetex ERP системийг ашиглах нөхцөл: хэрэглэгчийн эрх үүрэг, ажлын харилцаа, аюулгүй байдал, хариуцлага.',
     canonical: absoluteUrl('/terms'),
   });
+
+  if (language === 'en') return <TermsEnglish updatedAt={UPDATED_AT} />;
 
   return (
     <>
@@ -40,7 +45,7 @@ export default function TermsPage() {
         <LegalSection index={2} title="Бүртгэл ба нэвтрэлт">
           <LegalList
             items={[
-              'Нэвтрэх эрхээ (Microsoft / Google бүртгэл) бусдад дамжуулахыг ХОРИГЛОНО.',
+              'Нэвтрэх эрхээ (Google, Apple эсвэл байгууллагаас олгосон данс) бусдад дамжуулахыг ХОРИГЛОНО.',
               'Нэг хэрэглэгчийн бүртгэлийг олон хүн хамтран ашиглахгүй.',
               'Бүртгэл алдагдсан, зөвшөөрөлгүй хандалт илэрсэн тохиолдолд нэн даруй администраторт мэдэгдэнэ.',
               'Хэрэглэгчийн бүртгэлээр хийгдсэн үйлдлийн хариуцлагыг тухайн хэрэглэгч хүлээнэ.',
@@ -48,18 +53,16 @@ export default function TermsPage() {
           />
         </LegalSection>
 
-        <LegalSection index={3} title="Microsoft Teams integration">
+        <LegalSection index={3} title="Аппын доторх ажлын харилцаа">
           <p>
-            Байгууллага Teams integration-ийг идэвхжүүлсэн тохиолдолд систем нь Microsoft
-            Graph API-аар дамжуулан зөвшөөрөгдсөн Teams chat, group chat болон багийн
-            мэдээлэлтэй холбогдоно. Үүнийг ашиглахдаа:
+            Системийн чат, дуудлага болон ажлын мэдээллийг ашиглахдаа:
           </p>
           <LegalList
             items={[
-              'Microsoft-ийн Terms of Use болон байгууллагын IT журмыг дагаж мөрдөнө.',
+              'Байгууллагын дотоод журам, мэдээллийн аюулгүй байдлын шаардлагыг дагана.',
               'Зөвхөн ажлын зорилгоор ашиглана.',
-              'Teams-ийн харилцааны мэдээллийг зөвшөөрөлгүй хуулбарлах, гадагш тараахыг хориглоно.',
-              'Administrator зөвшөөрлийг цуцалсан тохиолдолд integration нэн даруй зогсоно.',
+              'Харилцааны мэдээллийг зөвшөөрөлгүй хуулбарлах, гадагш тараахыг хориглоно.',
+              'Администратор нэвтрэх эрхийг цуцалсан тохиолдолд системийн хандалт зогсоно.',
             ]}
           />
         </LegalSection>
@@ -119,7 +122,7 @@ export default function TermsPage() {
         <LegalSection index={8} title="Үйлчилгээний тасралтгүй байдал">
           <p>
             Бид системийг тогтвортой ажиллуулахыг эрмэлзэнэ. Гэвч засвар үйлчилгээ,
-            шинэчлэлт, гуравдагч талын үйлчилгээний доголдол (Microsoft, үүлэн
+            шинэчлэлт, гуравдагч талын үйлчилгээний доголдол (үүлэн
             үйлчилгээ, сүлжээ) зэрэг шалтгаанаар түр завсарлага гарч болно. Ийм
             завсарлагаас үүдэн гарсан шууд бус хохирлыг хариуцахгүй.
           </p>
@@ -130,7 +133,7 @@ export default function TermsPage() {
             items={[
               'Бүх холболт HTTPS/TLS шифрлэлттэй.',
               'Хандалт нь эрхийн түвшин болон харьяа хэлтсээр хязгаарлагдана.',
-              'Нууц үг хадгалдаггүй — Microsoft/Google-ийн нэвтрэлтийг ашиглана.',
+              'Нууц үгийг ил текстээр хадгалдаггүй — нэвтрэлтийг Supabase Auth удирдана.',
               'Чухал үйлдлүүд лог хийгдэнэ.',
             ]}
           />

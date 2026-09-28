@@ -8,7 +8,6 @@ import {
   Building2,
   CalendarDays,
   MapPin,
-  ExternalLink,
   Activity,
   MessageSquare,
   ClipboardList,
@@ -31,6 +30,11 @@ import {
   Radio,
   History,
   Table2,
+  BadgeCheck,
+  Send,
+  Settings2,
+  BellRing,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -69,6 +73,7 @@ export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon }[]
   { view: 'visits', label: 'Очсон лог', icon: HomeIcon },
   { view: 'vehicles', label: 'Машины мэдээлэл солих', icon: QrCode },
   { view: 'fuelconsumption', label: 'Бензин зарцуулалт', icon: Fuel },
+  { view: 'fuelrefill', label: 'Бензин нөхөж цэнэглэх', icon: Fuel },
   { view: 'trips', label: 'Аялал', icon: Route },
   { view: 'companions', label: 'Хамт яваа багууд', icon: UsersRound },
   { view: 'servicecalls', label: 'Дуудлага', icon: PhoneCall },
@@ -92,6 +97,9 @@ export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon }[]
 export const NAV: NavItem[] = [
   { label: 'Нүүр', to: '/home', icon: Home },
   { label: 'Хянах самбар', to: '/dashboard', icon: LayoutDashboard, isNew: true },
+  { label: 'Анхааруулгын төв', to: '/alerts', icon: BellRing, isNew: true },
+  { label: 'Мэдэгдэл илгээх', to: '/internal/notify', icon: Send, isNew: true },
+  { label: 'Өндөрт ажиллах ХАБЭА', to: '/internal/safety', icon: ShieldCheck, isNew: true },
   { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardCheck },
   {
     label: 'Тайлан',
@@ -107,6 +115,9 @@ export const NAV: NavItem[] = [
   { label: 'Хэлтэс', to: '/department', icon: Building2 },
   { label: 'Хуваарь', to: '/schedule', icon: CalendarDays },
   { label: 'Байршил', to: '/location', icon: MapPin },
+  { label: 'Утас баталгаажуулах', to: '/phone-verification', icon: BadgeCheck, isNew: true },
+  { label: 'SMS илгээх', to: '/outbound-sms', icon: Send, isNew: true },
+  { label: 'Тохиргооны төв', to: '/more/settings', icon: Settings2, isNew: true },
 
   // Хуучин панелийн модулиуд — шууд үндсэн цэсэнд.
   ...LEGACY_MODULES.map((m) => ({
@@ -115,6 +126,4 @@ export const NAV: NavItem[] = [
     icon: m.icon,
   })),
 
-  { label: 'Анхны загвар (v1.3.10)', to: '/legacy-v1', icon: ExternalLink },
-  { label: 'Хуучин панел (бүтнээр)', to: '/legacy', icon: ExternalLink },
 ];

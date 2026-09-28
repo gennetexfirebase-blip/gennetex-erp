@@ -4,7 +4,6 @@
 /.git/
 /.vercel/
 /android/
-/api/
 /assets/
 /dist/
 /dist-web/
@@ -22,3 +21,10 @@
 /tests/
 /expo-tunnel*.log
 /fcm-service-account.json
+
+/.claude/
+/credentials/
+/.env*
+/tmp/
+/google-services.json
+/GoogleService-Info.plist

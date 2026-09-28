@@ -11,8 +11,14 @@ import LocationsPage from './pages/Locations';
 import Placeholder from './pages/Placeholder';
 import LegacyPage from './pages/Legacy';
 import StockIssuesPage from './pages/StockIssues';
+import PhoneVerificationPage from './pages/PhoneVerification';
+import OutboundSmsPage from './pages/OutboundSms';
 import SiteContentPage from './pages/SiteContent';
 import LegacyModule from './pages/LegacyModule';
+import BusinessSettingsPage from './pages/BusinessSettings';
+import OperationalAlertsPage from './pages/OperationalAlerts';
+import NotificationsPage from './pages/Notifications';
+import WorkHeightSafetyPage from './pages/WorkHeightSafety';
 import { LEGACY_MODULES } from './lib/nav';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
@@ -36,13 +42,13 @@ export default function App() {
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/location" element={<LocationsPage />} />
 
-          <Route path="/internal/notify" element={<Placeholder title="Мэдэгдэл илгээх" />} />
+          <Route path="/internal/notify" element={<NotificationsPage />} />
           <Route path="/internal/news" element={<LegacyModule view="feedposts" title="Мэдээ — Gennetex Post" />} />
           <Route path="/internal/poll" element={<Placeholder title="Санал хураалт" />} />
           <Route path="/internal/work-report" element={<Placeholder title="Ажлын тайлан" />} />
           <Route path="/internal/sent-locations" element={<LegacyModule view="visits" title="Илгээсэн байршил / Очсон лог" />} />
           <Route path="/internal/feedback" element={<LegacyModule view="feedback" title="Санал хүсэлт / гомдол" />} />
-          <Route path="/internal/safety" element={<Placeholder title="ХАБ" />} />
+          <Route path="/internal/safety" element={<WorkHeightSafetyPage />} />
 
           <Route path="/aux/survey" element={<Placeholder title="Дотоод судалгаа" />} />
           <Route path="/aux/exam" element={<Placeholder title="Онлайн шалгалт" />} />
@@ -51,10 +57,13 @@ export default function App() {
           <Route path="/payroll/payslip" element={<Placeholder title="Задаргаа илгээх" />} />
 
           <Route path="/site-content" element={<SiteContentPage />} />
-          <Route path="/more/settings" element={<Placeholder title="Тохиргоо" />} />
+          <Route path="/more/settings" element={<BusinessSettingsPage />} />
+          <Route path="/alerts" element={<OperationalAlertsPage />} />
           <Route path="/more/billing" element={<Placeholder title="Төлбөр" />} />
           <Route path="/more/market" element={<Placeholder title="Маркет" />} />
           <Route path="/stock-issues" element={<StockIssuesPage />} />
+          <Route path="/phone-verification" element={<PhoneVerificationPage />} />
+          <Route path="/outbound-sms" element={<OutboundSmsPage />} />
           {/* Хуучин панелийн модулиуд — nav.ts дахь жагсаалтаас автоматаар
               route үүсгэнэ. Ингэснээр цэс ба route хоёр хэзээ ч зөрөхгүй. */}
           {LEGACY_MODULES.map((m) => (

@@ -19,7 +19,17 @@ function deepMerge(base, patch) {
 }
 
 export function mergeSiteContent(partial) {
-  return deepMerge(DEFAULT_SITE_CONTENT, partial || {});
+  const content = deepMerge(DEFAULT_SITE_CONTENT, partial || {});
+  // Keep saved site content compatible with the renamed vacancy.
+  if (Array.isArray(content.careers?.jobOptions)) {
+    content.careers = {
+      ...content.careers,
+      jobOptions: content.careers.jobOptions.map((job) =>
+        job?.title === 'Шончин' ? { ...job, title: 'Кабельчин' } : job
+      ),
+    };
+  }
+  return content;
 }
 
 export async function fetchSiteContent() {

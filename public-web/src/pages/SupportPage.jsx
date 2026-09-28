@@ -18,17 +18,23 @@ import PageHeader from '../components/PageHeader';
 import { LegalBody, LegalList, LegalNote, LegalSection } from '../components/LegalContent';
 import useDocumentMeta from '../lib/useDocumentMeta';
 import { absoluteUrl, APP_INFO } from '../lib/siteUrl';
+import { useSiteContent } from '../context/SiteContentContext';
+import SupportEnglish from './SupportEnglish';
 
 const UPDATED_AT = '2026-08-31';
 const CONTACT = APP_INFO.contactEmail;
 
 export default function SupportPage() {
+  const { language } = useSiteContent();
   useDocumentMeta({
-    title: 'Тусламж — Gennetex ERP',
-    description:
-      'Gennetex ERP аппын тусламж: ирц бүртгэгдэхгүй байх, мэдэгдэл ирэхгүй байх, нэвтэрч чадахгүй байх зэрэг түгээмэл асуудлын шийдэл ба холбоо барих зам.',
+    title: language === 'en' ? 'Support — Gennetex ERP' : 'Тусламж — Gennetex ERP',
+    description: language === 'en'
+      ? 'Gennetex ERP help for attendance, notifications, sign-in, and contacting support.'
+      : 'Gennetex ERP аппын тусламж: ирц бүртгэгдэхгүй байх, мэдэгдэл ирэхгүй байх, нэвтэрч чадахгүй байх зэрэг түгээмэл асуудлын шийдэл ба холбоо барих зам.',
     canonical: absoluteUrl('/support'),
   });
+
+  if (language === 'en') return <SupportEnglish updatedAt={UPDATED_AT} />;
 
   return (
     <>

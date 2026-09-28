@@ -122,7 +122,7 @@ export const DEFAULT_SITE_CONTENT = {
     // Нэг эх сурвалж: доорх жагсаалт нь ХОЁУЛАНГ нь тэжээнэ —
     // хуудсан дээрх "нээлттэй ажлын байр" хэсэг ба анкетын сонголт.
     jobOptions: [
-      { title: 'Шончин', salary: '', location: 'Улаанбаатар', type: 'Бүтэн цаг', text: '' },
+      { title: 'Кабельчин', salary: '', location: 'Улаанбаатар', type: 'Бүтэн цаг', text: '' },
       { title: 'Installer', salary: '', location: 'Улаанбаатар', type: 'Бүтэн цаг', text: '' },
     ],
     sidebarNote:

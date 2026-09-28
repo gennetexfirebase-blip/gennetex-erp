@@ -23,17 +23,26 @@ import PageHeader from '../components/PageHeader';
 import { LegalBody, LegalList, LegalNote, LegalSection } from '../components/LegalContent';
 import useDocumentMeta from '../lib/useDocumentMeta';
 import { absoluteUrl, APP_INFO } from '../lib/siteUrl';
+import { useSiteContent } from '../context/SiteContentContext';
+import DeleteAccountEnglish from './DeleteAccountEnglish';
 
 const UPDATED_AT = '2026-08-21';
 const CONTACT = APP_INFO.contactEmail;
+const REQUEST_EMAIL = `mailto:${CONTACT}?subject=${encodeURIComponent('Gennetex ERP — Бүртгэл устгах хүсэлт')}&body=${encodeURIComponent(
+  'Сайн байна уу,\n\nGennetex ERP аппын бүртгэл болон холбогдох хувийн мэдээллээ устгуулах хүсэлт гаргаж байна.\n\nБүртгэлтэй имэйл:\nОвог нэр:\nБайгууллага:\n\nБаярлалаа.'
+)}`;
 
 export default function DeleteAccountPage() {
+  const { language } = useSiteContent();
   useDocumentMeta({
-    title: 'Бүртгэл устгах — Gennetex ERP',
-    description:
-      'Gennetex ERP аппын бүртгэл болон хувийн мэдээллээ устгуулах хүсэлт гаргах заавар: аппын дотроос устгах, эсвэл и-мэйлээр хүсэлт илгээх.',
+    title: language === 'en' ? 'Delete Account — Gennetex ERP' : 'Бүртгэл устгах — Gennetex ERP',
+    description: language === 'en'
+      ? 'How to request deletion of your Gennetex ERP account and personal data in the app or by email.'
+      : 'Gennetex ERP аппын бүртгэл болон хувийн мэдээллээ устгуулах хүсэлт гаргах заавар: аппын дотроос устгах, эсвэл и-мэйлээр хүсэлт илгээх.',
     canonical: absoluteUrl('/delete-account'),
   });
+
+  if (language === 'en') return <DeleteAccountEnglish updatedAt={UPDATED_AT} />;
 
   return (
     <>
@@ -44,6 +53,16 @@ export default function DeleteAccountPage() {
       />
 
       <LegalBody updatedAt={UPDATED_AT}>
+        <LegalNote>
+          <p>Апп руу нэвтрэхгүйгээр бүртгэл устгуулах хүсэлт гаргаж болно.</p>
+          <a href={REQUEST_EMAIL} className="action-primary mt-4">
+            Устгах хүсэлтийн имэйл бэлдэх
+          </a>
+          <p className="mt-3">Товч таны имэйл аппыг нээнэ. Мэдээллээ бөглөөд өөрөө илгээнэ үү.</p>
+          <p className="mt-2 break-words">
+            Имэйл апп нээгдэхгүй бол {CONTACT} хаягт доорх зааврын дагуу хүсэлтээ илгээнэ үү.
+          </p>
+        </LegalNote>
         <LegalSection index={1} title="Аппын дотроос устгах (хамгийн хурдан)">
           <p>Утсан дээрээ Gennetex ERP аппаа нээгээд:</p>
           <LegalList

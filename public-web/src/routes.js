@@ -50,6 +50,15 @@ export const SITE_ROUTES = [
     ssr: true,
   },
   {
+    path: '/company-profile',
+    file: 'company-profile/index.html',
+    title: 'Компанийн танилцуулга — Gennetex',
+    description: 'Gennetex ХХК-ийн Монгол, Англи хэл дээрх компанийн танилцуулга.',
+    // This compatibility route performs a client-side redirect to /#introduction.
+    // Rendering <Navigate> inside StaticRouter is a no-op and emits a build warning.
+    ssr: false,
+  },
+  {
     path: '/careers',
     file: 'careers/index.html',
     title: 'Ажлын байр — Gennetex',

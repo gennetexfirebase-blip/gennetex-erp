@@ -1,6 +1,12 @@
 import Hero from '../components/Hero';
+import CompanyOverview from '../components/CompanyOverview';
 
-/** Нүүр хуудас — зөвхөн баннер. Хэсгүүдийн жагсаалт нь цэсэнд байдаг тул хассан. */
+/** Нүүр хуудас — танилцуулгын бүх ангилал, хуудас шууд харагдана. */
 export default function HomePage() {
-  return <Hero />;
+  return (
+    <>
+      <Hero />
+      <CompanyOverview />
+    </>
+  );
 }

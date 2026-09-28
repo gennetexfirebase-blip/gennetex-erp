@@ -4,6 +4,17 @@
   "buildCommand": "npm run build --prefix public-web && npm run build --prefix admin-web-react && node scripts/build-vercel.cjs",
   "outputDirectory": "dist-web",
   "framework": null,
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/vehicle-compliance-cron",
+      "schedule": "5 1 * * *"
+    }
+  ],
   "cleanUrls": true,
   "headers": [
     {
@@ -66,8 +77,8 @@
       "destination": "/gennetex/admin/index.html"
     },
     {
-      "source": "/gennetex/admin/((?!assets/).*)",
-      "destination": "/gennetex/admin/index.html"
+      "source": "/gennetex/admin/:path*",
+      "destination": "/gennetex/admin/"
     },
     {
       "source": "/((?!gennetex/|app/|app$|assets/).*)",
@@ -76,11 +87,22 @@
   ],
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "admin.gennetex.com"
+        }
+      ],
+      "destination": "https://admin.gennetex.com/gennetex/admin/",
+      "permanent": false
+    },
+    {
       "source": "/(.*)",
       "missing": [
         {
           "type": "host",
-          "value": "(www\\.)?gennetex\\.com"
+          "value": "((www\\.)?gennetex\\.com|admin\\.gennetex\\.com)"
         }
       ],
       "destination": "https://gennetex.com/$1",

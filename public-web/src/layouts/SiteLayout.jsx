@@ -4,9 +4,12 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export default function SiteLayout({ showFooter = true }) {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const isHome = pathname === '/';
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [pathname]);
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+    else window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname, hash]);
 
   return (
     <div className={isHome ? 'bg-bg-base text-zinc-900' : 'min-h-screen bg-bg-base text-zinc-900'}>

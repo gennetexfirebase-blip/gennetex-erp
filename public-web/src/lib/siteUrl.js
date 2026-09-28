@@ -42,5 +42,5 @@ export const APP_INFO = {
     'Gennetex ERP – ажилтан, ирц, даалгавар, бараа материал болон Microsoft Teams харилцааг нэг дор удирдах байгууллагын систем.',
   longDescription:
     'Gennetex ERP нь байгууллагын ажилтан, ирц, бараа материал, багаж хэрэгсэл, даалгавар болон дотоод харилцааг нэг системээс удирдах зориулалттай ERP платформ юм. Microsoft Teams integration ашиглан зөвшөөрөгдсөн Teams chat, group chat болон байгууллагын харилцааны мэдээлэлтэй холбогдох боломжтой.',
-  contactEmail: 'info@adiya.site',
+  contactEmail: 'adiyasuren1003@gmail.com',
 };

@@ -7,6 +7,7 @@ import AboutPage from './pages/AboutPage';
 import ServicesPage from './pages/ServicesPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ContactPage from './pages/ContactPage';
+import CompanyProfilePage from './pages/CompanyProfilePage';
 const CareersPage = lazy(() => import('./pages/CareersPage'));
 // ⚠️ ДООРХ ГУРВЫГ ХОЁР ДЭЛГҮҮР ЗААВАЛ ШААРДДАГ бөгөөд бүгд НЭВТРЭЛТ
 //    ШААРДАХГҮЙ байх ёстой — шинжээч нэвтрэх эрхгүй тул хаалттай
@@ -33,6 +34,7 @@ export function AppRoutes() {
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/company-profile" element={<CompanyProfilePage />} />
           <Route path="/careers" element={<Suspense fallback={<div role="status" className="px-6 py-24 text-center text-graphite-300">Ажлын байрны мэдээлэл ачаалж байна…</div>}><CareersPage /></Suspense>} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

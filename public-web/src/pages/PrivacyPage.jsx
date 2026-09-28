@@ -16,16 +16,22 @@ import PageHeader from '../components/PageHeader';
 import { LegalBody, LegalList, LegalNote, LegalSection } from '../components/LegalContent';
 import useDocumentMeta from '../lib/useDocumentMeta';
 import { absoluteUrl, APP_INFO } from '../lib/siteUrl';
+import { useSiteContent } from '../context/SiteContentContext';
+import PrivacyEnglish from './PrivacyEnglish';
 
 const UPDATED_AT = '2026-08-17';
 
 export default function PrivacyPage() {
+  const { language } = useSiteContent();
   useDocumentMeta({
-    title: 'Нууцлалын бодлого — Gennetex ERP',
-    description:
-      'Gennetex ERP ямар мэдээлэл цуглуулж, хэрхэн ашиглаж, хамгаалдаг тухай нууцлалын бодлого. Байршил, царай таних, мэдэгдэл болон гуравдагч талын үйлчилгээний тухай.',
+    title: language === 'en' ? 'Privacy Policy — Gennetex ERP' : 'Нууцлалын бодлого — Gennetex ERP',
+    description: language === 'en'
+      ? 'How Gennetex ERP collects, uses, and protects employee data, including location, biometrics, notifications, and third-party services.'
+      : 'Gennetex ERP ямар мэдээлэл цуглуулж, хэрхэн ашиглаж, хамгаалдаг тухай нууцлалын бодлого. Байршил, царай таних, мэдэгдэл болон гуравдагч талын үйлчилгээний тухай.',
     canonical: absoluteUrl('/privacy'),
   });
+
+  if (language === 'en') return <PrivacyEnglish updatedAt={UPDATED_AT} />;
 
   return (
     <>
@@ -82,8 +88,9 @@ export default function PrivacyPage() {
           </LegalNote>
 
           <LegalNote>
-            Бид хэрэглэгчийн НУУЦ ҮГИЙГ хадгалдаггүй. Нэвтрэлт нь Google болон
-            Apple-ийн албан ёсны identity provider-ээр дамжина.
+            Нэвтрэлт Google, Apple эсвэл байгууллагаас олгосон имэйл ба нууц үгээр
+            хийгдэж болно. Нууц үгийг бид ил текстээр хадгалдаггүй; нэвтрэлтийн
+            үйлчилгээг Supabase Auth удирдана.
           </LegalNote>
         </LegalSection>
 
@@ -126,7 +133,7 @@ export default function PrivacyPage() {
           </p>
           <LegalList
             items={[
-              'Нууц үг хадгалдаггүй — identity provider-ийн нэвтрэлтийг ашиглана.',
+              'Нууц үгийг ил текстээр хадгалдаггүй — нэвтрэлтийг Supabase Auth удирдана.',
               'Token хугацаа дуусахад автоматаар хүчингүй болно.',
               'Хэрэглэгч системээс гарахад төхөөрөмж дээрх token устгагдана.',
             ]}
