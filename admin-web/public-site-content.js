@@ -104,7 +104,7 @@
       perksTitle: 'Мэдээлэл',
       perks: ['Инженерийн мэргэжлийн баг', 'Тогтвортой ажлын байр', 'Нийгмийн даатгал'],
       jobOptions: [
-        { title: 'Шончин', salary: '' },
+        { title: 'Кабельчин', salary: '' },
         { title: 'Installer', salary: '' },
       ],
       sidebarNote:
@@ -445,7 +445,7 @@
             area: true,
             rows: 6,
             wide: true,
-            hint: 'Мөр бүр: Шончин | 2,000,000₮',
+            hint: 'Мөр бүр: Кабельчин | 2,000,000₮',
           }) +
           '</div>',
       ) +

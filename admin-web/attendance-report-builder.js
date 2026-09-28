@@ -319,6 +319,83 @@ export function buildStockHoldingSheets({ holders = [], orgName = 'ЖЕННЕТ�
   ];
 }
 
+/**
+ * Агуулахын бүрэн үнэлгээ + орлогын түүх.
+ * Бараа материал, багаж, хангамж БҮГД үнэ болон нийт дүнтэй гарна.
+ */
+export function buildInventoryValueSheets({ inventory = [], receipts = [], orgName = 'ЖЕННЕТЕКС ХХК' }) {
+  const now = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  const fmt = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const stampedAt = fmt(now.toISOString());
+  const valueOf = (it) => (Number(it.quantity) || 0) * (Number(it.price) || 0);
+  const totalValue = inventory.reduce((sum, it) => sum + valueOf(it), 0);
+  const categoryValue = (category) => inventory
+    .filter((it) => (it.category || 'material') === category)
+    .reduce((sum, it) => sum + valueOf(it), 0);
+
+  return [
+    {
+      name: 'Нэгтгэл',
+      rows: [
+        [orgName],
+        ['Агуулахын бараа, материал, багаж, хангамжийн үнэлгээ'],
+        ['Тайлан гаргасан', stampedAt],
+        [],
+        ['Нийт нэр төрөл', inventory.length],
+        ['Нийт үнэлгээ (₮)', totalValue],
+        ['Бараа материалын үнэлгээ (₮)', categoryValue('material')],
+        ['Багажийн үнэлгээ (₮)', categoryValue('tool')],
+        ['Хангамжийн үнэлгээ (₮)', categoryValue('supply')],
+        ['Орлогын бүртгэл', receipts.length],
+      ],
+    },
+    {
+      name: 'Үлдэгдэл ба үнэ',
+      rows: [
+        ['№', 'Ангилал', 'Нэр', 'Размер', 'Нэгж', 'Үлдэгдэл', 'Нэгж үнэ (₮)', 'Нийт үнэ (₮)', 'SKU', 'Байршил', 'Нийлүүлэгч'],
+        ...inventory.map((it, index) => [
+          index + 1,
+          CATEGORY_LABEL[it.category || 'material'] || 'Бараа материал',
+          it.name || '',
+          it.size || '',
+          it.unit || 'ширхэг',
+          Number(it.quantity) || 0,
+          Number(it.price) || 0,
+          valueOf(it),
+          it.sku || '',
+          it.location || '',
+          it.supplier || '',
+        ]),
+      ],
+    },
+    {
+      name: 'Орлогын түүх',
+      rows: [
+        ['№', 'Огноо', 'Ангилал', 'Нэр', 'Тоо', 'Нэгж', 'Нэгж үнэ (₮)', 'Нийт дүн (₮)', 'Нийлүүлэгч', 'Хүлээн авсан', 'Тэмдэглэл'],
+        ...receipts.map((row, index) => [
+          index + 1,
+          fmt(row.received_at || row.created_at),
+          CATEGORY_LABEL[row.category || 'material'] || 'Бараа материал',
+          row.item_name || '',
+          Number(row.quantity) || 0,
+          row.unit || 'ширхэг',
+          Number(row.unit_price) || 0,
+          Number(row.total_amount) || (Number(row.quantity) || 0) * (Number(row.unit_price) || 0),
+          row.supplier || '',
+          row.received_by_name || '',
+          row.note || '',
+        ]),
+      ],
+    },
+  ];
+}
+
 /** Preview-д зориулсан хялбар хүснэгт — эхний хуудсын мөрүүд. */
 export function sheetsToPreview(sheets) {
   /**

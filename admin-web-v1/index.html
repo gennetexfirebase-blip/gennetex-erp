@@ -695,6 +695,7 @@
           <div class="grp">Тээвэр</div>
           <a data-view="vehicles"><span class="material-symbols-outlined">qr_code_scanner</span><span class="t">Машины мэдээлэл солих</span></a>
           <a data-view="fuelconsumption"><span class="material-symbols-outlined">local_gas_station</span><span class="t">Бензин зарцуулалт</span></a>
+          <a data-view="fuelrefill"><span class="material-symbols-outlined">local_gas_station</span><span class="t">Бензин нөхөж цэнэглэх</span></a>
           <a data-view="trips"><span class="material-symbols-outlined">route</span><span class="t">Аялал</span></a>
           <a data-view="companions"><span class="material-symbols-outlined">groups</span><span class="t">Хамт яваа багууд</span></a>
           <a data-view="servicecalls"><span class="material-symbols-outlined">call</span><span class="t">Дуудлага</span></a>
@@ -896,7 +897,7 @@
       return data.publicUrl;
     }
 
-    function invNormCat(cat){ return cat==='tool' ? 'tool' : 'material'; }
+    function invNormCat(cat){ return cat==='tool' ?'tool':cat==='supply' ?'supply':'material'; }
     function isMissingDbCol(error, column){
       const msg=String(error?.message||error?.details||'').toLowerCase();
       const col=String(column||'').toLowerCase();
@@ -1207,7 +1208,7 @@
 
     // ===== Navigation =====
     document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.view));
-    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',workperformance:'Ажилчдын гүйцэтгэл',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
+    const TITLES={dashboard:'Хяналт',employees:'Ажилчид',workperformance:'Ажилчдын гүйцэтгэл',reports:'Ажилтны тайлан',feedback:'Санал гомдол',applications:'Ажлын байрны анкет',publicsite:'Вэб сайт',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмж зөвшөөрөл',aiperformance:'AI гүйцэтгэл',aiappusage:'AI апп хэрэглээ',attendance:'Ирц',location:'Байршил',visits:'Очсон лог',vehicles:'Машины мэдээлэл солих',fuelrefill:'Бензин нөхөж цэнэглэх',fuelconsumption:'Бензин зарцуулалт',trips:'Аялал',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Дуудлага',inventory:'Агуулах',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал',livestreams:'Live stream хянах',activitylogs:'Нийт лог',excelarchive:'Excel архив'};
     let activityFilter={year:new Date().getFullYear(),month:0,day:0,user:''};
     const ACTION_LABEL={login:'Нэвтрэлт',leave_request:'Чөлөө хүсэлт',screen:'Дэлгэц нээсэн',tap:'Даралт',location:'Байршил',face_enroll:'Царай бүртгэл',attendance:'Ирц',inventory:'Бараа/багаж',visit:'Айлд очсон',site_work:'Ажлын байр',service_call:'Дуудлага',other:'Бусад'};
     const fmtLogTime=ts=>{
@@ -1216,7 +1217,7 @@
       const p=n=>String(n).padStart(2,'0');
       return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     };
-    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',workperformance:'Хэдэн баг · өдөрт хэдэн айл · хэр хугацаанд',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
+    const SUBTITLES={dashboard:'ERP удирдлагын тойм',employees:'Ажилтнуудын мэдээлэл',workperformance:'Хэдэн баг · өдөрт хэдэн айл · хэр хугацаанд',reports:'Ажилтны тайлангууд',feedback:'Санал, гомдлын жагсаалт',applications:'Ажилд орох анкетууд',publicsite:'Public вэбсайтын текст засварлах',contracts:'Хөдөлмөрийн гэрээ',devices:'Төхөөрөмжийн зөвшөөрөл',aiperformance:'AI гүйцэтгэлийн дүн шинжилгээ',aiappusage:'Апп хэрэглээний AI тайлан',attendance:'Ирцийн бүртгэл',location:'Real-time байршил',visits:'Айлд очсон лог',vehicles:'QR уншуулж машины мэдээлэл засах · Autobox',fuelrefill:'Машин сонгож түлш нэмэх',fuelconsumption:'Машинаар км · бензиний түвшин (%)',trips:'Аялал, түлш',companions:'Хамт яваа багууд',sitework:'Ажлын байр',servicecalls:'Үйлчилгээний дуудлага',inventory:'Агуулах, бараа',usage:'Барааны хэрэглээ',feedposts:'Gennetex Post удирдлага',meetings:'Хурал удирдлага',livestreams:'Live stream хянах',activitylogs:'Системийн нийт лог',excelarchive:'Excel архив'};
     function go(v){
       if(view==='vehicles'&&v!=='vehicles'){ stopVehicleQrScan(); stopAutoboxPoll(); }
       view=v;
@@ -1287,7 +1288,8 @@
         sb.from('activity_logs').select('*').order('created_at',{ascending:false}).limit(2000),
         sb.from('posts').select('*').order('created_at',{ascending:false}).limit(300),
         sb.from('meetings').select('*').order('started_at',{ascending:false}).limit(100),
-        sb.from('leave_requests').select('*').order('created_at',{ascending:false}).limit(200)
+        sb.from('leave_requests').select('*').order('created_at',{ascending:false}).limit(200),
+        sb.from('inventory_receipts').select('*').order('received_at',{ascending:false}).limit(2000)
       ]);
       const w=pickSbResult(results[0],'profiles');
       const a=pickSbResult(results[1],'attendance');
@@ -1309,6 +1311,7 @@
       // байсан — хуудас ачаалах бүрд илүү нэг хүсэлт явуулж байв.
       const meetings=pickSbResult(results[15],'meetings');
       const lr=pickSbResult(results[16],'leave_requests');
+      const receipts=pickSbResult(results[17],'inventory_receipts');
       if(rep.error){ console.error('employee_reports:', rep.error); toast('Тайлан ачаалахад алдаа: '+rep.error.message); }
       if(w.error){ console.error('profiles:', w.error); toast('Ажилчид ачаалахад алдаа: '+w.error.message); }
       if(mov.error){ console.error('stock_movements:', mov.error); toast('Барааны бүртгэл ачаалахад алдаа: '+mov.error.message); }
@@ -1321,6 +1324,7 @@
       if(posts.error && String(posts.error.message).includes('posts')) toast('Post: migration_feed.sql ажиллуулна уу');
       if(meetings.error && String(meetings.error.message).includes('meetings')) toast('Хурал: migration_meetings.sql ажиллуулна уу');
       if(lr.error && String(lr.error.message).includes('leave_requests')) toast('Чөлөө: migration_leave_requests.sql ажиллуулна уу');
+      if(receipts.error && !String(receipts.error.message).includes('inventory_receipts')) console.error('inventory_receipts:',receipts.error);
       if(inv.error) toast('Агуулах: '+inv.error.message+(String(inv.error.message).includes('category')?' — schema.sql (inventory.category) ажиллуулна уу':''));
       try{
         const ts=todayStart().toISOString();
@@ -1388,7 +1392,7 @@
         tripGroups,tripGroupsToday,tripGroupsArchive,
         siteSessions:sw.data||[],
         serviceCalls:serviceCallsRes.data||[],
-        inventory:inv.data||[],vehicles:(veh.data||[]).map(v=>({...v,driver_name:isSampleName(v.driver_name)?null:v.driver_name})),
+        inventory:inv.data||[],inventoryReceipts:receipts.error?[]:(receipts.data||[]),vehicles:(veh.data||[]).map(v=>({...v,driver_name:isSampleName(v.driver_name)?null:v.driver_name})),
         movements:movements,reports:dropSampleRows(rep.data,['user_name']),
         shifts:dropSampleRows((sh.data||[]).map(s=>({...s,location_name:s.attendance_locations?.name||null})),['user_name']),
         attLocations:al.data||[],breakSchedules:dropSampleRows(br.data,['user_name']),
@@ -1455,6 +1459,7 @@
       if(view==='sitework') return renderSiteWork(c);
       if(view==='servicecalls') return renderServiceCalls(c);
       if(view==='vehicles') return renderVehicles(c);
+      if(view==='fuelrefill') return renderFuelRefill(c);
       if(view==='fuelconsumption') return renderFuelConsumption(c);
       if(view==='inventory') return renderInventory(c);
       if(view==='usage') return renderUsage(c);
@@ -2035,13 +2040,13 @@
       const cutoff=Date.now()-days*86400000;
       const map={};
       (data.vehicles||[]).forEach(v=>{
-        map[v.id||v.plate_number]={plate:v.plate_number,vehicle:v,driver:v.driver_name||'—',liters:0,cost:0,km:0,trips:0,activeLiters:0,activeKm:0,active:false,tank:vehicleTankLiters(v),baseLevel:Number(v.fuel_level_percent??100)};
+        map[v.id||v.plate_number]={plate:v.plate_number,vehicle:v,driver:v.driver_name||'—',liters:0,cost:0,km:0,trips:0,activeLiters:0,activeKm:0,active:false,tank:vehicleTankLiters(v),baseLevel:Number(v.fuel_level_percent??0)};
       });
       (data.trips||[]).forEach(t=>{
         const plate=t.plate_number||'—';
         const veh=findVehicleForTrip(t);
         const key=veh?.id||plate;
-        if(!map[key]) map[key]={plate,vehicle:veh,driver:t.driver_name||veh?.driver_name||'—',liters:0,cost:0,km:0,trips:0,activeLiters:0,activeKm:0,active:false,tank:vehicleTankLiters(veh),baseLevel:Number(veh?.fuel_level_percent??100)};
+        if(!map[key]) map[key]={plate,vehicle:veh,driver:t.driver_name||veh?.driver_name||'—',liters:0,cost:0,km:0,trips:0,activeLiters:0,activeKm:0,active:false,tank:vehicleTankLiters(veh),baseLevel:Number(veh?.fuel_level_percent??0)};
         const row=map[key];
         if(t.status==='active'){
           row.active=true;
@@ -2071,11 +2076,40 @@
       const pct=Math.min(100,Math.max(0,Number(level)||0));
       return `<div class="fuel-tank-viz"><div class="fuel-tank-cap"></div><div class="fuel-tank-body"><div class="fuel-tank-level" style="height:${pct}%;background:${color}"></div><div class="fuel-tank-pct">${pct}%</div></div><div class="muted" style="font-size:11px;margin-top:6px;text-align:center">${remain.toFixed(1)} / ${tank}л</div></div>`;
     }
+    function renderFuelRefill(c){
+      c.innerHTML=`<div class="card">
+        <div class="card-h"><h3>Бензин нөхөж цэнэглэх</h3></div>
+        <div class="card-b">
+          <p class="muted">Машинаа сонгоод цэнэглэсэн мөнгөн дүнгээ оруулна уу. Нэмсэн түлш үлдэгдэл дээр тооцогдоно.</p>
+          <label for="refill_vehicle_select">Машин</label>
+          <select id="refill_vehicle_select"><option value="">Машин сонгох…</option></select>
+          <p id="refill_vehicle_level" class="muted" aria-live="polite"></p>
+          <button id="refill_vehicle_open" type="button" class="btn btn-primary" disabled>Бензин нөхөж цэнэглэх</button>
+        </div></div>`;
+      const select=$('refill_vehicle_select'),button=$('refill_vehicle_open'),level=$('refill_vehicle_level');
+      const rows=fuelStatsByVehicle(30).filter(r=>r.vehicle?.id);
+      for(const row of rows){
+        const option=document.createElement('option');
+        option.value=row.vehicle.id;
+        option.textContent=row.plate+' — '+row.driver;
+        select.appendChild(option);
+      }
+      if(!rows.length) level.textContent='Машин бүртгэгдээгүй байна. Машины мэдээлэл солих цэснээс машин нэмнэ үү.';
+      select.onchange=()=>{
+        const row=rows.find(r=>r.vehicle.id===select.value);
+        button.disabled=!row;
+        level.textContent=row?'Үлдэгдэл: '+row.currentLevel+'% · '+row.remainingLiters.toFixed(1)+' / '+row.tank+' л':'';
+      };
+      button.onclick=()=>{
+        const row=rows.find(r=>r.vehicle.id===select.value);
+        if(row) window.refillVehicleFuel(row.vehicle.id,row.plate);
+      };
+    }
     function renderFuelConsumption(c){
       const rows=fuelStatsByVehicle(30);
       const active=rows.filter(r=>r.active).length;
       const totalKm=rows.reduce((s,r)=>s+r.totalKm,0);
-      const cards=rows.length?`<div class="fuel-fleet-grid">${rows.map(r=>`<div class="fuel-fleet-card"><div class="fuel-fleet-top">${fuelTankVizHtml(r.currentLevel,r.levelColor,r.tank,r.remainingLiters)}<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${mongoliaPlateHtml(r.plate,'sm')}${r.active?'<span class="pill on">Явж байна</span>':''}</div><div class="muted" style="font-size:13px;margin-top:4px">Жолооч: ${r.driver}</div><div style="margin-top:8px;font-size:14px"><b>${r.totalKm.toFixed(1)} км</b> · ${r.periodLiters.toFixed(1)} л зарцуулалт</div><div style="margin-top:4px;font-size:13px;color:${r.levelColor}"><b>${r.currentLevel}%</b> бензин үлдсэн (${r.remainingLiters.toFixed(1)} / ${r.tank} л)</div>${r.cost?`<div class="muted" style="font-size:12px;margin-top:4px">Зардал: ${money(r.cost)}</div>`:''}${r.vehicle?.id?`<button class="btn btn-ghost btn-sm" type="button" style="margin-top:10px" onclick="refillVehicleFuel('${r.vehicle.id}','${String(r.plate).replace(/'/g,"\\'")}')">Сав дүүргэх (100%)</button>`:''}</div></div><div class="fuel-gauge-bar" style="margin-top:12px"><div class="fuel-gauge-fill" style="width:${r.currentLevel}%;background:${r.levelColor}"></div></div></div>`).join('')}</div>`:'<div class="empty" style="padding:32px">Машин эсвэл аяллын бүртгэл алга</div>';
+      const cards=rows.length?`<div class="fuel-fleet-grid">${rows.map(r=>`<div class="fuel-fleet-card"><div class="fuel-fleet-top">${fuelTankVizHtml(r.currentLevel,r.levelColor,r.tank,r.remainingLiters)}<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${mongoliaPlateHtml(r.plate,'sm')}${r.active?'<span class="pill on">Явж байна</span>':''}</div><div class="muted" style="font-size:13px;margin-top:4px">Жолооч: ${r.driver}</div><div style="margin-top:8px;font-size:14px"><b>${r.totalKm.toFixed(1)} км</b> · ${r.periodLiters.toFixed(1)} л зарцуулалт</div><div style="margin-top:4px;font-size:13px;color:${r.levelColor}"><b>${r.currentLevel}%</b> бензин үлдсэн (${r.remainingLiters.toFixed(1)} / ${r.tank} л)</div>${r.cost?`<div class="muted" style="font-size:12px;margin-top:4px">Зардал: ${money(r.cost)}</div>`:''}${r.vehicle?.id?`<button class="btn btn-ghost btn-sm" type="button" style="margin-top:10px" onclick="refillVehicleFuel('${r.vehicle.id}','${String(r.plate).replace(/'/g,"\\'")}')">Нөхөж цэнэглэх</button>`:''}</div></div><div class="fuel-gauge-bar" style="margin-top:12px"><div class="fuel-gauge-fill" style="width:${r.currentLevel}%;background:${r.levelColor}"></div></div></div>`).join('')}</div>`:'<div class="empty" style="padding:32px">Машин эсвэл аяллын бүртгэл алга</div>';
       c.innerHTML=`<div class="stats" style="margin-bottom:16px"><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#b45309">local_gas_station</span><div><div class="v">${rows.length}</div><div class="l">Машин</div></div></div><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#3fcf8e">speed</span><div><div class="v">${active}</div><div class="l">Явж байна</div></div></div><div class="stat stat-card"><span class="material-symbols-outlined" style="color:#0099db">route</span><div><div class="v">${totalKm.toFixed(0)}</div><div class="l">Нийт км (30 хоног)</div></div></div></div>
         <div class="grid2" style="margin-bottom:20px">
           <div class="card"><div class="card-h"><h3>Бензин зарцуулалт (7 хоног)</h3></div><div class="card-b"><div class="dash-chart-wrap" style="height:260px"><canvas id="dashFuelChart"></canvas></div></div></div>
@@ -2085,11 +2119,52 @@
       initDashboardCharts();
     }
     window.refillVehicleFuel=async(id,plate)=>{
-      if(!confirm((plate||'Машин')+' — сав 100% болгох уу?')) return;
-      const {error}=await sb.from('vehicles').update({fuel_level_percent:100,fuel_refilled_at:new Date().toISOString()}).eq('id',id);
-      if(error){ toast('Алдаа: '+error.message); return; }
-      toast('Бензин '+plate+' — 100%');
-      loadAll();
+      if(!(data.vehicles||[]).some(v=>v.id===id)){ toast('Машин олдсонгүй.'); return; }
+      let saving=false;
+      openModal('Бензин нөхөж цэнэглэх',`
+        <p id="refuel_vehicle"></p>
+        <label for="refuel_date">Цэнэглэсэн огноо</label>
+        <input id="refuel_date" type="date" required>
+        <label for="refuel_amount" style="margin-top:16px">Цэнэглэсэн мөнгөн дүн (₮)</label>
+        <input id="refuel_amount" type="number" min="1" step="1" placeholder="Жишээ: 50000">
+        <label for="refuel_price" style="margin-top:16px">Хөнгөлөлттэй 1 литрийн үнэ (₮, заавал биш)</label>
+        <input id="refuel_price" type="number" min="1" step="any" placeholder="Хоосон бол бүртгэлтэй үнээр">
+        <p class="muted">Мөнгөн дүнг литрт шилжүүлж, үлдэгдэл дээр нэмнэ. Цэнэглэлт зардлын түүхэнд хадгалагдана.</p>
+        <p id="refuel_status" role="status" aria-live="polite"></p>`,
+        'Цэнэглэх',async()=>{
+          if(saving) return false;
+          const refuelDate=$('refuel_date').value;
+          const amount=Number($('refuel_amount').value);
+          const priceText=$('refuel_price').value.trim();
+          const price=priceText?Number(priceText):null;
+          const status=$('refuel_status'),button=$('okBtn');
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(refuelDate)){ status.textContent='Цэнэглэсэн огноогоо сонгоно уу.'; return false; }
+          if(refuelDate>$('refuel_date').max){ status.textContent='Ирээдүйн огноо сонгох боломжгүй.'; return false; }
+          if(!Number.isFinite(amount)||amount<=0){ status.textContent='0-ээс их мөнгөн дүн оруулна уу.'; return false; }
+          if(priceText&&(!Number.isFinite(price)||price<=0)){ status.textContent='1 литрийн үнийг зөв оруулна уу.'; return false; }
+          saving=true;button.disabled=true;button.textContent='Хадгалж байна…';
+          try{
+            const {data:result,error}=await sb.rpc('refuel_vehicle_by_amount',{
+              p_vehicle_id:id,p_amount_mnt:amount,p_note:null,p_price_per_liter:price,p_refueled_on:refuelDate
+            });
+            if(error) throw error;
+            const row=Array.isArray(result)?result[0]:result;
+            toast((plate||'Машин')+' — '+Number(row?.liters||0).toFixed(2)+' л цэнэглэлээ');
+            await loadAll();
+            return true;
+          }catch(error){
+            status.textContent=error.hint||error.message||'Цэнэглэлт хадгалж чадсангүй.';
+            return false;
+          }finally{
+            saving=false;button.disabled=false;button.textContent='Цэнэглэх';
+          }
+        });
+      $('refuel_vehicle').textContent=plate||'Машин';
+      const refuelNow=new Date();
+      const refuelToday=new Date(refuelNow.getTime()-refuelNow.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      $('refuel_date').value=refuelToday;
+      $('refuel_date').max=refuelToday;
+      $('refuel_amount').focus();
     };
     function fuelByDayLast7(){
       const counts=Array(7).fill(0);
@@ -2523,6 +2598,21 @@
       ])));
       return [{name:'Гүйлгээ',rows:log},{name:'Үлдэгдэл',rows:bal}];
     }
+    function buildInventoryValueSheets(){
+      const catLabel=c=>c==='tool'?'Багаж':c==='supply'?'Хангамж':'Бараа материал';
+      const stock=[prependYmd(['Ангилал','Нэр','Размер','Нэгж','Үлдэгдэл','Нэгж үнэ (₮)','Нийт үнэ (₮)','SKU','Байршил','Нийлүүлэгч'])];
+      (data.inventory||[]).forEach(it=>pushYmdRow(stock,new Date(),[
+        catLabel(it.category),it.name||'',it.size||'',it.unit||'ширхэг',Number(it.quantity)||0,
+        Number(it.price)||0,(Number(it.quantity)||0)*(Number(it.price)||0),it.sku||'',it.location||'',it.supplier||''
+      ]));
+      const receipts=[prependYmd(['Огноо','Ангилал','Нэр','Тоо','Нэгж','Нэгж үнэ (₮)','Нийт дүн (₮)','Нийлүүлэгч','Хүлээн авсан','Тэмдэглэл'])];
+      (data.inventoryReceipts||[]).forEach(r=>pushYmdRow(receipts,r.received_at||r.created_at,[
+        new Date(r.received_at||r.created_at).toLocaleString('mn-MN'),catLabel(r.category),r.item_name||'',Number(r.quantity)||0,
+        r.unit||'ширхэг',Number(r.unit_price)||0,Number(r.total_amount)||((Number(r.quantity)||0)*(Number(r.unit_price)||0)),
+        r.supplier||'',r.received_by_name||'',r.note||''
+      ]));
+      return [{name:'Үлдэгдэл ба үнэ',rows:stock},{name:'Орлогын түүх',rows:receipts}];
+    }
     function buildCompanionsSheets(){
       const list=companionTab==='today'?(data.tripGroupsToday||[]):(data.tripGroupsArchive||[]);
       const summary=[prependYmd(['Жолооч','Машин','Зам(км)','Хугацаа','Хамт явагчид','Төлөв','Эхэлсэн','Дууссан'])];
@@ -2559,6 +2649,9 @@
     });
     window.exportUsage=()=>exportAndArchive({
       category:'baraa_hereglee',title:'Барааны хэрэглээ',filename:'baraa_hereglee',sheets:buildUsageSheets(),
+    });
+    window.exportInventoryValue=()=>exportAndArchive({
+      category:'aguulah_une',title:'Агуулахын үнэ, орлого',filename:'aguulah_une',sheets:buildInventoryValueSheets(),
     });
     window.exportCompanions=()=>exportAndArchive({
       category:'hamt_yvaa_bag',title:'Хамт яваа баг',filename:`hamt_yvaa_bag_${companionTab==='today'?'unuudur':'arhiv'}`,sheets:buildCompanionsSheets(),
@@ -3744,7 +3837,8 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         if(r.status==='rejected') b+='<span class="pill out">Татгалзсан</span>';
         return b;
       };
-      let html=`<div class="card"><div class="card-h"><h3>Бүртгэлийн байршил (GPS + WiFi)</h3>
+      let html=`<div class="card"><div class="card-b" style="padding:14px 16px;background:var(--primary-soft);color:var(--primary);font-weight:700">Ирэх цаг 09:00 · 09:00 хүртэл цагтаа · 09:01-ээс хоцорсон гэж тооцно.</div></div>
+        <div class="card"><div class="card-h"><h3>Бүртгэлийн байршил (GPS + WiFi)</h3>
         <button class="btn btn-primary btn-sm" onclick="attLocModal()"${!isSuperAdmin(me?.role)&&(data.attLocations||[]).length>=2?' disabled title="Хамгийн 2 байршил"':''}>Байршил нэмэх</button></div>
         <div class="card-b" style="padding:0"><table><thead><tr><th>Нэр</th><th>Радиус</th><th>WiFi IP</th><th></th></tr></thead>
         <tbody>${(data.attLocations||[]).length?(data.attLocations||[]).map(l=>`<tr>
@@ -3855,7 +3949,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       openModal('Хуваарь оноох',`
         <label>Ажилтан</label><select id="sh_user">${empOpts}</select>
         <label>Огноо</label><input id="sh_date" type="date" value="${today}">
-        <label>Эхлэх</label>${timeSelect('sh_start','09:00',false)}
+        <label>Эхлэх</label><input id="sh_start" type="time" value="09:00" disabled title="Ирэх цаг байгууллагын дүрмээр 09:00">
         <label>Дуусах</label>${timeSelect('sh_end','18:00',false)}
         <label>Байршил</label><select id="sh_loc"><option value="">—</option>${locOpts}</select>
         <label>Тайлбар</label><input id="sh_note" placeholder="Заавал биш">
@@ -3863,7 +3957,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         'Хадгалах', async ()=>{
           const uid=$('sh_user').value; const w=data.workers.find(x=>x.id===uid);
           if(!uid||!w){ mErr('Ажилтан сонгоно уу'); return false; }
-          const row={user_id:uid,user_name:w.name,shift_date:$('sh_date').value,start_time:$('sh_start').value,end_time:$('sh_end').value,
+          const row={user_id:uid,user_name:w.name,shift_date:$('sh_date').value,start_time:'09:00',end_time:$('sh_end').value,
             location_id:$('sh_loc').value||null,note:$('sh_note').value.trim()||null,created_by:me.id};
           const {data:ex}=await sb.from('employee_shifts').select('id').eq('user_id',uid).eq('shift_date',row.shift_date).maybeSingle();
           const q=ex?.id?sb.from('employee_shifts').update(row).eq('id',ex.id):sb.from('employee_shifts').insert(row);
@@ -4309,13 +4403,13 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
         <div class="card-b" style="padding:0"><table><thead><tr><th>Улсын дугаар</th><th>Код</th><th>100км/л</th><th>Сав (л)</th><th>Км (30х)</th><th>Бензин %</th><th>Жолооч</th><th></th></tr></thead>
         <tbody>${data.vehicles.map(v=>{
           const stat=rows.find(r=>r.vehicle?.id===v.id)||null;
-          const lvl=stat?.currentLevel??Number(v.fuel_level_percent??100);
+          const lvl=stat?.currentLevel??Number(v.fuel_level_percent??0);
           const col=stat?.levelColor??fuelLevelColor(lvl);
           const km=stat?.totalKm??0;
           return `<tr><td>${mongoliaPlateHtml(v.plate_number,'sm')}${stat?.active?' <span class="pill on" style="font-size:10px">Явж</span>':''}</td><td>${v.code}</td><td>${v.liters_per_100km} л</td><td>${vehicleTankLiters(v)} л</td><td><b>${km.toFixed(1)}</b> км</td><td><b style="color:${col}">${lvl}%</b></td><td>${v.driver_name||'—'}</td>
           <td><button class="btn btn-ghost btn-sm" onclick='selectVehicleForEdit(${JSON.stringify(v).replace(/'/g,"&#39;")})'>Засах</button>
           <button class="btn btn-ghost btn-sm" onclick='qrModal(${JSON.stringify(v).replace(/'/g,"&#39;")})'>QR</button>
-          <button class="btn btn-ghost btn-sm" onclick="refillVehicleFuel('${v.id}','${String(v.plate_number).replace(/'/g,"\\'")}')">Сав</button>
+          <button class="btn btn-ghost btn-sm" onclick="refillVehicleFuel('${v.id}','${String(v.plate_number).replace(/'/g,"\\'")}')">Нөхөж цэнэглэх</button>
           <button class="btn btn-danger btn-sm" onclick="delVeh('${v.id}','${v.plate_number}')">Устгах</button></td></tr>`;
         }).join('')||'<tr><td colspan=8 class=empty>Машин алга</td></tr>'}</tbody></table></div>
         <div class="card-b" style="border-top:1px solid var(--line)"><h4 style="margin:0 0 12px;font-size:15px">Бензин зарцуулалт · түвшин</h4>${fuelCards||'<div class="empty" style="padding:20px">Аяллын бүртгэл байхгүй</div>'}</div></div>`;
@@ -5452,7 +5546,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     // ===== Агуулах =====
     let invCat='material';
     window.setInvCat=(k)=>{ invCat=k; render(); };
-    function catName(k){ return k==='tool' ?'Багаж':'Бараа материал'; }
+    function catName(k){ return k==='tool' ?'Багаж':k==='supply'?'Хангамж':'Бараа материал'; }
     function barFieldHtml(value='', inputId='i_bar_mat'){
       const esc=v=>String(v??'').replace(/"/g,'&quot;');
       return `<div class="bar-row"><div><label>Баркод</label><input id="${inputId}" value="${esc(value)}" placeholder="Скан эсвэл гараар"></div>
@@ -5475,16 +5569,18 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const list=data.inventory.filter(it=>(it.category||'material')===invCat);
       window._invList=list;
       const totalQty=list.reduce((s,it)=>s+(Number(it.quantity)||0),0);
+      const totalValue=list.reduce((s,it)=>s+(Number(it.quantity)||0)*(Number(it.price)||0),0);
       const tab=(k,label)=>`<button class="btn btn-sm ${invCat===k?'btn-primary':'btn-ghost'}" onclick="setInvCat('${k}')">${label}</button>`;
-      const priceHead = invCat === 'tool' ? '<th>Үнэ</th>': '';
-      const priceCell = (it) => (invCat === 'tool' ? `<td>${money(it.price)}</td>` : '');
-      const colSpan = invCat === 'tool' ? 7 : 6;
-      c.innerHTML=`<div class="stats" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+      const priceHead = '<th>Нэгж үнэ</th><th>Нийт үнэ</th>';
+      const priceCell = (it) => `<td>${money(it.price)}</td><td><b>${money((Number(it.quantity)||0)*(Number(it.price)||0))}</b></td>`;
+      const colSpan = 8;
+      c.innerHTML=`<div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
         <div class="stat"><div><div class="v">${list.length}</div><div class="l">Нэр төрөл</div></div></div>
         <div class="stat"><div><div class="v">${totalQty}</div><div class="l">Нийт тоо (агуулахад)</div></div></div>
+        <div class="stat"><div><div class="v">${money(totalValue)}</div><div class="l">Нийт үнэлгээ</div></div></div>
       </div>
       <div class="card"><div class="card-h"><h3>Агуулах — ${catName(invCat)} (${list.length} төрөл · ${totalQty} нэгж)</h3>
-        <div style="display:flex;gap:8px">${tab('material','Бараа материал')}${tab('tool','Багаж')}<button class="btn btn-primary btn-sm" onclick="invModal()"> ${catName(invCat)} нэмэх</button></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${tab('material','Бараа материал')}${tab('tool','Багаж')}${tab('supply','Хангамж')}<button class="btn btn-success btn-sm" onclick="inventoryReceiptModal()">Орлого авах</button><button class="btn btn-ghost btn-sm" onclick="exportInventoryValue()">Excel</button><button class="btn btn-primary btn-sm" onclick="invModal()"> ${catName(invCat)} нэмэх</button></div></div>
         <div class="card-b" style="padding:0"><table><thead><tr><th></th><th>Нэр</th><th>Нэгж</th><th>Тоо</th>${priceHead}<th>Баркод</th><th></th></tr></thead>
         <tbody>${list.map((it,i)=>`<tr><td>${invThumb(it)}</td><td><b>${it.name}</b></td><td>${it.unit||''}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="adjQty('${it.id}',${it.quantity},-1)">−</button> <b>${it.quantity}</b> <button class="btn btn-ghost btn-sm" onclick="adjQty('${it.id}',${it.quantity},1)"></button></td>
@@ -5492,19 +5588,42 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editInvModal(${i})">Засах</button> <button class="btn btn-danger btn-sm" onclick="delInv('${it.id}','${String(it.name).replace(/'/g,"\\'")}')">Устгах</button></td></tr>`).join('')||`<tr><td colspan=${colSpan} class=empty>${catName(invCat)} алга</td></tr>`}</tbody></table></div></div>`;
     }
     window.adjQty = async (id,q,d)=>{ const nq=Math.max(0,q+d); await sb.from('inventory').update({quantity:nq}).eq('id',id); loadAll(); };
+    window.inventoryReceiptModal=()=>{
+      const list=(data.inventory||[]).filter(it=>(it.category||'material')===invCat);
+      if(!list.length){ toast('Эхлээд '+catName(invCat)+' бүртгэнэ үү'); return; }
+      const opts=list.map(it=>`<option value="${it.id}" data-price="${Number(it.price)||0}">${String(it.name||'').replace(/</g,'&lt;')} — ${it.quantity} ${it.unit||'ш'} · ${money(it.price)}</option>`).join('');
+      openModal(catName(invCat)+' — орлого авах',`
+        <label>Бараа / багаж / хангамж</label><select id="r_item" onchange="receiptItemChanged()">${opts}</select>
+        <div class="row"><div><label>Орлогын тоо</label><input id="r_qty" type="number" min="0.01" step="any" value="1" oninput="receiptTotalChanged()"></div><div><label>Нэгж үнэ (₮)</label><input id="r_price" type="number" min="0" step="any" value="${Number(list[0].price)||0}" oninput="receiptTotalChanged()"></div></div>
+        <div class="card" style="padding:12px;margin:10px 0"><span class="muted">Нийт дүн</span><br><b id="r_total" style="font-size:20px;color:var(--primary)">${money(Number(list[0].price)||0)}</b></div>
+        <label>Нийлүүлэгч</label><input id="r_supplier" value="${String(list[0].supplier||'').replace(/"/g,'&quot;')}">
+        <label>Тэмдэглэл</label><textarea id="r_note" rows="2"></textarea>
+        <p class="muted" style="font-size:12px">Үлдэгдэл нэмэгдэж, нэгж үнэ жигнэсэн дундаж өртгөөр шинэчлэгдэнэ.</p>
+        <div class="err" id="m_err"></div>`,
+        'Орлого авах',async()=>{
+          const itemId=$('r_item').value,qty=Number($('r_qty').value),price=Number($('r_price').value);
+          if(!itemId||!Number.isFinite(qty)||qty<=0){mErr('Орлогын тоо 0-ээс их байна');return false;}
+          if(!Number.isFinite(price)||price<0){mErr('Нэгж үнэ буруу байна');return false;}
+          const {error}=await sb.rpc('receive_inventory_stock',{p_item_id:itemId,p_quantity:qty,p_unit_price:price,p_supplier:$('r_supplier').value.trim()||null,p_note:$('r_note').value.trim()||null,p_received_at:new Date().toISOString()});
+          if(error){mErr(error.message);return false;}
+          closeModal();toast('Орлого амжилттай авлаа');loadAll();return false;
+        });
+    };
+    window.receiptItemChanged=()=>{const o=$('r_item')?.selectedOptions?.[0];if(o&&$('r_price'))$('r_price').value=o.dataset.price||0;receiptTotalChanged();};
+    window.receiptTotalChanged=()=>{const el=$('r_total');if(el)el.textContent=money((Number($('r_qty')?.value)||0)*(Number($('r_price')?.value)||0));};
     window.delInv = async (id,name)=>{ if(!confirm(name+'устгах уу?'))return; await sb.from('inventory').delete().eq('id',id); toast('Устгагдлаа'); loadAll(); };
     window.invModal = ()=>{
       window._invEditImageUrl='';
       openModal(`${catName(invCat)} нэмэх`,`
         <label>Ангилал</label>
-        <select id="i_cat" onchange="toggleInvPrice()"><option value="material"${invCat==='material' ?'selected':''}>Бараа материал</option><option value="tool"${invCat==='tool' ?'selected':''}>Багаж</option></select>
+        <select id="i_cat" onchange="toggleInvPrice()"><option value="material"${invCat==='material' ?'selected':''}>Бараа материал</option><option value="tool"${invCat==='tool' ?'selected':''}>Багаж</option><option value="supply"${invCat==='supply' ?'selected':''}>Хангамж</option></select>
         <label>Нэр</label><input id="i_name" placeholder="Router (чиглүүлэгч)">
         <div class="row"><div><label>Модель</label><input id="i_model" placeholder="TL-WR840N"></div><div><label>Сериал</label><input id="i_serial" placeholder="SN123"></div></div>
         <div class="row"><div><label>Брэнд</label><input id="i_brand" placeholder="TP-Link"></div><div><label>Компани</label><input id="i_company" placeholder="Gennetex"></div></div>
         <label>Зураг</label><input id="i_photo" type="file" accept="image/*" onchange="window._invEditImageUrl='';this.dataset.changed='1'">
         <p class="muted" style="font-size:12px;margin:4px 0 0">Барааны жинхэнэ зураг оруулна (заавал биш)</p>
         <div class="row"><div><label>Нэгж</label><input id="i_unit" value="ширхэг"></div><div><label>Тоо</label><input id="i_qty" value="0"></div></div>
-        <div class="row" id="i_price_row" style="display:${invCat==='tool' ?'flex':'none'}"><div><label>Үнэ (₮)</label><input id="i_price" value="0"></div></div>
+        <div class="row" id="i_price_row"><div><label>Нэгж үнэ (₮)</label><input id="i_price" value="0"></div></div>
         <div id="i_bar_wrap">${barFieldHtml('', invCat==='tool' ?'i_bar':'i_bar_mat')}</div>
         <div class="err" id="m_err"></div>`,
         'Хадгалах', async ()=>{
@@ -5514,7 +5633,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           let image_url=window._invEditImageUrl||null;
           const file=$('i_photo')?.files?.[0];
           if(file){ try{ image_url=await uploadInvImageFile(file,'new'); }catch(e){ mErr(e.message); return false; } }
-          const row={name,unit:$('i_unit').value.trim()||'ширхэг',quantity:Number($('i_qty').value)||0,price:cat==='tool'?Number($('i_price').value)||0:0,barcode:barcode||null,category:cat,model:$('i_model')?.value?.trim()||null,serial_number:$('i_serial')?.value?.trim()||null,brand:$('i_brand')?.value?.trim()||null,company:$('i_company')?.value?.trim()||null};
+          const row={name,unit:$('i_unit').value.trim()||'ширхэг',quantity:Number($('i_qty').value)||0,price:Number($('i_price').value)||0,barcode:barcode||null,category:cat,model:$('i_model')?.value?.trim()||null,serial_number:$('i_serial')?.value?.trim()||null,brand:$('i_brand')?.value?.trim()||null,company:$('i_company')?.value?.trim()||null};
           if(image_url) row.image_url=image_url;
           try{
             const saved=await upsertInventoryRow(row);
@@ -5528,7 +5647,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       const cat=$('i_cat')?.value||'material';
       const row=$('i_price_row'); const wrap=$('i_bar_wrap');
       const oldBar=$('i_bar')?.value||$('i_bar_mat')?.value||'';
-      if(row) row.style.display=cat==='tool' ?'flex':'none';
+      if(row) row.style.display='flex';
       if(wrap) wrap.innerHTML=barFieldHtml(oldBar, cat==='tool' ?'i_bar':'i_bar_mat');
     };
     window.editInvModal=(i)=>{
@@ -5538,14 +5657,14 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
       window._invEditImageUrl=it.image_url||'';
       openModal('Бараа засах',`
         <label>Ангилал</label>
-        <select id="i_cat" onchange="toggleInvPrice()"><option value="material"${cat==='material' ?'selected':''}>Бараа материал</option><option value="tool"${cat==='tool' ?'selected':''}>Багаж</option></select>
+        <select id="i_cat" onchange="toggleInvPrice()"><option value="material"${cat==='material' ?'selected':''}>Бараа материал</option><option value="tool"${cat==='tool' ?'selected':''}>Багаж</option><option value="supply"${cat==='supply' ?'selected':''}>Хангамж</option></select>
         ${invPhotoFieldPreview(it.image_url||'')}
         <label>Нэр</label><input id="i_name" value="${esc(it.name)}">
         <div class="row"><div><label>Модель</label><input id="i_model" value="${esc(it.model||'')}"></div><div><label>Сериал</label><input id="i_serial" value="${esc(it.serial_number||'')}"></div></div>
         <div class="row"><div><label>Брэнд</label><input id="i_brand" value="${esc(it.brand||'')}"></div><div><label>Компани</label><input id="i_company" value="${esc(it.company||'')}"></div></div>
         <label>Шинэ зураг</label><input id="i_photo" type="file" accept="image/*">
         <div class="row"><div><label>Нэгж</label><input id="i_unit" value="${esc(it.unit||'ширхэг')}"></div><div><label>Тоо</label><input id="i_qty" value="${it.quantity??0}"></div></div>
-        <div class="row" id="i_price_row" style="display:${cat==='tool' ?'flex':'none'}"><div><label>Үнэ (₮)</label><input id="i_price" value="${it.price??0}"></div></div>
+        <div class="row" id="i_price_row"><div><label>Нэгж үнэ (₮)</label><input id="i_price" value="${it.price??0}"></div></div>
         <div id="i_bar_wrap">${barFieldHtml(it.barcode||'', cat==='tool' ?'i_bar':'i_bar_mat')}</div>
         <div class="err" id="m_err"></div>`,
         'Хадгалах', async ()=>{
@@ -5555,7 +5674,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
           let image_url=window._invEditImageUrl||it.image_url||null;
           const file=$('i_photo')?.files?.[0];
           if(file){ try{ image_url=await uploadInvImageFile(file,it.id); }catch(e){ mErr(e.message); return false; } }
-          const patch={name,unit:$('i_unit').value.trim()||'ширхэг',quantity:Number($('i_qty').value)||0,price:newCat==='tool'?Number($('i_price').value)||0:0,barcode:barcode||null,category:newCat,image_url:image_url||null,model:$('i_model')?.value?.trim()||null,serial_number:$('i_serial')?.value?.trim()||null,brand:$('i_brand')?.value?.trim()||null,company:$('i_company')?.value?.trim()||null};
+          const patch={name,unit:$('i_unit').value.trim()||'ширхэг',quantity:Number($('i_qty').value)||0,price:Number($('i_price').value)||0,barcode:barcode||null,category:newCat,image_url:image_url||null,model:$('i_model')?.value?.trim()||null,serial_number:$('i_serial')?.value?.trim()||null,brand:$('i_brand')?.value?.trim()||null,company:$('i_company')?.value?.trim()||null};
           try{
             const saved=await patchInventoryRow(it.id,patch);
             await syncProductFromInventory(saved);
