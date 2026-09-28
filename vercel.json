@@ -81,7 +81,7 @@
       "destination": "/gennetex/admin/"
     },
     {
-      "source": "/((?!gennetex/|app/|app$|assets/).*)",
+      "source": "/((?!api/|gennetex/|app/|app$|assets/).*)",
       "destination": "/index.html"
     }
   ],
