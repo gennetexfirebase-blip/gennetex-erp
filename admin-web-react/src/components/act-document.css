@@ -1,0 +1,68 @@
+.act-document { display:flex; flex-direction:column; align-items:center; gap:24px; color:#191716; }
+.act-paper { position:relative; width:210mm; height:297mm; overflow:hidden; flex:0 0 auto; background:#fff; box-shadow:0 20px 60px rgba(0,0,0,.35); font-family:"Times New Roman",Times,serif; }
+.act-paper-header { position:absolute; left:16mm; right:16mm; top:10mm; height:22mm; display:flex; align-items:center; border-bottom:.2mm solid #eee9e6; }
+.act-paper-header img { width:46mm; height:17mm; object-fit:contain; object-position:left center; }
+.act-paper-body { position:absolute; inset:36mm 16mm 23mm; overflow:hidden; }
+.act-paper-footer { position:absolute; left:16mm; right:16mm; bottom:8mm; display:grid; grid-template-columns:1fr auto; gap:4mm; color:#4b342d; font:italic 9pt "Times New Roman",serif; }
+.act-footer-line { grid-column:1/-1; height:1.2mm; background:linear-gradient(90deg,#7f1d1d,#a4442f,#7f1d1d); }
+.act-title-row { position:relative; margin:2mm 0 7mm; text-align:center; }
+.act-title-row h1 { margin:0; font-size:18pt; font-style:italic; text-transform:uppercase; }
+.act-title-row span { position:absolute; right:0; top:1mm; font:9pt Arial,sans-serif; color:#555; }
+.act-details { margin:0 0 6mm; font-size:11pt; font-style:italic; line-height:1.55; }
+.act-details>div { display:grid; grid-template-columns:65mm 1fr; gap:4mm; border-bottom:.2mm dotted #c8b8af; padding:1.7mm 0; }
+.act-details dt { font-weight:700; }
+.act-details dd { margin:0; }
+.act-section-title { margin:4mm 0 2mm; font-size:11pt; font-style:italic; }
+.act-section-title-large { margin-top:2mm; text-align:center; font-size:13pt; text-transform:uppercase; }
+.act-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:9.5pt; }
+.act-table th,.act-table td { border:.25mm solid #38302c; padding:2mm; vertical-align:middle; }
+.act-table th { background:#f3eee9; text-align:center; font-weight:700; }
+.act-table th:first-child,.act-table td:first-child { width:9mm; text-align:center; }
+.act-table th:nth-last-child(2),.act-table td:nth-last-child(2) { width:27mm; text-align:center; }
+.act-table th:last-child,.act-table td:last-child { width:25mm; text-align:center; }
+.act-check-table { font-size:8.6pt; }
+.act-check-table th:nth-child(3),.act-check-table td:nth-child(3),.act-check-table th:nth-child(4),.act-check-table td:nth-child(4),.act-check-table th:nth-child(5),.act-check-table td:nth-child(5) { width:13mm; padding-left:1mm; padding-right:1mm; text-align:center; }
+.act-check-table th:nth-child(3),.act-check-table th:nth-child(4),.act-check-table th:nth-child(5) { font-size:7.5pt; white-space:nowrap; }
+.act-check-table td:nth-child(3),.act-check-table td:nth-child(4),.act-check-table td:nth-child(5) { font:700 10.5pt Arial,sans-serif; }
+.act-check-table th:last-child,.act-check-table td:last-child { width:32mm; text-align:left; }
+.act-empty-cell { height:18mm; color:#777; text-align:center!important; }
+.act-receivers { display:grid; grid-template-columns:1fr; gap:4mm; margin-top:5mm; }
+.act-receiver-group { position:relative; min-height:18mm; border-top:.2mm solid #d8cbc4; padding:2.2mm 1mm 1.5mm; font-size:9pt; break-inside:avoid; }
+.act-receiver-group h3 { position:relative; z-index:2; margin:0 0 2mm; font-size:9.5pt; font-weight:700; }
+.act-receiver-lines { position:relative; z-index:2; display:grid; gap:1mm; }
+.act-receiver-signature-row { position:relative; display:grid; grid-template-columns:minmax(48mm,1fr) 47mm 38mm; gap:3mm; min-height:7mm; align-items:center; }
+.act-receiver-signature-row-stamped { min-height:31mm; }
+.act-receiver-signature-row b { font-weight:400; line-height:1.25; }
+.act-signature-slot { position:relative; display:flex; height:7mm; align-items:flex-end; justify-content:center; border-bottom:.25mm dotted #4a413d; }
+.act-signature-slot i { display:block; width:100%; height:1px; }
+.act-signature-slot img { position:absolute; left:50%; bottom:-1.2mm; width:38mm; height:12mm; transform:translateX(-50%); object-fit:contain; }
+.act-signature-slot-stamped { height:30mm; border-bottom:0; align-items:center; }
+.act-signature-slot img.act-director-stamp { top:50%; bottom:auto; width:30mm; height:30mm; transform:translate(-50%,-50%); mix-blend-mode:multiply; opacity:.94; }
+.act-receiver-name { white-space:nowrap; font-weight:700; }
+.act-photo-page .act-paper-body { top:35mm; }
+.act-photo-page .act-section-title-large { margin:0 0 5mm; color:#28211e; font-family:Arial,sans-serif; font-size:12pt; font-style:normal; font-weight:700; letter-spacing:.08em; }
+.act-photo-grid { display:grid; height:211mm; gap:4mm; }
+.act-photo-grid-1 { grid-template-columns:1fr; grid-template-rows:1fr; }
+.act-photo-grid-2 { grid-template-columns:1fr; grid-template-rows:repeat(2,1fr); }
+.act-photo-grid-4 { grid-template-columns:repeat(2,1fr); grid-template-rows:repeat(2,1fr); }
+.act-photo-grid figure { display:flex; min-height:0; flex-direction:column; margin:0; overflow:hidden; border:.2mm solid #e4ded9; border-radius:1.6mm; background:#fff; box-shadow:0 .6mm 2mm rgba(65,45,36,.07); padding:2.2mm; }
+.act-photo-grid figure>div { min-height:0; flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:1mm; background:#f6f6f5; }
+.act-photo-grid img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
+.act-photo-grid figcaption { display:flex; min-width:0; flex:0 0 auto; align-items:center; justify-content:center; min-height:8mm; border-top:.2mm solid #eee9e6; margin-top:2mm; padding:1.5mm 2mm .5mm; color:#211d1b; font-family:"Times New Roman",Times,serif; text-align:center; }
+.act-photo-grid figcaption b { max-width:100%; font-size:9pt; font-weight:700; line-height:1.3; overflow-wrap:anywhere; white-space:pre-wrap; }
+
+@media (max-width:900px) {
+  .act-paper { transform-origin:top center; }
+}
+
+@page { size:A4 portrait; margin:0; }
+@media print {
+  body { background:#fff!important; }
+  body * { visibility:hidden!important; }
+  .act-print-root,.act-print-root * { visibility:visible!important; }
+  .act-print-root { position:absolute!important; inset:0!important; width:210mm!important; }
+  .act-document { display:block; gap:0; }
+  .act-paper { box-shadow:none; break-inside:avoid; break-after:page; page-break-after:always; }
+  .act-paper:last-child { break-after:auto; page-break-after:auto; }
+  .act-table tr,.act-receiver-group,.act-photo-grid figure { break-inside:avoid; page-break-inside:avoid; }
+}

@@ -35,10 +35,12 @@ import {
   Settings2,
   BellRing,
   ShieldCheck,
+  GraduationCap,
+  FileCheck2,
   type LucideIcon,
 } from 'lucide-react';
 
-export type NavChild = { label: string; to: string };
+export type NavChild = { label: string; to: string; adminOnly?: boolean };
 
 export type NavItem = {
   label: string;
@@ -50,6 +52,8 @@ export type NavItem = {
   badgeKey?: 'requests' | 'employees';
   badgeTone?: 'brand' | 'warning';
   children?: NavChild[];
+  /** Non-admin ERP users only see act-scoped navigation. */
+  actsOnly?: boolean;
 };
 
 /**
@@ -112,12 +116,22 @@ export const NAV: NavItem[] = [
   },
   { label: 'Цагийн хүсэлт', to: '/request', icon: Clock, badgeKey: 'requests', badgeTone: 'brand' },
   { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning' },
+  { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, isNew: true },
   { label: 'Хэлтэс', to: '/department', icon: Building2 },
   { label: 'Хуваарь', to: '/schedule', icon: CalendarDays },
   { label: 'Байршил', to: '/location', icon: MapPin },
   { label: 'Утас баталгаажуулах', to: '/phone-verification', icon: BadgeCheck, isNew: true },
   { label: 'SMS илгээх', to: '/outbound-sms', icon: Send, isNew: true },
   { label: 'Тохиргооны төв', to: '/more/settings', icon: Settings2, isNew: true },
+  {
+    label: 'Баримт бичиг',
+    icon: FileCheck2,
+    actsOnly: true,
+    children: [
+      { label: 'Ажил гүйцэтгэлийн акт', to: '/admin/documents/acts' },
+      { label: 'Act Templates', to: '/admin/settings/act-templates', adminOnly: true },
+    ],
+  },
 
   // Хуучин панелийн модулиуд — шууд үндсэн цэсэнд.
   ...LEGACY_MODULES.map((m) => ({

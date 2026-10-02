@@ -19,15 +19,26 @@ import BusinessSettingsPage from './pages/BusinessSettings';
 import OperationalAlertsPage from './pages/OperationalAlerts';
 import NotificationsPage from './pages/Notifications';
 import WorkHeightSafetyPage from './pages/WorkHeightSafety';
+import TrainingPage from './pages/Training';
+import ActsPage from './pages/Acts';
+import ActEditorPage from './pages/ActEditor';
+import ActPreviewPage from './pages/ActPreview';
+import ActTemplatesPage from './pages/ActTemplates';
+import PublicActPage from './pages/PublicAct';
 import { LEGACY_MODULES } from './lib/nav';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
+  const landingPath = window.location.hostname === 'akt.gennetex.com'
+    ? '/admin/documents/acts'
+    : '/home';
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
+        <Route path="/share/acts/:token" element={<PublicActPage />} />
+        <Route path="/s/:token" element={<PublicActPage />} />
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/home" replace />} />
+          <Route index element={<Navigate to={landingPath} replace />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
 
@@ -38,6 +49,7 @@ export default function App() {
 
           <Route path="/request" element={<RequestsPage />} />
           <Route path="/employee" element={<EmployeesPage />} />
+          <Route path="/training" element={<TrainingPage />} />
           <Route path="/department" element={<DepartmentsPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/location" element={<LocationsPage />} />
@@ -64,6 +76,14 @@ export default function App() {
           <Route path="/stock-issues" element={<StockIssuesPage />} />
           <Route path="/phone-verification" element={<PhoneVerificationPage />} />
           <Route path="/outbound-sms" element={<OutboundSmsPage />} />
+          <Route path="/admin/documents/acts" element={<ActsPage />} />
+          <Route path="/admin/documents/acts/new" element={<ActEditorPage />} />
+          <Route path="/admin/documents/acts/:id" element={<ActPreviewPage />} />
+          <Route path="/admin/documents/acts/:id/edit" element={<ActEditorPage />} />
+          <Route path="/admin/documents/acts/:id/preview" element={<ActPreviewPage />} />
+          <Route path="/admin/settings/act-templates" element={<ActTemplatesPage />} />
+          <Route path="/documents/acts" element={<Navigate to="/admin/documents/acts" replace />} />
+          <Route path="/documents/acts/new" element={<Navigate to="/admin/documents/acts/new" replace />} />
           {/* Хуучин панелийн модулиуд — nav.ts дахь жагсаалтаас автоматаар
               route үүсгэнэ. Ингэснээр цэс ба route хоёр хэзээ ч зөрөхгүй. */}
           {LEGACY_MODULES.map((m) => (
