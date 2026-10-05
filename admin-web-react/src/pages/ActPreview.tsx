@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { Archive, ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, FileText, Globe2, Link2Off, Mail, MousePointerClick, Pencil, Printer, Save, Send, ZoomIn, ZoomOut } from 'lucide-react';
-import ActDocument, { actPageCount, type ActSection } from '../components/ActDocument';
+import ActDocument, { actPageCount } from '../components/ActDocument';
 import { Button, Card, Loading, PageHeader, Textarea } from '../components/ui';
 import { ACT_STATUS_LABELS, actError, duplicateAct, fetchAct, fetchActInventory, fetchActTemplates, logActEmail, logActExport, removeActImage, saveAct, sendActEmail, setActPublicShare, snapshotDraft, transitionAct, uploadActPdf, type Act, type ActDraft, type ActInventoryItem, type ActTemplate } from '../lib/acts';
 
@@ -17,9 +17,8 @@ export default function ActPreviewPage() {
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
-  // PDF editor — preview хуудсан дээр хэсэг дээр дарж тэр хэсгийг нь шууд засна.
+  // PDF editor — preview хуудас бүхэлдээ шууд засагддаг болно.
   const [draft, setDraft] = useState<ActDraft | null>(null);
-  const [section, setSection] = useState<ActSection | null>(null);
   const [inventory, setInventory] = useState<ActInventoryItem[]>([]);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const lastSaved = useRef('');
@@ -55,18 +54,12 @@ export default function ActPreviewPage() {
   }, [draft, act?.id]);
 
   const editing = Boolean(draft);
-  useEffect(() => {
-    if (!editing) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setSection(null); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [editing]);
 
   const startEditing = () => {
     if (!act || !canEdit || editLocked) return;
     const value = snapshotDraft(act);
     lastSaved.current = JSON.stringify(value);
-    setDraft(value); setSection(null); setSaveState('idle');
+    setDraft(value); setSaveState('idle');
     if (!inventory.length) fetchActInventory().then(setInventory).catch(() => null);
   };
 
@@ -75,7 +68,7 @@ export default function ActPreviewPage() {
     setBusy('Хадгалж байна...');
     try {
       if (JSON.stringify(draft) !== lastSaved.current) await saveAct(act.id, draft);
-      setAct(await fetchAct(act.id)); setDraft(null); setSection(null); setSaveState('idle');
+      setAct(await fetchAct(act.id)); setDraft(null); setSaveState('idle');
       setToast('Өөрчлөлт хадгалагдлаа');
     } catch (cause) { setToast(actError(cause)); }
     finally { setBusy(''); }
@@ -196,12 +189,11 @@ export default function ActPreviewPage() {
       <Card title={editing ? 'PDF editor' : 'Баримтын урьдчилсан харагдац'} actions={<><Button aria-label="Жижигрүүлэх" variant="outline" className="!px-2" onClick={() => setZoom(Math.max(.3, zoom - .1))}><ZoomOut size={15} /></Button><span className="w-12 text-center text-[12px] font-medium text-muted">{Math.round(zoom * 100)}%</span><Button aria-label="Томруулах" variant="outline" className="!px-2" onClick={() => setZoom(Math.min(1.2, zoom + .1))}><ZoomIn size={15} /></Button><Button variant="ghost" onClick={() => setZoom(window.innerWidth < 640 ? .38 : .75)}>Хуудсанд тааруулах</Button></>} bodyClassName="!p-0">
         {editing ? <div className="flex flex-wrap items-center gap-2 border-b border-line bg-brand-soft px-4 py-2.5 text-[12px] text-ink">
           <MousePointerClick size={15} className="text-brand" />
-          <span className="min-w-0 flex-1">{section ? 'Өөр хэсэг дээр дарж шилжинэ, Esc дарж гарна.' : 'Засах хэсэг (мэдээлэл, материал, шаардлага, зураг) дээрээ дарна уу.'}</span>
+          <span className="min-w-0 flex-1">Хуудсан дээрх бүх бичвэр, хүснэгт, зургийн тайлбарыг шууд засна. Өөрчлөлт автоматаар хадгалагдана.</span>
           <span className={`font-medium ${saveState === 'error' ? 'text-danger' : 'text-success'}`}>{saveState === 'saving' ? 'Хадгалж байна...' : saveState === 'saved' ? '✓ Хадгалагдлаа' : saveState === 'error' ? 'Хадгалж чадсангүй' : ''}</span>
         </div> : null}
         <div className="overflow-auto bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ width: `${210 * zoom}mm`, height: `${297 * zoom}mm`, margin: '0 auto' }}><div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '210mm' }}><ActDocument act={shown || act} template={template} onlyPage={page} edit={draft ? {
           onChange: patch, inventory, onRemovePhoto: removePhoto,
-          onActivateSection: setSection, activeSection: section,
           onEditReceivers: () => { void finishEditing().then(() => navigate(`/admin/documents/acts/${act.id}/edit`)); },
         } : undefined} /></div></div></div>
         <div className="flex flex-wrap items-center justify-center gap-2 border-t border-line p-3 sm:gap-4"><Button variant="outline" disabled={page <= 1} icon={<ChevronLeft size={15} />} onClick={() => setPage(page - 1)}>Өмнөх</Button><span className="text-[13px] text-muted">Хуудас: <b className="text-ink">{page} / {total}</b></span><Button variant="outline" disabled={page >= total} icon={<ChevronRight size={15} />} onClick={() => setPage(page + 1)}>Дараах</Button></div>

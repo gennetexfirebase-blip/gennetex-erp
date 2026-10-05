@@ -5,7 +5,7 @@ import {
   CloudDownload, Download, FileText, ImagePlus, MousePointerClick, PackageOpen, Plus, Printer,
   Save, Signature, Trash2, Upload, Users, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import ActDocument, { actPageCount, type ActDocumentEdit, type ActSection } from '../components/ActDocument';
+import ActDocument, { actPageCount, type ActDocumentEdit } from '../components/ActDocument';
 import SignatureCanvas from '../components/SignatureCanvas';
 import { Button, Card, EmptyState, Input, Loading, PageHeader, Select } from '../components/ui';
 import { fetchEmployees, type Employee } from '../lib/data';
@@ -699,28 +699,21 @@ function ReceiversStep({ rows, employees, contacts, isSuperAdmin, canStamp, orga
   );
 }
 
-/** Урьдчилан харах — "PDF засах" дарахад хуудсан дээрх хэсэг дээр дарж тэр хэсгийг нь шууд засна. */
+/** Урьдчилан харах — "PDF засах" дарахад хуудас бүхэлдээ засагддаг болно. */
 function PreviewStep({ act, template, zoom, setZoom, page, setPage, total, edit, saveState }: { act: Act; template?: ActTemplate; zoom: number; setZoom: (value: number) => void; page: number; setPage: (value: number) => void; total: number; edit?: ActDocumentEdit; saveState: 'idle' | 'saving' | 'saved' | 'error' }) {
   const [editing, setEditing] = useState(false);
-  const [section, setSection] = useState<ActSection | null>(null);
-  useEffect(() => {
-    if (!editing) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setSection(null); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [editing]);
   const active = Boolean(editing && edit);
-  const toggle = () => { setEditing(!editing); setSection(null); };
+  const toggle = () => setEditing(!editing);
   return <Card title={active ? 'Урьдчилан харах · PDF засах' : 'Урьдчилан харах'} actions={<>
     {edit ? <Button variant={active ? 'success' : 'primary'} icon={active ? <Check size={15} /> : <MousePointerClick size={15} />} onClick={toggle}>{active ? 'Засаж дууслаа' : 'PDF засах'}</Button> : null}
     <Button aria-label="Жижигрүүлэх" variant="outline" className="!px-2" onClick={() => setZoom(Math.max(.3, zoom - .1))}><ZoomOut size={15} /></Button><span className="w-12 text-center text-[12px] font-medium text-muted">{Math.round(zoom * 100)}%</span><Button aria-label="Томруулах" variant="outline" className="!px-2" onClick={() => setZoom(Math.min(1.2, zoom + .1))}><ZoomIn size={15} /></Button><Button variant="ghost" onClick={() => setZoom(window.innerWidth < 640 ? .38 : .75)}>Хуудсанд тааруулах</Button>
   </>} bodyClassName="!p-0">
     {active ? <div className="flex flex-wrap items-center gap-2 border-b border-line bg-brand-soft px-4 py-2.5 text-[12px] text-ink">
       <MousePointerClick size={15} className="text-brand" />
-      <span className="min-w-0 flex-1">{section ? 'Өөр хэсэг дээр дарж шилжинэ, Esc дарж гарна.' : 'Засах хэсэг (мэдээлэл, материал, шаардлага, зураг) дээрээ дарна уу.'}</span>
+      <span className="min-w-0 flex-1">Хуудсан дээрх бүх бичвэр, хүснэгт, зургийн тайлбарыг шууд засна. Өөрчлөлт автоматаар хадгалагдана.</span>
       <span className={`font-medium ${saveState === 'error' ? 'text-danger' : 'text-success'}`}>{saveState === 'saving' ? 'Хадгалж байна...' : saveState === 'saved' ? '✓ Хадгалагдлаа' : saveState === 'error' ? 'Хадгалж чадсангүй' : ''}</span>
     </div> : null}
-    <div className="overflow-auto bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ width: `${210 * zoom}mm`, height: `${297 * zoom}mm`, margin: '0 auto' }}><div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '210mm' }}><ActDocument act={act} template={template} onlyPage={page} edit={active ? { ...edit!, onActivateSection: setSection, activeSection: section } : undefined} /></div></div></div>
+    <div className="overflow-auto bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ width: `${210 * zoom}mm`, height: `${297 * zoom}mm`, margin: '0 auto' }}><div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '210mm' }}><ActDocument act={act} template={template} onlyPage={page} edit={active ? edit : undefined} /></div></div></div>
     <div className="flex flex-wrap items-center justify-center gap-2 border-t border-line p-3 sm:gap-4"><Button variant="outline" icon={<ChevronLeft size={15} />} disabled={page <= 1} onClick={() => setPage(page - 1)}>Өмнөх</Button><span className="text-[13px] text-muted">Хуудас: <b className="text-ink">{page} / {total}</b></span><Button variant="outline" icon={<ChevronRight size={15} />} disabled={page >= total} onClick={() => setPage(page + 1)}>Дараах</Button></div>
   </Card>;
 }
