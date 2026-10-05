@@ -8,9 +8,8 @@
  *    эс тэгвээс хэд хэдэн дуу зэрэг сонсогдож эвгүй болно.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import { VOICE_PLAYBACK_MODE } from '../services/voiceRecordingSession';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
@@ -35,12 +34,10 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(durationMs || 0);
   const soundRef = useRef(null);
-  const startingRef = useRef(false);
 
   useEffect(() => () => {
     // Дэлгэцээс гарахад дуугаа заавал суллана.
     if (soundRef.current) {
-      if (currentPlayer === soundRef.current) { currentPlayer = null; currentStop = null; }
       try {
         soundRef.current.remove();
       } catch (e) {}
@@ -66,12 +63,10 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
   };
 
   const toggle = async () => {
-    if (startingRef.current) return;
     if (playing) {
       await stop();
       return;
     }
-    startingRef.current = true;
     // Өмнө тоглож байсныг зогсооно
     if (currentStop) {
       try {
@@ -79,22 +74,14 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
       } catch (e) {}
     }
     try {
-      if (!uri) throw new Error('Дууны файл олдсонгүй.');
-      await setAudioModeAsync(VOICE_PLAYBACK_MODE);
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       const player = createAudioPlayer({ uri });
-      player.volume = 1;
-      player.muted = false;
       soundRef.current = player;
       currentPlayer = player;
       currentStop = stop;
       setPlaying(true);
       // expo-audio нь секундээр хэмждэг — UI нь миллисекунд хүлээдэг.
       player.addListener('playbackStatusUpdate', (status) => {
-        if (status?.error) {
-          stop();
-          Alert.alert('Дуут мессеж', 'Дууны файл ачаалагдсангүй. Сүлжээгээ шалгаад дахин оролдоно уу.');
-          return;
-        }
         if (!status?.isLoaded) return;
         if (status.duration) setTotal(Math.round(status.duration * 1000));
         setProgress(Math.round((status.currentTime || 0) * 1000));
@@ -102,10 +89,7 @@ export default function VoiceMessageBubble({ uri, durationMs, mine }) {
       });
       player.play();
     } catch (e) {
-      await stop();
-      Alert.alert('Дуут мессеж', 'Дууг тоглуулж чадсангүй. Сүлжээ болон дууны файлыг шалгаад дахин оролдоно уу.');
-    } finally {
-      startingRef.current = false;
+      setPlaying(false);
     }
   };
 

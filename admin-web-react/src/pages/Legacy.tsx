@@ -54,7 +54,7 @@ export default function LegacyPage() {
         <iframe
           title="Хуучин админ панел"
           src={LEGACY_URL}
-          className="h-[70vh] w-full border-0 bg-card"
+          className="h-[70vh] w-full border-0 bg-white"
         />
       </div>
     </>

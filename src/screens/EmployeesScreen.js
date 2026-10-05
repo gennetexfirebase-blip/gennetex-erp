@@ -480,15 +480,6 @@ export default function EmployeesScreen() {
               </View>
               <View style={styles.rowRight}>
                 <Badge text={roleLabel(item.role)} color={item.role === ROLES.ADMIN || item.role === ROLES.SUPERADMIN ? colors.accent : colors.primary} />
-                <TouchableOpacity
-                  style={styles.trainingAction}
-                  onPress={() => navigation.navigate('EmployeeTraining', { employee: item })}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${item.name || item.email} сургалтын мэдээлэл`}
-                >
-                  <Text style={styles.trainingActionText}>Сургалт</Text>
-                </TouchableOpacity>
                 {/*
                   Ажлаас гаргах товч нь МӨР дээр шууд байна.
 
@@ -689,26 +680,6 @@ export default function EmployeesScreen() {
                 <Text style={styles.otpHint}>Эрх өөрчлөхийг зөвхөн Хөгжүүлэгч хийнэ. Админ, ахлах нь ажилтны мэдээлэл засна.</Text>
               )}
 
-              {editTarget ? (
-                <View style={styles.trainingBox}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.deptBoxTitle}>Заавал суух сургалт</Text>
-                    <Text style={styles.trainingNote}>
-                      Хамрагдах сургалт, хугацаа болон хамрагдсан төлөвийг бүртгэнэ.
-                    </Text>
-                  </View>
-                  <Button
-                    title="Сургалт харах"
-                    variant="ghost"
-                    onPress={() => {
-                      const employee = editTarget;
-                      closeModal();
-                      navigation.navigate('EmployeeTraining', { employee });
-                    }}
-                  />
-                </View>
-              ) : null}
-
               {/* --- Төхөөрөмжийн PIN — зөвхөн Хөгжүүлэгчид --- */}
               {/* PIN нь хэрэглэгчийн утсанд шифрлэгдэн хадгалагддаг тул
                   эндээс УНШИХ боломжгүй. Зөвхөн төлөвийг харж, мартсан
@@ -900,25 +871,6 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   rowActionBack: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   rowActionText: { color: colors.danger, fontSize: 11, fontWeight: '800' },
   rowActionTextBack: { color: colors.primary },
-  trainingAction: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  trainingActionText: { color: colors.primary, fontSize: 11, fontWeight: '800' },
-  trainingBox: {
-    borderWidth: 1,
-    borderColor: colors.primary + '55',
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.primarySoft,
-    gap: spacing.sm,
-  },
-  trainingNote: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   // --- Ажилчид / Ажлаас гарсан таб ---
   tabRow: {
     flexDirection: 'row',

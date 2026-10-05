@@ -1,5 +1,5 @@
 import * as TaskManager from 'expo-task-manager';
-import Notifications from '../lib/notificationsCompat';
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { showNativeIncomingCallFromPush } from './nativeIncomingCallService';
 

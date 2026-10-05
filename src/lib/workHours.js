@@ -12,17 +12,6 @@ export function formatDuration(ms) {
   return `${h} цаг ${m} мин`;
 }
 
-/** Ирцийн хоцролт/эрт явсан минутыг ойлгомжтой хугацаагаар харуулна. */
-export function formatAttendanceMinutes(minutes) {
-  const totalMin = Math.max(0, Math.round(Number(minutes) || 0));
-  if (totalMin < 60) return `${totalMin} минут`;
-  const hours = Math.floor(totalMin / 60);
-  const remainingMinutes = totalMin % 60;
-  return remainingMinutes > 0
-    ? `${hours} цаг ${remainingMinutes} минут`
-    : `${hours} цаг`;
-}
-
 export function parseTimeOnDate(dateKey, hhmm) {
   if (!hhmm) return null;
   const [h, m] = String(hhmm).split(':').map(Number);

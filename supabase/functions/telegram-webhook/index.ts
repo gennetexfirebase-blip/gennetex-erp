@@ -9,7 +9,6 @@ import {
   linkTelegramAccount,
   telegramSenderName,
 } from "../_shared/chatBridge.ts";
-import { isAuthorizedDeviceApprover, parseDeviceDecision } from "../_shared/deviceApproval.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,85 +115,6 @@ async function sendTelegramReply(botToken: string, chatId: number | string, text
   }).catch(() => {});
 }
 
-async function answerCallback(botToken: string, callbackId: string, text: string, showAlert = false) {
-  if (!botToken || !callbackId) return;
-  await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackId, text, show_alert: showAlert }),
-  }).catch(() => {});
-}
-
-async function handleDeviceCallback(
-  update: Record<string, unknown>,
-  botToken: string,
-  webhookSecret: string,
-  sb: ReturnType<typeof createClient>,
-) {
-  const callback = update.callback_query as Record<string, unknown>;
-  const callbackId = String(callback.id || "");
-  const decision = parseDeviceDecision(callback.data);
-  if (!decision) {
-    await answerCallback(botToken, callbackId, "Танигдаагүй товч.", true);
-    return jsonResponse({ ok: false, error: "invalid_callback" }, 400);
-  }
-  if (!webhookSecret) {
-    await answerCallback(botToken, callbackId, "Ботын хамгаалалт тохируулаагүй байна.", true);
-    return jsonResponse({ ok: false, error: "webhook_secret_required" }, 503);
-  }
-
-  const from = (callback.from || {}) as Record<string, unknown>;
-  const message = (callback.message || {}) as Record<string, unknown>;
-  const chat = (message.chat || {}) as Record<string, unknown>;
-  const telegramId = Number(from.id);
-  const { data: approver } = Number.isSafeInteger(telegramId)
-    ? await sb.from("profiles").select("id,name,role,telegram_user_id")
-      .eq("telegram_user_id", telegramId).maybeSingle()
-    : { data: null };
-  const allowed = isAuthorizedDeviceApprover({
-    chatId: chat.id,
-    chatType: chat.type,
-    fromId: from.id,
-    configuredAdminChatId: Deno.env.get("TELEGRAM_CHAT_ID"),
-    profileRole: approver?.role,
-    profileTelegramUserId: approver?.telegram_user_id,
-  });
-  if (!allowed) {
-    await answerCallback(botToken, callbackId, "Зөвхөн эрхтэй админ хувийн чатаас шийднэ.", true);
-    return jsonResponse({ ok: false, error: "approver_forbidden" }, 403);
-  }
-
-  const { data: row, error } = await sb.from("device_approvals").update({
-    status: decision.status,
-    decided_at: new Date().toISOString(),
-    decided_by: approver?.role === "superadmin" ? approver.id : null,
-    decided_by_name: approver?.role === "superadmin" ? approver.name : "Telegram админ",
-  }).eq("id", decision.requestId).eq("status", "pending").select("id,user_name,device_model").maybeSingle();
-  if (error) {
-    await answerCallback(botToken, callbackId, "Шийдвэр хадгалагдсангүй. Дахин оролдоно уу.", true);
-    return jsonResponse({ ok: false, error: "decision_failed" }, 500);
-  }
-  if (!row) {
-    await answerCallback(botToken, callbackId, "Энэ хүсэлтийг аль хэдийн шийдсэн байна.", true);
-    return jsonResponse({ ok: true, already_decided: true });
-  }
-
-  const outcome = decision.status === "approved" ? "✅ Зөвшөөрлөө" : "⛔ Татгалзлаа";
-  await answerCallback(botToken, callbackId, outcome);
-  if (chat.id && message.message_id) {
-    await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chat.id,
-        message_id: message.message_id,
-        text: `🔐 Gennetex ERP · Шинэ төхөөрөмж\nАжилтан: ${safeText(row.user_name || "Ажилтан", 80)}\nТөхөөрөмж: ${safeText(row.device_model || "—", 80)}\n${outcome}`,
-      }),
-    }).catch(() => {});
-  }
-  return jsonResponse({ ok: true, action: "device_decision", status: decision.status });
-}
-
 async function fetchAllTokens(sb: ReturnType<typeof createClient>) {
   const { data: rows } = await sb.from("push_tokens").select("token");
   return [...new Set((rows || []).map((r) => r.token).filter(Boolean))];
@@ -210,6 +130,10 @@ Deno.serve(async (req) => {
     if (headerSecret !== WEBHOOK_SECRET) return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return jsonResponse({ ok: false, error: "supabase_not_configured" }, 503);
+
   let update: Record<string, unknown> = {};
   try {
     update = await req.json();
@@ -217,24 +141,17 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, error: "invalid_json" }, 400);
   }
 
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return jsonResponse({ ok: false, error: "supabase_not_configured" }, 503);
-  const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
-  if (update.callback_query && typeof update.callback_query === "object") {
-    return await handleDeviceCallback(update, BOT_TOKEN, WEBHOOK_SECRET, sb);
-  }
-
   const msg = (update.message && typeof update.message === "object" ? update.message : {}) as Record<string, unknown>;
   const chat = (msg.chat && typeof msg.chat === "object" ? msg.chat : {}) as Record<string, unknown>;
   const chatId = chat.id as number | string | undefined;
   const chatType = String(chat.type || "private");
   const rawText = safeText(msg.text || msg.caption || "", 500);
+  const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
   const LOG_GROUP_ID = Deno.env.get("TELEGRAM_LOG_GROUP_ID") || "";
 
   if (!rawText || !chatId) return jsonResponse({ ok: true, ignored: true });
 
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const botUsername = await getBotUsername(BOT_TOKEN);
   const text = normalizeIncomingText(rawText, botUsername);
   if (!text) return jsonResponse({ ok: true, ignored: true });

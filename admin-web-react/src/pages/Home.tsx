@@ -55,7 +55,7 @@ export default function HomePage() {
 
   return (
     <>
-      <PageHeader title="Өнөөдрийн тойм" crumb="Нүүр" description="Ирц, хүсэлт болон өдөр тутмын ажлын мэдээлэл." />
+      <PageHeader title="Нүүр" crumb="Нүүр" />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {/* Ирц — донат */}

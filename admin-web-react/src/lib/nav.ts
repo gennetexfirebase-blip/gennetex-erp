@@ -129,7 +129,7 @@ export const NAV: NavItem[] = [
     actsOnly: true,
     children: [
       { label: 'Ажил гүйцэтгэлийн акт', to: '/admin/documents/acts' },
-      { label: 'Актын загварууд', to: '/admin/settings/act-templates', adminOnly: true },
+      { label: 'Act Templates', to: '/admin/settings/act-templates', adminOnly: true },
     ],
   },
 

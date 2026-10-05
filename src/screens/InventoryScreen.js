@@ -268,15 +268,15 @@ export default function InventoryScreen() {
     setRefreshing(false);
   };
 
-  // Бараа материал, багаж, хангамж БҮГД мөнгөн үнэлгээтэй.
-  const showPrice = true;
   const totalValue = useMemo(
-    () => (showPrice ? filtered.reduce(
-      (sum, it) => sum + Number(it.quantity || 0) * Number(it.price || 0),
-      0
-    ) : 0),
-    [filtered, showPrice]
+    () =>
+      category === 'tool'
+        ? filtered.reduce((sum, it) => sum + it.quantity * it.price, 0)
+        : 0,
+    [filtered, category]
   );
+
+  const showPrice = category === 'tool';
   /**
    * Хангамж дээр ЗӨВХӨН хувцас, гутал бүртгэнэ.
    *
@@ -711,7 +711,6 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
       'Олгогдлоо',
       `${giveItem.name}
 ${qty} ${giveItem.unit} → ${employee.name}
-Мөнгөн дүн: ${formatMNT(Number(giveItem.price || 0) * Number(qty || 0))}
 Агуулахын үлдэгдэл: ${giveItem.quantity - qty} ${giveItem.unit}`
     );
     setGiveItem(null);
@@ -875,10 +874,6 @@ ${qty} ${giveItem.unit} → ${employee.name}
                 <HeaderButton
                   title="Хэн авсан"
                   onPress={() => navigation.navigate('ToolAllocation', { category })}
-                />
-                <HeaderButton
-                  title="Орлого"
-                  onPress={() => navigation.navigate('InventoryReceipts', { category })}
                 />
                 <HeaderButton title="Нэмэх" onPress={openAdd} />
               </>

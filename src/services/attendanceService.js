@@ -6,20 +6,6 @@ import { distanceMeters } from '../lib/geo';
 
 const TABLE = 'attendance';
 const BUCKET = 'attendance';
-const ATTENDANCE_START_MINUTES = 9 * 60;
-
-function lateMinutesAfterNine(iso) {
-  if (!iso) return 0;
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Ulaanbaatar',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(iso));
-  const hour = Number(parts.find((p) => p.type === 'hour')?.value || 0);
-  const minute = Number(parts.find((p) => p.type === 'minute')?.value || 0);
-  return Math.max(0, hour * 60 + minute - ATTENDANCE_START_MINUTES);
-}
 
 // Селфи зургийг Supabase Storage-д байршуулж, нийтийн URL буцаана
 export async function uploadSelfie(uri, staffId) {
@@ -344,7 +330,6 @@ async function fallbackDayRows(departmentId, date) {
       inRow && outRow
         ? Math.round((new Date(outRow.created_at) - new Date(inRow.created_at)) / 60000)
         : null;
-    const lateMinutes = lateMinutesAfterNine(inRow?.created_at);
     return {
       employee_id: p.id,
       employee_name: p.name,
@@ -356,10 +341,11 @@ async function fallbackDayRows(departmentId, date) {
       check_in_at: inRow?.created_at || null,
       check_out_at: outRow?.created_at || null,
       is_remote: mine.some((r) => r.is_remote),
-      late_minutes: lateMinutes,
+      // Хуваарь мэдэхгүй тул хоцролтыг ТААМАГЛАХГҮЙ — 0 гэж үзнэ.
+      late_minutes: 0,
       early_leave_minutes: 0,
       worked_minutes: workedMinutes,
-      status: inRow ? (lateMinutes > 0 ? 'late' : 'on_time') : 'not_scheduled',
+      status: inRow ? 'on_time' : 'not_scheduled',
     };
   });
 }

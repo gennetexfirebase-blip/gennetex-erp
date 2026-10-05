@@ -9,7 +9,7 @@ import { LoadingState } from '../components/ui';
 import * as attApi from '../services/attendanceService';
 import * as reqApi from '../services/attendanceRequestService';
 import { attendanceRequestTypeLabel, attendanceRequestStatusLabel } from '../lib/attendanceRequestTypes';
-import { formatAttendanceMinutes, formatDuration } from '../lib/workHours';
+import { formatDuration } from '../lib/workHours';
 import { colors as darkColors } from '../theme/attendanceDark';
 import { spacing } from '../theme';
 
@@ -179,7 +179,7 @@ export default function AttendanceDetailScreen() {
                 <InfoCell
                   icon="alert-circle-outline"
                   label={row.late_minutes > 0 ? 'Хоцорсон' : 'Эрт явсан'}
-                  value={formatAttendanceMinutes(row.late_minutes || row.early_leave_minutes)}
+                  value={`${row.late_minutes || row.early_leave_minutes}м`}
                   colors={colors}
                   iconFg="#ff6b60"
                 />

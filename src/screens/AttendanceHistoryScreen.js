@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, LoadingState, ErrorState, EmptyState, StatusPill } from '../components/ui';
 import { useApp } from '../context/AppContext';
 import * as attApi from '../services/attendanceService';
-import { formatAttendanceMinutes, formatDuration } from '../lib/workHours';
+import { formatDuration } from '../lib/workHours';
 import { colors } from '../theme/attendanceLight';
 import { spacing } from '../theme';
 
@@ -116,7 +116,7 @@ export default function AttendanceHistoryScreen() {
                   {item.worked_minutes ? ` · ${formatDuration(item.worked_minutes * 60000)}` : ''}
                 </Text>
                 {item.late_minutes > 0 ? (
-                  <Text style={{ color: colors.danger, fontSize: 12, marginTop: 2 }}>Хоцорсон: {formatAttendanceMinutes(item.late_minutes)}</Text>
+                  <Text style={{ color: colors.danger, fontSize: 12, marginTop: 2 }}>Хоцорсон: {item.late_minutes}м</Text>
                 ) : null}
                 {item.is_remote ? (
                   <Text style={{ color: colors.primary, fontSize: 12, marginTop: 2 }}>Зайнаас</Text>

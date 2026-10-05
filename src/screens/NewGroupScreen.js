@@ -10,7 +10,7 @@ import { useStyles } from '../context/ThemeContext';
 export default function NewGroupScreen() {
   const styles = useStyles(makeStyles);
   const navigation = useNavigation();
-  const { currentUser, fetchDirectory } = useApp();
+  const { currentUser, fetchEmployees } = useApp();
   const me = currentUser;
   const [name, setName] = useState('');
   const [employees, setEmployees] = useState([]);
@@ -19,16 +19,10 @@ export default function NewGroupScreen() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Чатад зөвхөн Supabase-д бүртгэлтэй, UUID-тай хэрэглэгч орно.
-    // Админы ажилтны жагсаалт pending хэрэглэгч агуулдаг тул түүнийг
-    // сонговол бүх гишүүний insert унаж, гишүүнгүй групп үүсдэг байв.
-    fetchDirectory()
+    fetchEmployees()
       .then((emps) => setEmployees(emps.filter((e) => e.id !== me?.id)))
       .catch((e) => setError(e.message));
-    // `fetchDirectory` нь context render бүрт шинэ reference авдаг тул
-    // dependency-д оруулбал жагсаалтыг давтан ачаална.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.id]);
+  }, []);
 
   const toggle = (id) => setSelected((s) => ({ ...s, [id]: !s[id] }));
 

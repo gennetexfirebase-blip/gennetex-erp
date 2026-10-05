@@ -3,10 +3,15 @@
     "name": "Gennetex ERP",
     "slug": "gennetex-erp",
     "scheme": "gennetex-erp",
-    "version": "1.4.2",
+    "version": "1.4.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -200,20 +205,9 @@
       "favicon": "./assets/logo.png"
     },
     "plugins": [
-      "expo-font",
-      "expo-sharing",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/logo.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
       "./plugins/withFirebaseManifestFix",
       "./plugins/withIncomingCallManifest",
       "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
       [
         "expo-location",
         {
@@ -304,10 +298,9 @@
         }
       ]
     ],
-    "owner": "gennetex-llc",
     "extra": {
       "eas": {
-        "projectId": "cb452a57-01d9-4222-ab7e-a46e17c7e673"
+        "projectId": "5c8b7868-880a-4c81-aa6c-f5ec464d0d22"
       }
     }
   }

@@ -79,7 +79,7 @@ export default function SignatureCanvas({ onChange }: { onChange: (blob: Blob | 
       </div>
       <canvas
         ref={canvasRef}
-        className="h-36 w-full touch-none rounded-[var(--radius-sm)] border border-dashed border-line bg-card"
+        className="h-36 w-full touch-none rounded-[var(--radius-sm)] border border-dashed border-line bg-white"
         onPointerDown={begin}
         onPointerMove={move}
         onPointerUp={finish}

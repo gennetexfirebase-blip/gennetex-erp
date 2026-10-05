@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import FuelRefillModal from '../components/FuelRefillModal';
 import FuelPriceCard from '../components/FuelPriceCard';
@@ -20,7 +19,6 @@ import MongoliaPlate from '../components/MongoliaPlate';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
-import * as fuelApi from '../services/fuelPriceService';
 import { buildVehicleFuelStats } from '../lib/vehicleFuelStats';
 
 /** "08-28 14:30" — товч бөгөөд ойлгомжтой. */
@@ -40,9 +38,6 @@ export default function FleetFuelScreen() {
   const [trips, setTrips] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [days, setDays] = useState(30);
-  const [expandedRefills, setExpandedRefills] = useState(null);
-  const [refillHistory, setRefillHistory] = useState({});
-  const [historyLoading, setHistoryLoading] = useState(null);
 
   const load = useCallback(async () => {
     if (!isCloud) return;
@@ -80,26 +75,6 @@ export default function FleetFuelScreen() {
    *    СЕРВЕР дээр тооцогдож, мөнгө/литр/үнэ гурвуулаа бүртгэгдэнэ.
    */
   const [refillVehicle, setRefillVehicle] = useState(null);
-
-  const toggleRefillHistory = async (vehicleId) => {
-    if (!vehicleId) return;
-    if (expandedRefills === vehicleId) {
-      setExpandedRefills(null);
-      return;
-    }
-    setExpandedRefills(vehicleId);
-    if (refillHistory[vehicleId]) return;
-    setHistoryLoading(vehicleId);
-    try {
-      const list = await fuelApi.fetchVehicleRefuels(vehicleId);
-      setRefillHistory((prev) => ({ ...prev, [vehicleId]: list }));
-    } catch (e) {
-      Alert.alert('Цэнэглэлтийн түүх', e?.message || 'Түүхийг ачаалж чадсангүй.');
-      setExpandedRefills(null);
-    } finally {
-      setHistoryLoading(null);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -201,50 +176,13 @@ export default function FleetFuelScreen() {
                   </Text>
                 </View>
               ) : null}
-              {row.vehicle?.id ? (
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.historyBtn}
-                    onPress={() => toggleRefillHistory(row.vehicle.id)}
-                  >
-                    <Ionicons name="time-outline" size={16} color={colors.primary} />
-                    <Text style={styles.refillText}>
-                      {expandedRefills === row.vehicle.id ? 'Түүх хаах' : 'Өмнөх цэнэглэлт'}
-                    </Text>
-                  </TouchableOpacity>
-                  {isAdmin ? (
-                    <TouchableOpacity
-                      style={styles.refillBtn}
-                      onPress={() => setRefillVehicle(row.vehicle)}
-                    >
-                      <Text style={styles.refillText}>Түлш цэнэглэх</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {expandedRefills === row.vehicle?.id ? (
-                <View style={styles.historyBox}>
-                  <Text style={styles.historyTitle}>Өмнөх цэнэглэлтүүд</Text>
-                  {historyLoading === row.vehicle.id ? (
-                    <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
-                  ) : refillHistory[row.vehicle.id]?.length ? (
-                    refillHistory[row.vehicle.id].map((entry) => (
-                      <View key={entry.id} style={styles.historyRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.historyDate}>{fmtRefillDate(entry.created_at)}</Text>
-                          <Text style={styles.historyMeta}>
-                            {Number(entry.liters || 0).toFixed(2)} л · {formatMNT(entry.price_per_liter || 0)}/л
-                            {entry.user_name ? ` · ${entry.user_name}` : ''}
-                          </Text>
-                        </View>
-                        <Text style={styles.historyCost}>{formatMNT(entry.cost || 0)}</Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.historyEmpty}>Цэнэглэлтийн бүртгэл алга.</Text>
-                  )}
-                </View>
+              {isAdmin && row.vehicle?.id ? (
+                <TouchableOpacity
+                  style={styles.refillBtn}
+                  onPress={() => setRefillVehicle(row.vehicle)}
+                >
+                  <Text style={styles.refillText}>Түлш цэнэглэх</Text>
+                </TouchableOpacity>
               ) : null}
             </Card>
           ))
@@ -317,18 +255,8 @@ const makeStyles = ({ colors }) =>
   },
   refillMarkIcon: { fontSize: 13 },
   refillMarkText: { color: colors.textMuted, fontSize: 11.5, flex: 1, lineHeight: 16 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  historyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   refillBtn: {
+      marginTop: spacing.sm,
       alignSelf: 'flex-start',
       paddingHorizontal: 12,
       paddingVertical: 8,
@@ -337,23 +265,4 @@ const makeStyles = ({ colors }) =>
       borderColor: colors.border,
     },
     refillText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
-    historyBox: {
-      marginTop: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: spacing.sm,
-    },
-    historyTitle: { color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 4 },
-    historyRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingVertical: 9,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border,
-    },
-    historyDate: { color: colors.text, fontSize: 13, fontWeight: '700' },
-    historyMeta: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
-    historyCost: { color: colors.warning, fontSize: 14, fontWeight: '900' },
-    historyEmpty: { color: colors.textMuted, fontSize: 12.5, paddingVertical: spacing.md },
   });

@@ -4,7 +4,6 @@ import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
 import { isDemoCredentials, enableDemo, disableDemo } from '../lib/demoMode';
-import { DEMO_USER } from '../lib/demoData';
 import {
   ROLES,
   normalizeRole,
@@ -65,7 +64,7 @@ export async function signIn(identifier, password) {
   // ажилтнуудын цалин, хувийн чатыг харах шаардлагагүй.
   if (isDemoCredentials(id, password)) {
     await enableDemo();
-    return { user: { id: DEMO_USER.id, email: DEMO_USER.email } };
+    return { user: { id: 'dm-user-0', email: 'demo@gennetex.mn' } };
   }
 
   // Demo-оос гарч байж бодит нэвтрэлт хийнэ — эс бөгөөс proxy нь

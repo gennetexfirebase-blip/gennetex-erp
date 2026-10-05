@@ -27,52 +27,6 @@ function extractTabTable(html, tabId) {
   return sanitizeTableHtml(html.slice(tableStart, tableEnd + 8));
 }
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-async function fetchTaxRows(shell, plateNo) {
-  if (!shell) return { html: shell, rows: [] };
-  try {
-    const response = await fetch(
-      `https://www.autobox.mn/api/services/app/Xyp/GetAutoboxTax?plateNo=${encodeURIComponent(plateNo)}`,
-      { headers: { 'User-Agent': 'GennetexERP/1.0', Accept: 'application/json' } },
-    );
-    if (!response.ok) return { html: shell, rows: [] };
-    const json = await response.json();
-    const items = json?.result?.items || [];
-    const body = items.map((item) =>
-      `<tr>` +
-      `<td>${escapeHtml(item.plateNo || plateNo)}</td>` +
-      `<td>${escapeHtml(item.year)}</td>` +
-      `<td>${escapeHtml(item.taxAmount)}</td>` +
-      `<td>${escapeHtml(item.trafficAmount)}</td>` +
-      `<td>${escapeHtml(item.airPollAmount)}</td>` +
-      `<td>${escapeHtml(item.paidDate)}</td>` +
-      `<td><span class="badge ${item.isPaid ? 'badge-success' : 'badge-danger'}">${escapeHtml(item.statusText)}</span></td>` +
-      `</tr>`
-    ).join('');
-    const html = shell.replace(/(<tbody[^>]*>)([\s\S]*?)(<\/tbody>)/i, `$1${body}$3`);
-    const rows = items.map((item) => [
-      item.plateNo || plateNo,
-      item.year ?? '',
-      item.taxAmount ?? '',
-      item.trafficAmount ?? '',
-      item.airPollAmount ?? '',
-      item.paidDate ?? '',
-      item.statusText ?? '',
-      item.isPaid === true,
-    ]);
-    return { html, rows };
-  } catch (_error) {
-    return { html: shell, rows: [] };
-  }
-}
-
 async function hashContent(parts) {
   const text = parts.filter(Boolean).join('|');
   const { createHash } = await import('node:crypto');
@@ -119,9 +73,7 @@ module.exports = async function handler(req, res) {
     const technical = extractTableAfterLabel(html, 'Техникийн мэдээлэл');
     const diagnosis = extractTabTable(html, 'diagnosisTab');
     const fines = extractTabTable(html, 'fineTab');
-    const taxResult = await fetchTaxRows(extractTabTable(html, 'taxTab'), plateNo);
-    const tax = taxResult.html;
-    const hash = await hashContent([general, technical, diagnosis, fines, tax]);
+    const hash = await hashContent([general, technical, diagnosis, fines]);
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     res.status(200).json({
@@ -133,8 +85,6 @@ module.exports = async function handler(req, res) {
       technical,
       diagnosis,
       fines,
-      tax,
-      taxRows: taxResult.rows,
       fetchedAt: new Date().toISOString(),
     });
   } catch (e) {

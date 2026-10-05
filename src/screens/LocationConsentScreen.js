@@ -4,14 +4,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LOCATION_CONSENT_KEY, startTracking, stopTracking } from '../services/backgroundLocationService';
+import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader } from '../components/ui';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
-export { LOCATION_CONSENT_KEY } from '../services/backgroundLocationService';
+export const LOCATION_CONSENT_KEY = '@gennetex_location_consent_v1';
 
 /**
  * Байршлын зөвшөөрлийн тайлбар (rationale) дэлгэц.
@@ -37,7 +37,6 @@ export default function LocationConsentScreen() {
   const [busy, setBusy] = useState(false);
 
   const finish = async (granted) => {
-    if (!granted) await stopTracking();
     await AsyncStorage.setItem(
       LOCATION_CONSENT_KEY,
       JSON.stringify({
@@ -51,14 +50,16 @@ export default function LocationConsentScreen() {
   };
 
   const accept = async () => {
-    if (busy) return;
     setBusy(true);
     try {
-      const result = await startTracking(currentUser, { requestPermissions: true });
-      if (result.ok) {
-        DeviceEventEmitter.emit('erp-location-consent');
-        navigation.goBack();
+      // Эхлээд foreground — Android нь background-ыг үүнгүйгээр өгдөггүй.
+      const fg = await Location.requestForegroundPermissionsAsync();
+      if (fg.status === 'granted') {
+        // Android 11+ дээр энэ нь Тохиргоо руу шилжүүлдэг. Хэрэглэгч
+        // "Always allow" сонгохгүй бол зөвхөн апп нээлттэй үед ажиллана.
+        await Location.requestBackgroundPermissionsAsync().catch(() => {});
       }
+      await finish(fg.status === 'granted');
     } finally {
       setBusy(false);
     }
@@ -125,7 +126,7 @@ export default function LocationConsentScreen() {
           {busy ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
-            <Text style={styles.primaryText}>Байршлын хяналт эхлүүлэх</Text>
+            <Text style={styles.primaryText}>Зөвшөөрөх</Text>
           )}
         </TouchableOpacity>
 

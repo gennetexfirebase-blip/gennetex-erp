@@ -91,14 +91,6 @@ export default function AttendanceSettingsScreen() {
         <Text style={styles.groupLabel}>БАЙГУУЛЛАГЫН ТОХИРГОО</Text>
         <View style={styles.card}>
           <SettingRow
-            icon="options"
-            iconColor="#8b5cf6"
-            title="Бизнес дүрэм"
-            subtitle="Ирэх цаг, хоцролт, сануулгын босго"
-            badge="Нэгдсэн"
-            onPress={() => navigation.navigate('BusinessSettings')}
-          />
-          <SettingRow
             icon="location"
             iconColor="#2f9fe0"
             title="Байршил"

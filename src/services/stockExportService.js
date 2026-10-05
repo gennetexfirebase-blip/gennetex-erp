@@ -10,11 +10,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import XlsxChart from '../../admin-web/xlsx-chart.js';
-import {
-  buildStockHoldingSheets,
-  buildFuelSpendSheets,
-  buildInventoryValueSheets,
-} from '../../admin-web/attendance-report-builder.js';
+import { buildStockHoldingSheets, buildFuelSpendSheets } from '../../admin-web/attendance-report-builder.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -44,14 +40,6 @@ async function writeAndShare(filename, bytes) {
 export async function exportStockHoldingExcel({ holders }) {
   const bytes = XlsxChart.build({ sheets: buildStockHoldingSheets({ holders }) });
   return writeAndShare(`gennetex_ezemshil_${todayStamp()}.xlsx`, bytes);
-}
-
-/** Агуулахын бүх ангиллын үнэ, үлдэгдэл, орлогын түүх → .xlsx */
-export async function exportInventoryValueExcel({ inventory, receipts }) {
-  const bytes = XlsxChart.build({
-    sheets: buildInventoryValueSheets({ inventory, receipts }),
-  });
-  return writeAndShare(`gennetex_aguulah_une_${todayStamp()}.xlsx`, bytes);
 }
 
 /**

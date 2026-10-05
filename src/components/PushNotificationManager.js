@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Platform, AppState } from 'react-native';
-import Notifications from '../lib/notificationsCompat';
+import * as Notifications from 'expo-notifications';
 import { useApp } from '../context/AppContext';
 import * as notifyApi from '../services/notificationService';
 import { startIncomingCallAlert, stopIncomingCallAlert } from '../services/callAlertService';

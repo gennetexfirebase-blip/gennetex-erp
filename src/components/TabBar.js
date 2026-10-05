@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { spacing } from '../theme';
+import { spacing, radius } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import NavIcon from './NavIcon';
 import { useApp } from '../context/AppContext';
@@ -29,7 +29,7 @@ export default function TabBar({ state, descriptors, navigation }) {
   }, [currentUser?.id]);
 
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: colors.surface, borderTopColor: colors.outlineVariant }]}>
+    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View
         style={[
           styles.bar,
@@ -38,12 +38,12 @@ export default function TabBar({ state, descriptors, navigation }) {
             borderColor: colors.outlineVariant,
           },
           Platform.select({
-            android: { elevation: 4 },
+            android: { elevation: 6 },
             ios: {
               shadowColor: colors.glowShadow,
-              shadowOffset: { width: 0, height: -1 },
-              shadowOpacity: isDark ? 0.14 : 0.05,
-              shadowRadius: 8,
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: isDark ? 0.15 : 0.06,
+              shadowRadius: 16,
             },
           }),
         ]}
@@ -129,32 +129,34 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'transparent',
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingTop: 7,
-    paddingBottom: 3,
+    borderRadius: 22,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginHorizontal: spacing.lg,
     alignSelf: 'stretch',
-    gap: 2,
+    maxWidth: 600,
+    gap: 4,
+    borderWidth: 1,
   },
   // Бүх таб ижил өргөнтэй. Идэвхтэй нь зөвхөн дүрсний ард бөмбөлөг нэмнэ —
   // хэмжээ өөрчлөгдөхгүй тул таб солиход юу ч шилжихгүй.
   item: {
     flex: 1,
     minWidth: 0,
-    minHeight: 56,
-    paddingVertical: 2,
+    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 2,
   },
   iconWrap: {
-    width: 48,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 32,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },

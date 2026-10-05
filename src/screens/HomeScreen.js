@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Animated,
+  Easing,
   Platform,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import NavIcon from '../components/NavIcon';
@@ -21,21 +22,20 @@ import { useTheme, useStyles } from '../context/ThemeContext';
 import { roleLabel, canTakeServiceCalls } from '../lib/roles';
 import { effectivePermissions } from '../lib/permissions';
 import DraggableTileGrid from '../components/DraggableTileGrid';
+import RealtimeWeather from '../components/RealtimeWeather';
 import { loadTileOrder, saveTileOrder, applyTileOrder } from '../lib/tileOrder';
+import { animationsEnabled } from '../lib/performanceMode';
 import * as tracking from '../services/trackingService';
 import * as vehicleApi from '../services/vehicleService';
 import { countTodayCheckIns } from '../services/attendanceService';
 import * as ohaabApi from '../services/ohaabService';
 import * as meetingApi from '../services/meetingService';
-import { formatDate } from '../lib/formatTime';
+import { formatTime, formatDate } from '../lib/formatTime';
 import TodayDashboard from '../components/enhancements/TodayDashboard';
 import HomeAttendanceCard from '../components/HomeAttendanceCard';
 import HeaderAccountActions from '../components/HeaderAccountActions';
 
 const EMPLOYEE_MODULES = [
-  { key: 'EmployeeTraining', label: 'Авсан сургалт', icon: 'attendance', accent: 'green' },
-  { key: 'StoreReadiness', label: 'Store шалгалт', icon: 'report', accent: 'brand' },
-  { key: 'WorkHeightRisk', label: 'Өндөрт ажиллах ХАБЭА', icon: 'attendance', accent: 'rose' },
   { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber' },
   // Бараа материал / багажийг ажилтан ӨӨРӨӨ авахгүй — зөвхөн админ олгоно.
   // Тиймээс агуулахын жагсаалт руу орох хавтас байхгүй, зөвхөн өөрт нь
@@ -68,8 +68,6 @@ const EMPLOYEE_MODULES = [
 ];
 
 const ADMIN_MODULES = [
-  { key: 'OperationalAlerts', label: 'Анхааруулгын төв', icon: 'attendance', accent: 'rose', need: 'approve' },
-  { key: 'BusinessSettings', label: 'Тохиргооны төв', icon: 'tools', accent: 'slate', need: 'approve', adminOnly: true },
   { key: 'AdminOhaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber', need: 'approve' },
   { key: 'Employees', label: 'Ажилтан бүртгэх', icon: 'employees', accent: 'indigo', need: 'employees' },
   // ⚠️ "Хэлтэс" нь нүүр дэлгэцийн хавтан БИШ. Хэлтсийг ажилтан нэмэх
@@ -90,7 +88,7 @@ const ADMIN_MODULES = [
   { key: 'AdminVisits', label: 'Очсон лог', icon: 'location', accent: 'green', need: 'approve'},
   { key: 'Requisition', label: 'Шаардах хуудас', icon: 'report', accent: 'brand', need: 'inventory'},
   { key: 'VehiclesAdmin', label: 'Машины мэдээлэл солих', icon: 'qr', accent: 'amber', need: 'employees' },
-  { key: 'VehicleSpecs', label: 'Машины оношилгоо', icon: 'vehicle', accent: 'amber', need: 'employees' },
+  { key: 'VehicleSpecs', label: 'Машины оншилгоо', icon: 'vehicle', accent: 'amber', need: 'employees' },
   { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber', need: 'employees' },
   { key: 'Live', label: 'Байршил хяналт', icon: 'location', accent: 'green', need: 'approve' },
   { key: 'Inventory', label: 'Бараа материал', icon: 'inventory', accent: 'brand', need: 'inventory' },
@@ -151,13 +149,9 @@ export default function HomeScreen() {
 
   // Динамик хэмжээ тооцоолох (flex wrap болон gap тохируулахад багтахгүй байхаас сэргийлнэ)
   const bodyPadding = 16; // spacing.lg
-  const tileGap = 14;
-  const moduleColumns = SCREEN_WIDTH >= 520 ? 4 : 3;
+  const tileGap = 12; // spacing.md
   const availableWidth = SCREEN_WIDTH - bodyPadding * 2;
-  const tileWidth = Math.floor((availableWidth - tileGap * (moduleColumns - 1)) / moduleColumns);
-  const tileHeight = moduleColumns === 3
-    ? Math.max(124, Math.round(tileWidth * 1.14))
-    : Math.round(tileWidth * 1.3);
+  const tileWidth = Math.floor((availableWidth - tileGap * 2) - 1) / 3;
   const aiCardWidth = Math.floor((availableWidth - tileGap) - 1) / 2;
 
   useEffect(() => {
@@ -196,7 +190,7 @@ export default function HomeScreen() {
       return () => {
         active = false;
       };
-    }, [isAdmin, isCloud, fetchEmployees, currentUser])
+    }, [isAdmin, isCloud, fetchEmployees, currentUser?.id])
   );
 
   const dateStr = formatDate(now);
@@ -279,7 +273,7 @@ export default function HomeScreen() {
 
   const saveOrder = useCallback(
     (section, keys) => {
-      setTileOrders((previous) => ({ ...previous, [section]: keys }));
+      setTileOrders((prev) => ({ ...prev, [section]: keys }));
       saveTileOrder(section, tileUserId, keys);
     },
     [tileUserId]
@@ -312,6 +306,29 @@ export default function HomeScreen() {
     );
   }, [q, orderedAdminModules, orderedServiceModules]);
 
+  const mountAnim = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(mountAnim, {
+      toValue: 1,
+      duration: 480,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+    // Сул утсанд тасралтгүй давтагдах хөдөлгөөн нь CPU-г дэмий эзэлнэ.
+    if (!animationsEnabled()) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [mountAnim, pulse]);
+  const aiSlide = mountAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] });
+  const badgeScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+
   const go = (m) => {
     if (m.key === 'Vehicle') {
       navigation.navigate('Vehicle', { autoScan: true });
@@ -332,14 +349,14 @@ export default function HomeScreen() {
       <View
         style={[
           styles.tile,
-          { flex: 1 },
+          { width: '100%', height: '100%' },
           dragging && styles.tileDragging,
         ]}
       >
-        <View style={[styles.tileIcon, { backgroundColor: tint + '16' }]}>
-          <NavIcon name={m.icon} size={23} color={tint} />
+        <View style={[styles.tileIcon, { backgroundColor: tint + '14' }]}>
+          <NavIcon name={m.icon} size={24} color={tint} />
         </View>
-        <Text style={styles.tileLabel} numberOfLines={3}>
+        <Text style={styles.tileLabel} numberOfLines={2}>
           {m.label}
         </Text>
       </View>
@@ -353,43 +370,29 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandLockup}>
-            <View style={styles.brandMarkCrop}>
-              <Image
-                source={require('../../assets/logo.png')}
-                style={styles.brandMarkImage}
-                resizeMode="contain"
-              />
-            </View>
-            <View>
-              <Text style={styles.brandWord}>GENNETEX</Text>
-              <Text style={styles.brandTagline}>ERP АЖЛЫН НЭГДСЭН ОРЧИН</Text>
-            </View>
-          </View>
-          <HeaderAccountActions />
-        </View>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greeting()}</Text>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
-            <Text style={styles.welcomeLine}>Өнөөдрийн ажлаа эндээс үргэлжлүүлнэ үү.</Text>
-          </View>
-          <View style={styles.datePill}>
-            <Ionicons name="calendar-outline" size={15} color={colors.textMuted} />
+            <Text style={styles.greeting}>{greeting()},</Text>
+            <Text style={styles.name} numberOfLines={2}>{name}</Text>
+            <View style={[styles.roleChip, isAdmin && styles.roleChipAdmin]}>
+              <Text style={[styles.roleChipText, isAdmin && styles.roleChipTextAdmin]}>
+                {roleLabel(authProfile?.role || (isAdmin ? 'admin' : 'employee'))}
+              </Text>
+            </View>
             <Text style={styles.date}>{dateStr}</Text>
+          </View>
+          {/* Цаг агаар — нэр ба цагийн ХООРОНДОХ сул зайд. Толгой хэсгийн
+              өндөр, нэр, badge, огноо, цаг, профайл зураг байрандаа хэвээр:
+              энэ нь дээд ирмэгтээ наалдсан бие даасан элемент. */}
+          {SCREEN_WIDTH >= 400 ? <RealtimeWeather style={styles.headerWeather} /> : null}
+          <View style={styles.headerRight}>
+            <Text style={styles.headerClock}>{formatTime(now)}</Text>
+            <HeaderAccountActions />
           </View>
         </View>
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <HomeHero styles={styles} onlineCount={stats.online} onPress={() => navigation.navigate('LiveTracking')} />
-        <QuickHomeModules
-          styles={styles}
-          isAdmin={isAdmin}
-          stats={stats}
-          onGo={(key) => navigation.navigate(key)}
-        />
         <TodayDashboard />
 
         {isCloud && !ohaabSignedToday ? (
@@ -460,20 +463,26 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <View style={{ display: searchHits ? 'none' : 'flex' }}>
+        <Animated.View
+          style={{
+            opacity: mountAnim,
+            transform: [{ translateY: aiSlide }],
+            display: searchHits ? 'none' : 'flex',
+          }}
+        >
           <View style={styles.aiHeaderRow}>
             <View style={styles.aiTitleWrap}>
-              <View style={styles.aiBadge}>
+              <Animated.View style={[styles.aiBadge, { transform: [{ scale: badgeScale }] }]}>
                 <NavIcon name="ai" size={16} color="#fff" />
-              </View>
+              </Animated.View>
               <Text style={styles.sectionTitle}>AI туслах</Text>
             </View>
             <View style={styles.aiTag}>
-                <Text style={styles.aiTagText}>Шинэ</Text>
+              <Text style={styles.aiTagText}>ШИНЭ</Text>
             </View>
           </View>
           <View style={styles.aiGrid}>{aiModules.map(renderAiCard)}</View>
-        </View>
+        </Animated.View>
 
         {hasAdminArea && !searchHits ? (
           <>
@@ -493,23 +502,23 @@ export default function HomeScreen() {
               <Stat icon="vehicle" value={stats.vehicles} label="Машин" color={colors.warning} />
             </View>
 
-            {capabilities.employees ? <TouchableOpacity style={styles.adminCta} activeOpacity={0.85} onPress={() => navigation.navigate('Employees')}>
+            <TouchableOpacity style={styles.adminCta} activeOpacity={0.85} onPress={() => navigation.navigate('Employees')}>
               <View style={styles.adminCtaIcon}>
                 <NavIcon name="employees" size={22} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.adminCtaTitle}>Шинэ ажилтан бүртгэх</Text>
-                <Text style={styles.adminCtaSub}>Gmail хаягийг зөвшөөрч, ажилтан бүртгэнэ</Text>
+                <Text style={styles.adminCtaSub}>Имэйл + 1 удаагийн нууц үг үүсгэнэ</Text>
               </View>
               <Text style={styles.adminCtaArrow}>→</Text>
-            </TouchableOpacity> : null}
+            </TouchableOpacity>
 
-            <Text style={styles.dragHint}>Хавтанг удаан дараад чирж байрлалыг солино.</Text>
+            <Text style={styles.dragHint}>Хавтанг удаан дараад чирвэл байрлалыг нь өөрчилнө.</Text>
             <DraggableTileGrid
               items={orderedAdminModules}
-              columns={moduleColumns}
+              columns={3}
               tileWidth={tileWidth}
-              tileHeight={tileHeight}
+              tileHeight={tileWidth}
               gap={tileGap}
               renderItem={renderTileFace}
               onPressItem={go}
@@ -524,12 +533,12 @@ export default function HomeScreen() {
         {searchHits ? null : (
           <>
             <Text style={styles.sectionTitle}>{isAdmin ? 'Ажилтны үйлчилгээ' : 'Үйлчилгээ'}</Text>
-            <Text style={styles.dragHint}>Хавтанг удаан дараад чирж байрлалыг солино.</Text>
+            <Text style={styles.dragHint}>Хавтанг удаан дараад чирвэл байрлалыг нь өөрчилнө.</Text>
             <DraggableTileGrid
               items={orderedServiceModules}
-              columns={moduleColumns}
+              columns={3}
               tileWidth={tileWidth}
-              tileHeight={tileHeight}
+              tileHeight={tileWidth}
               gap={tileGap}
               renderItem={renderTileFace}
               onPressItem={go}
@@ -543,58 +552,24 @@ export default function HomeScreen() {
   );
 }
 
-function HomeHero({ styles, onlineCount, onPress }) {
-  return (
-    <TouchableOpacity style={styles.homeHero} onPress={onPress} activeOpacity={0.84} accessibilityRole="button" accessibilityLabel={`Шууд байршил. ${onlineCount || 0} ажилтан идэвхтэй`}>
-      <View style={styles.heroCopy}>
-        <View style={styles.livePill}>
-          <View style={styles.heroOnlineDot} />
-          <Text style={styles.livePillText}>Шууд байршил</Text>
-        </View>
-        <Text style={styles.heroTitle}>Багийн байршлыг харах</Text>
-        <Text style={styles.heroSub}>{onlineCount || 0} ажилтан идэвхтэй · газрын зураг бодит хугацаанд шинэчлэгдэнэ</Text>
-      </View>
-      <View style={styles.heroAction}>
-        <Ionicons name="map-outline" size={22} color="#0369a1" />
-        <Ionicons name="chevron-forward" size={18} color="#64748b" />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function QuickHomeModules({ styles, isAdmin, stats, onGo }) {
-  const cards = [
-    { key: 'Attendance', title: 'Ирц', icon: 'calendar-outline', badge: stats.checkins || '' },
-    { key: isAdmin ? 'Inventory' : 'MyStock', title: isAdmin ? 'Агуулах' : 'Миний бараа', icon: 'cube-outline', badge: isAdmin ? stats.employees || '' : '' },
-    { key: isAdmin ? 'FleetFuel' : 'Fuel', title: 'Шатахуун', icon: 'car-sport-outline', badge: stats.vehicles || '' },
-  ];
-  return (
-    <View style={styles.quickCards}>
-      {cards.map((card, index) => (
-        <TouchableOpacity key={card.key} style={styles.quickCard} onPress={() => onGo(card.key)} activeOpacity={0.86}>
-          {index > 0 ? <View style={styles.quickDivider} /> : null}
-          <View style={styles.quickCardIcon}>
-            <Ionicons name={card.icon} size={21} color="#0369a1" />
-          </View>
-          {card.badge !== '' ? <Text style={styles.quickCardBadge}>{card.badge}</Text> : null}
-          <Text style={styles.quickCardTitle} numberOfLines={1}>{card.title}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
 function AiCard({ m, styles, width, onPress }) {
   const { isDark } = useTheme();
   const tint = accent(m.accent, isDark);
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const pressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
   return (
-    <View style={{ width }}>
+    <Animated.View style={{ width, transform: [{ scale }] }}>
       <TouchableOpacity
         style={[styles.aiCard, { borderColor: tint + '40', backgroundColor: tint + '10' }]}
         activeOpacity={0.9}
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={m.sub ? `${m.label}. ${m.sub}` : m.label}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
       >
         <View style={[styles.aiCardIcon, { backgroundColor: tint + '22' }]}>
           <NavIcon name={m.icon} size={22} color={tint} />
@@ -602,7 +577,7 @@ function AiCard({ m, styles, width, onPress }) {
         <Text style={styles.aiCardTitle} numberOfLines={1}>{m.label}</Text>
         {m.sub ? <Text style={styles.aiCardSub} numberOfLines={2}>{m.sub}</Text> : null}
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -628,31 +603,19 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 58 },
-  brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 185 },
-  brandMarkCrop: { width: 48, height: 50, overflow: 'hidden' },
-  brandMarkImage: { position: 'absolute', width: 96, height: 79, left: -29, top: -1 },
-  brandWord: { color: colors.text, fontSize: 19, fontWeight: '900', letterSpacing: 0.5 },
-  brandTagline: {
-    color: colors.textMuted,
-    fontSize: 6.5,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    marginTop: 1,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingTop: spacing.xs },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', paddingTop: spacing.sm },
   headerRight: { alignItems: 'flex-end', gap: spacing.sm },
   // Цаг агаар: цагтай нэг мөрөнд зэрэгцүүлж, баруун талдаа зайтай.
   // `flex-start` тул доорх нэр, badge, огнооны байрлалд нөлөөлөхгүй.
   headerWeather: { alignSelf: 'flex-start', marginTop: 4, marginRight: spacing.md },
   headerClock: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
-  greeting: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-  welcomeLine: { color: colors.textMuted, fontSize: 12.5, marginTop: 3 },
-  datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 12, paddingVertical: 9 },
+  greeting: { color: colors.textMuted, fontSize: 14 },
 
   // Хавтангийн хайлт
   searchBar: {
@@ -686,8 +649,8 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   searchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   searchTile: { borderRadius: radius.lg, overflow: 'hidden' },
   searchEmpty: { color: colors.textFaint, fontSize: 13.5, lineHeight: 20 },
-  name: { color: colors.text, fontSize: 25, fontWeight: '800', marginTop: 1, letterSpacing: -0.6 },
-  date: { color: colors.textMuted, fontSize: 11, textTransform: 'capitalize'},
+  name: { color: colors.text, fontSize: 28, fontWeight: '700', marginTop: 2, letterSpacing: -0.3 },
+  date: { color: colors.textMuted, fontSize: 13, marginTop: 4, textTransform: 'capitalize'},
   avatar: {
     width: 52,
     height: 52,
@@ -701,30 +664,7 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   },
   avatarImg: { width: '100%', height: '100%', borderRadius: 26 },
   avatarLetter: { color: colors.primary, fontSize: 22, fontWeight: '800'},
-  body: { paddingTop: spacing.md, paddingHorizontal: spacing.lg, paddingBottom: 140 },
-  homeHero: {
-    minHeight: 112,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  heroCopy: { flex: 1, padding: spacing.lg },
-  livePill: { alignSelf: 'flex-start', marginBottom: 7, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  livePillText: { color: colors.success, fontSize: 11, fontWeight: '700' },
-  heroOnlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
-  heroTitle: { color: colors.text, fontSize: 18, lineHeight: 24, fontWeight: '700', letterSpacing: -0.3 },
-  heroSub: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  heroAction: { width: 58, minHeight: 64, marginRight: spacing.md, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  quickCards: { flexDirection: 'row', marginBottom: spacing.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, overflow: 'hidden' },
-  quickCard: { flex: 1, minHeight: 100, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 12 },
-  quickDivider: { position: 'absolute', left: 0, top: 14, bottom: 14, width: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  quickCardIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 7, backgroundColor: colors.primarySoft },
-  quickCardBadge: { position: 'absolute', top: 8, right: 8, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, overflow: 'hidden', textAlign: 'center', textAlignVertical: 'center', color: colors.primary, backgroundColor: colors.primarySoft, fontSize: 10, fontWeight: '700' },
-  quickCardTitle: { color: colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  body: { padding: spacing.lg, paddingBottom: 140 },
   clockCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -749,7 +689,7 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   },
   clockBtnText: { color: '#fff', fontWeight: '800'},
   welcomeSub: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.md },
-  sectionTitle: { color: colors.text, fontSize: 18, lineHeight: 24, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm },
+  sectionTitle: { color: colors.text, fontSize: 19, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm },
   roleChip: {
     alignSelf: 'flex-start',
     backgroundColor: colors.bgAlt,
@@ -822,33 +762,26 @@ const makeStyles = ({ colors, shadow, isDark }) => {
   tile: {
     width: '31%',
     aspectRatio: 1,
-    backgroundColor: 'transparent',
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 9,
-    borderWidth: 0,
-  },
-  tileIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 13,
-    alignSelf: 'center',
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
   },
-  tileLabel: {
-    width: '100%',
-    color: colors.text,
-    fontSize: 11.5,
-    fontWeight: '600',
-    textAlign: 'center',
-    lineHeight: 15.5,
+  tileIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
+  tileLabel: { color: colors.text, fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
   // Чирч байгаа хавтан — өргөгдсөн мэт харагдана
   tileDragging: {
-    borderWidth: 1,
     borderColor: colors.primary,
     backgroundColor: colors.surfaceAlt,
     ...shadow.lg,

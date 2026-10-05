@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { LayoutDashboard } from 'lucide-react';
-import { PageHeader, Card, Loading, EmptyState, StatCard } from '../components/ui';
+import { PageHeader, Card, Loading, EmptyState, Badge, StatCard } from '../components/ui';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
 
 const TABS = ['Ажилтнууд', 'Ирц Бүртгэл', 'Цагийн Хүсэлт', 'Цалин, Татвар'] as const;
@@ -54,18 +54,16 @@ export default function DashboardPage() {
       <PageHeader
         title="Хянах самбар"
         crumb="Хянах самбар"
-        description="Ажилтны бүртгэл, төлөв болон хэлтсийн хуваарилалтын бодит мэдээлэл."
+        actions={<Badge tone="warning">NEW</Badge>}
       />
 
-      <div className="mb-5 flex overflow-x-auto border-b border-line" role="tablist" aria-label="Хянах самбарын хэсгүүд">
+      <div className="mb-5 flex flex-wrap gap-1.5">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            role="tab"
-            aria-selected={tab === t}
-            className={`focus-ring -mb-px min-h-11 whitespace-nowrap border-b-2 px-4 py-2.5 text-[13px] font-semibold transition-colors ${
-              tab === t ? 'border-brand text-brand' : 'border-transparent text-muted hover:border-line hover:text-ink'
+            className={`focus-ring rounded-full px-4 py-2 text-[13px] font-semibold transition ${
+              tab === t ? 'cta-gradient' : 'border border-line bg-card text-muted hover:bg-hover'
             }`}
           >
             {t}

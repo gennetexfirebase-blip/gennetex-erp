@@ -7,8 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-// Use the same optional EAS file variable as app.config.js.
-const SRC = path.resolve(ROOT, process.env.GOOGLE_SERVICES_JSON || 'google-services.json');
+const SRC = path.join(ROOT, 'google-services.json');
 const DEST = path.join(ROOT, 'android/app/google-services.json');
 
 if (!fs.existsSync(SRC)) {

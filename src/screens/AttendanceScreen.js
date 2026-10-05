@@ -42,7 +42,7 @@ import {
   // Бүсэд нэвтрэх/гарах дуу нь `components/LocationTracker.js`-д
   // шилжсэн — бүх дэлгэц, бүх эрхэд ажиллах ёстой тул.
 } from '../services/attendanceSoundService';
-import { dayKey, formatAttendanceMinutes, formatDuration, calculateDayWork } from '../lib/workHours';
+import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
   WEEKDAYS,
   mergeRestDays,
@@ -63,7 +63,6 @@ import DateRangeFilterBar from '../components/DateRangeFilterBar';
 import AttendanceFilterSheet from '../components/AttendanceFilterSheet';
 import DateRangeSheet from '../components/DateRangeSheet';
 import * as deptApi from '../services/departmentService';
-import * as companyApi from '../services/companySettingsService';
 
 /**
  * Царай таниулт бүтэлгүйтсэн ШАЛТГААНЫГ хэрэглэгчид тодорхой хэлнэ.
@@ -276,19 +275,6 @@ export default function AttendanceScreen() {
     locationId: '',
     note: '',
   });
-  const [companySettings, setCompanySettings] = useState(companyApi.DEFAULT_COMPANY_SETTINGS);
-
-  useEffect(() => {
-    let active = true;
-    companyApi.fetchCompanySettings()
-      .then((value) => {
-        if (!active) return;
-        setCompanySettings(value);
-        setShiftForm((current) => ({ ...current, startTime: companyApi.workStartLabel(value) }));
-      })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
 
   /**
    * Долоо хоногийн сонгосон өдрүүд (0 = Ням … 6 = Бямба).
@@ -669,7 +655,7 @@ export default function AttendanceScreen() {
   useEffect(() => {
     if (!isCloud || isAdmin || !myShift || shiftAlertSent.current) return;
     const check = async () => {
-      const [h, m] = companyApi.workStartLabel(companySettings).split(':').map(Number);
+      const [h, m] = (myShift.start_time || '09:00').split(':').map(Number);
       const start = new Date();
       start.setHours(h, m, 0, 0);
       const grace = new Date(start.getTime() + 10 * 60000);
@@ -693,13 +679,13 @@ export default function AttendanceScreen() {
       try {
         await notifyApi.notifyShiftMissed({
           staffName: profile?.name,
-          shiftTime: companyApi.workStartLabel(companySettings),
+          shiftTime: myShift.start_time,
           locationName: myShift.location_name,
         });
       } catch (e) {}
     };
     check();
-  }, [isCloud, isAdmin, myShift, myDayAttendance, locations, profile?.name, companySettings]);
+  }, [isCloud, isAdmin, myShift, myDayAttendance, locations, profile?.name]);
 
   const startCheck = async (type) => {
     if (facePreparing) return;
@@ -888,7 +874,7 @@ export default function AttendanceScreen() {
       longitude: loc?.longitude,
     });
     await loadMyDay();
-    await refreshShiftStatus({ requestTracking: type === 'check_in' });
+    await refreshShiftStatus();
 
     // Бүртгэгдсэн мөчийн цаг — мэдэгдэл дээр харагдана.
     const nowD = new Date();
@@ -1122,7 +1108,7 @@ export default function AttendanceScreen() {
       });
       await loadRecords();
       await loadMyDay();
-      await refreshShiftStatus({ requestTracking: pendingType === 'check_in' });
+      await refreshShiftStatus();
       setCameraVisible(false);
       Alert.alert(
         'Царай бүртгэгдлээ',
@@ -1176,7 +1162,7 @@ export default function AttendanceScreen() {
         });
         await loadRecords();
         await loadMyDay();
-        await refreshShiftStatus({ requestTracking: pendingType === 'check_in' });
+        await refreshShiftStatus();
         setCameraVisible(false);
         Alert.alert(
           'Ирц бүртгэгдлээ',
@@ -1222,7 +1208,7 @@ export default function AttendanceScreen() {
         });
         await loadRecords();
         await loadMyDay();
-        await refreshShiftStatus({ requestTracking: pendingType === 'check_in' });
+        await refreshShiftStatus();
         setVerificationStep(0);
         setLivenessChallenge(null);
       } else {
@@ -1341,7 +1327,7 @@ export default function AttendanceScreen() {
             userId: shiftForm.userId,
             userName: worker.name,
             shiftDate: d,
-            startTime: companyApi.workStartLabel(companySettings),
+            startTime: shiftForm.startTime,
             endTime: shiftForm.endTime,
             locationId: shiftForm.locationId || null,
             note: shiftForm.note.trim(),
@@ -1624,24 +1610,6 @@ ${dates[0]} – ${dates[dates.length - 1]}`
           <Ionicons name="location-outline" size={14} color={adminColors.textFaint} />
           <Text style={{ color: adminColors.textFaint, fontSize: 12, flex: 1 }} numberOfLines={1}>
             {adminLocationLabel}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 7,
-            marginTop: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 9,
-            borderRadius: 12,
-            backgroundColor: adminColors.primary + '18',
-          }}
-        >
-          <Ionicons name="time-outline" size={16} color={adminColors.primary} />
-          <Text style={{ color: adminColors.primary, fontSize: 12, fontWeight: '700', flex: 1 }}>
-            Ирэх цаг {companyApi.workStartLabel(companySettings)} · {companyApi.lateFromLabel(companySettings)}-ээс хоцорсон
           </Text>
         </View>
 
@@ -1970,11 +1938,7 @@ ${dates[0]} – ${dates[dates.length - 1]}`
                 fontWeight: item.late_minutes > 0 ? '700' : '400',
               }}
             >
-              {item.late_minutes > 0
-                ? formatAttendanceMinutes(item.late_minutes)
-                : item.early_leave_minutes > 0
-                  ? `-${formatAttendanceMinutes(item.early_leave_minutes)}`
-                  : '--'}
+              {item.late_minutes > 0 ? `${item.late_minutes}м` : item.early_leave_minutes > 0 ? `-${item.early_leave_minutes}м` : '--'}
             </Text>
           </TouchableOpacity>
         )}
@@ -2267,13 +2231,12 @@ ${dates[0]} – ${dates[dates.length - 1]}`
                 ))}
               </ScrollView>
               <View style={styles.timeRow}>
-                <View style={styles.fixedTimeWrap}>
-                  <Text style={styles.fixedTimeLabel}>Эхлэх цаг</Text>
-                  <View style={styles.fixedTimeBox}>
-                    <Ionicons name="lock-closed-outline" size={15} color={adminColors.primary} />
-                    <Text style={styles.fixedTimeValue}>{companyApi.workStartLabel(companySettings)}</Text>
-                  </View>
-                </View>
+                <TimeSelect
+                  label="Эхлэх цаг"
+                  value={shiftForm.startTime}
+                  onChange={(t) => setShiftForm({ ...shiftForm, startTime: t })}
+                  allowClear={false}
+                />
                 <TimeSelect
                   label="Дуусах цаг"
                   value={shiftForm.endTime}
@@ -2725,20 +2688,6 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   weekDay: { width: 56, color: colors.text, fontWeight: '800', fontSize: 13, paddingTop: spacing.lg },
   timeRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  fixedTimeWrap: { flex: 1 },
-  fixedTimeLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  fixedTimeBox: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary + '14',
-  },
-  fixedTimeValue: { color: colors.primary, fontSize: 15, fontWeight: '800' },
   restBadge: {
     color: colors.accent,
     fontSize: 14,

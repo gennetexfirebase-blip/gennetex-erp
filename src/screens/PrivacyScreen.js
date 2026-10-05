@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TextInput, Linking } from 'react-native';
 import { Card, ScreenHeader, Button } from '../components/ui';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/erpMessages';
-import LegalLinks from '../components/LegalLinks';
 
 /**
  * Нууцлал ба бүртгэл устгах.
@@ -20,6 +19,13 @@ import LegalLinks from '../components/LegalLinks';
  * Энэ дэлгэц нь ажилтанд "миний юуг хэн харж байна вэ" гэсэн асуултад
  * бүрэн хариулна — reviewer ч мөн үүнийг хайдаг.
  */
+
+/**
+ * Нийтийн вэб сайт — нууцлалын бодлого, үйлчилгээний нөхцөл, бүртгэл
+ * устгах хуудсууд энд байрлана. Домэйн солигдвол `.env` дотор
+ * `EXPO_PUBLIC_SITE_URL` тохируулна.
+ */
+const PUBLIC_SITE = (process.env.EXPO_PUBLIC_SITE_URL || 'https://gennetex.mn').replace(/\/+$/, '');
 
 const COLLECTED = [
   {
@@ -148,7 +154,17 @@ export default function PrivacyScreen() {
           <Text style={styles.p}>
             Бүрэн эхийг вэб хуудаснаас уншина уу.
           </Text>
-          <LegalLinks />
+          <Button
+            title="Нууцлалын бодлого нээх"
+            variant="ghost"
+            onPress={() => Linking.openURL(`${PUBLIC_SITE}/privacy`)}
+          />
+          <View style={{ height: spacing.sm }} />
+          <Button
+            title="Үйлчилгээний нөхцөл"
+            variant="ghost"
+            onPress={() => Linking.openURL(`${PUBLIC_SITE}/terms`)}
+          />
         </Card>
 
         <Card style={styles.card}>

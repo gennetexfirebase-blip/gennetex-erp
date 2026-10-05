@@ -38,12 +38,12 @@ export default function LegacyModule({
           </Button>
         }
       />
-      <div className="overflow-hidden rounded-[var(--radius)] border border-line bg-app">
+      <div className="overflow-hidden rounded-[var(--radius)] border border-line">
         <iframe
           key={view}
           title={title}
           src={src}
-          className="h-[calc(100vh-190px)] min-h-[520px] w-full border-0 bg-app"
+          className="h-[calc(100vh-190px)] min-h-[520px] w-full border-0 bg-white"
         />
       </div>
     </>

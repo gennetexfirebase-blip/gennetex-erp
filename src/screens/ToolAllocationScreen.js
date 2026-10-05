@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, EmptyState } from '../components/ui';
@@ -48,7 +48,6 @@ function shortDate(iso) {
 }
 
 export default function ToolAllocationScreen() {
-  const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
   const { inventory, isCloud, fetchStockMovements, fetchEmployees } = useApp();
@@ -230,26 +229,16 @@ export default function ToolAllocationScreen() {
         title="Хэн авсан"
         subtitle={`${totals.people} ажилтан · ${totals.kinds} нэр төрөл · нийт ${totals.qty}`}
         right={
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.logBtn}
-              onPress={() => navigation.navigate('StockLog')}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="receipt-outline" size={17} color={colors.primary} />
-              <Text style={styles.logBtnText}>Лог</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.excelBtn}
-              onPress={() => setPreviewOpen(true)}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Excel тайлан"
-            >
-              <ExcelIcon size={18} />
-              <Text style={styles.excelBtnText}>Excel</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.excelBtn}
+            onPress={() => setPreviewOpen(true)}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Excel тайлан"
+          >
+            <ExcelIcon size={18} />
+            <Text style={styles.excelBtnText}>Excel</Text>
+          </TouchableOpacity>
         }
       />
 
@@ -437,19 +426,6 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   sheetTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
   sheetSub: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary + '40',
-    backgroundColor: colors.primarySoft,
-  },
-  logBtnText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
   excelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
