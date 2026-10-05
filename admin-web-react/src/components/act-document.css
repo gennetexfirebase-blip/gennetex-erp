@@ -88,6 +88,8 @@
 .act-edit-receivers { position:relative; border-radius:1mm; }
 .act-edit-receivers:hover { outline:.3mm dashed #9db8e8; outline-offset:1.5mm; }
 .act-edit-chip { position:absolute; z-index:3; right:0; top:-4mm; padding:.8mm 2.4mm; border:.2mm solid #b9c9e6; border-radius:4mm; background:#fff; color:#3d6fc4; font:600 7.5pt Arial,sans-serif; cursor:pointer; }
+.act-document-edit .act-receiver-signature-row:hover .act-edit-remove { opacity:1; }
+.act-document-edit .act-receiver-name.act-edit-select { font-weight:700; }
 .act-edit-caption { display:flex!important; align-items:baseline; gap:1.2mm; width:100%; justify-content:center; }
 .act-edit-caption .act-edit-input { flex:1; max-width:120mm; font-weight:400; text-align:left; }
 .act-edit-photo-add { opacity:.92; }

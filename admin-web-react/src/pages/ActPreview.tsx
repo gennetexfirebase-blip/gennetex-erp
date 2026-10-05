@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { Archive, ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, FileText, Globe2, Link2Off, Mail, MousePointerClick, Pencil, Printer, Save, Send, ZoomIn, ZoomOut } from 'lucide-react';
 import ActDocument, { actPageCount } from '../components/ActDocument';
 import { Button, Card, Loading, PageHeader, Textarea } from '../components/ui';
-import { ACT_STATUS_LABELS, actError, duplicateAct, fetchAct, fetchActInventory, fetchActTemplates, logActEmail, logActExport, removeActImage, saveAct, sendActEmail, setActPublicShare, snapshotDraft, transitionAct, uploadActPdf, type Act, type ActDraft, type ActInventoryItem, type ActTemplate } from '../lib/acts';
+import { ACT_STATUS_LABELS, actError, duplicateAct, fetchAct, fetchActInventory, fetchActReceiverContacts, fetchActTemplates, logActEmail, logActExport, removeActImage, saveAct, sendActEmail, setActPublicShare, snapshotDraft, transitionAct, uploadActPdf, type Act, type ActDraft, type ActInventoryItem, type ActReceiverContact, type ActTemplate } from '../lib/acts';
 
 export default function ActPreviewPage() {
   const { id } = useParams();
@@ -20,6 +20,7 @@ export default function ActPreviewPage() {
   // PDF editor — preview хуудас бүхэлдээ шууд засагддаг болно.
   const [draft, setDraft] = useState<ActDraft | null>(null);
   const [inventory, setInventory] = useState<ActInventoryItem[]>([]);
+  const [receiverContacts, setReceiverContacts] = useState<ActReceiverContact[]>([]);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const lastSaved = useRef('');
   const canEdit = ['menejer', 'manager', 'admin', 'superadmin'].includes(profile?.role || '') || Boolean(profile?.permissions?.['acts.edit']);
@@ -61,6 +62,7 @@ export default function ActPreviewPage() {
     lastSaved.current = JSON.stringify(value);
     setDraft(value); setSaveState('idle');
     if (!inventory.length) fetchActInventory().then(setInventory).catch(() => null);
+    if (!receiverContacts.length) fetchActReceiverContacts().then(setReceiverContacts).catch(() => null);
   };
 
   const finishEditing = async () => {
@@ -193,7 +195,7 @@ export default function ActPreviewPage() {
           <span className={`font-medium ${saveState === 'error' ? 'text-danger' : 'text-success'}`}>{saveState === 'saving' ? 'Хадгалж байна...' : saveState === 'saved' ? '✓ Хадгалагдлаа' : saveState === 'error' ? 'Хадгалж чадсангүй' : ''}</span>
         </div> : null}
         <div className="overflow-auto bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ width: `${210 * zoom}mm`, height: `${297 * zoom}mm`, margin: '0 auto' }}><div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '210mm' }}><ActDocument act={shown || act} template={template} onlyPage={page} edit={draft ? {
-          onChange: patch, inventory, onRemovePhoto: removePhoto,
+          onChange: patch, inventory, onRemovePhoto: removePhoto, receiverContacts,
           onEditReceivers: () => { void finishEditing().then(() => navigate(`/admin/documents/acts/${act.id}/edit`)); },
         } : undefined} /></div></div></div>
         <div className="flex flex-wrap items-center justify-center gap-2 border-t border-line p-3 sm:gap-4"><Button variant="outline" disabled={page <= 1} icon={<ChevronLeft size={15} />} onClick={() => setPage(page - 1)}>Өмнөх</Button><span className="text-[13px] text-muted">Хуудас: <b className="text-ink">{page} / {total}</b></span><Button variant="outline" disabled={page >= total} icon={<ChevronRight size={15} />} onClick={() => setPage(page + 1)}>Дараах</Button></div>

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import reportLogo from '../assets/report-logo.png';
-import type { Act, ActChecklist, ActDraft, ActInventoryItem, ActMaterial, ActPhoto, ActReceiver, ActTemplate } from '../lib/acts';
+import type { Act, ActChecklist, ActDraft, ActInventoryItem, ActMaterial, ActPhoto, ActReceiver, ActReceiverContact, ActTemplate } from '../lib/acts';
 import './act-document.css';
 
 type PrintableAct = Act | (ActDraft & { act_number?: string; created_at?: string });
@@ -16,6 +16,8 @@ export type ActDocumentEdit = {
   onRemovePhoto?: (index: number) => void;
   onDropFiles?: (files: File[]) => void;
   onEditReceivers?: () => void;
+  /** Өгвөл хүлээлцэх хүмүүсийг хуудсан дээр лавлахаас (Юнивишн, Нексмайнд...) сонгодог болно. */
+  receiverContacts?: ActReceiverContact[];
   /** Зөвхөн зураг нэмэх эрхтэй (материал, шалгах хуудас, зургийн тайлбар түгжээтэй). */
   photosLocked?: boolean;
 };
@@ -110,8 +112,45 @@ function receiverGroupLabel(receiver: ActReceiver) {
   return `${subject} төлөөлөн хүлээж авсан:`;
 }
 
-function ReceiverBlock({ act, onEdit }: { act: PrintableAct; onEdit?: () => void }) {
+/** Лавлахын хүнийг актын хүлээлцэх мөр болгоно. */
+function receiverFromContact(receiver: ActReceiver, contact: ActReceiverContact): ActReceiver {
+  return {
+    ...receiver, contact_id: contact.id, audience_type: contact.audience_type, organization: contact.organization.trim(),
+    employee_id: contact.employee_id, name: contact.name, position: contact.position,
+    signature_url: contact.signature_url, stamp_url: contact.stamp_url,
+    signature_preview_url: contact.signature_url, stamp_preview_url: contact.stamp_url,
+    signature_mode: contact.signature_url ? 'upload' : 'none', is_enabled: true,
+  };
+}
+
+/** Хүлээн авагч талын хүнийг лавлахаас сонгох — байгууллагаар бүлэглэнэ (Женнетексийн бүрэлдэхүүнгүй). */
+function ReceiverSelect({ receiver, contacts, onChoose }: { receiver: ActReceiver; contacts: ActReceiverContact[]; onChoose: (contact: ActReceiverContact) => void }) {
+  const groups = new Map<string, ActReceiverContact[]>();
+  contacts.filter((contact) => contact.is_active && contact.preset_group !== 'gennetex_handover').forEach((contact) => {
+    const key = `${contact.organization.trim() || 'Бусад'}${contact.audience_type === 'household' ? ' (Өрх)' : ''}`;
+    groups.set(key, [...(groups.get(key) || []), contact]);
+  });
+  const known = contacts.some((contact) => contact.id === receiver.contact_id);
+  return <select className="act-edit-input act-edit-select act-receiver-name" aria-label="Хүлээлцэх хүн сонгох" value={known ? receiver.contact_id || '' : ''}
+    onChange={(event) => { const contact = contacts.find((row) => row.id === event.target.value); if (contact) onChoose(contact); }}>
+    <option value="" disabled>{receiver.name ? `/${receiver.name}/` : 'Хүн сонгох'}</option>
+    {[...groups.entries()].map(([group, members]) => <optgroup key={group} label={group}>
+      {members.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.position ? ` — ${contact.position}` : ''}</option>)}
+    </optgroup>)}
+  </select>;
+}
+
+function ReceiverBlock({ act, onEdit, edit }: { act: PrintableAct; onEdit?: () => void; edit?: ActDocumentEdit }) {
   const receivers = (act.receivers || []).filter((receiver) => receiver.is_enabled !== false);
+  const contacts = edit?.receiverContacts?.length ? edit.receiverContacts : null;
+  const all = act.receivers || [];
+  const replace = (receiver: ActReceiver, contact: ActReceiverContact) => edit?.onChange({ receivers: all.map((row) => row === receiver ? receiverFromContact(row, contact) : row) });
+  const removeReceiver = (receiver: ActReceiver) => edit?.onChange({ receivers: all.filter((row) => row !== receiver) });
+  const addReceiver = (template: ActReceiver) => {
+    const blank: ActReceiver = { ...template, id: undefined, contact_id: null, employee_id: null, name: '', position: '', signature_url: '', stamp_url: '', signature_preview_url: '', stamp_preview_url: '', signature_mode: 'none', is_enabled: true };
+    const at = all.lastIndexOf(template) + 1;
+    edit?.onChange({ receivers: [...all.slice(0, at), blank, ...all.slice(at)] });
+  };
   if (!receivers.length) return onEdit ? <button type="button" className="act-edit-add act-edit-receivers-empty" onClick={onEdit}>+ Хүлээлцэх хүмүүс нэмэх</button> : null;
   return (
     <div className={`act-receivers ${onEdit ? 'act-edit-receivers' : ''}`}>
@@ -129,8 +168,12 @@ function ReceiverBlock({ act, onEdit }: { act: PrintableAct; onEdit?: () => void
                     ? <img src={receiver.signature_preview_url || receiver.signature_url} alt={`${receiver.name} гарын үсэг`} />
                     : <i aria-label="Гарын үсгийн зураас" />}
               </span>
-              <span className="act-receiver-name">/{receiver.name || 'Нэр'}/</span>
+              {contacts && receiver.type !== 'contractor'
+                ? <ReceiverSelect receiver={receiver} contacts={contacts} onChoose={(contact) => replace(receiver, contact)} />
+                : <span className="act-receiver-name">/{receiver.name || 'Нэр'}/</span>}
+              {contacts && receiver.type !== 'contractor' ? <RemoveButton label={`${receiver.name || 'Хүн'} хасах`} onClick={() => removeReceiver(receiver)} /> : null}
             </div>)}
+            {contacts && group[0].type !== 'contractor' ? <button type="button" className="act-edit-add" onClick={() => addReceiver(group[group.length - 1])}>+ Хүн нэмэх</button> : null}
           </div>
         </section>;
       })}
@@ -299,7 +342,7 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
             {edit && isLast && !rowsLocked ? <tr className="act-edit-add-row"><td colSpan={6}><button type="button" className="act-edit-add" onClick={addCheck}>+ Шаардлага нэмэх</button></td></tr> : null}
           </tbody>
         </table>
-        {isLast ? <ReceiverBlock act={act} onEdit={edit?.onEditReceivers} /> : null}
+        {isLast ? <ReceiverBlock act={act} onEdit={edit?.onEditReceivers} edit={edit} /> : null}
       </Shell>
     );
   });

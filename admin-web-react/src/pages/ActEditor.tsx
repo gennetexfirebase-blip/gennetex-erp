@@ -537,7 +537,7 @@ export default function ActEditorPage() {
       {step === 1 ? <fieldset disabled={locked || !canFullEdit} className="min-w-0 disabled:opacity-75"><ReceiversStep rows={draft.receivers} employees={employees} contacts={receiverContacts} isSuperAdmin={isSuperAdmin} canStamp={canStamp} organizations={organizations} organization={activeReceiverOrg} onChooseOrganization={applyReceiverOrganization} onAddHandover={isDirector ? addHandover : undefined} isDirector={isDirector} onAdd={addReceiver} onRemove={removeReceiver} onChange={updateReceiver} onChooseEmployee={chooseEmployee} onChooseContact={chooseReceiverContact} onSaveContact={storeReceiverContact} onUpload={uploadReceiverFile} onDraw={(index) => setSignatureIndex(index)} /></fieldset> : null}
       {step === 2 ? <PreviewStep act={printable} template={template} zoom={zoom} setZoom={setZoom} page={previewPage} setPage={setPreviewPage} total={totalPages} saveState={saveState}
         edit={canFullEdit && !locked ? {
-          onChange: patch, inventory, customers, onChooseCustomer: chooseCustomer, onRemovePhoto: removePhoto,
+          onChange: patch, inventory, customers, onChooseCustomer: chooseCustomer, onRemovePhoto: removePhoto, receiverContacts,
           onEditReceivers: hideReceivers ? undefined : () => setStep(1),
         } : undefined} /> : null}
       {step === 3 ? <ExportStep draft={draft} exporting={exporting} onExport={exportFile} onAction={action} onEdit={() => setStep(0)} /> : null}
