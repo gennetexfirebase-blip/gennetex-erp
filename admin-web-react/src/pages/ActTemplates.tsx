@@ -81,6 +81,7 @@ type ContactRow = ActReceiverContact & { dirty?: boolean; isNew?: boolean };
 function ReceiverDirectory({ onToast }: { onToast: (message: string) => void }) {
   const [rows, setRows] = useState<ContactRow[]>([]);
   const [savingId, setSavingId] = useState('');
+  const [confirmId, setConfirmId] = useState('');
   const load = async () => { try { setRows(await fetchActReceiverContacts()); } catch (cause) { onToast(actError(cause)); } };
   useEffect(() => { void load(); }, []);
 
@@ -109,13 +110,12 @@ function ReceiverDirectory({ onToast }: { onToast: (message: string) => void }) 
   };
   const remove = async (row: ContactRow) => {
     if (row.isNew) { setRows((current) => current.filter((item) => item.id !== row.id)); return; }
-    if (!window.confirm(`${row.name || 'Энэ хүн'}-ийг лавлахаас устгах уу? Өмнө үүссэн актууд хэвээр үлдэнэ.`)) return;
-    setSavingId(row.id);
+    setConfirmId(''); setSavingId(row.id);
     try {
       await deleteActReceiverContact(row.id);
-      setRows((current) => current.filter((item) => item.id !== row.id));
       onToast(`${row.name} лавлахаас устлаа`);
-    } catch (cause) { onToast(actError(cause)); }
+      await load();
+    } catch (cause) { onToast(`Устгаж чадсангүй: ${actError(cause)}`); }
     finally { setSavingId(''); }
   };
   const add = (template: ContactRow) => {
@@ -135,7 +135,9 @@ function ReceiverDirectory({ onToast }: { onToast: (message: string) => void }) 
         <Input aria-label="Албан тушаал" placeholder="Албан тушаал" value={row.position || ''} onChange={(e) => update(row.id, { position: e.target.value })} />
         <label className="flex items-center gap-2 px-2 text-[12px] text-muted"><input type="checkbox" className="h-4 w-4 accent-[var(--brand)]" checked={row.is_active} disabled={savingId === row.id} onChange={(e) => toggleActive(row, e.target.checked)} />{row.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}</label>
         <Button icon={<Save size={15} />} disabled={!row.dirty || !row.name.trim() || savingId === row.id} onClick={() => save(row)}>{savingId === row.id ? '...' : 'Хадгалах'}</Button>
-        <Button variant="ghost" className="!px-2 text-danger" aria-label={`${row.name || 'Хүн'} устгах`} title="Устгах" icon={<Trash2 size={15} />} disabled={savingId === row.id} onClick={() => remove(row)} />
+        {confirmId === row.id
+          ? <div className="flex items-center gap-1"><span className="px-1 text-[12px] text-danger">Устгах уу?</span><Button variant="danger" className="!px-2.5" disabled={savingId === row.id} onClick={() => remove(row)}>Тийм</Button><Button variant="ghost" className="!px-2.5" onClick={() => setConfirmId('')}>Үгүй</Button></div>
+          : <Button variant="ghost" className="!px-2 text-danger" aria-label={`${row.name || 'Хүн'} устгах`} title="Устгах" icon={<Trash2 size={15} />} disabled={savingId === row.id} onClick={() => row.isNew ? remove(row) : setConfirmId(row.id)} />}
       </div>)}</div>
     </section>)}</div>
   </Card>;

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, CircleAlert,
-  CloudDownload, Download, FileText, ImagePlus, MousePointerClick, PackageOpen, Plus, Printer,
+  CloudDownload, Download, FileText, GripVertical, ImagePlus, MousePointerClick, PackageOpen, Plus, Printer,
   Save, Signature, Trash2, Upload, Users, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import ActDocument, { actPageCount, type ActDocumentEdit } from '../components/ActDocument';
 import SignatureCanvas from '../components/SignatureCanvas';
-import { Button, Card, EmptyState, Input, Loading, PageHeader, Select } from '../components/ui';
+import { Button, Card, EmptyState, Input, Loading, PageHeader, Select, Textarea } from '../components/ui';
 import { fetchEmployees, type Employee } from '../lib/data';
 import {
   ACT_STATUS_LABELS, actError, addActPhoto, emptyActDraft, fetchAct, fetchActInventory, fetchActReceiverContacts, fetchActSources, fetchActTemplates,
@@ -175,6 +175,7 @@ export default function ActEditorPage() {
   const [issueConfirm, setIssueConfirm] = useState(false);
   const [receiverOrg, setReceiverOrg] = useState('');
   const hydrated = useRef(false);
+  const dragIndex = useRef<number | null>(null);
   const lastSaved = useRef('');
   const isAdmin = ['admin', 'superadmin'].includes(profile?.role || '') || Boolean(profile?.permissions?.['acts.delete']);
   const isSuperAdmin = profile?.role === 'superadmin';
@@ -526,22 +527,12 @@ export default function ActEditorPage() {
       {step === 0 ? (!draft.id
         ? <SourcePicker sources={visibleSources} sourceSearch={sourceSearch} setSourceSearch={setSourceSearch} chooseSource={chooseSource} createManual={createManual} />
         : <div className="space-y-4">
-          <EditorToolbar
-            draft={draft} patch={patch} templates={templates} chooseTemplate={chooseTemplate} sources={sources}
-            fieldsLocked={locked || !canFullEdit} photosLocked={locked} addOnly={!canFullEdit}
-            onSource={(key) => { const [sourceType, sourceId] = key.split(':'); if (sourceId) void importSourceMaterials(sourceType as ActSource['source_type'], sourceId); }}
-            onPull={pullMaterials} onIssue={() => setIssueConfirm(true)} onUpload={uploadPhotos} onOpenErp={() => setPhotoModal(true)}
-          />
-          <fieldset disabled={locked} className="min-w-0">
-            <FitToWidth>
-              <ActDocument act={printable} template={template} edit={{
-                onChange: patch, inventory, customers, onChooseCustomer: chooseCustomer,
-                onRemovePhoto: removePhoto, onDropFiles: locked ? undefined : uploadPhotos,
-                onEditReceivers: hideReceivers ? undefined : () => setStep(1),
-                photosLocked: locked || !canFullEdit,
-              }} />
-            </FitToWidth>
+          <fieldset disabled={locked || !canFullEdit} className="min-w-0 space-y-4 disabled:opacity-75">
+            <BasicStep draft={draft} patch={patch} templates={templates} chooseTemplate={chooseTemplate} customers={customers} onChooseCustomer={chooseCustomer} />
+            <MaterialsStep rows={draft.materials} inventory={inventory} sources={sources} sourceKey={draft.source_id && draft.source_type !== 'manual' ? `${draft.source_type}:${draft.source_id}` : ''} onSource={(key) => { const [sourceType, sourceId] = key.split(':'); if (sourceId) void importSourceMaterials(sourceType as ActSource['source_type'], sourceId); }} onChange={(materials) => patch({ materials })} onPull={pullMaterials} onIssue={() => setIssueConfirm(true)} />
+            <ChecklistStep rows={draft.checklists} onChange={(checklists) => patch({ checklists })} />
           </fieldset>
+          <fieldset disabled={locked} className="min-w-0 disabled:opacity-75"><PhotosStep rows={draft.photos} layout={draft.photo_layout} onLayout={(photo_layout) => patch({ photo_layout })} onUpload={uploadPhotos} onRemove={removePhoto} onChange={(photos) => patch({ photos })} onOpenErp={() => setPhotoModal(true)} dragIndex={dragIndex} addOnly={!canFullEdit} /></fieldset>
         </div>) : null}
       {step === 1 ? <fieldset disabled={locked || !canFullEdit} className="min-w-0 disabled:opacity-75"><ReceiversStep rows={draft.receivers} employees={employees} contacts={receiverContacts} isSuperAdmin={isSuperAdmin} canStamp={canStamp} organizations={organizations} organization={activeReceiverOrg} onChooseOrganization={applyReceiverOrganization} onAddHandover={isDirector ? addHandover : undefined} isDirector={isDirector} onAdd={addReceiver} onRemove={removeReceiver} onChange={updateReceiver} onChooseEmployee={chooseEmployee} onChooseContact={chooseReceiverContact} onSaveContact={storeReceiverContact} onUpload={uploadReceiverFile} onDraw={(index) => setSignatureIndex(index)} /></fieldset> : null}
       {step === 2 ? <PreviewStep act={printable} template={template} zoom={zoom} setZoom={setZoom} page={previewPage} setPage={setPreviewPage} total={totalPages} saveState={saveState}
@@ -572,51 +563,93 @@ function SourcePicker({ sources, sourceSearch, setSourceSearch, chooseSource, cr
   return <Card title="Акт үүсгэх"><div className="rounded-[var(--radius)] border border-brand/25 bg-brand-soft p-4"><h3 className="font-semibold text-ink">Эхлээд төсөл / объект / ажлын захиалга сонгоно уу</h3><p className="mt-1 text-[12px] text-muted">ERP-ийн дуудлага эсвэл ажлын байрнаас захиалагч, хаяг, гүйцэтгэсэн ажил, огноо автоматаар бөглөгдөж, актын загвар дээр шууд нээгдэнэ.</p><div className="mt-4 grid gap-3 md:grid-cols-[1fr_2fr_auto]"><Input value={sourceSearch} onChange={(e) => setSourceSearch(e.target.value)} placeholder="Төсөл хайх..." /><Select className="w-full" defaultValue="" onChange={(e) => chooseSource(e.target.value)}><option value="" disabled>Төсөл / Объект сонгох</option>{sources.map((source) => <option key={`${source.source_type}:${source.source_id}`} value={`${source.source_type}:${source.source_id}`}>{source.project_name} · {source.location || source.customer_name || ''} · {source.source_status || ''}</option>)}</Select><Button variant="outline" onClick={createManual}>Гараар үүсгэх</Button></div></div></Card>;
 }
 
-/** Актын хуудсан дээр харагдахгүй тохиргоо (загвар, төрөл, ERP эх сурвалж, зураг) — бусад бүх мэдээллийг доорх актын загвар дээр шууд бичнэ. */
-function EditorToolbar({ draft, patch, templates, chooseTemplate, sources, fieldsLocked, photosLocked, addOnly, onSource, onPull, onIssue, onUpload, onOpenErp }: {
-  draft: ActDraft; patch: (value: Partial<ActDraft>) => void; templates: ActTemplate[]; chooseTemplate: (id: string) => void; sources: ActSource[];
-  fieldsLocked: boolean; photosLocked: boolean; addOnly: boolean;
-  onSource: (key: string) => void; onPull: () => void; onIssue: () => void; onUpload: (files: File[]) => void; onOpenErp: () => void;
+/** 1-р алхмын маягт — актын үндсэн мэдээлэл. */
+function BasicStep({ draft, patch, templates, chooseTemplate, customers, onChooseCustomer }: {
+  draft: ActDraft; patch: (value: Partial<ActDraft>) => void; templates: ActTemplate[]; chooseTemplate: (id: string) => void; customers: CustomerOption[]; onChooseCustomer: (option: CustomerOption) => void;
 }) {
-  const sourceKey = draft.source_id && draft.source_type !== 'manual' ? `${draft.source_type}:${draft.source_id}` : '';
+  const customerKnown = customers.some((option) => option.label === draft.customer_name);
+  return <Card title="1.1 Үндсэн мэдээлэл"><div className="space-y-5">
+    <div className="rounded-[var(--radius-sm)] bg-card2 p-3 text-[12px] text-muted">ERP эх сурвалж: <b className="text-ink">{draft.source_type === 'service_call' ? 'Ажлын захиалга' : draft.source_type === 'site_session' ? 'Ажлын байр' : 'Гараар'}</b>{draft.project_name ? ` · ${draft.project_name}` : ''}</div>
+    <div className="grid gap-4 md:grid-cols-2">
+      <Field label="Актын загвар" required><Select className="w-full" value={draft.template_id || ''} onChange={(e) => chooseTemplate(e.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</Select></Field>
+      <Field label="Актын төрөл" required><Select className="w-full" value={draft.act_type} onChange={(e) => patch({ act_type: e.target.value as ActDraft['act_type'] })}><option value="work_completion">Ажил гүйцэтгэлийн акт</option><option value="work_handover">Ажил хүлээлцэх акт</option></Select></Field>
+      <Field label="Төсөл / Объект" required><Input value={draft.project_name} onChange={(e) => patch({ project_name: e.target.value })} /></Field>
+      <Field label="Төслийн төрөл"><Input value={draft.project_type} onChange={(e) => patch({ project_type: e.target.value })} /></Field>
+      <Field label="Хаяг / Байршил" required><Input value={draft.location} onChange={(e) => patch({ location: e.target.value })} /></Field>
+      <Field label="Гүйцэтгэгч компанийн нэр" required><Input value={draft.contractor_name} onChange={(e) => patch({ contractor_name: e.target.value })} /></Field>
+      <Field label="Захиалагч байгууллага" required>{customers.length
+        ? <Select className="w-full" value={customerKnown ? draft.customer_name : ''} onChange={(e) => { const option = customers.find((row) => row.label === e.target.value); if (option) onChooseCustomer(option); }}><option value="" disabled>{draft.customer_name && !customerKnown ? `${draft.customer_name} — сонгоно уу` : 'Захиалагч сонгох'}</option>{customers.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}</Select>
+        : <Input value={draft.customer_name} onChange={(e) => patch({ customer_name: e.target.value })} />}</Field>
+      <Field label="Актын дугаар"><Input value={draft.act_number || 'Хадгалахад автоматаар үүснэ'} disabled /></Field>
+      <Field label="Ажил эхэлсэн хугацаа"><Input type="date" value={draft.start_date} onChange={(e) => patch({ start_date: e.target.value })} /></Field>
+      <Field label="Ажил дууссан хугацаа"><Input type="date" value={draft.end_date} onChange={(e) => patch({ end_date: e.target.value })} /></Field>
+    </div>
+    <Field label="Гүйцэтгэсэн ажил" required><Textarea rows={4} value={draft.work_description} onChange={(e) => patch({ work_description: e.target.value })} /></Field>
+  </div></Card>;
+}
+
+function MaterialsStep({ rows, inventory, sources, sourceKey, onSource, onChange, onPull, onIssue }: { rows: ActMaterial[]; inventory: ActInventoryItem[]; sources: ActSource[]; sourceKey: string; onSource: (key: string) => void; onChange: (rows: ActMaterial[]) => void; onPull: () => void; onIssue: () => void }) {
+  const update = (index: number, value: Partial<ActMaterial>) => onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...value } : row));
+  const add = () => onChange([...rows, { material_id: null, material_name: '', unit: 'ширхэг', quantity: 1 }]);
+  const remove = (index: number) => onChange(rows.filter((_, rowIndex) => rowIndex !== index));
+  const chooseInventory = (index: number, itemId: string) => {
+    const item = inventory.find((row) => row.id === itemId);
+    update(index, item ? { material_id: item.id, material_name: item.name, unit: item.unit, source_transaction_id: null } : { material_id: null, source_transaction_id: null });
+  };
   return (
-    <Card bodyClassName="!p-3 sm:!p-4">
-      <div className="space-y-3">
-        <fieldset disabled={fieldsLocked} className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.4fr)]">
-          <Field label="Актын загвар"><Select className="w-full" value={draft.template_id || ''} onChange={(e) => chooseTemplate(e.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</Select></Field>
-          <Field label="Актын төрөл"><Select className="w-full" value={draft.act_type} onChange={(e) => patch({ act_type: e.target.value as ActDraft['act_type'] })}><option value="work_completion">Ажил гүйцэтгэлийн акт</option><option value="work_handover">Ажил хүлээлцэх акт</option></Select></Field>
-          <Field label="Аль компанид"><Input value={draft.project_name} onChange={(e) => patch({ project_name: e.target.value })} /></Field>
-          <Field label="Материал татах ERP эх сурвалж"><Select className="w-full" value={sourceKey} onChange={(event) => onSource(event.target.value)}><option value="">ERP source сонгох</option>{sources.map((source) => <option key={`${source.source_type}:${source.source_id}`} value={`${source.source_type}:${source.source_id}`}>{source.project_name} · {source.location || source.customer_name || ''} · {source.source_status || ''}</option>)}</Select></Field>
-        </fieldset>
-        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          <fieldset disabled={fieldsLocked} className="flex flex-wrap gap-2">
-            <Button variant="outline" icon={<CloudDownload size={16} />} onClick={onPull}>ERP-с материал татах</Button>
-            <Button variant="outline" icon={<PackageOpen size={16} />} disabled={!draft.materials.length} onClick={onIssue}>Агуулахаас зарлага</Button>
-          </fieldset>
-          <fieldset disabled={photosLocked} className="flex flex-wrap items-center gap-2 sm:ml-auto">
-            <Button variant="outline" icon={<ImagePlus size={16} />} onClick={onOpenErp}>ERP-с зураг</Button>
-            <label className={`focus-ring inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] bg-brand px-3 py-2.5 text-[12px] font-semibold text-white sm:px-4 sm:text-[13px] ${photosLocked ? 'pointer-events-none opacity-50' : ''}`}><Upload size={16} />Зураг нэмэх<input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { onUpload(Array.from(event.target.files || [])); event.target.value = ''; }} /></label>
-            {!addOnly ? <div className="flex items-center gap-1 rounded-[var(--radius-sm)] border border-line p-0.5" role="group" aria-label="Нэг хуудсанд зураг">{([1, 2, 4] as const).map((value) => <button key={value} type="button" onClick={() => patch({ photo_layout: value })} className={`rounded-[5px] px-2.5 py-1.5 text-[12px] font-medium ${draft.photo_layout === value ? 'bg-brand text-white' : 'text-muted hover:bg-hover'}`}>{value} зураг</button>)}</div> : null}
-          </fieldset>
-        </div>
-        <p className="text-[11px] text-muted">Доорх актын хуудсан дээр шууд бичнэ — хэвлэгдэх PDF / Word яг ийм харагдана. Тийм / Үгүй / N/A нүдийг дарж сонгоно.</p>
+    <Card title="1.2 Материал" actions={<><Button variant="outline" icon={<CloudDownload size={16} />} onClick={onPull}>ERP-с материал татах</Button><Button variant="outline" icon={<PackageOpen size={16} />} disabled={!rows.length} onClick={onIssue}>Агуулахаас зарлага</Button><Button icon={<Plus size={16} />} onClick={add}>Материал нэмэх</Button></>} bodyClassName="!p-0">
+      <div className="border-b border-line bg-card2 p-3 sm:p-4">
+        <Field label="Материал татах ERP төсөл / объект / ажлын захиалга">
+          <Select className="w-full" value={sourceKey} onChange={(event) => onSource(event.target.value)}>
+            <option value="">ERP source сонгох</option>
+            {sources.map((source) => <option key={`${source.source_type}:${source.source_id}`} value={`${source.source_type}:${source.source_id}`}>{source.project_name} · {source.location || source.customer_name || ''} · {source.source_status || ''}</option>)}
+          </Select>
+        </Field>
+        <p className="mt-2 text-[11px] text-muted">Source сонгоход зарлагдсан материалыг шууд татаж, зөвхөн актын snapshot болгон хадгална.</p>
+      </div>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[820px] text-[13px]"><thead><tr className="border-b border-line bg-card2 text-left text-muted"><th className="w-14 px-4 py-3">№</th><th className="px-4 py-3">Бараа материал</th><th className="w-48 px-4 py-3">Хэмжих нэгж</th><th className="w-44 px-4 py-3">Тоо хэмжээ</th><th className="w-16 px-4 py-3" /></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.material_id || 'manual'}-${index}`} className="border-b border-line align-top"><td className="px-4 py-3 text-muted">{index + 1}</td><td className="space-y-2 px-4 py-2">{inventory.length ? <Select className="w-full" value={row.material_id || ''} disabled={Boolean(row.source_transaction_id)} onChange={(event) => chooseInventory(index, event.target.value)}><option value="">Агуулахын бараатай холбох</option>{row.material_id && !inventory.some((item) => item.id === row.material_id) ? <option value={row.material_id}>{row.material_name}</option> : null}{inventory.map((item) => <option key={item.id} value={item.id}>{item.name} · үлдэгдэл {item.quantity} {item.unit}</option>)}</Select> : null}<Input value={row.material_name} onChange={(event) => update(index, { material_name: event.target.value })} />{row.source_transaction_id ? <span className="block text-[11px] text-success">✓ Зарлага бүртгэгдсэн</span> : null}</td><td className="px-4 py-2"><Input value={row.unit} onChange={(event) => update(index, { unit: event.target.value })} /></td><td className="px-4 py-2"><Input type="number" min="0" step="any" value={row.quantity} disabled={Boolean(row.source_transaction_id)} onChange={(event) => update(index, { quantity: Number(event.target.value) })} /></td><td className="px-4 py-2"><Button aria-label={`${index + 1}-р материал устгах`} variant="ghost" className="!p-2 !text-danger" onClick={() => remove(index)}><Trash2 size={15} /></Button></td></tr>)}</tbody></table>
+      </div>
+      <div className="space-y-3 p-3 md:hidden">
+        {rows.map((row, index) => <section key={`${row.material_id || 'manual'}-${index}`} className="rounded-[var(--radius-sm)] border border-line bg-card2 p-3"><div className="mb-3 flex items-center justify-between"><b className="text-[13px] text-ink">Материал {index + 1}</b><Button aria-label={`${index + 1}-р материал устгах`} variant="ghost" className="!p-2 !text-danger" onClick={() => remove(index)}><Trash2 size={15} /></Button></div><div className="grid gap-3 sm:grid-cols-2">{inventory.length ? <Field label="Агуулахын бараа"><Select className="w-full" value={row.material_id || ''} disabled={Boolean(row.source_transaction_id)} onChange={(event) => chooseInventory(index, event.target.value)}><option value="">Сонгох</option>{row.material_id && !inventory.some((item) => item.id === row.material_id) ? <option value={row.material_id}>{row.material_name}</option> : null}{inventory.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.quantity} {item.unit}</option>)}</Select></Field> : null}<Field label="Бараа материал"><Input value={row.material_name} onChange={(event) => update(index, { material_name: event.target.value })} /></Field><Field label="Хэмжих нэгж"><Input value={row.unit} onChange={(event) => update(index, { unit: event.target.value })} /></Field><Field label="Тоо хэмжээ"><Input type="number" min="0" step="any" value={row.quantity} disabled={Boolean(row.source_transaction_id)} onChange={(event) => update(index, { quantity: Number(event.target.value) })} /></Field>{row.source_transaction_id ? <span className="text-[11px] text-success">✓ Зарлага бүртгэгдсэн</span> : null}</div></section>)}
+      </div>
+      {!rows.length ? <EmptyState text="ERP-с материал татах эсвэл гараар нэмнэ үү. Эх ERP transaction өөрчлөгдөхгүй." /> : null}
+    </Card>
+  );
+}
+
+function ChecklistStep({ rows, onChange }: { rows: ActChecklist[]; onChange: (rows: ActChecklist[]) => void }) {
+  const update = (index: number, value: Partial<ActChecklist>) => onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...value } : row));
+  const add = () => onChange([...rows, { requirement: '', result: 'na', reason: '' }]);
+  const remove = (index: number) => onChange(rows.filter((_, rowIndex) => rowIndex !== index));
+  return (
+    <Card title="1.3 Ажил гүйцэтгэхэд баримтлах шаардлага" actions={<Button icon={<Plus size={16} />} onClick={add}>Шаардлага нэмэх</Button>} bodyClassName="!p-0">
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[920px] text-[13px]">
+          <thead><tr className="border-b border-line bg-card2 text-left text-muted"><th className="w-14 px-4 py-3">№</th><th className="px-4 py-3">Шаардлага</th><th className="w-40 px-4 py-3">Төлөв</th><th className="w-72 px-4 py-3">Шалтгаан</th><th className="w-16 px-4 py-3" /></tr></thead>
+          <tbody>{rows.map((row, index) => <tr key={index} className="border-b border-line align-top"><td className="px-4 py-3 text-muted">{index + 1}</td><td className="px-4 py-2"><Textarea rows={2} value={row.requirement} onChange={(event) => update(index, { requirement: event.target.value })} /></td><td className="px-4 py-2"><Select className="w-full" value={row.result} onChange={(event) => update(index, { result: event.target.value as ActChecklist['result'] })}><option value="yes">✓ Тийм</option><option value="no">✕ Үгүй</option><option value="na">N/A</option></Select></td><td className="px-4 py-2"><Textarea rows={2} required={row.result === 'no'} aria-label={`${index + 1}-р шаардлагын шалтгаан`} className={row.result === 'no' && !row.reason.trim() ? 'border-danger' : ''} value={row.reason} onChange={(event) => update(index, { reason: event.target.value })} placeholder={row.result === 'no' ? 'Шалтгаан заавал оруулна' : 'Шалтгаан / тайлбар'} /></td><td className="px-4 py-2"><Button aria-label={`${index + 1}-р шаардлага устгах`} variant="ghost" className="!p-2 !text-danger" onClick={() => remove(index)}><Trash2 size={15} /></Button></td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="space-y-3 p-3 md:hidden">
+        {rows.map((row, index) => <section key={index} className="rounded-[var(--radius-sm)] border border-line bg-card2 p-3"><div className="mb-3 flex items-center justify-between"><b className="text-[13px] text-ink">Шаардлага {index + 1}</b><Button aria-label={`${index + 1}-р шаардлага устгах`} variant="ghost" className="!p-2 !text-danger" onClick={() => remove(index)}><Trash2 size={15} /></Button></div><div className="space-y-3"><Field label="Шаардлага"><Textarea rows={3} value={row.requirement} onChange={(event) => update(index, { requirement: event.target.value })} /></Field><Field label="Төлөв"><Select className="w-full" value={row.result} onChange={(event) => update(index, { result: event.target.value as ActChecklist['result'] })}><option value="yes">✓ Тийм</option><option value="no">✕ Үгүй</option><option value="na">N/A</option></Select></Field><Field label="Шалтгаан / тайлбар" required={row.result === 'no'}><Textarea rows={3} required={row.result === 'no'} className={row.result === 'no' && !row.reason.trim() ? 'border-danger' : ''} value={row.reason} onChange={(event) => update(index, { reason: event.target.value })} placeholder={row.result === 'no' ? 'Шалтгаан заавал оруулна' : 'Шалтгаан / тайлбар'} /></Field></div></section>)}
+        {!rows.length ? <EmptyState text="Checklist шаардлага нэмээгүй байна." /> : null}
       </div>
     </Card>
   );
 }
 
-/** A4 хуудсыг дэлгэцийн өргөнд багтааж жижигрүүлнэ (бичих боломж хэвээр). */
-function FitToWidth({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setScale(Math.min(1, entry.contentRect.width / 810)));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return <div ref={ref} className="overflow-hidden rounded-[var(--radius)] bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ zoom: scale }}>{children}</div></div>;
+function PhotosStep({ rows, layout, onLayout, onUpload, onRemove, onChange, onOpenErp, dragIndex, addOnly = false }: { rows: ActPhoto[]; layout: 1|2|4; onLayout: (value: 1|2|4) => void; onUpload: (files: File[]) => void; onRemove: (index: number) => void; onChange: (rows: ActPhoto[]) => void; onOpenErp: () => void; dragIndex: React.MutableRefObject<number|null>; addOnly?: boolean }) {
+  const update = (index: number, value: Partial<ActPhoto>) => onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...value } : row));
+  const drop = (target: number) => { const source = dragIndex.current; if (source === null || source === target) return; const next = [...rows]; [next[source], next[target]] = [next[target], next[source]]; onChange(next); dragIndex.current = null; };
+  return (
+    <div className="space-y-4">
+      <Card title="1.4 Ажлын зураг" actions={<><Button variant="outline" icon={<ImagePlus size={16} />} onClick={onOpenErp}>ERP-с зураг сонгох</Button><label className="focus-ring inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] bg-brand px-3 py-2.5 text-[12px] font-semibold text-white sm:px-4 sm:text-[13px]"><Upload size={16} />Зураг upload<input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => onUpload(Array.from(event.target.files || []))} /></label></>}>
+        <div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); onUpload(Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith('image/'))); }} className="rounded-[var(--radius)] border-2 border-dashed border-line bg-card2 p-5 text-center text-[12px] text-muted sm:p-7 sm:text-[13px]"><Upload className="mx-auto mb-2 text-brand" />Зургуудаа энд drag & drop хийнэ үү</div>
+        {!addOnly ? <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center"><span className="col-span-3 text-[12px] text-muted sm:col-auto">Хуудасны layout:</span>{([1,2,4] as const).map((value) => <Button key={value} className="!px-2 sm:!px-4" variant={layout === value ? 'primary' : 'outline'} onClick={() => onLayout(value)}>{value} зураг</Button>)}</div> : null}
+      </Card>
+      {rows.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{rows.map((photo, index) => <Card key={`${photo.storage_path || photo.image_url}-${index}`} className="overflow-hidden" bodyClassName="!p-3"><div draggable={!addOnly} onDragStart={() => { if (!addOnly) dragIndex.current = index; }} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (!addOnly) drop(index); }} className={`group relative mb-3 h-52 overflow-hidden rounded-[var(--radius-sm)] bg-card2 ${addOnly ? '' : 'cursor-move'}`}><img src={photo.preview_url || photo.image_url} className="h-full w-full object-cover" alt={photo.caption || `Зураг ${index + 1}`} /><span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-[12px] font-semibold text-white">Зураг {index + 1}</span>{!addOnly ? <><span className="absolute bottom-2 left-2 rounded bg-black/60 p-1 text-white"><GripVertical size={15} /></span><Button aria-label={`Зураг ${index + 1} устгах`} variant="danger" className="absolute right-2 top-2 !p-2" onClick={() => onRemove(index)}><Trash2 size={14} /></Button></> : null}</div><Field label={`Зураг ${index + 1}-ийн тайлбар`}><Textarea rows={3} value={photo.caption} readOnly={addOnly} onChange={(event) => update(index, { caption: event.target.value })} placeholder="Зургийн тайлбарыг бичнэ үү" /></Field></Card>)}</div> : <EmptyState text="Ажлын зураг нэмээгүй байна." />}
+    </div>
+  );
 }
 
 function ReceiversStep({ rows, employees, contacts, isSuperAdmin, canStamp, organizations, organization, onChooseOrganization, onAddHandover, isDirector, onAdd, onRemove, onChange, onChooseEmployee, onChooseContact, onSaveContact, onUpload, onDraw }: {
