@@ -16,10 +16,13 @@ import { CallProvider } from './src/context/CallContext';
 import LoginScreen from './src/screens/LoginScreen';
 import OnboardingScreen, { hasSeenOnboarding } from './src/screens/OnboardingScreen';
 import LocalAccessScreen from './src/screens/LocalAccessScreen';
+import { isDemoActive } from './src/lib/demoMode';
 import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import PrivacyScreen from './src/screens/PrivacyScreen';
 import OnboardingPermissionsScreen from './src/screens/OnboardingPermissionsScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
+import InventoryReceiptsScreen from './src/screens/InventoryReceiptsScreen';
 import ToolsHubScreen from './src/screens/ToolsHubScreen';
 import FuelScreen from './src/screens/FuelScreen';
 import FleetFuelScreen from './src/screens/FleetFuelScreen';
@@ -64,6 +67,7 @@ import MyTelegramScreen from './src/screens/MyTelegramScreen';
 import TelegramDialogScreen from './src/screens/TelegramDialogScreen';
 import NewGroupScreen from './src/screens/NewGroupScreen';
 import EmployeesScreen from './src/screens/EmployeesScreen';
+import EmployeeTrainingScreen from './src/screens/EmployeeTrainingScreen';
 import DepartmentsScreen from './src/screens/DepartmentsScreen';
 import DepartmentDetailScreen from './src/screens/DepartmentDetailScreen';
 import UserPermissionsScreen from './src/screens/UserPermissionsScreen';
@@ -125,6 +129,15 @@ import BarcodeModeScreen from './src/screens/enhancements/BarcodeModeScreen';
 import PublicTicketsScreen from './src/screens/enhancements/PublicTicketsScreen';
 import NotificationCenterScreen from './src/screens/NotificationCenterScreen';
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
+import StoreReadinessScreen from './src/screens/StoreReadinessScreen';
+import BusinessSettingsScreen from './src/screens/BusinessSettingsScreen';
+import OperationalAlertsScreen from './src/screens/OperationalAlertsScreen';
+import WorkHeightRiskScreen from './src/screens/WorkHeightRiskScreen';
+import WorkHeightRiskFormScreen from './src/screens/WorkHeightRiskFormScreen';
+import WorkHeightRiskDetailScreen from './src/screens/WorkHeightRiskDetailScreen';
+import WorkHeightIncidentScreen from './src/screens/WorkHeightIncidentScreen';
+import WorkHeightIncidentDetailScreen from './src/screens/WorkHeightIncidentDetailScreen';
+import WorkHeightRiskReportScreen from './src/screens/WorkHeightRiskReportScreen';
 import LocationTracker from './src/components/LocationTracker';
 import SiteVisitVerifier from './src/components/SiteVisitVerifier';
 import CallHost from './src/components/CallHost';
@@ -189,10 +202,21 @@ function AppStack() {
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="StoreReadiness" component={StoreReadinessScreen} />
+      <Stack.Screen name="BusinessSettings" component={BusinessSettingsScreen} />
+      <Stack.Screen name="OperationalAlerts" component={OperationalAlertsScreen} />
+      <Stack.Screen name="WorkHeightRisk" component={WorkHeightRiskScreen} />
+      <Stack.Screen name="WorkHeightRiskForm" component={WorkHeightRiskFormScreen} />
+      <Stack.Screen name="WorkHeightRiskDetail" component={WorkHeightRiskDetailScreen} />
+      <Stack.Screen name="WorkHeightIncident" component={WorkHeightIncidentScreen} />
+      <Stack.Screen name="WorkHeightIncidentDetail" component={WorkHeightIncidentDetailScreen} />
+      <Stack.Screen name="WorkHeightRiskReport" component={WorkHeightRiskReportScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} />
       <Stack.Screen name="Notifications" component={NotificationCenterScreen} />
       <Stack.Screen name="Inventory" component={InventoryScreen} initialParams={{ category: 'material', mode: 'manage' }} />
       <Stack.Screen name="Tools" component={InventoryScreen} initialParams={{ category: 'tool', mode: 'manage' }} />
+      <Stack.Screen name="InventoryReceipts" component={InventoryReceiptsScreen} />
       {/* "Багаж, хангамж" төв цэс — Багаж / Хангамж / Бараа материал руу сална. */}
       <Stack.Screen name="ToolsHub" component={ToolsHubScreen} />
       <Stack.Screen name="Supplies" component={InventoryScreen} initialParams={{ category: 'supply', mode: 'manage' }} />
@@ -225,6 +249,7 @@ function AppStack() {
       <Stack.Screen name="TelegramDialog" component={TelegramDialogScreen} options={{ title: 'Telegram чат' }} />
       <Stack.Screen name="NewGroup" component={NewGroupScreen} />
       <Stack.Screen name="Employees" component={EmployeesScreen} />
+      <Stack.Screen name="EmployeeTraining" component={EmployeeTrainingScreen} />
       {/* Хэлтэс — байгууллага ба өрх. Хүн, бараа, багажийн эрхийн хил. */}
       <Stack.Screen name="Departments" component={DepartmentsScreen} options={{ title: 'Хэлтэс' }} />
       <Stack.Screen name="DepartmentDetail" component={DepartmentDetailScreen} options={{ title: 'Хэлтсийн мэдээлэл' }} />
@@ -408,7 +433,10 @@ function Root({ shareRef }) {
         setDeviceInfo(res);
         setDeviceOk(res.status === 'approved');
       } catch (e) {
-        if (active) setDeviceOk(true);
+        if (active) {
+          setDeviceInfo({ status: 'pending', error: true });
+          setDeviceOk(false);
+        }
       }
     })();
     return () => {
@@ -456,7 +484,7 @@ function Root({ shareRef }) {
      */
     if (!onboardingSeen) return <OnboardingScreen onDone={() => setOnboardingSeen(true)} />;
     if (!session) return <LoginScreen />;
-    if (!localUnlocked) {
+    if (!localUnlocked && !isDemoActive()) {
       return (
         <LocalAccessScreen
           userId={session.user.id}

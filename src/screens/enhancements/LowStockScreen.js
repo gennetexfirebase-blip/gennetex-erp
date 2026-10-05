@@ -20,6 +20,7 @@ import {
   saveReorderRequest,
   alertAdminsLowStock,
 } from '../../services/lowStockService';
+import { fetchCompanySettings } from '../../services/companySettingsService';
 
 export default function LowStockScreen() {
   const navigation = useNavigation();
@@ -32,7 +33,8 @@ export default function LowStockScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const low = await fetchLowStockFromCloud();
+      const settings = await fetchCompanySettings().catch(() => null);
+      const low = await fetchLowStockFromCloud(settings?.default_min_stock);
       setItems(low);
     } catch (e) {
       Alert.alert('Алдаа', e?.message || 'Ачаалж чадсангүй');

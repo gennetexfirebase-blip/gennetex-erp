@@ -94,6 +94,7 @@ export async function withdrawInventory({
   item, userId, userEmail, userName, qty, photoUrl, issuedBy, issuedByName,
 }) {
   const newQty = Math.max(0, (Number(item.quantity) || 0) - qty);
+  const unitPrice = Math.max(0, Number(item.price) || 0);
   await updateInventory(item.id, { quantity: newQty });
   const { error } = await supabase.from('stock_movements').insert({
     item_id: item.id,
@@ -114,10 +115,29 @@ export async function withdrawInventory({
     issued_by_name: issuedByName || null,
     quantity: qty,
     movement_type: MOVEMENT_TYPES.WITHDRAW,
+    unit_price: unitPrice,
+    total_amount: unitPrice * qty,
     photo_url: photoUrl || null,
   });
-  if (error) throw error;
+  if (error) {
+    // Олголтын лог бичигдээгүй бол агуулахын хасалтыг буцааж сэргээнэ.
+    await updateInventory(item.id, { quantity: Number(item.quantity) || 0 }).catch(() => {});
+    throw error;
+  }
   return newQty;
+}
+
+/**
+ * Буруу олголтыг буцаах — зөвхөн админ.
+ * Сервер нэг transaction дотор ажилтны буцаалтын лог үүсгээд
+ * агуулахын үлдэгдлийг сэргээнэ.
+ */
+export async function reverseStockMovement(movementId) {
+  const { data, error } = await supabase.rpc('admin_reverse_stock_movement', {
+    p_movement_id: movementId,
+  });
+  if (error) throw error;
+  return data;
 }
 
 /** Ажилтны үлдэгдлээс хэрэглэх */
@@ -150,6 +170,41 @@ export async function fetchMovements(limit = 300) {
     .limit(limit);
   if (error) throw error;
   return data || [];
+}
+
+/** Агуулахын орлогын түүх — хамгийн сүүлийн орлого эхэндээ. */
+export async function fetchInventoryReceipts(limit = 500) {
+  const { data, error } = await supabase
+    .from('inventory_receipts')
+    .select('*')
+    .order('received_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    ...row,
+    quantity: Number(row.quantity) || 0,
+    unit_price: Number(row.unit_price) || 0,
+    total_amount: Number(row.total_amount) || 0,
+  }));
+}
+
+/**
+ * Бараа/багаж/хангамжид орлого авах.
+ *
+ * Сервер үлдэгдлийг нэмэх, дундаж өртгийг шинэчлэх, орлогын түүх үүсгэх
+ * гурван үйлдлийг нэг transaction-д хийдэг тул тал дутуу хадгалагдахгүй.
+ */
+export async function receiveInventoryStock({ itemId, quantity, unitPrice, supplier, note, receivedAt }) {
+  const { data, error } = await supabase.rpc('receive_inventory_stock', {
+    p_item_id: itemId,
+    p_quantity: Number(quantity),
+    p_unit_price: Number(unitPrice) || 0,
+    p_supplier: String(supplier || '').trim() || null,
+    p_note: String(note || '').trim() || null,
+    p_received_at: receivedAt || new Date().toISOString(),
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function fetchMyMovements(userId, limit = 300) {

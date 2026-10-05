@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../context/ThemeContext';
@@ -18,6 +18,7 @@ function buildAutoboxHtml(data, colors) {
     section('Ерөнхий мэдээлэл', data.general),
     section('Техникийн мэдээлэл', data.technical),
     section('Техникийн хяналтын үзлэг', data.diagnosis),
+    section('Татвар', data.tax),
     section('Торгууль', data.fines),
   ].join('');
   if (!body) return '<p class="muted">Мэдээлэл алга</p>';
@@ -77,20 +78,17 @@ table thead th:nth-child(6), table tbody td:nth-child(6){white-space:nowrap} /* 
 export default function AutoboxTables({ plate, data, loading, error, statusText, title = 'Машины мэдээлэл' }) {
   const { colors } = useTheme();
   const html = useMemo(() => (data ? buildAutoboxHtml(data, colors) : ''), [data, colors]);
-  // Агуулгын өндөр — WebView дотроос ирнэ. Ирэх хүртэл түр өндөр.
-  const [height, setHeight] = useState(320);
-
-  // Шинэ машин сонгоход өндөр сэргэнэ — эс бөгөөс өмнөх машины
-  // (магадгүй урт) өндөр наалдаж, доор нь хоосон зай үлдэнэ.
-  useEffect(() => {
-    setHeight(320);
-  }, [plate, data]);
+  const contentKey = `${plate || ''}:${data?.hash || ''}`;
+  // Шинэ машин/өгөгдөл сонгоход өмнөх өндөр наалдахгүй. Effect дотор
+  // setState хийхийн оронд key-г төлөвтэй хамт хадгалж render дээр derive хийнэ.
+  const [layout, setLayout] = useState({ key: contentKey, height: 320 });
+  const height = layout.key === contentKey ? layout.height : 320;
 
   const onMessage = (event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
       // Хэт багассан утгыг үл тоомсорлоно (зураг ачаалагдах зуурын хэмжилт).
-      if (msg.height > 80) setHeight(Math.ceil(msg.height) + 16);
+      if (msg.height > 80) setLayout({ key: contentKey, height: Math.ceil(msg.height) + 16 });
     } catch {
       /* хэмжилт ирээгүй — түр өндөр хэвээр */
     }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   INITIAL_INVENTORY,
@@ -19,7 +19,7 @@ import * as notificationService from '../services/notificationService';
 import * as bgLocation from '../services/backgroundLocationService';
 import * as shiftApi from '../services/shiftService';
 import { clearLocalAccess } from '../services/localAccessService';
-import { restoreDemoSession } from '../lib/demoMode';
+import { isDemoActive, restoreDemoSession } from '../lib/demoMode';
 import { employeeRef } from '../lib/pendingRef';
 
 const AppContext = createContext(null);
@@ -84,13 +84,6 @@ export function AppProvider({ children }) {
           if (data.fuelLogs) setFuelLogs(data.fuelLogs);
         }
 
-        // Бараа материал ба ажилтан — Supabase-ээс
-        if (isSupabaseConfigured) {
-          setInventory(await invApi.fetchInventory());
-          try {
-            setFuelSettings(await fuelApi.fetchFuelSettings());
-          } catch (e) {}
-        }
       } catch (e) {
         console.warn('Ачаалахад алдаа:', e);
         setSyncError(e.message);
@@ -99,6 +92,24 @@ export function AppProvider({ children }) {
       }
     })();
   }, []);
+
+  // Wait for demo restoration and authentication before querying the selected client.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !loaded) return;
+    let active = true;
+    setInventory([]);
+    if (!session?.user?.id || !authProfile?.id) return;
+    setSyncError(null);
+    invApi.fetchInventory().then(rows => {
+      if (active) setInventory(rows);
+    }).catch(error => {
+      if (active) setSyncError(error.message);
+    });
+    fuelApi.fetchFuelSettings().then(settings => {
+      if (active) setFuelSettings(settings);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [loaded, session?.user?.id, authProfile?.id]);
 
   // ---- Хадгалах (локал өгөгдөл) ----
   useEffect(() => {
@@ -151,6 +162,8 @@ export function AppProvider({ children }) {
     );
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      // Real-client token/initial-session events must not overwrite the local demo.
+      if (!mounted || isDemoActive()) return;
       setSession(sess);
       loadProfile(sess);
     });
@@ -263,7 +276,7 @@ export function AppProvider({ children }) {
    * Ирц бүртгэсний дараа дуудна — LocationTracker үүнийг хараад байршил
    * хянахыг асаах/унтраахаа шийднэ.
    */
-  const refreshShiftStatus = useCallback(async () => {
+  const refreshShiftStatus = useCallback(async ({ requestTracking = false } = {}) => {
     const uid = authProfile?.id;
     if (!isSupabaseConfigured || !uid) {
       setOnShift(false);
@@ -274,10 +287,19 @@ export function AppProvider({ children }) {
     try {
       const [st, session] = await Promise.all([shiftApi.fetchTodayStatus(uid), shiftApi.fetchActiveWorkSession(uid)]);
       if (shiftOwner.current !== uid) return;
+      if (requestTracking && session) {
+        const result = await bgLocation.startTracking(authProfile, {
+          requestPermissions: true,
+          isCurrent: () => shiftOwner.current === uid,
+        });
+        if (shiftOwner.current !== uid) return;
+        setTrackingState({ active: result.ok, background: result.ok, reason: result.reason });
+      }
       setShiftStatus(st);
       setOnShift(!!session);
       setShiftStatusReady(true);
       setConfirmedShiftUser(uid);
+      if (requestTracking) DeviceEventEmitter.emit('erp-location-consent');
     } catch (e) {
       const saved = await AsyncStorage.getItem('@bg_location_user').catch(() => null);
       try {
@@ -426,6 +448,15 @@ export function AppProvider({ children }) {
     return mineOnly
       ? invApi.fetchMyMovements(currentUser?.id)
       : invApi.fetchMovements();
+  };
+
+  const reverseStockMovement = async (movementId) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Буцаалт хийхэд онлайн холболт шаардлагатай.');
+    }
+    const result = await invApi.reverseStockMovement(movementId);
+    await refreshInventory();
+    return result;
   };
 
   const fetchMyStock = async () => {
@@ -643,6 +674,7 @@ export function AppProvider({ children }) {
     consumeItem,
     fetchMyStock,
     fetchStockMovements,
+    reverseStockMovement,
     getItemByBarcode,
     refreshInventory,
     calls,

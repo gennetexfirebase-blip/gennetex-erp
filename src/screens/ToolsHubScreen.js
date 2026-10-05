@@ -40,7 +40,7 @@ const SECTIONS = [
 export default function ToolsHubScreen() {
   const navigation = useNavigation();
   const styles = useStyles(makeStyles);
-  const { inventory } = useApp();
+  const { inventory, isManager } = useApp();
 
   /** Төрөл тус бүрийн нэр төрлийн тоо — жагсаалт руу орохоос өмнө харагдана. */
   const counts = useMemo(() => {
@@ -68,6 +68,20 @@ export default function ToolsHubScreen() {
             />
           ))}
         </ListGroup>
+
+        {isManager ? (
+          <>
+            <GroupLabel>АГУУЛАХЫН ОРЛОГО</GroupLabel>
+            <ListGroup>
+              <ListRow
+                icon="📥"
+                label="Орлого авах"
+                value="Үнэ, түүх, Excel"
+                onPress={() => navigation.navigate('InventoryReceipts', { category: 'tool' })}
+              />
+            </ListGroup>
+          </>
+        ) : null}
 
         <View style={styles.hint}>
           <Text style={styles.hintText}>

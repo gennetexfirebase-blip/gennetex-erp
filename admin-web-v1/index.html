@@ -19,7 +19,9 @@
         return window.ADMIN_BASE + String(f == null ? '' : f).replace(/^\/+/, '');
       };
       var t = localStorage.theme;
-      var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      var embedded = /[?&]embed=1(?:&|$)/.test(location.search);
+      // Шинэ панел дотор (embed) үргэлж цайвар «warm paper» сэдэвтэй — эх панелтай нэг харагдана.
+      var dark = !embedded && (t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches));
       document.documentElement.classList.toggle('dark', dark);
       document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
       if (window.ADMIN_BASE) {
@@ -35,6 +37,7 @@
   <script src="https://cdn.tailwindcss.com?plugins=container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet"/>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -593,8 +596,52 @@
        агуулгыг үлдээнэ — нэг л панел мэт харагдана. */
     body.embedded .side{display:none}
     body.embedded .topbar{display:none}
-    body.embedded .main{margin-left:0}
+    /* Эх панелийн «Field Studio» сэдэв: дулаан цаас, нүүрсэн текст,
+       гүн ногоон акцент, капсул товч. */
+    body.embedded{
+      --bg:#efebe2;
+      --card:#faf8f3;
+      --line:#e0dacd;
+      --text:#2a2925;
+      --muted:#6b665c;
+      --primary:#1b2420;
+      --primary-soft:#f3f0e8;
+      --accent:#24614f;
+      --success:#3d7a4c;
+      --warning:#94660f;
+      --danger:#a6453b;
+      --on-accent:#f6f3ec;
+      --focus-ring:rgba(36,97,79,.22);
+      background:#efebe2;
+      background-image:radial-gradient(rgba(27,36,32,.075) 1px,transparent 1px);
+      background-size:22px 22px;
+      color:var(--text);
+      font-family:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+    }
+    body.embedded .main{margin-left:0;background:transparent}
     body.embedded .content{padding-top:20px}
+    body.embedded .theme-fab{display:none}
+    body.embedded .card,
+    body.embedded .stat-card{border-radius:20px;border-color:var(--line);box-shadow:none;background:var(--card)}
+    body.embedded .btn{border-radius:999px;padding:10px 18px}
+    body.embedded .btn-sm{border-radius:999px;padding:6px 12px}
+    body.embedded .btn-primary{background:var(--accent);color:var(--on-accent)}
+    body.embedded .btn-primary:hover{background:#164236;opacity:1}
+    body.embedded .btn-ghost{background:var(--card);border-color:#cbc3b3;color:var(--text)}
+    body.embedded input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    body.embedded select,
+    body.embedded textarea{background-color:#f6f3ec!important;border-color:var(--line)!important;border-radius:12px}
+    body.embedded h1,body.embedded h2{font-family:"Source Serif 4",Georgia,serif;letter-spacing:-.01em}
+    body.embedded ::selection{background:#cfe3db;color:#2a2925}
+    body.embedded #login{background:#efebe2;background-image:radial-gradient(rgba(27,36,32,.075) 1px,transparent 1px);background-size:22px 22px}
+    body.embedded .login-orb,body.embedded .login-grid{display:none}
+    body.embedded .login-shell{border-color:#e0dacd;box-shadow:0 20px 60px rgba(42,41,37,.10)}
+    body.embedded .login-brand-panel{background:#1b2420}
+    body.embedded .login-brand-panel::before{display:none}
+    body.embedded .login-feature .material-symbols-outlined{color:#a9dcc6}
+    body.embedded .login-card{background:#faf8f3}
+    body.embedded .login-btn{background:#24614f;border-radius:999px;box-shadow:none;color:#f6f3ec}
+    body.embedded .login-btn:hover:not(:disabled){background:#164236;box-shadow:none}
   </style>
 </head>
 <body class="antialiased transition-colors duration-300">
@@ -5853,6 +5900,7 @@ JSON хэлбэрээр буцаа: {"summary":"...","engineers":[{"name":"...",
     }
 
     function applyTheme(dark){
+      if(document.body&&document.body.classList.contains('embedded')) dark=false; // эх панелтай нэг цайвар сэдэв
       document.documentElement.classList.toggle('dark',dark);
       document.documentElement.style.colorScheme=dark?'dark':'light';
       localStorage.theme=dark?'dark':'light';

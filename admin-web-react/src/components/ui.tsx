@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Info, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 /* timely_clone_prompt.md §4 — нийтлэг компонентууд. */
 
@@ -23,15 +23,15 @@ export function Card({
       className={`surface ${className}`}
     >
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <header className="flex flex-col items-stretch justify-between gap-3 border-b border-line px-4 py-3 sm:flex-row sm:items-center sm:px-5">
           <div className="flex min-w-0 items-center gap-2">
-            {icon ? <span className="text-brand">{icon}</span> : null}
-            <h2 className="truncate text-[16px] font-semibold tracking-tight text-ink">{title}</h2>
+            {icon ? <span className="text-brand" aria-hidden="true">{icon}</span> : null}
+            <h2 className="truncate text-[14px] font-semibold text-ink">{title}</h2>
           </div>
-          {actions ? <div className="flex shrink-0 items-center gap-1.5">{actions}</div> : null}
+          {actions ? <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">{actions}</div> : null}
         </header>
       )}
-      <div className={`p-5 ${bodyClassName}`}>{children}</div>
+      <div className={`p-4 sm:p-5 ${bodyClassName}`}>{children}</div>
     </section>
   );
 }
@@ -50,17 +50,17 @@ export function Button({
   icon?: ReactNode;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const base =
-    'focus-ring inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2.5 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
+    'focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[7px] border px-3.5 py-2 text-[13px] font-semibold leading-none transition-[background-color,border-color,transform] disabled:cursor-not-allowed disabled:opacity-50';
   const styles: Record<BtnVariant, string> = {
-    primary: 'bg-brand text-white hover:bg-brand-600',
-    success: 'bg-success text-white hover:brightness-110',
-    danger: 'bg-danger text-white hover:brightness-110',
-    outline: 'border border-line bg-transparent text-ink hover:bg-hover',
-    ghost: 'bg-transparent text-muted hover:bg-hover hover:text-ink',
+    primary: 'border-brand bg-brand text-white hover:border-brand-600 hover:bg-brand-600',
+    success: 'border-success bg-success text-white hover:brightness-95',
+    danger: 'border-danger bg-danger text-white hover:brightness-95',
+    outline: 'border-[var(--border-strong)] bg-card text-ink hover:border-[var(--border-strong)] hover:bg-card2',
+    ghost: 'border-transparent bg-transparent text-muted shadow-none hover:bg-hover hover:text-ink',
   };
   return (
     <button className={`${base} ${styles[variant]} ${className}`} {...rest}>
-      {icon}
+      {icon ? <span aria-hidden="true">{icon}</span> : null}
       {children}
     </button>
   );
@@ -69,7 +69,7 @@ export function Button({
 export function Input({ className = '', ...rest }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`focus-ring h-10 w-full rounded-[var(--radius-sm)] border border-line bg-card2 px-3 text-[13px] text-ink placeholder:text-subtle ${className}`}
+      className={`focus-ring h-10 w-full rounded-[7px] border border-[var(--border-strong)] bg-card px-3 text-[13px] text-ink placeholder:text-subtle disabled:cursor-not-allowed disabled:bg-card2 disabled:text-muted ${className}`}
       {...rest}
     />
   );
@@ -82,7 +82,7 @@ export function Select({
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className={`focus-ring h-10 rounded-[var(--radius-sm)] border border-line bg-card2 px-3 text-[13px] text-ink ${className}`}
+      className={`focus-ring h-10 rounded-[7px] border border-[var(--border-strong)] bg-card px-3 text-[13px] text-ink disabled:cursor-not-allowed disabled:bg-card2 disabled:text-muted ${className}`}
       {...rest}
     >
       {children}
@@ -96,7 +96,7 @@ export function Textarea({
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`focus-ring w-full rounded-[var(--radius-sm)] border border-line bg-card2 p-3 text-[13px] text-ink placeholder:text-subtle ${className}`}
+      className={`focus-ring w-full rounded-[7px] border border-[var(--border-strong)] bg-card p-3 text-[13px] leading-5 text-ink placeholder:text-subtle disabled:cursor-not-allowed disabled:bg-card2 disabled:text-muted ${className}`}
       {...rest}
     />
   );
@@ -114,16 +114,16 @@ export function Badge({
   className?: string;
 }) {
   const tones: Record<Tone, string> = {
-    brand: 'bg-brand-soft text-brand',
-    success: 'bg-success-soft text-success',
-    warning: 'bg-warning-soft text-warning',
-    danger: 'bg-danger-soft text-danger',
-    purple: 'bg-[rgba(124,92,252,.16)] text-[var(--purple)]',
-    neutral: 'bg-card2 text-muted',
+    brand: 'border-brand/20 bg-brand-soft text-brand',
+    success: 'border-success/20 bg-success-soft text-success',
+    warning: 'border-warning/20 bg-warning-soft text-warning',
+    danger: 'border-danger/20 bg-danger-soft text-danger',
+    purple: 'border-purple/20 bg-[var(--purple-soft)] text-[var(--purple)]',
+    neutral: 'border-line bg-card2 text-muted',
   };
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${tones[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${tones[tone]} ${className}`}
     >
       {children}
     </span>
@@ -146,11 +146,8 @@ export function CountDot({ n, tone = 'brand' }: { n: number; tone?: 'brand' | 'w
 
 export function EmptyState({ text }: { text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-card2 text-subtle">
-        <Info size={18} />
-      </span>
-      <p className="max-w-xs text-[13px] text-subtle">{text}</p>
+    <div className="py-8 text-center">
+      <p className="text-[13px] leading-5 text-subtle">{text}</p>
     </div>
   );
 }
@@ -197,21 +194,22 @@ export function SkeletonRows({ rows = 6, cols = 5 }: { rows?: number; cols?: num
 export function PageHeader({
   title,
   crumb,
+  description,
   actions,
 }: {
   title: string;
   crumb?: string;
+  description?: string;
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtle">
-          {crumb || 'Тойм'}
-        </p>
-        <h1 className="text-[34px] font-semibold leading-none tracking-tight text-ink">{title}</h1>
+    <div className="mb-6 flex flex-col justify-between gap-3 border-b border-line pb-5 sm:flex-row sm:items-end">
+      <div className="min-w-0">
+        <p className="mb-1 text-[13px] text-subtle">{crumb || 'Тойм'}</p>
+        <h1 className="truncate text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ink sm:text-[24px]">{title}</h1>
+        {description ? <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -290,7 +288,7 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-2 text-[30px] font-semibold leading-none tracking-tight text-ink">{value}</p>
+      <p className="mt-2 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink tabular-nums">{value}</p>
       {note ? <p className="mt-2 text-[12px] text-subtle">{note}</p> : null}
     </div>
   );

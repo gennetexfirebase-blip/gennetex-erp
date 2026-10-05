@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { isExpoGo } from '../lib/runtimeEnv';
-import * as Notifications from 'expo-notifications';
+import Notifications from '../lib/notificationsCompat';
 import * as Device from 'expo-device';
 import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';

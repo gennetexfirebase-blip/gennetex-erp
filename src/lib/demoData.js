@@ -42,7 +42,7 @@ export const DEMO_DEPARTMENTS = [
 
 // ── Demo админ (нэвтэрсэн хүн) ────────────────────────────────────
 export const DEMO_USER = {
-  id: 'dm-user-0',
+  id: '00000000-0000-4000-8000-000000000000',
   name: 'Gennetex',
   last_name: 'Demo',
   email: 'demo@gennetex.mn',
@@ -61,13 +61,13 @@ export const DEMO_USER = {
 // ── Хуурамч ажилтнууд ─────────────────────────────────────────────
 export const DEMO_PROFILES = [
   DEMO_USER,
-  mk('dm-user-1', 'Батбаатар', 'Дорж', 'Сүлжээний инженер', 'dm-dep-1', 'employee'),
-  mk('dm-user-2', 'Сарантуяа', 'Ганбат', 'Ахлах инженер', 'dm-dep-1', 'ahlah'),
-  mk('dm-user-3', 'Энхбаяр', 'Цэрэн', 'Угсралтын техникч', 'dm-dep-2', 'employee'),
-  mk('dm-user-4', 'Оюунчимэг', 'Бат', 'Агуулахын нярав', 'dm-dep-3', 'employee'),
-  mk('dm-user-5', 'Мөнхбат', 'Сүх', 'Жолооч', 'dm-dep-2', 'employee'),
-  mk('dm-user-6', 'Алтанцэцэг', 'Нэргүй', 'Нягтлан бодогч', 'dm-dep-4', 'menejer'),
-  mk('dm-user-7', 'Ганзориг', 'Пүрэв', 'Угсралтын техникч', 'dm-dep-2', 'employee'),
+  mk('00000000-0000-4000-8000-000000000001', 'Батбаатар', 'Дорж', 'Сүлжээний инженер', 'dm-dep-1', 'employee'),
+  mk('00000000-0000-4000-8000-000000000002', 'Сарантуяа', 'Ганбат', 'Ахлах инженер', 'dm-dep-1', 'ahlah'),
+  mk('00000000-0000-4000-8000-000000000003', 'Энхбаяр', 'Цэрэн', 'Угсралтын техникч', 'dm-dep-2', 'employee'),
+  mk('00000000-0000-4000-8000-000000000004', 'Оюунчимэг', 'Бат', 'Агуулахын нярав', 'dm-dep-3', 'employee'),
+  mk('00000000-0000-4000-8000-000000000005', 'Мөнхбат', 'Сүх', 'Жолооч', 'dm-dep-2', 'employee'),
+  mk('00000000-0000-4000-8000-000000000006', 'Алтанцэцэг', 'Нэргүй', 'Нягтлан бодогч', 'dm-dep-4', 'menejer'),
+  mk('00000000-0000-4000-8000-000000000007', 'Ганзориг', 'Пүрэв', 'Угсралтын техникч', 'dm-dep-2', 'employee'),
 ];
 
 function mk(id, name, last, position, dept, role) {
@@ -156,7 +156,7 @@ function buildAttendance() {
   // Хүлээгдэж буй нэг хүсэлт — админ баталгаажуулах урсгалыг үзүүлнэ
   rows.push({
     id: 'dm-att-pending',
-    staff_id: 'dm-user-3',
+    staff_id: '00000000-0000-4000-8000-000000000003',
     staff_name: 'Энхбаяр Цэрэн',
     type: 'check_in',
     latitude: 47.9051,
@@ -216,14 +216,14 @@ function p(id, name, sku, qty, unit) {
 
 // ── Тээвэр ────────────────────────────────────────────────────────
 export const DEMO_VEHICLES = [
-  { id: 'dm-veh-1', plate: '1234 УБА', model: 'Toyota Hiace', driver_id: 'dm-user-5', fuel_level: 62, fuel_type: 'petrol', year: 2019, created_at: at(200, 9, 0) },
-  { id: 'dm-veh-2', plate: '5678 УНС', model: 'Mitsubishi Delica', driver_id: 'dm-user-3', fuel_level: 38, fuel_type: 'diesel', year: 2017, created_at: at(200, 9, 0) },
+  { id: 'dm-veh-1', plate: '1234 УБА', model: 'Toyota Hiace', driver_id: '00000000-0000-4000-8000-000000000005', fuel_level: 62, fuel_type: 'petrol', year: 2019, created_at: at(200, 9, 0) },
+  { id: 'dm-veh-2', plate: '5678 УНС', model: 'Mitsubishi Delica', driver_id: '00000000-0000-4000-8000-000000000003', fuel_level: 38, fuel_type: 'diesel', year: 2017, created_at: at(200, 9, 0) },
 ];
 
 // ── Мэдээллийн урсгал ─────────────────────────────────────────────
 export const DEMO_POSTS = [
-  { id: 'dm-post-1', author_id: 'dm-user-6', author_name: 'Алтанцэцэг Нэргүй', content: 'Энэ сарын цалин 25-нд олгогдоно. Ирцийн бүртгэлээ шалгаж, дутуу бол хүсэлт илгээнэ үү.', image_url: null, created_at: at(1, 14, 20) },
-  { id: 'dm-post-2', author_id: 'dm-user-2', author_name: 'Сарантуяа Ганбат', content: 'Маргааш 09:00-т аюулгүй ажиллагааны сургалт болно. Талбарын бүх ажилтан оролцоно.', image_url: null, created_at: at(2, 11, 5) },
+  { id: 'dm-post-1', author_id: '00000000-0000-4000-8000-000000000006', author_name: 'Алтанцэцэг Нэргүй', content: 'Энэ сарын цалин 25-нд олгогдоно. Ирцийн бүртгэлээ шалгаж, дутуу бол хүсэлт илгээнэ үү.', image_url: null, created_at: at(1, 14, 20) },
+  { id: 'dm-post-2', author_id: '00000000-0000-4000-8000-000000000002', author_name: 'Сарантуяа Ганбат', content: 'Маргааш 09:00-т аюулгүй ажиллагааны сургалт болно. Талбарын бүх ажилтан оролцоно.', image_url: null, created_at: at(2, 11, 5) },
   { id: 'dm-post-3', author_id: DEMO_USER.id, author_name: 'Gennetex Demo', content: 'Шинэ fusion splicer 2 ширхэг агуулахад ирлээ. Хэрэгтэй багууд няраваас авна уу.', image_url: null, created_at: at(4, 16, 40) },
 ];
 
@@ -240,11 +240,19 @@ export function demoTable(name) {
     case 'attendance': return DEMO_ATTENDANCE;
     case 'employee_shifts': return DEMO_SHIFTS;
     case 'products': return DEMO_PRODUCTS;
-    case 'vehicles': return DEMO_VEHICLES;
+    case 'inventory': return DEMO_PRODUCTS.map((row, index) => ({
+      ...row, category: index === 5 ? 'tool' : index === 4 ? 'supply' : 'material',
+      barcode: `DEMO-${index + 1}`, price: 0, department_id: null,
+    }));
+    case 'vehicles': return DEMO_VEHICLES.map(row => ({
+      ...row, code: row.id, plate_number: row.plate, fuel_level_percent: row.fuel_level,
+      liters_per_100km: 12, tank_capacity_liters: 60,
+      driver_name: DEMO_PROFILES.find(profile => profile.id === row.driver_id)?.name || null,
+    }));
     case 'posts': return DEMO_POSTS;
     case 'authorized_users':
       return DEMO_PROFILES.map((x) => ({
-        email: x.email, name: x.name, last_name: x.last_name,
+        id: x.id, email: x.email, name: x.name, last_name: x.last_name,
         position: x.position, role: x.role, active: true,
         department_id: x.department_id, linked_user_id: x.id,
       }));

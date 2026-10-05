@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, DeviceEventEmitter, Platform } from 'react-native';
+import { AppState, DeviceEventEmitter, Platform } from 'react-native';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import Notifications from '../lib/notificationsCompat';
 import { useApp } from '../context/AppContext';
 import { sendLocation, subscribeLocationSync } from '../tracking/services/locationService';
 import * as bgLocation from '../services/backgroundLocationService';
 import * as attApi from '../services/attendanceService';
 import { playZoneExitSound, playZoneEnterSound } from '../services/attendanceSoundService';
 import { DEFAULT_CHANNEL } from '../services/notificationService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { navigate } from '../lib/navigationRef';
-import { LOCATION_CONSENT_KEY } from '../screens/LocationConsentScreen';
 import { distanceMeters } from '../lib/geo';
+import { isExpoGo } from '../lib/runtimeEnv';
 
 const MIN_UPLOAD_MS = 5000; // хамгийн багадаа 15 сек тутам
 const MIN_MOVE_M = 10; // эсвэл 30м хөдөлбөл
@@ -75,6 +73,10 @@ export default function LocationTracker() {
   }, [isCloud, currentUser?.id]);
 
   useEffect(() => {
+    if (isExpoGo) {
+      setTrackingState?.({ active: false, background: false, reason: 'expo-go' });
+      return;
+    }
     if (isCloud && currentUser?.id && !shiftStatusReady) return;
     if (!isCloud || !currentUser?.id || !onShift) {
       bgLocation.stopTracking().catch(() => {});
@@ -87,85 +89,16 @@ export default function LocationTracker() {
 
     (async () => {
       try {
-        /**
-         * ⚠️ ЗӨВШӨӨРӨЛ АСУУХААС ӨМНӨ ЗОРИЛГЫГ ТАЙЛБАРЛАНА.
-         *
-         * Google Play нь background байршил ашигладаг аппаас системийн
-         * цонх гаргахаас ӨМНӨ тайлбарын дэлгэц харуулахыг шаарддаг
-         * (Location Permissions policy). Түүнгүйгээр илгээлт
-         * татгалзагдана. Apple 5.1.1 ч ижил утгатай.
-         *
-         * Хэрэглэгч татгалзсан бол ДАХИН асуухгүй — сонголтыг нь
-         * хүндэтгэж, байршил шаарддаг хэсэг л хаагдана.
-         */
-        const consentRaw = await AsyncStorage.getItem(LOCATION_CONSENT_KEY);
+        // Silent resume: never open disclosure or system permission dialogs at startup.
+        // Foreground uploads also wait until BOTH permissions are granted.
+        const res = await bgLocation.startTracking(currentUser, { isCurrent: () => active });
         if (!active) return;
-        if (!consentRaw) {
-          navigate('LocationConsent');
-          setTrackingState?.({ active: false, reason: 'consent-pending' });
+        if (!res.ok) {
+          setTrackingState?.({ active: false, background: false, reason: res.reason });
           return;
         }
-        let consent = null;
-        try {
-          consent = JSON.parse(consentRaw);
-        } catch {
-          consent = null;
-        }
-        if (!consent || consent.userId !== currentUser.id) {
-          navigate('LocationConsent');
-          setTrackingState?.({ active: false, reason: 'consent-pending' });
-          return;
-        }
-        if (!consent.granted) {
-          setTrackingState?.({ active: false, reason: 'consent-declined' });
-          return;
-        }
+        setTrackingState?.({ active: true, background: true, reason: null });
 
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status !== 'granted' || !active) {
-          setTrackingState?.({ active: false, reason: 'no-permission' });
-          return;
-        }
-        setTrackingState?.({ active: true });
-
-        // Апп хаагдсан/дэлгэц түгжигдсэн ч байршил үргэлжлүүлэхийн тулд
-        // OS түвшний арын task бүртгэнэ. watchPositionAsync нь зөвхөн апп
-        // нээлттэй байхад ажилладаг тул ганцаараа хангалтгүй.
-        bgLocation.startTracking(currentUser).then(async (res) => {
-          if (!active) { await bgLocation.stopTracking(); return; }
-          if (res.ok) {
-            setTrackingState?.({ active: true, background: true });
-            return;
-          }
-          setTrackingState?.({ active: true, background: false, reason: res.reason });
-
-          /**
-           * "Байнга зөвшөөрөх" дутуу бол ХЭРЭГЛЭГЧИД ХЭЛНЭ.
-           *
-           * Android 11-ээс хойш үүнийг системийн цонхоор олгох боломжгүй —
-           * Тохиргоо руу ороод гараар сонгох ёстой. Сануулахгүй бол апп
-           * нээлттэй үед байршил явдаг тул бүх зүйл хэвийн мэт харагдаж,
-           * апп хаагдмагц чимээгүй зогсоно.
-           *
-           * Хоногт нэг удаа л сануулна — эс тэгвээс залхааж, уншихаа болино.
-           */
-          if (res.reason !== 'no-background-permission') return;
-          if (!(await bgLocation.shouldPromptBackgroundPermission())) return;
-          if (!active) return;
-          await bgLocation.markBackgroundPromptShown();
-
-          Alert.alert(
-            'Байршил апп хаагдахад зогсоно',
-            bgLocation.trackingProblemText('no-background-permission')
-              + '\n\nОдоо апп нээлттэй үед л байршил илгээгдэж байна.',
-            [
-              { text: 'Дараа', style: 'cancel' },
-              { text: 'Тохиргоо нээх', onPress: () => bgLocation.openAppSettings() },
-            ]
-          );
-        });
-
-        // Эхлэнгүүт шууд нэг удаа байршил илгээх (хөдлөхийг хүлээхгүй)
         try {
           const first = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.High,
@@ -267,27 +200,9 @@ export default function LocationTracker() {
       }
     };
 
-    /**
-     * Тохиргооноос буцаж ирэхэд ДАХИН оролдоно.
-     *
-     * ⚠️ ЭНЭ ДУТУУ БАЙСАН:
-     *   Зөвшөөрлийг зөвхөн нэвтрэх үед НЭГ УДАА шалгадаг байв. Ажилтан
-     *   Тохиргоо руу ороод "Байнга зөвшөөрөх" гэж сонгоод буцаж ирэхэд
-     *   апп түүнийг мэдэхгүй хэвээр үлдэж, байршил апп хаагдмагц
-     *   зогссоор байв. Аппыг бүрэн хааж дахин нээх хүртэл засрахгүй.
-     *
-     *   Одоо апп идэвхжих бүрд шалгаж, зөвшөөрөл олгогдсон бол ШУУД
-     *   арын хяналтыг эхлүүлнэ — хэрэглэгч юу ч хийх шаардлагагүй.
-     */
-    const appStateSub = AppState.addEventListener('change', async (next) => {
-      if (next !== 'active' || !active) return;
-      if (await bgLocation.isTracking()) return;
-
-      const res = await bgLocation.startTracking(currentUser);
-      if (!active) return;
-      if (res.ok) {
-        setTrackingState?.((prev) => ({ ...prev, active: true, background: true, reason: null }));
-      }
+    // Re-check consent and both permissions on resume without prompting.
+    const appStateSub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && active) setConsentVersion(v => v + 1);
     });
 
     return () => {

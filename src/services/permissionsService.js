@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import Notifications from '../lib/notificationsCompat';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';

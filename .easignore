@@ -1,0 +1,69 @@
+node_modules/
+.expo/
+dist/
+dist-web/
+web-build/
+npm-debug.*
+*.log
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.DS_Store
+.env
+fcm-service-account.json
+supabase/.temp/
+.cursor/
+public-web/node_modules/
+public-web/dist/
+.aider*
+.vercel
+.env*
+android/
+ios/
+eas-cli
+expo-tunnel*.log
+fix-frontend/
+fix-public-site/
+sitecontent-fallback/
+temp-redeploy-main/
+test/
+google-services.json
+GoogleService-Info.plist
+
+# Татах хуудсанд байршуулсан APK.
+#
+# Vercel нь git-ээс deploy хийдэг тул энэ файл git-д БАЙХ ЁСТОЙ —
+# эс тэгвээс сайт дээр гарахгүй.
+#
+# ⚠️ Git нь хоёртын файлын ХУУЧИН хувилбар бүрийг үүрд хадгалдаг.
+#    Тиймээс шинэ release гаргах бүрд хуучныг УСТГААД шинийг нэмнэ
+#    (scripts/publish-app-build.js өөрөө хийнэ). Ингэсэн ч репо
+#    аажимдаа хавдана — хэдэн арван release-ийн дараа Git LFS рүү
+#    шилжих шаардлагатай болно.
+
+# Release гарын үсгийн түлхүүр — ХЭЗЭЭ Ч git-д оруулж болохгүй.
+# Алдвал Play Store дээрх аппаа шинэчлэх боломжгүй болно.
+credentials/
+*.keystore
+admin-web-react/node_modules/
+admin-web-react/dist/
+admin-web-react/tsconfig.tsbuildinfo
+
+# Local verification fixtures, screenshots, exports and temporary databases.
+/tmp/
+
+.vercel
+.env*
+
+# Local tooling and generated release artifacts are not build inputs.
+.git/
+.claude/
+.vscode/
+*.apk
+*.aab
+
+# Firebase client config is required by Android prebuild on EAS.
+!google-services.json

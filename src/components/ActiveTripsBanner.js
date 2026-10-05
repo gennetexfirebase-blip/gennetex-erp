@@ -6,7 +6,11 @@ import { useTheme, useStyles } from '../context/ThemeContext';
 import { fetchTripsWithPassengers } from '../services/vehicleService';
 import { supabase } from '../lib/supabase';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android'
+  && (Platform.constants?.reactNativeVersion?.minor || 0) < 71
+  && UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

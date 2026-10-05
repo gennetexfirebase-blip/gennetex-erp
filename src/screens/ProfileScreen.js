@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  DeviceEventEmitter,
   Image,
   Pressable,
   ActivityIndicator,
@@ -12,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import * as Notifications from 'expo-notifications';
+import Notifications from '../lib/notificationsCompat';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
 import {
@@ -276,9 +277,13 @@ export default function ProfileScreen() {
     Alert.alert('Байршлын шалгалт', lines.join('\n'), [
       { text: 'Хаах', style: 'cancel' },
       { text: 'Батерей чөлөөлөх', onPress: () => requestIgnoreBatteryOptimizations() },
-      ...(bgOk
-        ? [{ text: 'Дахин эхлүүлэх', onPress: () => startTracking(authProfile).catch(() => {}) }]
-        : [{ text: 'Тохиргоо нээх', onPress: () => openAppSettings() }]),
+      {
+        text: d.tracking ? 'Дахин эхлүүлэх' : 'Хяналт эхлүүлэх',
+        onPress: async () => {
+          const result = await startTracking(authProfile, { requestPermissions: true });
+          if (result.ok) DeviceEventEmitter.emit('erp-location-consent');
+        },
+      },
     ]);
   };
 
@@ -676,6 +681,15 @@ export default function ProfileScreen() {
             </ListGroup>
           </>
         ) : null}
+
+        <GroupLabel>Нууцлал ба өгөгдөл</GroupLabel>
+        <ListGroup>
+          <ListRow
+            icon="↗"
+            label="Нууцлал, нөхцөл, бүртгэл устгах"
+            onPress={() => navigation.navigate('Privacy')}
+          />
+        </ListGroup>
 
         {/* --- Гарах --- */}
         <View style={{ marginTop: spacing.xl }}>

@@ -23,6 +23,9 @@
 /fcm-service-account.json
 
 /.claude/
+/.agents/
+/act-desktop/
+/admin-web-react/.agents/
 /credentials/
 /.env*
 /tmp/

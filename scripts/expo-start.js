@@ -66,9 +66,16 @@ async function start() {
     console.log(`[expo-start] Metro port: ${port}`);
   }
   const child = spawn(process.execPath, [cli, 'start', ...args], {
-  stdio: 'inherit',
-  env: { ...process.env, EXPO_NO_DEPENDENCY_VALIDATION: '1' },
-});
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      EXPO_NO_DEPENDENCY_VALIDATION: '1',
+      // LAN/ADB туршилтад Expo account GraphQL шаардлагагүй. Сүлжээний
+      // API түр тасрахад manifest 500 болж Expo Go хар дэлгэц болдог тул
+      // LAN горимыг local-only ажиллуулна. Tunnel горимд үүнийг хийхгүй.
+      ...(args.includes('--lan') ? { EXPO_OFFLINE: '1' } : {}),
+    },
+  });
 
   let healthTimer;
   if (args.includes('--go')) {

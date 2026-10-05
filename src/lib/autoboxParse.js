@@ -44,7 +44,15 @@ function stripTags(html) {
     .trim();
 }
 
-function parseHtmlTableRows(tableHtml) {
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export function parseHtmlTableRows(tableHtml) {
   if (!tableHtml) return [];
   const tbody = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i.exec(tableHtml)?.[1] || tableHtml;
   const rows = [];
@@ -61,6 +69,25 @@ function parseHtmlTableRows(tableHtml) {
   }
   // header мөрүүдийг хаях (ихэвчлэн эхний мөр th байдаг)
   return rows.filter((r) => !(r.length >= 2 && /огноо/i.test(r.join(' ')) && /дугаар/i.test(r.join(' '))));
+}
+
+export function enrichAutoboxPayload(payload = {}) {
+  const diagnosisRows = payload.diagnosisRows?.length
+    ? payload.diagnosisRows
+    : parseHtmlTableRows(payload.diagnosis);
+  const finesRows = payload.finesRows?.length
+    ? payload.finesRows
+    : parseHtmlTableRows(payload.fines);
+  const taxRows = payload.taxRows?.length
+    ? payload.taxRows
+    : parseHtmlTableRows(payload.tax);
+  const diagnosisValidUntil = payload.diagnosisValidUntil || (
+    diagnosisRows
+      .map((row) => parseMnDateTime(row[3]))
+      .filter(Boolean)
+      .sort((a, b) => b.getTime() - a.getTime())[0]?.toISOString() || null
+  );
+  return { ...payload, diagnosisRows, finesRows, taxRows, diagnosisValidUntil };
 }
 
 function parseMnDateTime(s) {
@@ -90,9 +117,11 @@ export function parseAutoboxHtml(html, plateNo, url) {
   const technical = extractTableAfterLabel(html, 'Техникийн мэдээлэл');
   const diagnosis = extractTabTable(html, 'diagnosisTab');
   const fines = extractTabTable(html, 'fineTab');
+  const tax = extractTabTable(html, 'taxTab');
 
   const diagnosisRows = parseHtmlTableRows(diagnosis);
   const finesRows = parseHtmlTableRows(fines);
+  const taxRows = parseHtmlTableRows(tax);
 
   // Diagnosis: [Дугаар, Арлын дугаар, Огноо, Хүчинтэй хугацаа, ...]
   const diagnosisValidUntil = diagnosisRows
@@ -100,8 +129,8 @@ export function parseAutoboxHtml(html, plateNo, url) {
     .filter(Boolean)
     .sort((a, b) => b.getTime() - a.getTime())[0] || null;
 
-  const hash = hashContent([general, technical, diagnosis, fines]);
-  const hasData = Boolean(general || technical || diagnosis || fines);
+  const hash = hashContent([general, technical, diagnosis, fines, tax]);
+  const hasData = Boolean(general || technical || diagnosis || fines || tax);
 
   return {
     ok: hasData,
@@ -112,8 +141,10 @@ export function parseAutoboxHtml(html, plateNo, url) {
     technical,
     diagnosis,
     fines,
+    tax,
     diagnosisRows,
     finesRows,
+    taxRows,
     diagnosisValidUntil: diagnosisValidUntil ? diagnosisValidUntil.toISOString() : null,
     fetchedAt: new Date().toISOString(),
   };
@@ -131,9 +162,40 @@ export async function fetchAutoboxHtml(plateNo) {
     throw new Error(`Autobox хариу: ${res.status}`);
   }
   const html = await res.text();
-  const parsed = parseAutoboxHtml(html, plateNo, url);
+  let parsed = parseAutoboxHtml(html, plateNo, url);
   if (!parsed.ok) {
     throw new Error('Энэ дугаартай машины мэдээлэл autobox.mn дээр олдсонгүй');
   }
-  return parsed;
+  try {
+    const taxResponse = await fetch(
+      `https://www.autobox.mn/api/services/app/Xyp/GetAutoboxTax?plateNo=${encodeURIComponent(plateNo)}`,
+      { headers: { 'User-Agent': 'GennetexERP/1.0', Accept: 'application/json' } },
+    );
+    if (taxResponse.ok) {
+      const taxJson = await taxResponse.json();
+      const items = taxJson?.result?.items || [];
+      const taxRows = items.map((item) => [
+        item.plateNo || plateNo,
+        item.year ?? '',
+        item.taxAmount ?? '',
+        item.trafficAmount ?? '',
+        item.airPollAmount ?? '',
+        item.paidDate ?? '',
+        item.statusText ?? '',
+        item.isPaid === true,
+      ]);
+      const body = taxRows.map((row) =>
+        `<tr>${row.slice(0, 6).map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}` +
+        `<td><span class="badge ${row[7] ? 'badge-success' : 'badge-danger'}">${escapeHtml(row[6])}</span></td></tr>`
+      ).join('');
+      parsed = {
+        ...parsed,
+        taxRows,
+        tax: parsed.tax?.replace(/(<tbody[^>]*>)([\s\S]*?)(<\/tbody>)/i, `$1${body}$3`) || parsed.tax,
+      };
+    }
+  } catch (_error) {
+    // Татварын endpoint түр ажиллахгүй байсан ч үндсэн машины мэдээллийг харуулна.
+  }
+  return enrichAutoboxPayload(parsed);
 }

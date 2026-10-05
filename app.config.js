@@ -1,30 +1,11 @@
 /**
- * Expo Go: native-only plugin-уудыг хасна.
- * APK / EAS build: бүх plugin идэвхтэй.
+ * app.json owns the native config and plugin list for both local prebuild and EAS.
+ * Config plugins do not load native modules into Expo Go.
  */
 const fs = require('fs');
+const path = require('path');
 
-const isNativeBuild =
-  !!process.env.EAS_BUILD ||
-  process.env.EXPO_USE_DEV_CLIENT === '1' ||
-  process.env.NODE_ENV === 'production';
-
-/**
- * Expo Go-д ачаалагдахгүй plugin-ууд.
- *
- * ⚠️ `react-native-full-screen-notification-incoming-call`-ийг ЭНДЭЭС ХАСЛАА:
- *    Тэр plugin нь `IncomingCallActivity` зэргийг AndroidManifest-д нэмдэг.
- *    Шүүгдэж хаягдсан үед `android/` үүссэн тул манифестэд огт ороогүй бөгөөд
- *    ирэх дуудлагын БҮТЭН ДЭЛГЭЦ хэзээ ч гардаггүй байв.
- *
- *    Config plugin нь зөвхөн prebuild үед native төслийг өөрчилдөг — Expo Go
- *    түүнийг ашигладаггүй тул жагсаалтад үлдээх шаардлагагүй.
- */
-const NATIVE_ONLY_PLUGINS = new Set([
-  'expo-dev-client',
-]);
-
-const androidGoogleServices = './google-services.json';
+const androidGoogleServices = process.env.GOOGLE_SERVICES_JSON || './google-services.json';
 const iosGoogleServices = './GoogleService-Info.plist';
 
 /**
@@ -45,18 +26,8 @@ const iosGoogleServices = './GoogleService-Info.plist';
  */
 
 module.exports = ({ config }) => {
-  const plugins = (config.plugins || []).filter((plugin) => {
-    const name = Array.isArray(plugin) ? plugin[0] : plugin;
-    return !NATIVE_ONLY_PLUGINS.has(name) || isNativeBuild;
-  });
-
-  if (isNativeBuild) {
-    plugins.push('@react-native-firebase/app', '@react-native-firebase/messaging');
-  }
-
   return {
     ...config,
-    plugins,
     /**
      * AI түлхүүрүүд.
      *
@@ -79,11 +50,11 @@ module.exports = ({ config }) => {
     },
     android: {
       ...config.android,
-      ...(fs.existsSync(androidGoogleServices) ? { googleServicesFile: androidGoogleServices } : {}),
+      googleServicesFile: androidGoogleServices,
     },
     ios: {
       ...config.ios,
-      ...(fs.existsSync(iosGoogleServices) ? { googleServicesFile: iosGoogleServices } : {}),
+      ...(fs.existsSync(path.resolve(__dirname, iosGoogleServices)) ? { googleServicesFile: iosGoogleServices } : {}),
     },
   };
 };

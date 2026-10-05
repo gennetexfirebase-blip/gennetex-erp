@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import { uniqueChannel } from '../lib/realtimeChannel';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
@@ -12,6 +13,18 @@ export async function uploadChatFile(uri, { room, mimeType, name } = {}) {
   const safeName = (name || `${Date.now()}`).replace(/[^\w.\-]/g, '_');
   const path = `${room || 'general'}/${Date.now()}_${safeName}`;
   const contentType = mimeType || 'application/octet-stream';
+
+  if (supabase.__demo) return uri;
+
+  // React Native Blob uploads can produce empty/corrupt objects. Upload the file bytes.
+  if (Platform.OS !== 'web') {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists || !info.size) throw new Error('Илгээх файл хоосон эсвэл олдсонгүй. Дахин бичнэ үү.');
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    const { error } = await supabase.storage.from(BUCKET).upload(path, decode(base64), { contentType, upsert: true });
+    if (error) throw error;
+    return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
 
   try {
     const res = await fetch(uri);
@@ -134,19 +147,33 @@ export async function getOrCreateDirect(me, other) {
 
 // Групп үүсгэх
 export async function createGroup(me, name, members) {
+  if (!me?.id) throw new Error('Нэвтэрсэн хэрэглэгч тодорхойгүй байна.');
+  const validMembers = (members || []).filter(
+    (member, index, list) =>
+      member?.id &&
+      member.id !== me.id &&
+      list.findIndex((candidate) => candidate?.id === member.id) === index
+  );
+  if (!validMembers.length) throw new Error('Дор хаяж нэг бүртгэлтэй гишүүн сонгоно уу.');
+
   const { data: conv, error } = await supabase
     .from('conversations')
-    .insert({ is_group: true, name, created_by: me.id })
+    .insert({ is_group: true, name: String(name || '').trim(), created_by: me.id })
     .select()
     .single();
   if (error) throw error;
 
   const rows = [{ conversation_id: conv.id, user_id: me.id, user_name: me.name }];
-  for (const m of members) {
-    if (m.id !== me.id) rows.push({ conversation_id: conv.id, user_id: m.id, user_name: m.name });
+  for (const member of validMembers) {
+    rows.push({ conversation_id: conv.id, user_id: member.id, user_name: member.name });
   }
-  await supabase.from('conversation_members').insert(rows);
-  return conv;
+  const { error: memberError } = await supabase.from('conversation_members').insert(rows);
+  if (memberError) {
+    // Хагас үүссэн, хэн ч бичиж чадахгүй группийг жагсаалтад үлдээхгүй.
+    await supabase.from('conversations').delete().eq('id', conv.id);
+    throw memberError;
+  }
+  return { ...conv, members: rows };
 }
 
 // Миний яриануудыг татах (сүүлийн мессежтэй нь)

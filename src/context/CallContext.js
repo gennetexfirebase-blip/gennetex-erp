@@ -60,7 +60,7 @@ const RING_TIMEOUT_MS = 45_000;
  * аваагүй дуудлага дахин дуугарах ёсгүй, зөвхөн жагсаалтад үлдэнэ.
  */
 async function notifyMissedCall(name, type) {
-  const Notifications = require('expo-notifications');
+  const Notifications = require('../lib/notificationsCompat').default;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Аваагүй дуудлага',
@@ -102,6 +102,11 @@ export function CallProvider({ children }) {
 
   const useNativeUi = isNativeIncomingCallAvailable();
 
+  const clearRingTimeout = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
+
   useEffect(() => {
     callRef.current = call;
   }, [call]);
@@ -127,10 +132,7 @@ export function CallProvider({ children }) {
    * хийвэл богино хугацаанд микрофон нээлттэй, гэрэл асаалттай үлдэнэ.
    */
   const teardown = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+    clearRingTimeout();
     stopIncomingCallAlert();
     hideNativeIncomingCall();
 
@@ -161,7 +163,7 @@ export function CallProvider({ children }) {
     setMuted(false);
     setSpeakerOn(false);
     setCameraOn(true);
-  }, []);
+  }, [clearRingTimeout]);
 
   /** Дуудлагыг дуусгаад дэлгэцээс алга болгоно. */
   const finish = useCallback(
@@ -191,6 +193,8 @@ export function CallProvider({ children }) {
         onRemoteStream: (stream) => setRemoteStream(stream),
         onStateChange: (connState) => {
           if (connState === 'connected') {
+            clearRingTimeout();
+            if (callRef.current?.id === callId) callRef.current = { ...callRef.current, state: CALL_STATE.CONNECTED };
             setCall((c) => (c ? { ...c, state: CALL_STATE.CONNECTED } : c));
             const icm = inCallManager();
             try {
@@ -212,7 +216,7 @@ export function CallProvider({ children }) {
       setLocalStream(session.localStream);
       return session;
     },
-    [finish]
+    [finish, clearRingTimeout]
   );
 
   // -------------------------------------------------------------------------
@@ -326,7 +330,11 @@ export function CallProvider({ children }) {
       updatesRef.current = voip.subscribeCall(row.id, (updated) => {
         const ui = toUiState(updated.status);
         if (updated.status === 'accepted') {
-          setCall((c) => (c ? { ...c, state: CALL_STATE.CONNECTING } : c));
+          clearRingTimeout();
+          if (callRef.current?.id !== row.id) return;
+          const next = callRef.current.state === CALL_STATE.CONNECTED ? callRef.current : { ...callRef.current, state: CALL_STATE.CONNECTING };
+          callRef.current = next;
+          setCall(next);
           return;
         }
         if (isTerminal(updated.status)) {
@@ -336,6 +344,7 @@ export function CallProvider({ children }) {
 
       // --- Хариулаагүй бол таслах ---
       timeoutRef.current = setTimeout(() => {
+        if (callRef.current?.id !== row.id || callRef.current.state !== CALL_STATE.RINGING) return;
         voip.cancelCall(row.id).catch(() => {});
         finish(CALL_STATE.MISSED, 'Хэрэглэгч хариулсангүй.');
       }, RING_TIMEOUT_MS);
@@ -345,7 +354,7 @@ export function CallProvider({ children }) {
         console.warn('[call] TURN тохируулаагүй — хатуу NAT ард холбогдохгүй байж болно.');
       }
     },
-    [isCloud, buildSession, finish]
+    [isCloud, buildSession, finish, clearRingTimeout]
   );
 
   // -------------------------------------------------------------------------
