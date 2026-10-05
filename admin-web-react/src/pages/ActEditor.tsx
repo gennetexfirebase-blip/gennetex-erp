@@ -12,7 +12,7 @@ import { fetchEmployees, type Employee } from '../lib/data';
 import {
   ACT_STATUS_LABELS, actError, addActPhoto, emptyActDraft, fetchAct, fetchActInventory, fetchActReceiverContacts, fetchActSources, fetchActTemplates,
   fetchSourceSnapshot, issueActMaterials, logActExport, normalizeSourceMaterials, normalizeSourcePhotos, removeActImage,
-  saveAct, saveActReceiverContact, transitionAct, uploadActImage, type Act, type ActChecklist, type ActDraft, type ActInventoryItem,
+  saveAct, saveActReceiverContact, snapshotDraft, transitionAct, uploadActImage, type Act, type ActChecklist, type ActDraft, type ActInventoryItem,
   type ActMaterial, type ActPhoto, type ActReceiver, type ActReceiverContact, type ActSource, type ActTemplate,
 } from '../lib/acts';
 
@@ -135,18 +135,6 @@ function receiversFromOrganization(contacts: ActReceiverContact[], organization:
  *  зөвхөн гарын үсэг үлдэнэ. */
 function withoutStamps(receivers: ActReceiver[]): ActReceiver[] {
   return receivers.map((receiver) => ({ ...receiver, stamp_url: '', stamp_preview_url: '' }));
-}
-
-function snapshotDraft(act: Act): ActDraft {
-  return {
-    id: act.id, act_number: act.act_number, status: act.status, template_id: act.template_id,
-    source_type: act.source_type, source_id: act.source_id, act_type: act.act_type,
-    project_name: act.project_name, project_type: act.project_type, location: act.location,
-    contractor_name: act.contractor_name, customer_name: act.customer_name,
-    work_description: act.work_description, start_date: act.start_date, end_date: act.end_date,
-    photo_layout: act.photo_layout, materials: act.materials, checklists: act.checklists,
-    receivers: act.receivers, photos: act.photos,
-  };
 }
 
 function asPrintable(draft: ActDraft, template?: ActTemplate): Act {

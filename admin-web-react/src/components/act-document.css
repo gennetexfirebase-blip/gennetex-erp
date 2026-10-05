@@ -96,6 +96,14 @@
 .act-edit-dropzone span { color:#7d8ba3; font-size:9pt; }
 .act-edit-dropzone:hover { background:#eef4ff; }
 
+/* PDF editor горим — хэсэг дээр дарахад тэр хэсэг л засагдана. */
+.act-edit-section { position:relative; border-radius:1mm; cursor:pointer; transition:outline-color .12s, background-color .12s; outline:.3mm dashed transparent; outline-offset:1.5mm; }
+.act-edit-section:hover,.act-edit-section:focus-visible { outline-color:#9db8e8; background:rgba(76,127,214,.035); }
+.act-edit-section.is-active { cursor:auto; outline:.4mm solid #4c7fd6; background:transparent; }
+.act-edit-section-chip { opacity:0; pointer-events:none; transition:opacity .12s; }
+.act-edit-section:hover .act-edit-section-chip,.act-edit-section:focus-visible .act-edit-section-chip { opacity:1; }
+@media (hover:none) { .act-edit-section-chip { opacity:1; } }
+
 @media (max-width:900px) {
   .act-paper { transform-origin:top center; }
 }

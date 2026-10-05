@@ -197,7 +197,7 @@ export type ActListFilters = {
 };
 
 export const ACT_STATUS_LABELS: Record<ActStatus, string> = {
-  draft: 'Draft',
+  draft: 'Ноорог',
   ready: 'Бэлэн',
   approved: 'Баталгаажсан',
   delivered: 'Хүлээлгэн өгсөн',
@@ -271,6 +271,15 @@ export async function fetchActs(filters: ActListFilters = {}) {
   const { data, error, count } = await query;
   if (error) throw error;
   return { rows: (data || []) as Act[], count: count || 0, page, pageSize };
+}
+
+/** Жагсаалтын төлөвийн tab-ын тоо. */
+export async function fetchActStatusCounts(): Promise<Partial<Record<ActStatus, number>>> {
+  const { data, error } = await supabase.from('acts').select('status');
+  if (error) throw error;
+  const counts: Partial<Record<ActStatus, number>> = {};
+  (data || []).forEach((row: { status: ActStatus }) => { counts[row.status] = (counts[row.status] || 0) + 1; });
+  return counts;
 }
 
 export async function fetchAct(id: string): Promise<Act> {
@@ -393,6 +402,11 @@ export async function saveActReceiverContact(contact: Omit<ActReceiverContact, '
   return String(data);
 }
 
+export async function deleteActReceiverContact(id: string) {
+  const { error } = await supabase.rpc('delete_act_receiver_contact', { p_contact_id: id });
+  if (error) throw error;
+}
+
 export async function fetchActSources(): Promise<ActSource[]> {
   const { data, error } = await supabase.rpc('list_act_sources');
   if (error) throw error;
@@ -435,6 +449,19 @@ export function normalizeSourcePhotos(rows: SourceSnapshot['photos']): ActPhoto[
       source_id: value.source_id || null,
     };
   }).filter((item) => item.image_url);
+}
+
+/** Хадгалсан актыг save_act-д явуулах draft болгоно. */
+export function snapshotDraft(act: Act): ActDraft {
+  return {
+    id: act.id, act_number: act.act_number, status: act.status, template_id: act.template_id,
+    source_type: act.source_type, source_id: act.source_id, act_type: act.act_type,
+    project_name: act.project_name, project_type: act.project_type, location: act.location,
+    contractor_name: act.contractor_name, customer_name: act.customer_name,
+    work_description: act.work_description, start_date: act.start_date, end_date: act.end_date,
+    photo_layout: act.photo_layout, materials: act.materials, checklists: act.checklists,
+    receivers: act.receivers, photos: act.photos,
+  };
 }
 
 export async function saveAct(id: string | undefined, payload: ActDraft, forceApprovedEdit = false): Promise<string> {
@@ -549,7 +576,7 @@ export function actError(error: unknown) {
   if (/permission_denied/i.test(message)) return 'Энэ үйлдлийг хийх эрх хүрэхгүй байна.';
   if (/checklist_reason_required/i.test(message)) return '“Үгүй” гэж сонгосон шаардлагын шалтгааныг оруулна уу.';
   if (/receiver_name_required/i.test(message)) return 'Хүлээлцэх хүний нэрийг оруулна уу.';
-  if (/share_requires_ready/i.test(message)) return 'Public link үүсгэхийн өмнө актыг “Бэлэн” болгоно уу.';
+  if (/share_requires_ready/i.test(message)) return 'Нийтийн холбоос үүсгэхийн өмнө актыг “Бэлэн” болгоно уу.';
   if (/public_act_not_found/i.test(message)) return 'Public акт олдсонгүй эсвэл share link хаагдсан байна.';
   if (/act_inventory_locked/i.test(message)) return 'Баталгаажсан эсвэл хаагдсан актаас агуулахын зарлага гаргах боломжгүй.';
   if (/act_material_not_linked:([^\n]+)/i.test(message)) return `“${message.split(':').slice(1).join(':')}” материалыг агуулахын бараатай холбоно уу.`;

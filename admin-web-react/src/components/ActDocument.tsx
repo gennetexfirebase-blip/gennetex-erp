@@ -7,6 +7,16 @@ type PrintableAct = Act | (ActDraft & { act_number?: string; created_at?: string
 
 type CustomerOption = { label: string; organization: string };
 
+/** PDF editor горимд дарж засах актын хэсгүүд. */
+export type ActSection = 'details' | 'materials' | 'checklist' | 'photos';
+
+const SECTION_LABELS: Record<ActSection, string> = {
+  details: 'Үндсэн мэдээлэл',
+  materials: 'Материал',
+  checklist: 'Шаардлага',
+  photos: 'Зураг',
+};
+
 /** Editor горим — актыг яг хэвлэгдэх загвар дээр нь шууд бөглөнө. */
 export type ActDocumentEdit = {
   onChange: (value: Partial<ActDraft>) => void;
@@ -18,6 +28,9 @@ export type ActDocumentEdit = {
   onEditReceivers?: () => void;
   /** Зөвхөн зураг нэмэх эрхтэй (материал, шалгах хуудас, зургийн тайлбар түгжээтэй). */
   photosLocked?: boolean;
+  /** PDF editor горим — өгөгдвөл зөвхөн `activeSection` хэсэг засагдаж, бусад хэсэг дээр дарахад тэр хэсэг идэвхжинэ. */
+  onActivateSection?: (section: ActSection) => void;
+  activeSection?: ActSection | null;
 };
 
 const MATERIALS_PER_PAGE = 10;
@@ -191,6 +204,19 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
   const photoGroups = chunks(act.photos || [], act.photo_layout || 1).filter((group) => group.length);
   const total = materialGroups.length + checklistGroups.length + photoGroups.length;
   const rowsLocked = Boolean(edit?.photosLocked);
+  const editFor = (section: ActSection) => edit && (!edit.onActivateSection || edit.activeSection === section) ? edit : undefined;
+  /** PDF editor горимд идэвхгүй хэсгийг дарж засах блок болгоно. */
+  const pickable = (section: ActSection, node: React.ReactNode) => {
+    const activate = edit?.onActivateSection;
+    if (!activate) return node;
+    if (edit.activeSection === section) return <div className="act-edit-section is-active">{node}</div>;
+    return <div className="act-edit-section" role="button" tabIndex={0} aria-label={`${SECTION_LABELS[section]} засах`}
+      onClick={() => activate(section)}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(section); } }}>
+      <span className="act-edit-chip act-edit-section-chip">✎ {SECTION_LABELS[section]} засах</span>
+      {node}
+    </div>;
+  };
   let page = 0;
   const pages: React.ReactNode[] = [];
 
@@ -206,8 +232,10 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
   const removeCheck = (index: number) => edit?.onChange({ checklists: act.checklists.filter((_, rowIndex) => rowIndex !== index) });
   const customerKnown = Boolean(edit?.customers?.some((option) => option.label === act.customer_name));
 
-  const detail = (label: string, view: React.ReactNode, editor?: React.ReactNode) => <div><dt>{label}</dt><dd>{edit && editor && !rowsLocked ? editor : view}</dd></div>;
+  const detailsEdit = editFor('details');
+  const detail = (label: string, view: React.ReactNode, editor?: React.ReactNode) => <div><dt>{label}</dt><dd>{detailsEdit && editor && !rowsLocked ? editor : view}</dd></div>;
 
+  const materialsEdit = editFor('materials');
   materialGroups.forEach((materials, groupIndex) => {
     page += 1;
     const current = page;
@@ -217,7 +245,7 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
         {groupIndex === 0 ? (
           <>
             <div className="act-title-row"><h1>{template?.title || (act.act_type === 'work_handover' ? 'Ажил хүлээлцэх акт' : 'Ажил гүйцэтгэлийн акт')}</h1><span>{act.act_number || 'ACT-YYYY-0000'}</span></div>
-            <dl className="act-details">
+            {pickable('details', <dl className="act-details">
               {detail('1. Хаяг / Байршил:', act.location || act.project_name || '—',
                 <EditText multiline label="Хаяг / Байршил" value={act.location} placeholder={act.project_name || 'Хаяг, байршил'} onChange={(location) => edit!.onChange({ location })} />)}
               {detail('2. Гүйцэтгэгч компанийн нэр:', act.contractor_name || 'Женнетекс ХХК',
@@ -234,34 +262,37 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
                 <EditDate label="Ажил эхэлсэн хугацаа" value={act.start_date} onChange={(start_date) => edit!.onChange({ start_date })} />)}
               {detail('6. Ажил дууссан хугацаа:', formatDate(act.end_date),
                 <EditDate label="Ажил дууссан хугацаа" value={act.end_date} onChange={(end_date) => edit!.onChange({ end_date })} />)}
-            </dl>
+            </dl>)}
           </>
         ) : <h2 className="act-section-title">Зарцуулсан материал — үргэлжлэл</h2>}
+        {pickable('materials', <>
         <h2 className="act-section-title">Байранд зарцуулсан материалын хэмжээ</h2>
-        <table className={`act-table ${edit ? 'act-edit-table' : ''}`}>
+        <table className={`act-table ${materialsEdit ? 'act-edit-table' : ''}`}>
           <thead><tr><th>№</th><th>Бараа материал</th><th>Хэмжих нэгж</th><th>Тоо хэмжээ</th></tr></thead>
           <tbody>
             {materials.map((item, index) => {
               const position = groupIndex * MATERIALS_PER_PAGE + index;
               const issued = Boolean(item.source_transaction_id);
-              return edit ? (
+              return materialsEdit ? (
                 <tr key={`${item.material_id || 'manual'}-${position}`}>
                   <td>{position + 1}</td>
-                  <td><EditText multiline label={`${position + 1}-р материал`} list={edit.inventory?.length ? 'act-inventory-options' : undefined} value={item.material_name} placeholder="Бараа материал" disabled={issued || rowsLocked} onChange={(name) => setMaterialName(position, name)} />{issued ? <span className="act-edit-note">✓ зарлага бүртгэгдсэн</span> : null}</td>
+                  <td><EditText multiline label={`${position + 1}-р материал`} list={materialsEdit.inventory?.length ? 'act-inventory-options' : undefined} value={item.material_name} placeholder="Бараа материал" disabled={issued || rowsLocked} onChange={(name) => setMaterialName(position, name)} />{issued ? <span className="act-edit-note">✓ зарлага бүртгэгдсэн</span> : null}</td>
                   <td><EditText label={`${position + 1}-р материалын нэгж`} value={item.unit} disabled={rowsLocked} onChange={(unit) => setMaterial(position, { unit })} /></td>
                   <td><EditText type="number" label={`${position + 1}-р материалын тоо`} value={item.quantity} disabled={issued || rowsLocked} onChange={(quantity) => setMaterial(position, { quantity: Number(quantity) })} />{!rowsLocked ? <RemoveButton label={`${position + 1}-р материал устгах`} onClick={() => removeMaterial(position)} /> : null}</td>
                 </tr>
               ) : <tr key={`${item.material_id || item.material_name}-${index}`}><td>{position + 1}</td><td>{item.material_name}</td><td>{item.unit}</td><td>{item.quantity}</td></tr>;
             })}
-            {!materials.length && !edit ? <tr><td colSpan={4} className="act-empty-cell">Материал бүртгээгүй</td></tr> : null}
-            {edit && isLast && !rowsLocked ? <tr className="act-edit-add-row"><td colSpan={4}><button type="button" className="act-edit-add" onClick={addMaterial}>+ Материал нэмэх</button></td></tr> : null}
+            {!materials.length && !materialsEdit ? <tr><td colSpan={4} className="act-empty-cell">Материал бүртгээгүй</td></tr> : null}
+            {materialsEdit && isLast && !rowsLocked ? <tr className="act-edit-add-row"><td colSpan={4}><button type="button" className="act-edit-add" onClick={addMaterial}>+ Материал нэмэх</button></td></tr> : null}
           </tbody>
         </table>
-        {edit?.inventory?.length && groupIndex === 0 ? <datalist id="act-inventory-options">{edit.inventory.map((item) => <option key={item.id} value={item.name}>{`үлдэгдэл ${item.quantity} ${item.unit}`}</option>)}</datalist> : null}
+        </>)}
+        {materialsEdit?.inventory?.length && groupIndex === 0 ? <datalist id="act-inventory-options">{materialsEdit.inventory.map((item) => <option key={item.id} value={item.name}>{`үлдэгдэл ${item.quantity} ${item.unit}`}</option>)}</datalist> : null}
       </Shell>
     );
   });
 
+  const checklistEdit = editFor('checklist');
   checklistGroups.forEach((items, groupIndex) => {
     page += 1;
     const current = page;
@@ -269,12 +300,12 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
     pages.push(
       <Shell key={`check-${groupIndex}`} template={template} page={current} total={total}>
         <h2 className="act-section-title act-section-title-large">Ажил гүйцэтгэхдээ баримтлах шаардлагууд</h2>
-        <table className={`act-table act-check-table ${edit ? 'act-edit-table' : ''}`}>
+        {pickable('checklist', <table className={`act-table act-check-table ${checklistEdit ? 'act-edit-table' : ''}`}>
           <thead><tr><th>№</th><th>Шаардлага</th><th>Тийм</th><th>Үгүй</th><th>N/A</th><th>Шалтгаан</th></tr></thead>
           <tbody>
             {items.map((item, index) => {
               const position = groupIndex * CHECKLIST_PER_PAGE + index;
-              if (!edit) return (
+              if (!checklistEdit) return (
                 <tr key={`${item.requirement}-${index}`}>
                   <td>{position + 1}</td><td>{item.requirement}</td>
                   <td>{item.result === 'yes' ? '✓' : ''}</td><td>{item.result === 'no' ? 'X' : ''}</td><td>{item.result === 'na' ? 'X' : ''}</td><td>{item.reason || '—'}</td>
@@ -295,10 +326,10 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
                 </tr>
               );
             })}
-            {!items.length && !edit ? <tr><td colSpan={6} className="act-empty-cell">Шалгах хуудас сонгоогүй</td></tr> : null}
-            {edit && isLast && !rowsLocked ? <tr className="act-edit-add-row"><td colSpan={6}><button type="button" className="act-edit-add" onClick={addCheck}>+ Шаардлага нэмэх</button></td></tr> : null}
+            {!items.length && !checklistEdit ? <tr><td colSpan={6} className="act-empty-cell">Шалгах хуудас сонгоогүй</td></tr> : null}
+            {checklistEdit && isLast && !rowsLocked ? <tr className="act-edit-add-row"><td colSpan={6}><button type="button" className="act-edit-add" onClick={addCheck}>+ Шаардлага нэмэх</button></td></tr> : null}
           </tbody>
-        </table>
+        </table>)}
         {isLast ? <ReceiverBlock act={act} onEdit={edit?.onEditReceivers} /> : null}
       </Shell>
     );
@@ -310,13 +341,13 @@ export default function ActDocument({ act, template, onlyPage, edit }: { act: Pr
     pages.push(
       <Shell key={`photos-${groupIndex}`} template={template} page={current} total={total} className="act-photo-page">
         <h2 className="act-section-title act-section-title-large">Ажлын зураг</h2>
-        <PhotoGrid photos={photos} layout={act.photo_layout || 1} startIndex={groupIndex * (act.photo_layout || 1)} edit={edit} allPhotos={act.photos} />
+        {pickable('photos', <PhotoGrid photos={photos} layout={act.photo_layout || 1} startIndex={groupIndex * (act.photo_layout || 1)} edit={editFor('photos')} allPhotos={act.photos} />)}
       </Shell>
     );
   });
 
-  if (edit?.onDropFiles) {
-    const drop = edit.onDropFiles;
+  if (editFor('photos')?.onDropFiles) {
+    const drop = edit!.onDropFiles!;
     pages.push(
       <Shell key="photos-add" template={template} page={0} total={total} className="act-photo-page act-edit-photo-add">
         <h2 className="act-section-title act-section-title-large">Ажлын зураг</h2>
