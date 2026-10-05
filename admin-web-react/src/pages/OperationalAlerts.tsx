@@ -18,6 +18,9 @@ export default function OperationalAlertsPage() {
     () => filter === 'all' ? data : data.filter((item) => item.severity === filter),
     [data, filter]
   );
+  const totalValue = loading ? '…' : error ? '—' : data.length;
+  const dangerValue = loading ? '…' : error ? '—' : danger;
+  const warningValue = loading ? '…' : error ? '—' : Math.max(0, data.length - danger);
 
   return (
     <>
@@ -27,9 +30,9 @@ export default function OperationalAlertsPage() {
         actions={<Button variant="outline" icon={<RotateCw size={15} />} onClick={reload}>Шинэчлэх</Button>}
       />
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatCard label="Нийт" value={data.length} note="Анхаарах бүх зүйл" />
-        <StatCard label="Яаралтай" value={danger} note="Хэтэрсэн эсвэл өнөөдөр дуусах" />
-        <StatCard label="Урьдчилан сануулах" value={Math.max(0, data.length - danger)} note="Тохируулсан хугацаанд багтсан" />
+        <StatCard label="Нийт" value={totalValue} note="Анхаарах бүх зүйл" />
+        <StatCard label="Яаралтай" value={dangerValue} note="Хэтэрсэн эсвэл өнөөдөр дуусах" />
+        <StatCard label="Урьдчилан сануулах" value={warningValue} note="Тохируулсан хугацаанд багтсан" />
       </div>
       <Card
         title="Нэгдсэн жагсаалт"
