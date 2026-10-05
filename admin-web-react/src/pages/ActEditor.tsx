@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, CircleAlert,
-  CloudDownload, Download, FileText, ImagePlus, PackageOpen, Plus, Printer,
+  CloudDownload, Download, FileText, ImagePlus, MousePointerClick, PackageOpen, Plus, Printer,
   Save, Signature, Trash2, Upload, Users, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import ActDocument, { actPageCount } from '../components/ActDocument';
+import ActDocument, { actPageCount, type ActDocumentEdit, type ActSection } from '../components/ActDocument';
 import SignatureCanvas from '../components/SignatureCanvas';
 import { Button, Card, EmptyState, Input, Loading, PageHeader, Select } from '../components/ui';
 import { fetchEmployees, type Employee } from '../lib/data';
@@ -544,7 +544,11 @@ export default function ActEditorPage() {
           </fieldset>
         </div>) : null}
       {step === 1 ? <fieldset disabled={locked || !canFullEdit} className="min-w-0 disabled:opacity-75"><ReceiversStep rows={draft.receivers} employees={employees} contacts={receiverContacts} isSuperAdmin={isSuperAdmin} canStamp={canStamp} organizations={organizations} organization={activeReceiverOrg} onChooseOrganization={applyReceiverOrganization} onAddHandover={isDirector ? addHandover : undefined} isDirector={isDirector} onAdd={addReceiver} onRemove={removeReceiver} onChange={updateReceiver} onChooseEmployee={chooseEmployee} onChooseContact={chooseReceiverContact} onSaveContact={storeReceiverContact} onUpload={uploadReceiverFile} onDraw={(index) => setSignatureIndex(index)} /></fieldset> : null}
-      {step === 2 ? <PreviewStep act={printable} template={template} zoom={zoom} setZoom={setZoom} page={previewPage} setPage={setPreviewPage} total={totalPages} /> : null}
+      {step === 2 ? <PreviewStep act={printable} template={template} zoom={zoom} setZoom={setZoom} page={previewPage} setPage={setPreviewPage} total={totalPages} saveState={saveState}
+        edit={canFullEdit && !locked ? {
+          onChange: patch, inventory, customers, onChooseCustomer: chooseCustomer, onRemovePhoto: removePhoto,
+          onEditReceivers: hideReceivers ? undefined : () => setStep(1),
+        } : undefined} /> : null}
       {step === 3 ? <ExportStep draft={draft} exporting={exporting} onExport={exportFile} onAction={action} onEdit={() => setStep(0)} /> : null}
 
       <div className="sticky bottom-0 z-10 -mx-3 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-[var(--bg-app)]/95 px-3 py-3 backdrop-blur sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8">
@@ -695,8 +699,30 @@ function ReceiversStep({ rows, employees, contacts, isSuperAdmin, canStamp, orga
   );
 }
 
-function PreviewStep({ act, template, zoom, setZoom, page, setPage, total }: { act: Act; template?: ActTemplate; zoom: number; setZoom: (value: number) => void; page: number; setPage: (value: number) => void; total: number }) {
-  return <Card title="3. Урьдчилан харах" actions={<><Button aria-label="Жижигрүүлэх" variant="outline" className="!px-2" onClick={() => setZoom(Math.max(.3, zoom - .1))}><ZoomOut size={15} /></Button><span className="w-12 text-center text-[12px] font-medium text-muted">{Math.round(zoom * 100)}%</span><Button aria-label="Томруулах" variant="outline" className="!px-2" onClick={() => setZoom(Math.min(1.2, zoom + .1))}><ZoomIn size={15} /></Button><Button variant="ghost" onClick={() => setZoom(window.innerWidth < 640 ? .38 : .75)}>Хуудсанд тааруулах</Button></>} bodyClassName="!p-0"><div className="overflow-auto bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ width: `${210 * zoom}mm`, height: `${297 * zoom}mm`, margin: '0 auto' }}><div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '210mm' }}><ActDocument act={act} template={template} onlyPage={page} /></div></div></div><div className="flex flex-wrap items-center justify-center gap-2 border-t border-line p-3 sm:gap-4"><Button variant="outline" icon={<ChevronLeft size={15} />} disabled={page <= 1} onClick={() => setPage(page - 1)}>Өмнөх</Button><span className="text-[13px] text-muted">Хуудас: <b className="text-ink">{page} / {total}</b></span><Button variant="outline" icon={<ChevronRight size={15} />} disabled={page >= total} onClick={() => setPage(page + 1)}>Дараах</Button></div></Card>;
+/** Урьдчилан харах — "PDF засах" дарахад хуудсан дээрх хэсэг дээр дарж тэр хэсгийг нь шууд засна. */
+function PreviewStep({ act, template, zoom, setZoom, page, setPage, total, edit, saveState }: { act: Act; template?: ActTemplate; zoom: number; setZoom: (value: number) => void; page: number; setPage: (value: number) => void; total: number; edit?: ActDocumentEdit; saveState: 'idle' | 'saving' | 'saved' | 'error' }) {
+  const [editing, setEditing] = useState(false);
+  const [section, setSection] = useState<ActSection | null>(null);
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setSection(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
+  const active = Boolean(editing && edit);
+  const toggle = () => { setEditing(!editing); setSection(null); };
+  return <Card title={active ? 'Урьдчилан харах · PDF засах' : 'Урьдчилан харах'} actions={<>
+    {edit ? <Button variant={active ? 'success' : 'primary'} icon={active ? <Check size={15} /> : <MousePointerClick size={15} />} onClick={toggle}>{active ? 'Засаж дууслаа' : 'PDF засах'}</Button> : null}
+    <Button aria-label="Жижигрүүлэх" variant="outline" className="!px-2" onClick={() => setZoom(Math.max(.3, zoom - .1))}><ZoomOut size={15} /></Button><span className="w-12 text-center text-[12px] font-medium text-muted">{Math.round(zoom * 100)}%</span><Button aria-label="Томруулах" variant="outline" className="!px-2" onClick={() => setZoom(Math.min(1.2, zoom + .1))}><ZoomIn size={15} /></Button><Button variant="ghost" onClick={() => setZoom(window.innerWidth < 640 ? .38 : .75)}>Хуудсанд тааруулах</Button>
+  </>} bodyClassName="!p-0">
+    {active ? <div className="flex flex-wrap items-center gap-2 border-b border-line bg-brand-soft px-4 py-2.5 text-[12px] text-ink">
+      <MousePointerClick size={15} className="text-brand" />
+      <span className="min-w-0 flex-1">{section ? 'Өөр хэсэг дээр дарж шилжинэ, Esc дарж гарна.' : 'Засах хэсэг (мэдээлэл, материал, шаардлага, зураг) дээрээ дарна уу.'}</span>
+      <span className={`font-medium ${saveState === 'error' ? 'text-danger' : 'text-success'}`}>{saveState === 'saving' ? 'Хадгалж байна...' : saveState === 'saved' ? '✓ Хадгалагдлаа' : saveState === 'error' ? 'Хадгалж чадсангүй' : ''}</span>
+    </div> : null}
+    <div className="overflow-auto bg-[#e6e1d6] p-2 sm:p-4 md:p-8"><div style={{ width: `${210 * zoom}mm`, height: `${297 * zoom}mm`, margin: '0 auto' }}><div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '210mm' }}><ActDocument act={act} template={template} onlyPage={page} edit={active ? { ...edit!, onActivateSection: setSection, activeSection: section } : undefined} /></div></div></div>
+    <div className="flex flex-wrap items-center justify-center gap-2 border-t border-line p-3 sm:gap-4"><Button variant="outline" icon={<ChevronLeft size={15} />} disabled={page <= 1} onClick={() => setPage(page - 1)}>Өмнөх</Button><span className="text-[13px] text-muted">Хуудас: <b className="text-ink">{page} / {total}</b></span><Button variant="outline" icon={<ChevronRight size={15} />} disabled={page >= total} onClick={() => setPage(page + 1)}>Дараах</Button></div>
+  </Card>;
 }
 
 function ExportStep({ draft, exporting, onExport, onAction, onEdit }: { draft: ActDraft; exporting: string; onExport: (format: 'pdf'|'docx'|'print') => void; onAction: (kind: 'ready'|'approve'|'deliver'|'archive') => void; onEdit: () => void }) {
