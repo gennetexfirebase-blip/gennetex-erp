@@ -51,6 +51,51 @@
 .act-photo-grid figcaption { display:flex; min-width:0; flex:0 0 auto; align-items:center; justify-content:center; min-height:8mm; border-top:.2mm solid #eee9e6; margin-top:2mm; padding:1.5mm 2mm .5mm; color:#211d1b; font-family:"Times New Roman",Times,serif; text-align:center; }
 .act-photo-grid figcaption b { max-width:100%; font-size:9pt; font-weight:700; line-height:1.3; overflow-wrap:anywhere; white-space:pre-wrap; }
 
+/* Editor горим — хуудасны загвар өөрчлөгдөхгүй, зөвхөн бичих талбар нэмэгдэнэ. */
+.act-document-edit .act-paper-body { overflow:visible; }
+.act-edit-input { display:block; width:100%; min-width:0; margin:0; padding:0 .8mm; border:0; border-radius:.6mm; background:transparent; color:inherit; font:inherit; line-height:inherit; resize:none; overflow:hidden; outline:none; box-shadow:inset 0 -.2mm 0 transparent; transition:background-color .12s, box-shadow .12s; }
+.act-edit-input:hover:not(:disabled) { background:#f4f8ff; box-shadow:inset 0 -.25mm 0 #9db8e8; }
+.act-edit-input:focus { background:#eaf2ff; box-shadow:inset 0 0 0 .3mm #4c7fd6; }
+.act-edit-input::placeholder,.act-edit-placeholder { color:#a59a94; font-style:italic; }
+.act-edit-input:disabled { cursor:default; }
+.act-edit-input[type=number] { text-align:center; -moz-appearance:textfield; }
+.act-edit-input[type=number]::-webkit-inner-spin-button,.act-edit-input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.act-edit-select { appearance:none; cursor:pointer; padding-right:6mm; background-image:linear-gradient(45deg,transparent 50%,#8a7d76 50%),linear-gradient(135deg,#8a7d76 50%,transparent 50%); background-position:calc(100% - 3.2mm) 50%,calc(100% - 2mm) 50%; background-size:1.2mm 1.2mm; background-repeat:no-repeat; }
+.act-edit-date { position:relative; display:block; padding:0 .8mm; border-radius:.6mm; cursor:pointer; }
+.act-edit-date:hover { background:#f4f8ff; }
+.act-edit-date input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.act-edit-table td { position:relative; }
+.act-edit-table td:not(:first-child) { padding:1mm; }
+.act-edit-table td:nth-child(3) .act-edit-input,.act-edit-table td:nth-child(4) .act-edit-input { text-align:center; }
+.act-check-table.act-edit-table td:last-child .act-edit-input { text-align:left; }
+.act-edit-note { display:block; padding:0 .8mm; color:#2f7a4b; font:7pt Arial,sans-serif; }
+.act-edit-mark-cell { padding:0!important; }
+.act-edit-mark { display:block; width:100%; height:100%; min-height:7mm; border:0; background:transparent; color:#191716; font:700 10.5pt Arial,sans-serif; cursor:pointer; }
+.act-edit-mark:hover:not(:disabled):not(.is-on) { background:#f4f8ff; }
+.act-edit-mark:hover:not(:disabled):not(.is-on)::after { content:'·'; color:#9db8e8; }
+.act-edit-mark:disabled { cursor:default; }
+.act-edit-required { background:#fdecea; }
+.act-edit-remove { position:absolute; top:50%; left:calc(100% + 2mm); display:grid; width:5.5mm; height:5.5mm; place-items:center; transform:translateY(-50%); border:.2mm solid #e7c9c4; border-radius:50%; background:#fff; color:#b42318; font:700 11pt/1 Arial,sans-serif; cursor:pointer; opacity:0; transition:opacity .12s; }
+.act-edit-table tr:hover .act-edit-remove,.act-edit-remove:focus-visible,.act-edit-photo:hover .act-edit-remove { opacity:1; }
+@media (hover:none) { .act-edit-remove { opacity:1; } }
+.act-edit-photo .act-edit-remove { top:2mm; right:2mm; left:auto; transform:none; width:7mm; height:7mm; }
+.act-edit-photo>div { position:relative; }
+.act-edit-photo { cursor:grab; }
+.act-edit-add-row td { border-style:dashed!important; border-color:#b9c9e6!important; padding:0!important; }
+.act-edit-add { display:block; width:100%; padding:1.6mm; border:0; background:transparent; color:#3d6fc4; font:600 8.5pt Arial,sans-serif; cursor:pointer; }
+.act-edit-add:hover { background:#f4f8ff; }
+.act-edit-receivers-empty { margin-top:6mm; border:.25mm dashed #b9c9e6; border-radius:1mm; padding:4mm; }
+.act-edit-receivers { position:relative; border-radius:1mm; }
+.act-edit-receivers:hover { outline:.3mm dashed #9db8e8; outline-offset:1.5mm; }
+.act-edit-chip { position:absolute; z-index:3; right:0; top:-4mm; padding:.8mm 2.4mm; border:.2mm solid #b9c9e6; border-radius:4mm; background:#fff; color:#3d6fc4; font:600 7.5pt Arial,sans-serif; cursor:pointer; }
+.act-edit-caption { display:flex!important; align-items:baseline; gap:1.2mm; width:100%; justify-content:center; }
+.act-edit-caption .act-edit-input { flex:1; max-width:120mm; font-weight:400; text-align:left; }
+.act-edit-photo-add { opacity:.92; }
+.act-edit-dropzone { display:flex; height:211mm; flex-direction:column; align-items:center; justify-content:center; gap:2mm; border:.5mm dashed #b9c9e6; border-radius:2mm; background:#f8faff; color:#3d6fc4; font-family:Arial,sans-serif; cursor:pointer; }
+.act-edit-dropzone b { font-size:14pt; }
+.act-edit-dropzone span { color:#7d8ba3; font-size:9pt; }
+.act-edit-dropzone:hover { background:#eef4ff; }
+
 @media (max-width:900px) {
   .act-paper { transform-origin:top center; }
 }

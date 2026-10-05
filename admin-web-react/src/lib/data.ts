@@ -323,6 +323,15 @@ export async function fetchEmployeeTrainings(email: string): Promise<EmployeeTra
   return (data || []) as EmployeeTraining[];
 }
 
+export async function fetchAllEmployeeTrainings(): Promise<EmployeeTraining[]> {
+  const { data, error } = await supabase
+    .from('employee_training_assignments')
+    .select('*')
+    .order('assigned_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as EmployeeTraining[];
+}
+
 export async function createEmployeeTraining(input: {
   employee: Employee;
   training_name: string;
