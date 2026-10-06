@@ -836,6 +836,15 @@ export default function AttendanceScreen() {
    * АЛГА, шууд бүртгэнэ. Байршил, төхөөрөмжийн баталгаажуулалт хэвээр
    * хамгаалалт болно; зөвхөн камерын алхмыг л алгасна.
    */
+  /**
+   * Ирснээ бүртгүүлсний дараа өнөөдрийн машинаа сонгох дэлгэц рүү шилжинэ
+   * (QR-ийн оронд). Машингүй ажилтан буцаад гарахад болно.
+   */
+  const goPickVehicle = (type) => {
+    if (type !== 'check_in') return;
+    setTimeout(() => navigation.navigate('Vehicle'), 600);
+  };
+
   const finalizeQuickAttendance = async (
     type,
     loc,
@@ -875,6 +884,7 @@ export default function AttendanceScreen() {
     });
     await loadMyDay();
     await refreshShiftStatus();
+    goPickVehicle(type);
 
     // Бүртгэгдсэн мөчийн цаг — мэдэгдэл дээр харагдана.
     const nowD = new Date();
@@ -1109,6 +1119,7 @@ export default function AttendanceScreen() {
       await loadRecords();
       await loadMyDay();
       await refreshShiftStatus();
+      goPickVehicle(pendingType);
       setCameraVisible(false);
       Alert.alert(
         'Царай бүртгэгдлээ',
@@ -1163,6 +1174,7 @@ export default function AttendanceScreen() {
         await loadRecords();
         await loadMyDay();
         await refreshShiftStatus();
+        goPickVehicle(pendingType);
         setCameraVisible(false);
         Alert.alert(
           'Ирц бүртгэгдлээ',
@@ -1209,6 +1221,7 @@ export default function AttendanceScreen() {
         await loadRecords();
         await loadMyDay();
         await refreshShiftStatus();
+        goPickVehicle(pendingType);
         setVerificationStep(0);
         setLivenessChallenge(null);
       } else {

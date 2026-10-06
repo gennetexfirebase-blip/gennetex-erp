@@ -45,7 +45,7 @@ const EMPLOYEE_MODULES = [
   { key: 'SiteWork', label: 'Ажлын байр', icon: 'location', accent: 'green'},
   { key: 'MyContract', label: 'Миний гэрээ', icon: 'report', accent: 'indigo'},
   { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', accent: 'indigo'},
-  { key: 'Vehicle', label: 'Машин (код)', icon: 'vehicle', accent: 'amber' },
+  { key: 'Vehicle', label: 'Машин сонгох', icon: 'vehicle', accent: 'amber' },
   { key: 'Fuel', label: 'Бензиний баримт илгээх', icon: 'fuel', accent: 'amber' },
   { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber' },
   { key: 'TelegramChat', label: 'Telegram чат', icon: 'chat', accent: 'teal' },
@@ -330,10 +330,6 @@ export default function HomeScreen() {
   const badgeScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
 
   const go = (m) => {
-    if (m.key === 'Vehicle') {
-      navigation.navigate('Vehicle', { autoScan: true });
-      return;
-    }
     navigation.navigate(m.key);
   };
 

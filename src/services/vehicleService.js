@@ -305,18 +305,64 @@ export async function endDriverActiveTrips(driverId) {
   }
 }
 
-/** Өмнөх өдрийн идэвхтэй аяллуудыг автоматаар хаана */
+/**
+ * Өмнөх өдрийн идэвхтэй аяллуудыг хаана.
+ *
+ * ⚠️ Сервер дээр хаана — км нь багийн байршлаас тооцогдоно. Өмнө нь энд
+ *    0 км-ээр хаадаг байсан тул явснаа бүртгүүлээгүй багийн зам алга болдог.
+ */
 export async function endStaleActiveTripsBeforeToday() {
-  const start = todayStartDate().toISOString();
-  const { data: active, error } = await supabase
-    .from('trips')
-    .select('id')
-    .eq('status', 'active')
-    .lt('started_at', start);
+  const { error } = await supabase.rpc('close_stale_vehicle_trips');
   if (error) throw error;
-  for (const t of active || []) {
-    await endTrip(t.id, { distanceKm: 0, liters: 0, cost: 0, idleSeconds: 0 });
+}
+
+// ── Өдрийн машины баг ──────────────────────────────────────────────
+// QR-ийн оронд: ирц бүртгүүлсний дараа машинаа жагсаалтаас сонгоно.
+// Нэг машиныг өдөрт 2 хүн сонгоно — эхнийх нь жолооч, хоёр дахь нь
+// хамт яваа. Км нь тэр 2-ын байршлаас серверт тооцогдоно.
+export const VEHICLE_CREW_MAX = 2;
+
+const JOIN_ERRORS = {
+  not_checked_in: 'Эхлээд ирснээ бүртгүүлнэ үү. Ирц бүртгүүлсний дараа машинаа сонгоно.',
+  vehicle_full: 'Энэ машиныг өнөөдөр 2 хүн сонгосон байна. Өөр машин сонгоно уу.',
+  vehicle_not_found: 'Машин олдсонгүй.',
+  not_authenticated: 'Нэвтэрнэ үү.',
+};
+
+export function vehicleJoinErrorText(err) {
+  const m = String(err?.message || err || '');
+  const other = m.match(/already_in_other:?(.*)$/);
+  if (other) {
+    const plate = other[1].trim();
+    return `Та өнөөдөр ${plate ? plate + ' дугаартай ' : 'өөр '}машинд бүртгэгдсэн байна. Нэг хүн өдөрт нэг машинд л явна.`;
   }
+  const key = Object.keys(JOIN_ERRORS).find((k) => m.includes(k));
+  return key ? JOIN_ERRORS[key] : m || 'Алдаа гарлаа';
+}
+
+/** @returns {{trip_id:string, role:'driver'|'passenger', already?:boolean}} */
+export async function joinVehicleToday(vehicleId) {
+  const { data, error } = await supabase.rpc('join_vehicle_today', { p_vehicle_id: vehicleId });
+  if (error) throw error;
+  return data;
+}
+
+/** Өнөөдрийн машин бүрийн баг: { [vehicleId]: { tripId, members:[{id,name,role}] } } */
+export async function fetchVehicleCrewsToday() {
+  const { data, error } = await supabase.rpc('vehicle_crews_today');
+  if (error) throw error;
+  const out = {};
+  (data || []).forEach((r) => {
+    out[r.vehicle_id] = { tripId: r.trip_id, members: (r.members || []).filter((m) => m && m.id) };
+  });
+  return out;
+}
+
+/** Багийн байршлаас тооцсон одоогийн км. */
+export async function fetchTripDistanceKm(tripId) {
+  const { data, error } = await supabase.rpc('vehicle_trip_distance_km', { p_trip_id: tripId });
+  if (error) throw error;
+  return Number(data) || 0;
 }
 
 /** Өнөөдөр өөр идэвхтэй багт байгаа эсэх */

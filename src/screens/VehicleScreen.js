@@ -1,647 +1,318 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import * as Location from 'expo-location';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Pressable, RefreshControl } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
-import {
-  Card,
-  Button,
-  ScreenHeader,
-  SectionTitle,
-  Badge,
-  StatCard,
-  EmptyState,
-  formatMNT,
-} from '../components/ui';
-import BarcodeScanner from '../components/BarcodeScanner';
+import { Card, Button, ScreenHeader, SectionTitle, Badge, StatCard, EmptyState, formatMNT } from '../components/ui';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { VEHICLES } from '../data/mockData';
-import { distanceMeters } from '../lib/geo';
-import { calculateFuel, isDrivingSpeed, formatIdle } from '../lib/fuelCalc';
+import { calculateFuel } from '../lib/fuelCalc';
 import { vehicleTankLiters, fuelLevelColor } from '../lib/vehicleFuelStats';
 import FuelTankGauge from '../components/FuelTankGauge';
 import MongoliaPlate from '../components/MongoliaPlate';
 import * as vehicleApi from '../services/vehicleService';
 
+/**
+ * Өдрийн машин сонгох.
+ *
+ * QR уншихын оронд: ирц бүртгүүлсний дараа машинаа жагсаалтаас сонгоно.
+ * Нэг машиныг өдөрт ХАМГИЙН ИХДЭЭ 2 хүн сонгоно — эхнийх нь жолооч, хоёр
+ * дахь нь хамт яваа; хоёулаа нэг баг болно. Явсан км нь тэр 2-ын ажлын
+ * үеийн байршлаас серверт тооцогдож, явснаа бүртгүүлэхэд хадгалагдана
+ * (`supabase/migrations/20261006120000_vehicle_daily_crew.sql`).
+ */
 export default function VehicleScreen() {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
   const navigation = useNavigation();
-  const route = useRoute();
-  const { isAdmin, isCloud, currentUser, authProfile, fuelSettings, addFuelLog } = useApp();
-  const [scanMode, setScanMode] = useState(null); // vehicle | passenger
-  const [vehicle, setVehicle] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [passengers, setPassengers] = useState([]);
+  const { isAdmin, isCloud, currentUser, shiftStatus, fuelSettings } = useApp();
+  const MAX = vehicleApi.VEHICLE_CREW_MAX;
 
-  // Аялалын төлөв
-  const [tripActive, setTripActive] = useState(false);
+  const [vehicles, setVehicles] = useState([]);
+  const [crews, setCrews] = useState({});
   const [distanceKm, setDistanceKm] = useState(0);
-  const [idleSeconds, setIdleSeconds] = useState(0);
-  const [moving, setMoving] = useState(false);
-  const tripRef = useRef(null);
-  const watchRef = useRef(null);
-  const lastCoord = useRef(null);
-  const distRef = useRef(0);
-  const idleRef = useRef(0);
-  const lastTickRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [joiningId, setJoiningId] = useState(null);
+  const [error, setError] = useState(null);
+
+  const myId = currentUser?.id;
+  const myVehicleId = useMemo(
+    () => Object.keys(crews).find((vid) => crews[vid].members.some((m) => m.id === myId)) || null,
+    [crews, myId]
+  );
+  const myVehicle = vehicles.find((v) => v.id === myVehicleId) || null;
+  const myCrew = myVehicleId ? crews[myVehicleId] : null;
+  const checkedIn = !isCloud || (shiftStatus?.checkedIn && !shiftStatus?.checkedOut);
+
+  const load = useCallback(async () => {
+    setError(null);
+    if (!isCloud) {
+      setVehicles(VEHICLES);
+      setLoading(false);
+      return;
+    }
+    try {
+      const [list, today] = await Promise.all([vehicleApi.fetchVehicles(), vehicleApi.fetchVehicleCrewsToday()]);
+      setVehicles(list.slice().sort((a, b) => String(a.plate_number || '').localeCompare(String(b.plate_number || ''))));
+      setCrews(today);
+      const mine = Object.values(today).find((c) => c.members.some((m) => m.id === myId));
+      if (mine?.tripId) {
+        try {
+          setDistanceKm(await vehicleApi.fetchTripDistanceKm(mine.tripId));
+        } catch (e) {}
+      } else {
+        setDistanceKm(0);
+      }
+    } catch (e) {
+      setError(e?.message || 'Ачаалж чадсангүй');
+    } finally {
+      setLoading(false);
+    }
+  }, [isCloud, myId]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!route.params?.autoScan || vehicle || tripActive || loading) return;
-      navigation.setParams({ autoScan: undefined });
-      setScanMode('vehicle');
-    }, [route.params?.autoScan, vehicle, tripActive, loading, navigation])
+      load();
+    }, [load])
   );
 
-  const litersPer100 = vehicle?.liters_per_100km || fuelSettings.litersPer100km;
+  const join = async (v) => {
+    const crew = crews[v.id];
+    const count = crew?.members.length || 0;
+    const role = count === 0 ? 'жолооч' : 'хамт яваа';
+    const withWhom = crew?.members[0]?.name ? ` ${crew.members[0].name}-тэй нэг баг болно.` : '';
+    Alert.alert(
+      v.plate_number || 'Машин',
+      `Энэ машиныг өнөөдөр сонгох уу? Та ${role} болно.${withWhom}\n\nӨдөрт нэг машинд л явна — дараа солих боломжгүй.`,
+      [
+        { text: 'Болих', style: 'cancel' },
+        {
+          text: 'Сонгох',
+          onPress: async () => {
+            if (!isCloud) {
+              setCrews((old) => ({
+                ...old,
+                [v.id]: {
+                  tripId: null,
+                  members: [...(old[v.id]?.members || []), { id: myId, name: currentUser?.name, role: count ? 'passenger' : 'driver' }],
+                },
+              }));
+              return;
+            }
+            setJoiningId(v.id);
+            try {
+              const r = await vehicleApi.joinVehicleToday(v.id);
+              await load();
+              if (!r?.already) {
+                Alert.alert(
+                  'Сонгогдлоо',
+                  r?.role === 'driver'
+                    ? `${v.plate_number} — та жолооч. Хамт явах хүн ирц бүртгүүлээд энэ машиныг сонгоход нэг баг болно.`
+                    : `${v.plate_number} — та хамт яваа. Багийн явсан км таны 2-ын байршлаас тооцогдоно.`
+                );
+              }
+            } catch (e) {
+              Alert.alert('Сонгож болсонгүй', vehicleApi.vehicleJoinErrorText(e));
+              load();
+            } finally {
+              setJoiningId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const refresh = (
+    <RefreshControl
+      refreshing={loading && !!vehicles.length}
+      onRefresh={() => {
+        setLoading(true);
+        load();
+      }}
+    />
+  );
+
+  return (
+    <View style={styles.container}>
+      <ScreenHeader title="Машин" subtitle="Ирц бүртгүүлсний дараа өнөөдрийн машинаа сонгоно" />
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }} refreshControl={refresh}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {myVehicle ? (
+          <MyVehicle
+            vehicle={myVehicle}
+            crew={myCrew}
+            myId={myId}
+            distanceKm={distanceKm}
+            fuelSettings={fuelSettings}
+            isAdmin={isAdmin}
+            onSiteWork={() => navigation.navigate('SiteWork')}
+          />
+        ) : !checkedIn ? (
+          <Card>
+            <SectionTitle>Эхлээд ирцээ бүртгүүлнэ</SectionTitle>
+            <Text style={styles.help}>
+              {shiftStatus?.checkedOut
+                ? 'Та өнөөдөр явснаа бүртгүүлсэн тул машин сонгох боломжгүй.'
+                : 'Ирснээ бүртгүүлсний дараа өнөөдөр явах машинаа энд сонгоно.'}
+            </Text>
+            {!shiftStatus?.checkedOut ? (
+              <Button title="Ирц бүртгүүлэх" onPress={() => navigation.navigate('Attendance')} />
+            ) : null}
+          </Card>
+        ) : (
+          <>
+            <Text style={styles.help}>
+              Өнөөдөр явах машинаа сонгоно уу. Нэг машиныг {MAX} хүн сонгоно — эхэлж сонгосон нь жолооч, дараагийнх
+              нь хамт яваа болж нэг баг болно.
+            </Text>
+            {!loading && !vehicles.length ? <EmptyState text="Бүртгэлтэй машин алга" /> : null}
+            {vehicles.map((v) => {
+              const members = crews[v.id]?.members || [];
+              const full = members.length >= MAX;
+              const busy = joiningId === v.id;
+              return (
+                <Pressable
+                  key={v.id}
+                  disabled={full || !!joiningId}
+                  onPress={() => join(v)}
+                  style={({ pressed }) => [styles.vehRow, full && styles.vehRowFull, pressed && { opacity: 0.7 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${v.plate_number}, ${members.length}/${MAX}`}
+                >
+                  <MongoliaPlate plate={v.plate_number} size="sm" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.vehMembers} numberOfLines={2}>
+                      {members.length ? members.map((m) => m.name).join(' + ') : 'Сул'}
+                    </Text>
+                  </View>
+                  <Badge
+                    text={busy ? '...' : full ? 'Дүүрсэн' : `${members.length}/${MAX}`}
+                    color={full ? colors.textMuted : members.length ? colors.warning : colors.success}
+                  />
+                </Pressable>
+              );
+            })}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function MyVehicle({ vehicle, crew, myId, distanceKm, fuelSettings, isAdmin, onSiteWork }) {
+  const { colors } = useTheme();
+  const styles = useStyles(makeStyles);
+  const litersPer100 = vehicle.liters_per_100km || fuelSettings.litersPer100km;
   const tankLiters = vehicleTankLiters(vehicle);
   const fuel = calculateFuel({
     distanceKm,
-    idleSeconds,
+    idleSeconds: 0,
     litersPer100km: litersPer100,
     idleLitersPerHour: fuelSettings.idleLitersPerHour,
     pricePerLiter: fuelSettings.pricePerLiter,
   });
-  const baseFuelLevel = Number(vehicle?.fuel_level_percent ?? 0);
-  const tripDrainPct = tankLiters > 0 ? (fuel.liters / tankLiters) * 100 : 0;
-  const currentFuelLevel = Math.max(0, Math.min(100, Math.round((baseFuelLevel - tripDrainPct) * 10) / 10));
-  const remainingLiters = Math.max(0, Math.round(((currentFuelLevel / 100) * tankLiters) * 10) / 10);
-
-  useEffect(() => {
-    if (!tripActive || !isCloud || !tripRef.current) return;
-    const syncTripProgress = async () => {
-      const km = distRef.current / 1000;
-      const idle = Math.round(idleRef.current);
-      const { liters: lit, cost: c } = calculateFuel({
-        distanceKm: km,
-        idleSeconds: idle,
-        litersPer100km: litersPer100,
-        idleLitersPerHour: fuelSettings.idleLitersPerHour,
-        pricePerLiter: fuelSettings.pricePerLiter,
-      });
-      try {
-        await vehicleApi.updateTrip(tripRef.current, {
-          distanceKm: Number(km.toFixed(2)),
-          liters: lit,
-          cost: c,
-          idleSeconds: idle,
-        });
-      } catch (e) {}
-    };
-    syncTripProgress();
-    const id = setInterval(syncTripProgress, 15000);
-    return () => clearInterval(id);
-  }, [tripActive, isCloud, litersPer100, fuelSettings.idleLitersPerHour, fuelSettings.pricePerLiter]);
-
-  const findVehicle = async (code) => {
-    setLoading(true);
-    try {
-      let v = null;
-      if (isCloud) {
-        try {
-          v = await vehicleApi.resolveVehicleScan(code);
-        } catch (e) {}
-      }
-      if (!v) {
-        const q = String(code || '').trim().toLowerCase();
-        v =
-          VEHICLES.find((x) => x.code.toLowerCase() === q) ||
-          VEHICLES.find((x) => (x.plate_number || '').toLowerCase() === q) ||
-          null;
-      }
-      if (!v) {
-        Alert.alert('Олдсонгүй', `"${code}"кодтой машин бүртгэлд алга.`);
-        return;
-      }
-
-      // QR уншсан ажилтан → тухайн машины жолооч болно (cloud үед)
-      if (isCloud && v.id && currentUser?.id) {
-        try {
-          await vehicleApi.endDriverActiveTrips(currentUser.id);
-          await vehicleApi.endStaleActiveTripsBeforeToday();
-        } catch (e) {}
-        tripRef.current = null;
-        setTripActive(false);
-        // Байршлыг best-effort авах (логт)
-        let coord = {};
-        try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status === 'granted') {
-            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            coord = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-          }
-        } catch (e) {}
-        try {
-          const updated = await vehicleApi.assignDriver(v.id, {
-            driverId: currentUser.id,
-            driverName: currentUser.name || authProfile?.name,
-          });
-          v = updated || { ...v, driver_id: currentUser.id, driver_name: currentUser.name };
-        } catch (e) {}
-        try {
-          await vehicleApi.logVehicleEvent({
-            vehicle: v,
-            userId: currentUser.id,
-            userName: currentUser.name || authProfile?.name,
-            event: 'scan',
-            ...coord,
-          });
-        } catch (e) {}
-      }
-
-      setVehicle(v);
-      setPassengers([]);
-      if (isCloud && v.id && currentUser?.id) {
-        try {
-          const t = await vehicleApi.beginDriverTrip({
-            vehicle: v,
-            driverId: currentUser.id,
-            driverName: currentUser.name || authProfile?.name,
-          });
-          tripRef.current = t.id;
-        } catch (e) {
-          console.warn('beginDriverTrip', e?.message || e);
-        }
-      }
-      setScanMode('passenger');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const syncPassengerList = async (list) => {
-    if (!isCloud || !tripRef.current) return;
-    try {
-      await vehicleApi.syncTripPassengers(tripRef.current, list, {
-        driverId: currentUser?.id,
-        driverName: currentUser?.name || authProfile?.name,
-      });
-    } catch (e) {
-      console.warn('syncPassengers', e?.message || e);
-    }
-  };
-
-  const persistPassenger = async (tripId, emp) => {
-    if (!isCloud || !tripId) return;
-    try {
-      await vehicleApi.addTripPassenger(
-        tripId,
-        { passengerId: emp.id, passengerName: emp.name },
-        { driverId: currentUser?.id, driverName: currentUser?.name || authProfile?.name }
-      );
-    } catch (e) {
-      console.warn('passenger persist', e?.message || e);
-    }
-  };
-
-  const addPassenger = async (emp) => {
-    if (!emp?.id) return;
-    if (emp.id === currentUser?.id) {
-      Alert.alert('Анхаар', 'Өөрийгөө хамт яваа хүн болгож болохгүй.');
-      return;
-    }
-    if (passengers.some((p) => p.id === emp.id)) {
-      Alert.alert('Давхардал', `${emp.name} аль хэдийн бүртгэгдсэн.`);
-      return;
-    }
-    if (isCloud) {
-      try {
-        const otherTrip = await vehicleApi.findPassengerActiveTripToday(emp.id, tripRef.current);
-        if (otherTrip) {
-          Alert.alert(
-            'Бусад багт байна',
-            `${emp.name} өнөөдөр ${otherTrip.driver_name || 'жолооч'}той идэвхтэй багт байна. Нэг хүн зөвхөн нэг багт орно.`
-          );
-          return;
-        }
-      } catch (e) {}
-    }
-    const next = {
-      id: emp.id,
-      name: emp.name,
-      position: emp.position,
-      avatar_url: emp.avatar_url,
-    };
-    const updated = [...passengers, next];
-    setPassengers(updated);
-    if (tripRef.current) {
-      await persistPassenger(tripRef.current, next);
-      await syncPassengerList(updated);
-    }
-    Alert.alert('Нэмэгдлээ', `${emp.name} хамт яваа хүн боллоо.`);
-  };
-
-  const handlePassengerScan = async (data) => {
-    setScanMode(null);
-    let emp = null;
-    let scanError = null;
-    if (isCloud) {
-      try {
-        emp = await vehicleApi.resolveEmployeeScan(data);
-      } catch (e) {
-        scanError = e?.message || 'Хайлт амжилтгүй';
-      }
-    }
-    if (!emp) {
-      Alert.alert(
-        'Олдсонгүй',
-        scanError
-          ? `Ажилтны QR олдсонгүй: ${scanError}`
-          : 'Ажилтны QR код уншуулна уу (Профайл → Миний QR).'
-      );
-      return;
-    }
-    await addPassenger(emp);
-  };
-
-  const handleScanned = (data) => {
-    if (scanMode === 'passenger') {
-      setScanMode(null);
-      handlePassengerScan(data);
-      return;
-    }
-    findVehicle(data);
-  };
-
-  const startTrip = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Зөвшөөрөл', 'Байршлын зөвшөөрөл шаардлагатай.');
-      return;
-    }
-    distRef.current = 0;
-    idleRef.current = 0;
-    lastCoord.current = null;
-    lastTickRef.current = null;
-    setDistanceKm(0);
-    setIdleSeconds(0);
-    setTripActive(true);
-
-    if (isCloud) {
-      try {
-        if (!tripRef.current) {
-          const t = await vehicleApi.beginDriverTrip({
-            vehicle,
-            driverId: currentUser?.id,
-            driverName: currentUser?.name || vehicle.driver_name,
-          });
-          tripRef.current = t.id;
-        }
-        await syncPassengerList(passengers);
-      } catch (e) {
-        console.warn('startTrip sync', e?.message || e);
-      }
-      try {
-        await vehicleApi.logVehicleEvent({
-          vehicle,
-          userId: currentUser?.id,
-          userName: currentUser?.name || authProfile?.name,
-          event: 'trip_start',
-        });
-      } catch (e) {}
-    }
-
-    watchRef.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
-      (pos) => {
-        const coord = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        const now = pos.timestamp || Date.now();
-        const driving = isDrivingSpeed(pos.coords.speed);
-        setMoving(driving);
-
-        if (lastTickRef.current != null) {
-          const elapsed = Math.max(0, (now - lastTickRef.current) / 1000);
-          if (!driving) {
-            idleRef.current += elapsed;
-            setIdleSeconds(idleRef.current);
-          }
-        }
-        lastTickRef.current = now;
-
-        if (driving) {
-          if (lastCoord.current) {
-            const d = distanceMeters(lastCoord.current, coord);
-            if (d >= 5 && d <= 300) {
-              distRef.current += d;
-              setDistanceKm(distRef.current / 1000);
-            }
-          }
-          lastCoord.current = coord;
-        }
-      }
-    );
-  };
-
-  const stopTrip = async () => {
-    if (watchRef.current) {
-      watchRef.current.remove();
-      watchRef.current = null;
-    }
-    setTripActive(false);
-    setMoving(false);
-    const km = distRef.current / 1000;
-    const idle = Math.round(idleRef.current);
-    const { liters: lit, cost: c } = calculateFuel({
-      distanceKm: km,
-      idleSeconds: idle,
-      litersPer100km: litersPer100,
-      idleLitersPerHour: fuelSettings.idleLitersPerHour,
-      pricePerLiter: fuelSettings.pricePerLiter,
-    });
-
-    if (!isCloud && (km > 0 || idle > 0)) {
-      addFuelLog({ km: Number(km.toFixed(2)), idleSeconds: idle, liters: lit, cost: c });
-    }
-    if (isCloud && tripRef.current) {
-      try {
-        await vehicleApi.endTrip(tripRef.current, {
-          distanceKm: km,
-          liters: lit,
-          cost: c,
-          idleSeconds: idle,
-        });
-      } catch (e) {}
-    }
-    if (isCloud) {
-      try {
-        await vehicleApi.logVehicleEvent({
-          vehicle,
-          userId: currentUser?.id,
-          userName: currentUser?.name || authProfile?.name,
-          event: 'trip_end',
-          distanceKm: km,
-          liters: lit,
-          cost: c,
-        });
-      } catch (e) {}
-    }
-    tripRef.current = null;
-    setPassengers([]);
-    const idleNote = idle > 0 ? ` · тогтмол ${formatIdle(idle)}` : '';
-    const costNote = isAdmin ? ` · ${formatMNT(c)}` : '';
-    Alert.alert('Аялал дууслаа', `${km.toFixed(2)} км · ${lit.toFixed(2)} л${idleNote}${costNote}`);
-  };
-
-  const reset = () => {
-    setVehicle(null);
-    setPassengers([]);
-    setDistanceKm(0);
-    setIdleSeconds(0);
-    distRef.current = 0;
-    idleRef.current = 0;
-    lastCoord.current = null;
-    lastTickRef.current = null;
-  };
+  const base = Number(vehicle.fuel_level_percent ?? 0);
+  const drain = tankLiters > 0 ? (fuel.liters / tankLiters) * 100 : 0;
+  const level = Math.max(0, Math.min(100, Math.round((base - drain) * 10) / 10));
+  const remaining = Math.max(0, Math.round((level / 100) * tankLiters * 10) / 10);
+  const members = crew?.members || [];
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Машины хяналт" subtitle="QR / бар код уншиж аялал эхлүүлэх"/>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
-        {!vehicle ? (
-          <Card>
-            <SectionTitle>Бар код / QR унших</SectionTitle>
-            <Text style={styles.help}>
-              Машин дээрх QR эсвэл зураасан кодыг уншуулна. Код, улсын дугаар, бар кодоор хайна.
-            </Text>
-            <Button
-              title={loading ? 'Хайж байна...' : 'Бар код / QR унших'} onPress={() => setScanMode('vehicle')}
-              disabled={loading}
-            />
-          </Card>
-        ) : (
-          <>
-            <Card>
-              <View style={styles.vehHead}>
-                <MongoliaPlate plate={vehicle.plate_number} size="lg" />
-                {tripActive && (
-                  <Badge
-                    text={moving ? 'Хөдөлж байна' : 'Зогсож байна'}
-                    color={moving ? colors.success : colors.textMuted}
-                  />
-                )}
-              </View>
-              <View style={styles.infoRow}>
-                <InfoCol label="Код" value={vehicle.code} />
-                <InfoCol label="100км-т" value={`${litersPer100} л`} />
-                <InfoCol label="Сав" value={`${tankLiters} л`} />
-                <InfoCol label="Бензин" value={`${currentFuelLevel}%`} />
-              </View>
-              <View style={[styles.infoRow, { marginTop: spacing.sm }]}>
-                <InfoCol label="Жолооч" value={vehicle.driver_name || '—'} />
-                {tripActive ? <InfoCol label="Явсан" value={`${distanceKm.toFixed(1)} км`} /> : null}
-              </View>
-            </Card>
-
-            {/* Хариуцсан жолоочийн мэдээлэл */}
-            <Card>
-              <SectionTitle>Хариуцсан жолооч</SectionTitle>
-              <View style={styles.driverRow}>
-                <View style={styles.driverAvatar}>
-                  {authProfile?.avatar_url ? (
-                    <Image source={{ uri: authProfile.avatar_url }} style={styles.driverAvatarImg} />
-                  ) : (
-                    <Text style={styles.passengerLetter}>?</Text>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.driverName}>
-                    {authProfile?.name || currentUser?.name || vehicle.driver_name || 'Жолооч'}
-                  </Text>
-                  {authProfile?.position ? (
-                    <Text style={styles.driverSub}>{authProfile.position}</Text>
-                  ) : null}
-                  {authProfile?.phone ? (
-                    <Text style={styles.driverSub}>{authProfile.phone}</Text>
-                  ) : null}
-                  {authProfile?.email ? (
-                    <Text style={styles.driverSub}>{authProfile.email}</Text>
-                  ) : null}
-                </View>
-              </View>
-            </Card>
-
-            <Card>
-              <SectionTitle>Хамт яваа хүн</SectionTitle>
-              <Text style={styles.help}>
-                Эхлээд машины QR, дараа нь ажилтны QR уншуулна. Зөвхөн уншсан хүмүүс энэ багт орно — өөр багтай холихгүй.
-              </Text>
-              {passengers.length === 0 ? (
-                <Text style={styles.emptyPassengers}>Хамт яваа хүн бүртгэгдээгүй</Text>
-              ) : (
-                passengers.map((p) => (
-                  <View key={p.id} style={styles.passengerRow}>
-                    <View style={styles.passengerAvatar}>
-                      {p.avatar_url ? (
-                        <Image source={{ uri: p.avatar_url }} style={styles.driverAvatarImg} />
-                      ) : (
-                        <Text style={styles.passengerLetter}>{(p.name || ' ?').charAt(0)}</Text>
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.passengerName}>{p.name}</Text>
-                      {p.position ? <Text style={styles.driverSub}>{p.position}</Text> : null}
-                    </View>
-                  </View>
-                ))
-              )}
-              <Button
-                title="Хамт яваа хүн нэмэх" variant="success"
-                size="sm"
-                style={{ marginTop: spacing.md }}
-                onPress={() => setScanMode('passenger')}
-              />
-            </Card>
-
-            <View style={styles.statRow}>
-              <StatCard label="Явсан зам" value={`${distanceKm.toFixed(2)} км`} color={colors.primary} />
-              <StatCard label="Түлш" value={`${fuel.liters.toFixed(2)} л`} color={colors.accent} />
-              {tripActive && idleSeconds > 0 ? (
-                <StatCard label="Тогтмол" value={formatIdle(idleSeconds)} color={colors.textMuted} />
-              ) : isAdmin ? (
-                <StatCard label="Зардал" value={formatMNT(fuel.cost)} color={colors.warning} />
-              ) : null}
+    <>
+      <Card>
+        <View style={styles.vehHead}>
+          <MongoliaPlate plate={vehicle.plate_number} size="lg" />
+          <Badge text="Өнөөдрийн машин" color={colors.success} />
+        </View>
+        <SectionTitle style={{ marginTop: spacing.md }}>Баг</SectionTitle>
+        {members.map((m) => (
+          <View key={m.id} style={styles.memberRow}>
+            <View style={styles.memberAvatar}>
+              <Text style={styles.memberLetter}>{(m.name || '?').charAt(0)}</Text>
             </View>
+            <Text style={styles.memberName}>
+              {m.name}
+              {m.id === myId ? ' (та)' : ''}
+            </Text>
+            <Text style={styles.memberRole}>{m.role === 'driver' ? 'Жолооч' : 'Хамт яваа'}</Text>
+          </View>
+        ))}
+        {members.length < vehicleApi.VEHICLE_CREW_MAX ? (
+          <Text style={styles.help}>
+            Хамт явах хүн ирцээ бүртгүүлээд энэ машиныг сонгоход нэг баг болно.
+          </Text>
+        ) : null}
+      </Card>
 
-            <Card>
-              <SectionTitle>Бензиний түвшин</SectionTitle>
-              <View style={styles.fuelGaugeRow}>
-                <FuelTankGauge
-                  levelPercent={currentFuelLevel}
-                  tankLiters={tankLiters}
-                  remainingLiters={remainingLiters}
-                  height={130}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fuelLevelText, { color: fuelLevelColor(currentFuelLevel) }]}>
-                    {currentFuelLevel}%
-                  </Text>
-                  <Text style={styles.help}>
-                    {remainingLiters.toFixed(1)} л үлдсэн · сав {tankLiters} л
-                  </Text>
-                  {tripActive ? (
-                    <Text style={styles.help}>Энэ аялалд: {fuel.liters.toFixed(2)} л зарцуулсан</Text>
-                  ) : null}
-                </View>
-              </View>
-            </Card>
+      <View style={styles.statRow}>
+        <StatCard label="Явсан зам" value={`${distanceKm.toFixed(1)} км`} color={colors.primary} />
+        <StatCard label="Түлш" value={`${fuel.liters.toFixed(1)} л`} color={colors.accent} />
+        {isAdmin ? <StatCard label="Зардал" value={formatMNT(fuel.cost)} color={colors.warning} /> : null}
+      </View>
+      <Text style={styles.help}>
+        Км нь багийн гишүүдийн ажлын үеийн байршлаас автоматаар тооцогдоно. Бүгд явснаа бүртгүүлэхэд аялал дуусч, түлш
+        хасагдана.
+      </Text>
 
-            <Card>
-              {!tripActive ? (
-                <>
-                  <SectionTitle>Аялал</SectionTitle>
-                  <Text style={styles.help}>
-                    Эхлүүлбэл зөвхөн машин хөдөлж байхад (~5 км/ц+) км тоологдоно. Зогссон үед түлш тооцохгүй.
-                  </Text>
-                  <Button title="Аялал эхлүүлэх" variant="success" onPress={startTrip} />
-                  <Button
-                    title="Хамт яваа хүн нэмэх" variant="ghost"
-                    style={{ marginTop: spacing.sm }}
-                    onPress={() => setScanMode('passenger')}
-                  />
-                  <Button title="Дахин унших" variant="ghost" style={{ marginTop: spacing.sm }} onPress={() => setScanMode('vehicle')} />
-                  <Button title="Өөр машин" variant="ghost" style={{ marginTop: spacing.xs }} onPress={reset} />
-                </>
-              ) : (
-                <>
-                  <SectionTitle>Аялал явж байна</SectionTitle>
-                  <Text style={styles.help}>
-                    {moving
-                      ? 'Машин хөдөлж байна — км тоологдож байна.'
-                      : `Зогсож байна${idleSeconds > 0 ? ` (${formatIdle(idleSeconds)})` : ''}. Түлш зөвхөн хөдөлсөн үед тооцогдоно.`}
-                  </Text>
-                  <Button title="Аялал дуусгах" variant="danger" onPress={stopTrip} />
-                  <Button
-                    title="Ажлын байр" variant="ghost"
-                    style={{ marginTop: spacing.sm }}
-                    onPress={() => navigation.navigate('SiteWork')}
-                  />
-                  <Button
-                    title="Хамт яваа хүн нэмэх" variant="ghost"
-                    style={{ marginTop: spacing.sm }}
-                    onPress={() => setScanMode('passenger')}
-                  />
-                </>
-              )}
-            </Card>
-          </>
-        )}
-      </ScrollView>
+      <Card>
+        <SectionTitle>Бензиний түвшин</SectionTitle>
+        <View style={styles.fuelGaugeRow}>
+          <FuelTankGauge levelPercent={level} tankLiters={tankLiters} remainingLiters={remaining} height={130} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.fuelLevelText, { color: fuelLevelColor(level) }]}>{level}%</Text>
+            <Text style={styles.help}>
+              {remaining.toFixed(1)} л үлдсэн · сав {tankLiters} л · 100км-т {litersPer100} л
+            </Text>
+          </View>
+        </View>
+      </Card>
 
-      <BarcodeScanner
-        visible={scanMode !== null}
-        onClose={() => setScanMode(null)}
-        onScanned={handleScanned}
-        title={scanMode === 'passenger' ? 'Ажилтны QR' : 'Машины QR'}
-        hint={
-          scanMode === 'passenger'
-            ? 'Хамт яваа ажилтны профайлын QR уншуулна уу'
-            : 'Машины QR кодыг том хүрээнд төвлүүрнэ үү'
-        }
-        frameWidth={320}
-        frameHeight={320}
-      />
-    </View>
+      <Button title="Ажлын байр" variant="ghost" style={{ marginTop: spacing.sm }} onPress={onSiteWork} />
+    </>
   );
 }
 
-function InfoCol({ label, value }) {
-  const styles = useStyles(makeStyles);
-  return (
-    <View style={styles.infoCol}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
-}
-
-const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  help: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.md, lineHeight: 19 },
-  vehHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  infoRow: { flexDirection: 'row', marginTop: spacing.md },
-  infoCol: { flex: 1 },
-  infoLabel: { color: colors.textMuted, fontSize: 12 },
-  infoValue: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 3 },
-  statRow: { flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.lg },
-  fuelGaugeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  fuelLevelText: { fontSize: 32, fontWeight: '900' },
-  driverRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
-  driverAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  driverAvatarImg: { width: '100%', height: '100%'},
-  driverName: { color: colors.text, fontSize: 17, fontWeight: '800'},
-  driverSub: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  emptyPassengers: { color: colors.textMuted, fontSize: 13, fontStyle: 'italic'},
-  passengerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  passengerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  passengerLetter: { color: colors.primary, fontWeight: '800', fontSize: 16 },
-  passengerName: { color: colors.text, fontSize: 15, fontWeight: '700' },
-});
+const makeStyles = ({ colors }) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    help: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.md, lineHeight: 19 },
+    error: { color: colors.danger, fontSize: 13, marginBottom: spacing.md },
+    vehHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    vehRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    vehRowFull: { opacity: 0.5 },
+    vehMembers: { color: colors.text, fontSize: 14, fontWeight: '600' },
+    statRow: { flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.lg },
+    fuelGaugeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+    fuelLevelText: { fontSize: 32, fontWeight: '900' },
+    memberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    memberAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    memberLetter: { color: colors.primary, fontWeight: '800', fontSize: 15 },
+    memberName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '700' },
+    memberRole: { color: colors.textMuted, fontSize: 12 },
+  });
