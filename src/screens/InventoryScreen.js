@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -118,7 +119,7 @@ function DetailRow({ label, value }) {
 async function pickImage(useCamera) {
   const perm = useCamera
     ? await ImagePicker.requestCameraPermissionsAsync()
-    : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    : await requestLibraryAccess();
   if (!perm.granted) {
     Alert.alert('Зөвшөөрөл', 'Камер эсвэл зургийн сан ашиглах зөвшөөрөл шаардлагатай.');
     return null;

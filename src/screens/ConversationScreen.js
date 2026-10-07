@@ -19,6 +19,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../context/AppContext';
 import { friendlyError } from '../lib/erpMessages';
@@ -344,7 +345,7 @@ export default function ConversationScreen() {
   };
 
   const pickImage = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const perm = await requestLibraryAccess();
     if (!perm.granted) {
       Alert.alert('Зөвшөөрөл', 'Зургийн санд хандах зөвшөөрөл өгнө үү.');
       return;
@@ -368,7 +369,7 @@ export default function ConversationScreen() {
   };
 
   const pickVideo = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const perm = await requestLibraryAccess();
     if (!perm.granted) {
       Alert.alert('Зөвшөөрөл', 'Видео сонгоход зөвшөөрөл өгнө үү.');
       return;
@@ -536,7 +537,7 @@ export default function ConversationScreen() {
   };
 
   const pickGroupAvatarFromLibrary = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const perm = await requestLibraryAccess();
     if (!perm.granted) {
       Alert.alert('Зөвшөөрөл', 'Зургийн санд хандах зөвшөөрөл өгнө үү.');
       return;

@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as feedApi from '../services/feedService';
@@ -93,7 +94,7 @@ export default function FeedProfileScreen() {
       {
         text: 'Зургийн сан',
         onPress: async () => {
-          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          const perm = await requestLibraryAccess();
           if (!perm.granted) return;
           const res = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],

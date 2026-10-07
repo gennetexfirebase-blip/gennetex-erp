@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import * as Device from 'expo-device';
 // Статик импорт. Өмнө нь функц дотор `await import(...)` ашигладаг байсан —
 // Metro дээр динамик импорт найдваргүй бөгөөд 'Cannot read property replace
@@ -85,7 +86,7 @@ export async function requestAllAppPermissions() {
   await requestPermission(
     results,
     'media',
-    () => ImagePicker.requestMediaLibraryPermissionsAsync(),
+    () => requestLibraryAccess(),
     (permission) => permission?.granted === true
   );
 

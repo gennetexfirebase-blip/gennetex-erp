@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, Field, Button } from '../components/ui';
@@ -18,7 +19,7 @@ import { colors } from '../theme/attendanceLight';
 import { spacing } from '../theme';
 
 async function pickImage() {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const perm = await requestLibraryAccess();
   if (!perm.granted) {
     Alert.alert('Зөвшөөрөл', 'Зургийн сан ашиглах зөвшөөрөл шаардлагатай.');
     return null;

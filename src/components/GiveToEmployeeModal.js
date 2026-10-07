@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
@@ -77,7 +78,7 @@ export default function GiveToEmployeeModal({
   const pickPhoto = async (useCamera) => {
     const perm = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      : await requestLibraryAccess();
     if (!perm.granted) {
       Alert.alert('Зөвшөөрөл', 'Камер эсвэл зургийн сан ашиглах зөвшөөрөл шаардлагатай.');
       return;

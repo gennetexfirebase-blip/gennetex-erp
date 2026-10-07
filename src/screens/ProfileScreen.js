@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import * as Notifications from 'expo-notifications';
 import { useApp } from '../context/AppContext';
 import { uploadAvatar } from '../services/attendanceService';
@@ -361,7 +362,7 @@ export default function ProfileScreen() {
   };
 
   const pickFromLibrary = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const perm = await requestLibraryAccess();
     if (!perm.granted) {
       Alert.alert('Зөвшөөрөл', 'Зургийн санд хандах зөвшөөрөл өгнө үү.');
       return;

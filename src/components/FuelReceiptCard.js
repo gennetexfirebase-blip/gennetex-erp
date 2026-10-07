@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, SectionTitle } from './ui';
 import * as receiptApi from '../services/fuelReceiptService';
@@ -36,7 +37,7 @@ export default function FuelReceiptCard({ sender, plate }) {
   const pick = async (useCamera) => {
     const perm = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      : await requestLibraryAccess();
     if (!perm.granted) {
       Alert.alert('Зөвшөөрөл', 'Камер эсвэл зургийн сан ашиглах зөвшөөрөл шаардлагатай.');
       return;
