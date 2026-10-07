@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as invApi from '../services/inventoryService';
+import { formatMNT } from './ui';
 
 export default function GiveToEmployeeModal({
   visible,
@@ -60,6 +61,8 @@ export default function GiveToEmployeeModal({
 
   const selected = options.find((e) => e.id === employeeId);
   const maxQty = item?.quantity || 0;
+  const unitPrice = Math.max(0, Number(item?.price) || 0);
+  const issueTotal = unitPrice * Math.max(0, Number(qty) || 0);
 
   useEffect(() => {
     if (!visible) return;
@@ -212,6 +215,19 @@ export default function GiveToEmployeeModal({
             />
             <Text style={styles.hint}>Боломжит: {maxQty} {item.unit}</Text>
 
+            {unitPrice > 0 ? (
+              <View style={styles.amountCard}>
+                <View>
+                  <Text style={styles.amountLabel}>Нэгжийн үнэ</Text>
+                  <Text style={styles.amountUnit}>{formatMNT(unitPrice)} / {item.unit}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.amountLabel}>Нийт мөнгөн дүн</Text>
+                  <Text style={styles.amountTotal}>{formatMNT(issueTotal)}</Text>
+                </View>
+              </View>
+            ) : null}
+
             {/* Баталгаа зураг — ХААЛТТАЙ эхэлнэ.
                 Өмнө нь камер/зургийн товчнууд шууд харагддаг байсан тул
                 олгохын өмнө заавал зураг дарах ёстой мэт сэтгэгдэл
@@ -343,6 +359,21 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     backgroundColor: colors.bg,
   },
   hint: { color: colors.textMuted, fontSize: 12, marginTop: 6 },
+  amountCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary + '44',
+  },
+  amountLabel: { color: colors.textMuted, fontSize: 11.5, fontWeight: '600' },
+  amountUnit: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
+  amountTotal: { color: colors.primary, fontSize: 18, fontWeight: '900', marginTop: 2 },
   photoWrap: { position: 'relative', marginTop: spacing.sm },
   photo: { width: '100%', height: 140, borderRadius: radius.md },
   photoRemove: { position: 'absolute', top: 8, right: 8 },

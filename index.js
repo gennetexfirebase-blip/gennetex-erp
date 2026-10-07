@@ -1,4 +1,8 @@
 import './src/lib/telegram/polyfills';
+// Alert.alert → апп-ын загвартай цонх. Бусад модулиас ӨМНӨ ачаална.
+import './src/lib/appDialog';
+// Switch → брэнд өнгө (апп даяар нэг загвар).
+import './src/lib/themedSwitch';
 import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 import App from './App';

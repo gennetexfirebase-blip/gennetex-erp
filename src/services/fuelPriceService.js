@@ -85,12 +85,13 @@ export async function setPrice({ fuelType, price, date, note }) {
  * @param {number} [pricePerLiter] Хөнгөлөлтийн картаар авсан үед БОДИТ
  *   төлсөн литрийн үнэ. Заагаагүй бол бүртгэлтэй нийтийн үнээр тооцно.
  */
-export async function refuelByAmount({ vehicleId, amountMnt, note, pricePerLiter }) {
+export async function refuelByAmount({ vehicleId, amountMnt, note, pricePerLiter, refueledOn }) {
   const { data, error } = await supabase.rpc('refuel_vehicle_by_amount', {
     p_vehicle_id: vehicleId,
     p_amount_mnt: Number(amountMnt),
     p_note: note || null,
     p_price_per_liter: pricePerLiter ? Number(pricePerLiter) : null,
+    p_refueled_on: refueledOn || null,
   });
   if (error) throw error;
   // `returns table` тул массив ирнэ.

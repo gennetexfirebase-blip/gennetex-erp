@@ -48,6 +48,17 @@ type Penalty = {
   isPaid?: boolean;
 };
 
+type VehicleTax = {
+  plateNo?: string;
+  year?: number | string;
+  taxAmount?: string;
+  trafficAmount?: string;
+  airPollAmount?: string;
+  paidDate?: string;
+  statusText?: string;
+  isPaid?: boolean;
+};
+
 /**
  * Торгуулийн хоосон `<tbody>`-г жинхэнэ мөрүүдээр дүүргэнэ.
  *
@@ -118,6 +129,48 @@ async function fillPenaltyRows(
     ]);
 
     return { html: filled, rows: structured };
+  } catch (_e) {
+    return { html: shell, rows: [] };
+  }
+}
+
+async function fillTaxRows(
+  shell: string | null,
+  plateNo: string,
+): Promise<{ html: string | null; rows: unknown[][] }> {
+  if (!shell) return { html: shell, rows: [] };
+  try {
+    const api = `https://www.autobox.mn/api/services/app/Xyp/GetAutoboxTax?plateNo=${encodeURIComponent(plateNo)}`;
+    const res = await fetch(api, {
+      headers: { "User-Agent": "GennetexERP/1.0", Accept: "application/json" },
+    });
+    if (!res.ok) return { html: shell, rows: [] };
+    const json = await res.json();
+    const items: VehicleTax[] = json?.result?.items ?? [];
+    if (!items.length) return { html: shell, rows: [] };
+    const body = items.map((item) =>
+      `<tr>` +
+      `<td>${esc(item.plateNo || plateNo)}</td>` +
+      `<td>${esc(item.year)}</td>` +
+      `<td>${esc(item.taxAmount)}</td>` +
+      `<td>${esc(item.trafficAmount)}</td>` +
+      `<td>${esc(item.airPollAmount)}</td>` +
+      `<td>${esc(item.paidDate)}</td>` +
+      `<td><span class="badge ${item.isPaid ? "badge-success" : "badge-danger"}">${esc(item.statusText)}</span></td>` +
+      `</tr>`
+    ).join("");
+    const filled = shell.replace(/(<tbody[^>]*>)([\s\S]*?)(<\/tbody>)/i, `$1${body}$3`);
+    const rows = items.map((item) => [
+      item.plateNo || plateNo,
+      item.year ?? "",
+      item.taxAmount ?? "",
+      item.trafficAmount ?? "",
+      item.airPollAmount ?? "",
+      item.paidDate ?? "",
+      item.statusText ?? "",
+      item.isPaid === true,
+    ]);
+    return { html: filled, rows };
   } catch (_e) {
     return { html: shell, rows: [] };
   }
@@ -222,10 +275,15 @@ Deno.serve(async (req) => {
      * бөглөнө.
      */
     const finesShell = extractTabTable(html, "fineTab");
-    const penalty = await fillPenaltyRows(finesShell, plateNo);
+    const taxShell = extractTabTable(html, "taxTab");
+    const [penalty, taxResult] = await Promise.all([
+      fillPenaltyRows(finesShell, plateNo),
+      fillTaxRows(taxShell, plateNo),
+    ]);
     const fines = penalty.html;
+    const tax = taxResult.html;
     const header = extractHeader(html);
-    const hash = await hashContent([general, technical, diagnosis, fines]);
+    const hash = await hashContent([general, technical, diagnosis, fines, tax]);
 
     return jsonResponse({
       ok: true,
@@ -237,8 +295,10 @@ Deno.serve(async (req) => {
       technical,
       diagnosis,
       fines,
+      tax,
       // Апп талын "Торгууль" карт үүнийг хүлээдэг.
       finesRows: penalty.rows,
+      taxRows: taxResult.rows,
       fetchedAt: new Date().toISOString(),
     });
   } catch (e) {

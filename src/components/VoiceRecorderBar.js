@@ -11,9 +11,10 @@
  * АУДИО: `expo-audio` — SDK 57-д `expo-av` бүрмөсөн хасагдсан тул
  * бичлэгийг `useAudioRecorder` дээр хийнэ.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Alert,
   Easing,
   PanResponder,
   Platform,
@@ -25,10 +26,9 @@ import {
 } from 'react-native';
 import {
   RecordingPresets,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
   useAudioRecorder,
 } from 'expo-audio';
+import { createVoiceRecordingSession } from '../services/voiceRecordingSession';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing, radius } from '../theme';
@@ -36,7 +36,8 @@ import { spacing, radius } from '../theme';
 /** Энэ зайнаас дээш гулсуулбал цуцална. */
 const CANCEL_THRESHOLD = 90;
 /** Хэт богино бичлэгийг илгээхгүй — санамсаргүй даралт. */
-const MIN_DURATION_MS = 700;
+const VOICE_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, numberOfChannels: 1,
+  android: { ...RecordingPresets.HIGH_QUALITY.android, audioSource: 'mic' } };
 
 const fmt = (ms) => {
   const total = Math.floor(ms / 1000);
@@ -54,12 +55,11 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
   const [elapsed, setElapsed] = useState(0);
 
   // expo-audio-д бичигч нь тогтмол объект — идэвхтэй эсэхийг өөрсдөө хөтөлнө.
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recActiveRef = useRef(false);
-  const startedAt = useRef(0);
+  const recorder = useAudioRecorder(VOICE_OPTIONS);
   const timerRef = useRef(null);
   const cancelRef = useRef(false);
-  const busyRef = useRef(false);
+  const latest = useRef({ onSend, disabled });
+  latest.current = { onSend, disabled };
 
   // Долгионы хөдөлгөөн — бичиж байгааг харуулна
   const wave = useRef(new Animated.Value(0)).current;
@@ -83,63 +83,24 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
     }
   };
 
-  /** Бичлэгийг зогсоож, файлын замыг буцаана (эсвэл null). */
-  const finishRecording = async () => {
-    stopTimer();
-    if (!recActiveRef.current) return null;
-    recActiveRef.current = false;
-    try {
-      await recorder.stop();
-      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-      return recorder.uri;
-    } catch (e) {
-      return null;
-    }
-  };
-
-  const start = async () => {
-    if (disabled || busyRef.current || recActiveRef.current) return;
-    busyRef.current = true;
-    cancelRef.current = false;
-    setWillCancel(false);
-    try {
-      const perm = await requestRecordingPermissionsAsync();
-      if (!perm.granted) {
-        busyRef.current = false;
-        return;
-      }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      recActiveRef.current = true;
-      startedAt.current = Date.now();
-      setElapsed(0);
-      setRecording(true);
-      try {
+  const session = useMemo(() => createVoiceRecordingSession({
+    recorder,
+    onSend: clip => latest.current.onSend?.(clip),
+    onError: error => Alert.alert('Дуут мессеж', error.message || 'Дуу бичиж чадсангүй. Дахин оролдоно уу.'),
+    onRecording: active => {
+      stopTimer();
+      setRecording(active);
+      setWillCancel(false);
+      if (active) {
+        setElapsed(0);
         Vibration.vibrate(Platform.OS === 'ios' ? 15 : 20);
-      } catch {}
-      timerRef.current = setInterval(() => setElapsed(Date.now() - startedAt.current), 200);
-    } catch (e) {
-      recActiveRef.current = false;
-    } finally {
-      busyRef.current = false;
-    }
-  };
-
-  const stop = async () => {
-    if (!recActiveRef.current) {
-      setRecording(false);
-      return;
-    }
-    const duration = Date.now() - startedAt.current;
-    const uri = await finishRecording();
-    setRecording(false);
-    setWillCancel(false);
-
-    if (cancelRef.current || !uri) return;
-    if (duration < MIN_DURATION_MS) return; // санамсаргүй товшилт
-    onSend?.({ uri, durationMs: duration });
-  };
+        timerRef.current = setInterval(() => setElapsed(recorder.getStatus().durationMillis), 200);
+      }
+    },
+  }), [recorder]);
+  useEffect(() => () => { stopTimer(); session.dispose(); }, [session]);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const responder = useRef(
     PanResponder.create({
@@ -147,7 +108,10 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
       onMoveShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
-        start();
+        if (latest.current.disabled) return;
+        cancelRef.current = false;
+        setWillCancel(false);
+        sessionRef.current.start();
       },
       onPanResponderMove: (_e, g) => {
         // Дээш гулсуулбал цуцлах горим
@@ -156,11 +120,11 @@ export default function VoiceRecorderBar({ onSend, onSwitchToKeyboard, disabled 
         setWillCancel(cancel);
       },
       onPanResponderRelease: () => {
-        stop();
+        sessionRef.current.release(cancelRef.current);
       },
       onPanResponderTerminate: () => {
         cancelRef.current = true;
-        stop();
+        sessionRef.current.release(true);
       },
     })
   ).current;

@@ -1,5 +1,5 @@
 import { plateToAutoboxQuery } from '../lib/mongoliaPlate';
-import { fetchAutoboxHtml } from '../lib/autoboxParse';
+import { enrichAutoboxPayload, fetchAutoboxHtml } from '../lib/autoboxParse';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -34,8 +34,8 @@ async function fetchViaProxy(plateNo) {
   for (const url of urls) {
     try {
       const json = await fetchJson(url);
-      if (json.ok !== false && (json.general || json.technical || json.diagnosis || json.fines)) {
-        return json;
+      if (json.ok !== false && (json.general || json.technical || json.diagnosis || json.fines || json.tax)) {
+        return enrichAutoboxPayload(json);
       }
       lastErr = json.error || lastErr;
     } catch (e) {
@@ -51,7 +51,7 @@ export async function fetchAutoboxVehicle(plate) {
   if (!q) throw new Error('Улсын дугаар буруу');
 
   try {
-    return await fetchAutoboxHtml(q);
+    return enrichAutoboxPayload(await fetchAutoboxHtml(q));
   } catch (directErr) {
     try {
       return await fetchViaProxy(q);

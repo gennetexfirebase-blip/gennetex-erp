@@ -151,7 +151,7 @@ export default function ConversationScreen() {
   const styles = useStyles(makeStyles);
   const { conversationId, title, isGroup, otherUser, memberCount, groupAvatarUrl: initialGroupAvatar } = route.params || {};
   const { currentUser, isCloud } = useApp();
-  const { placeCall, callingAvailable } = useCall();
+  const { placeCall, callingAvailable, call: activeCall } = useCall();
   const me = currentUser;
   const room = conversationId;
 
@@ -238,22 +238,23 @@ export default function ConversationScreen() {
       const body = (typeof content === 'string' ? content : text).trim();
       if (!body || !me) return;
       if (editingId) {
-        setText('');
-        setEditingId(null);
         try {
           const updated = await chatApi.updateMessage(editingId, me.id, body);
           setMessages((prev) => prev.map((m) => (m.id === editingId ? updated : m)));
+          setText('');
+          setEditingId(null);
         } catch (e) {
           setError(e.message);
           Alert.alert('Алдаа', friendlyError(e));
         }
         return;
       }
-      setText('');
       try {
         await chatApi.sendMessage({ room, senderId: me.id, senderName: me.name, content: body });
+        setText('');
       } catch (e) {
         setError(e.message);
+        Alert.alert('Мессеж илгээгдсэнгүй', friendlyError(e));
       }
     },
     [text, me, room, editingId]
@@ -405,8 +406,8 @@ export default function ConversationScreen() {
       try {
         const url = await chatApi.uploadChatFile(uri, {
           room,
-          mimeType: 'audio/m4a',
-          name: `voice_${Date.now()}.m4a`,
+          mimeType: Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4',
+          name: `voice_${Date.now()}.${Platform.OS === 'web' ? 'webm' : 'm4a'}`,
         });
         const seconds = Math.max(1, Math.round((durationMs || 0) / 1000));
         await chatApi.sendMessage({
@@ -855,7 +856,7 @@ export default function ConversationScreen() {
           ) : null}
           {holdToTalk ? (
             <VoiceRecorderBar
-              disabled={uploading}
+              disabled={uploading || !!activeCall}
               onSwitchToKeyboard={() => setHoldToTalk(false)}
               onSend={sendVoiceClip}
             />

@@ -143,7 +143,7 @@ export default function TodayDashboard() {
 
 function Chip({ label, value, color, onPress, styles }) {
   return (
-    <TouchableOpacity style={[styles.chip, { borderColor: color + '55' }]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[styles.chip, { backgroundColor: color + '14' }]} onPress={onPress} activeOpacity={0.85}>
       <Text style={[styles.chipVal, { color }]}>{value}</Text>
       <Text style={styles.chipLabel}>{label}</Text>
     </TouchableOpacity>
@@ -158,16 +158,16 @@ function QBtn({ label, onPress, styles }) {
   );
 }
 
-const makeStyles = ({ colors, shadow }) =>
+const makeStyles = ({ colors, shadow, isDark }) =>
   StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       padding: spacing.lg,
       marginBottom: spacing.lg,
       borderWidth: 1,
-      borderColor: colors.border,
-      ...shadow.sm,
+      borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)',
+      ...(isDark ? shadow.sm : shadow.md),
     },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
     title: { color: colors.text, fontSize: 17, fontWeight: '800' },
@@ -175,14 +175,15 @@ const makeStyles = ({ colors, shadow }) =>
     row: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
     chip: {
       flex: 1,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      padding: spacing.sm,
+      borderRadius: radius.lg,
+      borderWidth: 0,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
       alignItems: 'center',
       backgroundColor: colors.surfaceContainerLow || colors.bgAlt,
     },
-    chipVal: { fontSize: 20, fontWeight: '800' },
-    chipLabel: { color: colors.textMuted, fontSize: 10, marginTop: 2, textAlign: 'center' },
+    chipVal: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+    chipLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 2, textAlign: 'center' },
     muted: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
     warn: {
       backgroundColor: colors.warning + '22',

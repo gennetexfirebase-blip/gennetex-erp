@@ -598,7 +598,18 @@
        агуулгыг үлдээнэ — нэг л панел мэт харагдана. */
     body.embedded .side{display:none}
     body.embedded .topbar{display:none}
-    body.embedded .main{margin-left:0}
+    body.embedded{
+      --bg:#070b14;
+      --card:#070b14;
+      --line:rgba(255,255,255,.08);
+      --text:#eef3fb;
+      --muted:#93a1b8;
+      --primary-soft:rgba(255,255,255,.055);
+      background:#070b14;
+      background-image:none;
+    }
+    html.dark body.embedded{background-image:none}
+    body.embedded .main{margin-left:0;background:#070b14}
     body.embedded .content{padding-top:20px}
   </style>
 </head>
@@ -685,7 +696,6 @@
           <div class="grp">Үндсэн</div>
           <a data-view="dashboard" class="active"><span class="material-symbols-outlined">dashboard</span><span class="t">Хяналт</span></a>
           <a data-view="employees"><span class="material-symbols-outlined">group</span><span class="t">Ажилчид</span></a>
-          <a data-view="workperformance"><span class="material-symbols-outlined">insights</span><span class="t">Ажилчдын гүйцэтгэл</span></a>
           <a data-view="reports"><span class="material-symbols-outlined">description</span><span class="t">Тайлан</span></a>
           <a data-view="feedback"><span class="material-symbols-outlined">forum</span><span class="t">Санал гомдол</span></a>
           <a data-view="applications"><span class="material-symbols-outlined">assignment</span><span class="t">Ажлын байрны анкет</span></a>

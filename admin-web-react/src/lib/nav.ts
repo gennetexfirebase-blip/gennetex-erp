@@ -8,7 +8,6 @@ import {
   Building2,
   CalendarDays,
   MapPin,
-  Activity,
   MessageSquare,
   ClipboardList,
   Globe,
@@ -66,7 +65,6 @@ export type NavItem = {
  * /gennetex/admin-v1/?embed=1#<view> рүү хөрвөнө.
  */
 export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon }[] = [
-  { view: 'workperformance', label: 'Ажилчдын гүйцэтгэл', icon: Activity },
   { view: 'feedback', label: 'Санал гомдол', icon: MessageSquare },
   { view: 'applications', label: 'Ажлын байрны анкет', icon: ClipboardList },
   { view: 'publicsite', label: 'Вэб сайт', icon: Globe },

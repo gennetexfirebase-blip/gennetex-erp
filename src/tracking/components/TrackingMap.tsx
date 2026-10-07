@@ -6,7 +6,7 @@ import { LocationPoint, lastSeen, trackingStatus } from '../utils/locationUtils'
 const html = buildTrackingMapHtml();
 export type TrackingMapHandle = { command: (command: string) => void };
 type Props = { employees: LocationPoint[]; points?: LocationPoint[]; selected?: string; follow?: boolean; satellite?: boolean;
-  sites?: any[]; now: number; onSelect?: (id: string) => void; onPan?: () => void };
+  sites?: any[]; now: number; onSelect?: (id: string) => void; onPan?: () => void; interactive?: boolean };
 export default memo(forwardRef<TrackingMapHandle, Props>(function TrackingMap({ employees, points, selected, follow, satellite, sites, now, onSelect, onPan }, ref) {
   const web = useRef<WebView>(null);
   const [ready, setReady] = useState(false);

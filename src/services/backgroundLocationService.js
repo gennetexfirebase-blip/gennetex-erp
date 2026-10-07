@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, Linking } from 'react-native';
+import { Alert, DeviceEventEmitter, Platform, Linking } from 'react-native';
 import * as Application from 'expo-application';
 import { supabase } from '../lib/supabase';
 import { sendLocation, syncLocations } from '../tracking/services/locationService';
@@ -12,6 +12,20 @@ import { isExpoGo } from '../lib/runtimeEnv';
 export const LOCATION_TASK = 'gennetex-background-location';
 
 const USER_KEY = '@bg_location_user';
+export const LOCATION_CONSENT_KEY = '@gennetex_location_consent_v1';
+export const LOCATION_DISCLOSURE_TITLE = 'Байршлын зөвшөөрөл';
+export const LOCATION_DISCLOSURE_BODY = 'Gennetex ERP нь идэвхтэй ажлын үеэр ажилтны ажлын байршлыг хянахын тулд байршлын мэдээлэл цуглуулдаг. Энэ нь апп хаалттай эсвэл ашиглагдаагүй үед ч ажиллаж болно. Мэдээллийг зөвхөн байгууллагын эрх бүхий администраторууд ажлын явцыг хянах зорилгоор ашиглана.';
+
+let interactiveStart = null;
+
+function showLocationDisclosure() {
+  return new Promise(resolve => {
+    Alert.alert(LOCATION_DISCLOSURE_TITLE, LOCATION_DISCLOSURE_BODY, [
+      { text: 'Цуцлах', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Үргэлжлүүлэх', onPress: () => resolve(true) },
+    ], { cancelable: false });
+  });
+}
 
 /** Task дотор React context байхгүй тул хэрэглэгчийг диск дээр хадгална. */
 export async function setTrackedUser(user) {
@@ -65,12 +79,28 @@ export async function isTracking() {
  * Арын хяналтыг эхлүүлнэ.
  * @returns {Promise<{ok: boolean, reason?: string}>}
  */
-export async function startTracking(user) {
+export async function startTracking(user, options = {}) {
+  // Startup/AppState callers only inspect permissions. Only a user action may prompt.
+  if (interactiveStart) return { ok: false, reason: 'consent-pending' };
+  const run = async () => {
+    let result;
+    try {
+      result = await startTrackingInternal(user, options);
+    } catch {
+      result = { ok: false, reason: 'tracking-start-failed' };
+    }
+    if (options.requestPermissions && !result.ok && result.reason !== 'consent-declined') {
+      Alert.alert('Байршлын хяналт эхэлсэнгүй', trackingProblemText(result.reason));
+    }
+    return result;
+  };
+  if (!options.requestPermissions) return run();
+  interactiveStart = run();
+  try { return await interactiveStart; } finally { interactiveStart = null; }
+}
+
+async function startTrackingInternal(user, { requestPermissions = false, isCurrent = () => true } = {}) {
   if (!user?.id) return { ok: false, reason: 'no-user' };
-  const consentRaw = await AsyncStorage.getItem('@gennetex_location_consent_v1');
-  let consent;
-  try { consent = JSON.parse(consentRaw || 'null'); } catch { consent = null; }
-  if (!consent?.granted || consent.userId !== user.id) return { ok: false, reason: 'consent-pending' };
 
   // Expo Go дээр арын байршил БОДИТ ТӨХӨӨРӨМЖ дээр ажиллахгүй:
   //   Android — огт байхгүй
@@ -83,14 +113,39 @@ export async function startTracking(user) {
     return { ok: false, reason: 'expo-go' };
   }
 
-  const fg = await Location.getForegroundPermissionsAsync();
+  const saved = await getTrackedUser();
+  if (requestPermissions) {
+    // A dismissed/denied attempt must not be resumed by the AppState listener.
+    await AsyncStorage.setItem(LOCATION_CONSENT_KEY, JSON.stringify({ granted: false, userId: user.id }));
+    DeviceEventEmitter.emit('erp-location-consent');
+    await stopTracking();
+    if (!(await showLocationDisclosure())) return { ok: false, reason: 'consent-declined' };
+    if (!isCurrent()) return { ok: false, reason: 'no-user' };
+  } else {
+    const consentRaw = await AsyncStorage.getItem(LOCATION_CONSENT_KEY);
+    let consent;
+    try { consent = JSON.parse(consentRaw || 'null'); } catch { consent = null; }
+    if (!consent?.granted || consent.userId !== user.id) return { ok: false, reason: 'consent-pending' };
+    // Only restore a previously started work session; polling must not start a new one.
+    if (saved?.id !== user.id || !(saved.expiresAt > Date.now())) return { ok: false, reason: 'consent-pending' };
+  }
+
+  const fg = requestPermissions
+    ? await Location.requestForegroundPermissionsAsync()
+    : await Location.getForegroundPermissionsAsync();
   if (fg.status !== 'granted') return { ok: false, reason: 'no-foreground-permission' };
+
+  const bg = requestPermissions
+    ? await Location.requestBackgroundPermissionsAsync()
+    : await Location.getBackgroundPermissionsAsync();
+  if (bg.status !== 'granted') return { ok: false, reason: 'no-background-permission' };
+  if (!isCurrent()) return { ok: false, reason: 'no-user' };
 
   // Зөвшөөрөл өгсөн ч утасны БАЙРШЛЫН ҮЙЛЧИЛГЭЭ унтраалттай байвал
   // байршил огт ирэхгүй, ямар ч алдаа ч гарахгүй — чимээгүй бүтэлгүйтнэ.
   // Энэ дуудлага нь Android дээр "Байршлыг асаах уу?" гэсэн системийн
   // цонх гаргаж, хэрэглэгч нэг товшилтоор асаах боломж өгнө.
-  if (Platform.OS === 'android') {
+  if (Platform.OS === 'android' && requestPermissions) {
     try {
       await Location.enableNetworkProviderAsync();
     } catch (e) {
@@ -98,25 +153,22 @@ export async function startTracking(user) {
     }
   }
 
-  // Арын зөвшөөрлийг тусад нь асууна. Android 11+ дээр хэрэглэгч үүнийг
-  // Тохиргооноос "Байнга зөвшөөрөх" гэж гараар сонгох шаардлагатай.
-  let bg = await Location.getBackgroundPermissionsAsync();
-  if (bg.status !== 'granted') {
-    bg = await Location.requestBackgroundPermissionsAsync();
-  }
-  if (bg.status !== 'granted') return { ok: false, reason: 'no-background-permission' };
-
   // Validate the existing attendance session, including launches from settings/consent.
   const { data: rows, error: sessionError } = await supabase.from('attendance')
     .select('type,created_at').eq('staff_id', user.id).neq('status', 'rejected')
     .in('type', ['check_in', 'check_out']).gte('created_at', new Date(Date.now() - 86400000).toISOString())
     .order('created_at', { ascending: false }).limit(1);
-  const saved = await getTrackedUser();
   if (sessionError) {
     if (saved?.id !== user.id || saved.expiresAt <= Date.now()) return { ok: false, reason: 'session-unavailable' };
   } else if (rows?.[0]?.type !== 'check_in') {
     await stopTracking();
     return { ok: false, reason: 'outside-session' };
+  }
+  if (!isCurrent()) return { ok: false, reason: 'no-user' };
+  if (requestPermissions) {
+    await AsyncStorage.setItem(LOCATION_CONSENT_KEY, JSON.stringify({
+      granted: true, userId: user.id, at: new Date().toISOString(),
+    }));
   }
   await setTrackedUser({ ...user, expiresAt: sessionError ? saved.expiresAt : Date.parse(rows[0].created_at) + 86400000 });
 
@@ -149,6 +201,7 @@ export async function startTracking(user) {
     });
     return { ok: true };
   } catch (e) {
+    await setTrackedUser(null);
     return { ok: false, reason: e.message };
   }
 }
@@ -333,6 +386,16 @@ export function trackingProblemText(reason) {
       return 'Expo Go дээр арын байршил Android дээр огт ажиллахгүй. Суулгасан апп (APK) ашиглана уу.';
     case 'no-user':
       return 'Нэвтрээгүй байна.';
+    case 'consent-pending':
+      return 'Байршлын хяналтыг эхлүүлэхийн өмнө тайлбарыг уншиж зөвшөөрнө үү.';
+    case 'consent-declined':
+      return 'Байршлын хяналтыг цуцалсан. Хяналт эхлээгүй.';
+    case 'outside-session':
+      return 'Байршлын хяналтыг зөвхөн идэвхтэй ажлын үеэр эхлүүлнэ. Эхлээд “Ирлээ” бүртгэнэ үү.';
+    case 'session-unavailable':
+      return 'Ажлын төлвийг шалгаж чадсангүй. Сүлжээгээ шалгаад дахин оролдоно уу.';
+    case 'tracking-start-failed':
+      return 'Байршлын зөвшөөрөл эсвэл үйлчилгээг нээж чадсангүй. Дахин оролдоно уу.';
     default:
       return reason ? `Арын хяналт эхэлсэнгүй: ${reason}` : '';
   }

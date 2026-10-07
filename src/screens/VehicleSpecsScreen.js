@@ -20,6 +20,7 @@ import * as autoboxApi from '../services/autoboxService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notifyAdmins, showLocalNotification } from '../services/notificationService';
 import { notifyNewFines } from '../services/alertingService';
+import { diagnosisCompliance, taxCompliance } from '../lib/vehicleCompliance';
 
 export default function VehicleSpecsScreen({ navigation }) {
   const { colors } = useTheme();
@@ -164,6 +165,11 @@ export default function VehicleSpecsScreen({ navigation }) {
     [fineWithDriver]
   );
 
+  const compliance = useMemo(() => ({
+    diagnosis: diagnosisCompliance(autoboxData),
+    tax: taxCompliance(autoboxData),
+  }), [autoboxData]);
+
   /**
    * Шинэ торгууль илэрвэл Telegram группд мэдэгдэнэ.
    *
@@ -241,7 +247,7 @@ export default function VehicleSpecsScreen({ navigation }) {
   if (!isAdmin) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title="Машины оншилгоо" />
+        <ScreenHeader title="Машины оношилгоо" />
         <EmptyState text="Энэ хэсэг зөвхөн админд нээлттэй." />
       </View>
     );
@@ -251,7 +257,7 @@ export default function VehicleSpecsScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <ScreenHeader
-          title="Машины оншилгоо"
+          title="Машины оношилгоо"
           subtitle={selected.plate_number}
           onBackPress={closeDetail}
         />
@@ -267,6 +273,20 @@ export default function VehicleSpecsScreen({ navigation }) {
               {selected.driver_name ? ` · ${selected.driver_name}` : ''}
             </Text>
           </Card>
+          {autoboxData ? (
+            <View style={styles.complianceGrid}>
+              <ComplianceCard
+                title="Техникийн оношилгоо"
+                state={compliance.diagnosis}
+                colors={colors}
+              />
+              <ComplianceCard
+                title="Тээврийн хэрэгслийн татвар"
+                state={compliance.tax}
+                colors={colors}
+              />
+            </View>
+          ) : null}
           {fineWithDriver.length ? (
             <Card style={styles.fineCard}>
               <View style={styles.fineHead}>
@@ -340,7 +360,7 @@ export default function VehicleSpecsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title="Машины оншилгоо"
+        title="Машины оношилгоо"
         subtitle={`${list.length} бүртгэлтэй машин`}
       />
       {!isCloud ? (
@@ -389,6 +409,7 @@ const makeStyles = ({ colors }) =>
     rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
     chev: { fontSize: 22, fontWeight: '300' },
     detailHead: { alignItems: 'center', marginBottom: spacing.lg, paddingVertical: spacing.lg },
+    complianceGrid: { gap: spacing.sm, marginBottom: spacing.lg },
     license: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: spacing.md },
     meta: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
     fineCard: { padding: spacing.lg, marginBottom: spacing.lg },
@@ -423,6 +444,34 @@ const makeStyles = ({ colors }) =>
     fineMetaLabel: { color: colors.textFaint, fontSize: 12, width: 64 },
     fineMetaValue: { color: colors.textMuted, fontSize: 12, flex: 1, lineHeight: 17 },
   });
+
+function ComplianceCard({ title, state, colors }) {
+  const color = state.tone === 'success'
+    ? colors.success
+    : state.tone === 'danger'
+      ? colors.danger
+      : colors.textMuted;
+  return (
+    <View style={[stylesForCompliance.card, { borderColor: color, backgroundColor: color + '12' }]}>
+      <View style={[stylesForCompliance.dot, { backgroundColor: color }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={[stylesForCompliance.title, { color }]}>{title}</Text>
+        <Text style={[stylesForCompliance.label, { color }]}>{state.label}</Text>
+        {state.date ? (
+          <Text style={[stylesForCompliance.date, { color: colors.textMuted }]}>Дуусах: {state.date.toLocaleDateString('mn-MN')}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+const stylesForCompliance = StyleSheet.create({
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1.5, borderRadius: radius.md, padding: spacing.md },
+  dot: { width: 12, height: 12, borderRadius: 6 },
+  title: { fontSize: 14, fontWeight: '900' },
+  label: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  date: { fontSize: 11, marginTop: 3 },
+});
 
 /**
  * Торгуулийн дүнг тоо болгоно.

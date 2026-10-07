@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatMNT } from './ui';
+import DateRangeSheet from './DateRangeSheet';
 import * as fuelApi from '../services/fuelPriceService';
 import { friendlyError } from '../lib/erpMessages';
+import { dayKey } from '../lib/workHours';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
@@ -33,6 +35,8 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
 
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState(null);
+  const [refueledOn, setRefueledOn] = useState(dayKey());
+  const [dateSheetVisible, setDateSheetVisible] = useState(false);
 
   /**
    * Хөнгөлөлтийн карт.
@@ -52,6 +56,8 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
   useEffect(() => {
     if (!visible) return;
     setAmount('');
+    setRefueledOn(dayKey());
+    setDateSheetVisible(false);
     setHasCard(false);
     setCardPrice('');
     setSaving(false);
@@ -106,6 +112,7 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
         vehicleId: vehicle.id,
         amountMnt: amountNum,
         pricePerLiter: hasCard ? cardPriceNum : null,
+        refueledOn,
       });
       onClose?.();
       await onDone?.();
@@ -126,7 +133,8 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
   if (!vehicle) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.head}>
@@ -158,7 +166,20 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
               )}
             </View>
 
-            <Text style={styles.label}>Мөнгөн дүн (₮)</Text>
+            <Text style={styles.label}>Цэнэглэсэн огноо</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setDateSheetVisible(true)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`Цэнэглэсэн огноо ${refueledOn}`}
+            >
+              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+              <Text style={styles.dateText}>{refueledOn}</Text>
+              <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { marginTop: spacing.lg }]}>Мөнгөн дүн (₮)</Text>
             <TextInput
               style={styles.input}
               keyboardType="numeric"
@@ -257,7 +278,17 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
           </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+      </Modal>
+      <DateRangeSheet
+        visible={dateSheetVisible}
+        onClose={() => setDateSheetVisible(false)}
+        onSelect={setRefueledOn}
+        current={refueledOn}
+        colors={colors}
+        title="Цэнэглэсэн огноо"
+        showPresets={false}
+      />
+    </>
   );
 }
 
@@ -311,6 +342,18 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
 
   label: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  dateButton: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  dateText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '700' },
   input: {
     borderWidth: 1.5,
     borderColor: colors.border,

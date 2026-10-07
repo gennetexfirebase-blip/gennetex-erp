@@ -18,7 +18,15 @@ function shiftDays(n) {
  * алга) тул календарийг өөрсдөө зурав — шинэ хамаарал нэмэхгүй бөгөөд
  * харагдах байдлыг бүрэн удирдана.
  */
-export default function DateRangeSheet({ visible, onClose, onSelect, current, colors }) {
+export default function DateRangeSheet({
+  visible,
+  onClose,
+  onSelect,
+  current,
+  colors,
+  title = 'Огноо сонгох',
+  showPresets = true,
+}) {
   const today = dayKey();
   const [draft, setDraft] = useState(current || today);
   const [cursor, setCursor] = useState(() => new Date(current || today));
@@ -70,37 +78,39 @@ export default function DateRangeSheet({ visible, onClose, onSelect, current, co
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
-          <Text style={[styles.title, { color: colors.text }]}>Огноо сонгох</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
 
           {/* Хурдан сонголт */}
-          <View style={styles.presetRow}>
-            {presets.map((p) => {
-              const active = draft === p.value;
-              return (
-                <TouchableOpacity
-                  key={p.key}
-                  style={[
-                    styles.preset,
-                    { backgroundColor: active ? colors.primary : colors.surfaceContainer },
-                  ]}
-                  onPress={() => {
-                    setDraft(p.value);
-                    setCursor(new Date(p.value));
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: active ? colors.onPrimary : colors.textMuted,
-                      fontSize: 12,
-                      fontWeight: '600',
+          {showPresets ? (
+            <View style={styles.presetRow}>
+              {presets.map((p) => {
+                const active = draft === p.value;
+                return (
+                  <TouchableOpacity
+                    key={p.key}
+                    style={[
+                      styles.preset,
+                      { backgroundColor: active ? colors.primary : colors.surfaceContainer },
+                    ]}
+                    onPress={() => {
+                      setDraft(p.value);
+                      setCursor(new Date(p.value));
                     }}
                   >
-                    {p.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    <Text
+                      style={{
+                        color: active ? colors.onPrimary : colors.textMuted,
+                        fontSize: 12,
+                        fontWeight: '600',
+                      }}
+                    >
+                      {p.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
 
           {/* Сар сэлгэх */}
           <View style={styles.monthRow}>

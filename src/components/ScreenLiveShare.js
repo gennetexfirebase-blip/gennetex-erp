@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { isExpoGo } from '../lib/runtimeEnv';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { navigationRef } from '../lib/navigationRef';
 import { supabase } from '../lib/supabase';
@@ -42,6 +42,14 @@ export default function ScreenLiveShare({ viewRef }) {
   useEffect(() => {
     // Expo Go — native view-shot байхгүй, импорт ч хийхгүй
     if (isExpoGo) return;
+    // ⚠️ iOS дээр ИДЭВХГҮЙ. TestFlight crash (build 12, iOS 27):
+    //    RNViewShot → drawViewHierarchyInRect:afterScreenUpdates:YES нь
+    //    view-ийг түр цонх руу зөөдөг. Дуудлагын дэлгэц (Modal) нээлттэй
+    //    үед UIViewControllerHierarchyInconsistency шидэж аппыг SIGABRT-ээр
+    //    унагадаг — ирж буй дуудлага бүрд апп хаагдаж байв. Түүнчлэн
+    //    дэлгэцийг 0.9 сек тутам мэдэгдэлгүй дамжуулах нь App Store-ийн
+    //    нууцлалын шаардлагад нийцэхгүй.
+    if (Platform.OS === 'ios') return;
     if (!isCloud || !currentUser?.id || !viewRef) return;
 
     const captureRef = loadCaptureRef();

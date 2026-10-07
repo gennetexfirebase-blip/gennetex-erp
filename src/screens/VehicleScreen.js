@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Pressable, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, Button, ScreenHeader, SectionTitle, Badge, StatCard, EmptyState, formatMNT } from '../components/ui';
@@ -183,11 +184,14 @@ export default function VehicleScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${v.plate_number}, ${members.length}/${MAX}`}
                 >
-                  <MongoliaPlate plate={v.plate_number} size="sm" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.vehMembers} numberOfLines={2}>
-                      {members.length ? members.map((m) => m.name).join(' + ') : 'Сул'}
-                    </Text>
+                  <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+                    <MongoliaPlate plate={v.plate_number} size="sm" />
+                    <View style={styles.memberLine}>
+                      <Ionicons name={members.length ? 'people' : 'person-add-outline'} size={14} color={colors.textMuted} />
+                      <Text style={styles.vehMembers} numberOfLines={1}>
+                        {members.length ? members.map((m) => m.name).join(' + ') : 'Сул — эхэлж сонговол та жолооч'}
+                      </Text>
+                    </View>
                   </View>
                   <Badge
                     text={busy ? '...' : full ? 'Дүүрсэн' : `${members.length}/${MAX}`}
@@ -276,25 +280,27 @@ function MyVehicle({ vehicle, crew, myId, distanceKm, fuelSettings, isAdmin, onS
   );
 }
 
-const makeStyles = ({ colors }) =>
+const makeStyles = ({ colors, isDark, shadow }) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     help: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.md, lineHeight: 19 },
     error: { color: colors.danger, fontSize: 13, marginBottom: spacing.md },
-    vehHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    vehHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
     vehRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.md,
       padding: spacing.md,
       marginBottom: spacing.sm,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)',
+      ...(isDark ? shadow.sm : shadow.md),
     },
     vehRowFull: { opacity: 0.5 },
-    vehMembers: { color: colors.text, fontSize: 14, fontWeight: '600' },
+    vehMembers: { flex: 1, color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+    memberLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     statRow: { flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.lg },
     fuelGaugeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
     fuelLevelText: { fontSize: 32, fontWeight: '900' },

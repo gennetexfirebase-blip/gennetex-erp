@@ -40,6 +40,10 @@ import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
 import { SIZE_KINDS, sizeKind, detectSizeKind } from '../lib/supplySizes';
+import { LinearGradient } from 'expo-linear-gradient';
+import { brand } from '../theme/tokens';
+
+const HERO_GRADIENT = [brand[500], brand[700], brand[900]];
 
 const EMPTY_FORM = {
   name: '',
@@ -269,15 +273,15 @@ export default function InventoryScreen() {
     setRefreshing(false);
   };
 
+  // Бараа материал, багаж, хангамж БҮГД мөнгөн үнэлгээтэй.
+  const showPrice = true;
   const totalValue = useMemo(
-    () =>
-      category === 'tool'
-        ? filtered.reduce((sum, it) => sum + it.quantity * it.price, 0)
-        : 0,
-    [filtered, category]
+    () => (showPrice ? filtered.reduce(
+      (sum, it) => sum + Number(it.quantity || 0) * Number(it.price || 0),
+      0
+    ) : 0),
+    [filtered, showPrice]
   );
-
-  const showPrice = category === 'tool';
   /**
    * Хангамж дээр ЗӨВХӨН хувцас, гутал бүртгэнэ.
    *
@@ -712,6 +716,7 @@ ${res.items} нэр төрөл, ${res.serials} серийн дугаар шил�
       'Олгогдлоо',
       `${giveItem.name}
 ${qty} ${giveItem.unit} → ${employee.name}
+Мөнгөн дүн: ${formatMNT(Number(giveItem.price || 0) * Number(qty || 0))}
 Агуулахын үлдэгдэл: ${giveItem.quantity - qty} ${giveItem.unit}`
     );
     setGiveItem(null);
@@ -764,10 +769,11 @@ ${qty} ${giveItem.unit} → ${employee.name}
   const listHeader = (
     <View style={styles.listHeader}>
       {isAdmin && showPrice ? (
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Нийт үнэлгээ</Text>
+        <LinearGradient colors={HERO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summaryCard}>
+          <View pointerEvents="none" style={styles.summaryOrb} />
+          <Text style={styles.summaryLabel}>Агуулахын нийт үнэлгээ</Text>
           <Text style={styles.summaryValue}>{formatMNT(totalValue)}</Text>
-        </View>
+        </LinearGradient>
       ) : null}
 
       {!isAdmin ? (
@@ -875,6 +881,10 @@ ${qty} ${giveItem.unit} → ${employee.name}
                 <HeaderButton
                   title="Хэн авсан"
                   onPress={() => navigation.navigate('ToolAllocation', { category })}
+                />
+                <HeaderButton
+                  title="Орлого"
+                  onPress={() => navigation.navigate('InventoryReceipts', { category })}
                 />
                 <HeaderButton title="Нэмэх" onPress={openAdd} />
               </>
@@ -1677,15 +1687,14 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   listContent: { padding: spacing.lg, paddingBottom: 48 },
   listHeader: { marginBottom: spacing.md },
   summaryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
     marginBottom: spacing.md,
+    overflow: 'hidden',
   },
-  summaryLabel: { color: colors.textMuted, fontSize: 13 },
-  summaryValue: { color: colors.text, fontSize: 24, fontWeight: '900', marginTop: 2 },
+  summaryOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, top: -80, right: -40, backgroundColor: 'rgba(255,255,255,0.10)' },
+  summaryLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  summaryValue: { color: '#fff', fontSize: 30, fontWeight: '900', marginTop: 4, letterSpacing: -0.6 },
   banner: {
     backgroundColor: colors.primarySoft,
     borderRadius: radius.lg,

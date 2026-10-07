@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { spacing, radius } from '../theme';
+import { spacing } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import NavIcon from './NavIcon';
 import { useApp } from '../context/AppContext';
@@ -29,21 +29,22 @@ export default function TabBar({ state, descriptors, navigation }) {
   }, [currentUser?.id]);
 
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    // Хөвөгч цэс: дэлгэцийн ирмэгээс зайтай, бүрэн дугуй булантай.
+    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom - 6, 10) }]}>
       <View
         style={[
           styles.bar,
           {
-            backgroundColor: colors.surface,
-            borderColor: colors.outlineVariant,
+            backgroundColor: isDark ? colors.surfaceContainerHigh : colors.surface,
+            borderColor: isDark ? colors.outlineVariant : 'rgba(15,23,42,0.06)',
           },
           Platform.select({
-            android: { elevation: 6 },
-            ios: {
-              shadowColor: colors.glowShadow,
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: isDark ? 0.15 : 0.06,
-              shadowRadius: 16,
+            android: { elevation: 10 },
+            default: {
+              shadowColor: '#0f172a',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: isDark ? 0.4 : 0.12,
+              shadowRadius: 24,
             },
           }),
         ]}
@@ -88,15 +89,15 @@ export default function TabBar({ state, descriptors, navigation }) {
               <View
                 style={[
                   styles.iconWrap,
-                  focused && { backgroundColor: colors.primarySoft },
+                  focused && { backgroundColor: colors.primary },
                 ]}
               >
                 <NavIcon
                   name={icon}
                   size={22}
-                  color={focused ? colors.primary : colors.onSurfaceVariant}
+                  color={focused ? colors.onPrimary : colors.onSurfaceVariant}
                   active={focused}
-                  activeColor={colors.primary}
+                  activeColor={colors.onPrimary}
                 />
                 {showBadge ? (
                   <View style={[styles.countBadge, { backgroundColor: colors.danger }]}>
@@ -129,18 +130,16 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    paddingHorizontal: spacing.lg,
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 22,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 6,
     alignSelf: 'stretch',
-    maxWidth: 600,
-    gap: 4,
+    gap: 2,
+    borderRadius: 26,
     borderWidth: 1,
   },
   // Бүх таб ижил өргөнтэй. Идэвхтэй нь зөвхөн дүрсний ард бөмбөлөг нэмнэ —
@@ -148,15 +147,16 @@ const styles = StyleSheet.create({
   item: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 4,
+    minHeight: 56,
+    paddingVertical: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
   },
   iconWrap: {
-    width: 44,
+    width: 52,
     height: 32,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

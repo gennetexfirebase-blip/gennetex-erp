@@ -1,0 +1,60 @@
+{
+  "name": "gennetex-act-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gennetex ажил гүйцэтгэлийн актын Windows desktop application",
+  "author": "Gennetex LLC",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "mn.gennetex.acts",
+    "productName": "Gennetex Акт",
+    "copyright": "Copyright © 2026 Gennetex LLC",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../assets/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "icon": "../assets/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "Gennetex-Act-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gennetex Акт",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "Gennetex-Act-Portable-${version}.${ext}"
+    }
+  }
+}

@@ -1,409 +1,197 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+import { brand } from '../theme/tokens';
 import { useApp } from '../context/AppContext';
-import { Button } from '../components/ui';
-import { spacing, radius, type } from '../theme';
-import { useStyles, useTheme } from '../context/ThemeContext';
+import LegalLinks from '../components/LegalLinks';
 
-/**
- * Apple нэвтрэлт — ЗАЛХУУ ачаалалт.
- *
- * ⚠️ Expo Go нь тогтмол багц native модультай ирдэг. Дээд түвшинд
- *    import хийвэл тэнд байхгүй үед аппыг НЭЭХ ҮЕД унана. Төслийн
- *    бусад native модуль (WebRTC, Firebase, ONNX) бүгд ижил
- *    хэв маягаар ачаалагддаг.
- */
 let AppleAuthentication;
-try {
-  AppleAuthentication = require('expo-apple-authentication');
-} catch (e) {
-  AppleAuthentication = null;
-}
+try { AppleAuthentication = require('expo-apple-authentication'); } catch { AppleAuthentication = null; }
 
 export default function LoginScreen() {
-  const styles = useStyles(makeStyles);
-  const { gradients, colors } = useTheme();
+  const passwordRef = useRef(null);
   const { signIn, signInWithGoogle, signInWithApple, authError, isCloud } = useApp();
-
-  /**
-   * Apple товч харуулах эсэх.
-   *
-   * `isAvailableAsync` нь iOS 13-аас доош, эсвэл simulator дээр `false`
-   * буцаана. Байхгүй үед товчийг харуулбал дарахад алдаа өгнө.
-   */
-  const [appleReady, setAppleReady] = useState(false);
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || !AppleAuthentication) return;
-    AppleAuthentication.isAvailableAsync()
-      .then(setAppleReady)
-      .catch(() => setAppleReady(false));
-  }, []);
-
-  const handleApple = async () => {
-    try {
-      await signInWithApple();
-    } catch (e) {
-      // Алдааг `authError` дамжуулсан тул дэлгэц дээр өөрөө гарна.
-    }
-  };
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // ── Нэр / нууц үгээр нэвтрэх ────────────────────────────────────
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [pwLoading, setPwLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleReady, setAppleReady] = useState(false);
+  const [localError, setLocalError] = useState(null);
 
-  const handlePasswordLogin = async () => {
-    if (!identifier.trim() || !password) return;
-    setError(null);
-    setPwLoading(true);
-    try {
-      await signIn(identifier, password);
-    } catch (e) {
-      setError(mapError(e));
-    } finally {
-      setPwLoading(false);
-    }
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !AppleAuthentication) return;
+    AppleAuthentication.isAvailableAsync().then(setAppleReady).catch(() => setAppleReady(false));
+  }, []);
+
+  const submitPassword = async () => {
+    if (!identifier.trim() || !password || passwordLoading || googleLoading) return;
+    setLocalError(null); setPasswordLoading(true);
+    try { await signIn(identifier, password); } catch (error) { setLocalError(mapError(error)); } finally { setPasswordLoading(false); }
+  };
+  const submitGoogle = async () => {
+    if (passwordLoading || googleLoading) return;
+    setLocalError(null); setGoogleLoading(true);
+    try { await signInWithGoogle(); } catch (error) { setLocalError(mapError(error)); } finally { setGoogleLoading(false); }
+  };
+  const submitApple = async () => {
+    setLocalError(null);
+    try { await signInWithApple(); } catch (error) { setLocalError(mapError(error)); }
   };
 
-  const handleLogin = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (e) {
-      setError(mapError(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const shown = error || authError;
+  const shownError = localError || authError;
+  const disabled = passwordLoading || googleLoading;
 
   return (
     <View style={styles.root}>
-      {/* Брэнд өнгөт дээд талбар — логоны цэнхэр */}
-      <LinearGradient
-        colors={gradients.brand}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.brandPanel}
-      >
-        <SafeAreaView edges={['top']} style={styles.brandInner}>
-          {/* Логог тойрсон хоёр цагираг — гүн өгч, төвд анхаарал татна */}
-          <View style={styles.haloOuter}>
-            <View style={styles.haloInner}>
-              <View style={styles.logoTile}>
-                <Image
-                  source={require('../../assets/logo.png')}
-                  style={styles.logoImg}
-                  resizeMode="contain"
-                />
-              </View>
+      <StatusBar style="light" />
+      {/* Брэндийн hero — дэлгэцийн дээд хэсгийг дүүргэж, маягт түүн дээр давхарлана. */}
+      <LinearGradient colors={HERO} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+        <View style={[styles.orb, styles.orbA]} />
+        <View style={[styles.orb, styles.orbB]} />
+      </LinearGradient>
+      <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.brandRow}>
+            <View style={styles.logoBadge}>
+              <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="Gennetex" />
             </View>
           </View>
-          <Text style={styles.brandName}>Gennetex ERP</Text>
-          <Text style={styles.brandTag}>Generation of Network Experts</Text>
-        </SafeAreaView>
-      </LinearGradient>
+          <View style={styles.intro}>
+            <Text style={styles.kicker}>АЖЛЫН НЭГДСЭН ОРЧИН</Text>
+            <Text style={styles.title} accessibilityRole="header">Тавтай морил</Text>
+            <Text style={styles.subtitle}>Ирц, ажил, машин, бараа материалаа нэг дор удирдана.</Text>
+          </View>
 
-      {/* Цагаан хуудас — дээд талбар дээр давхарлана */}
-      <KeyboardAvoidingView
-        style={styles.sheetWrap}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.sheetScroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.sheet}>
-            <View style={styles.grip} />
+          {shownError ? <View style={styles.errorBox} accessibilityRole="alert"><Ionicons name="alert-circle-outline" size={18} color="#d92d20" /><Text style={styles.errorText}>{mapError(shownError)}</Text></View> : null}
 
-            <Text style={styles.title}>Тавтай морил</Text>
-            <Text style={styles.subtitle}>
-              Нэвтрэх нэр эсвэл ажлын хаягаараа нэвтэрнэ үү
-            </Text>
-
-            {shown ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{mapError(shown)}</Text>
-              </View>
-            ) : null}
-
-            {/* ⚠️ Apple 4.8: гуравдагч талын нэвтрэлт санал болгосон апп нь
-                тэнцэх хувийн нууцлалтай сонголтыг ЗААВАЛ өгөх ёстой.
-                Apple нь энэ товчийг бусадтай ижил эрэмбэд, доогуур биш
-                байрлуулахыг шаарддаг — тиймээс ДЭЭР нь тавив. */}
-            {Platform.OS === 'ios' && appleReady && AppleAuthentication ? (
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={12}
-                style={styles.appleBtn}
-                onPress={handleApple}
-              />
-            ) : null}
-
-            {Platform.OS === 'ios' && appleReady && AppleAuthentication ? (
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>эсвэл</Text>
-                <View style={styles.dividerLine} />
-              </View>
-            ) : null}
-
-            {/* ── Нэвтрэх нэр / и-мэйл ────────────────────────────────
-                ⚠️ Өмнө нь ЗӨВХӨН Google/Apple байсан. Дэлгүүрийн
-                   шинжээч OAuth-ээр нэвтэрч чадахгүй (танай Google
-                   Workspace-д хаяггүй) тул нэвтрэх боломжгүй байв —
-                   энэ нь App Store-ын хамгийн түгээмэл татгалзлын
-                   нэг. Нэр/нууц үгийн зам ЗААВАЛ хэрэгтэй. */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Нэвтрэх нэр эсвэл и-мэйл</Text>
+          <View style={styles.form}>
+            <Text style={styles.label}>И-мэйл</Text>
+            <View style={[styles.inputShell, focused === 'email' && styles.inputFocused]}>
+              <Ionicons name="mail-outline" size={20} color="#61738a" />
               <TextInput
                 value={identifier}
                 onChangeText={setIdentifier}
-                placeholder="Gennetex эсвэл ner@gennetex.mn"
-                placeholderTextColor={colors.textFaint}
+                placeholder="name@gennetex.com"
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType="email-address"
-                style={styles.input}
+                autoComplete="username"
+                textContentType="username"
                 returnKeyType="next"
+                onFocus={() => setFocused('email')}
+                onBlur={() => setFocused(null)}
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                editable={!disabled}
               />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Нууц үг</Text>
-              <View style={styles.pwWrap}>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textFaint}
-                  secureTextEntry={!showPw}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={[styles.input, styles.pwInput]}
-                  returnKeyType="go"
-                  onSubmitEditing={handlePasswordLogin}
-                />
-                <Text
-                  style={styles.pwToggle}
-                  onPress={() => setShowPw((v) => !v)}
-                  accessibilityRole="button"
-                  accessibilityLabel={showPw ? 'Нууц үг нуух' : 'Нууц үг харуулах'}
-                >
-                  <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={19} color={colors.textMuted} />
-                </Text>
-              </View>
-            </View>
-
-            <Button
-              title={pwLoading ? 'Нэвтэрч байна…' : 'Нэвтрэх'}
-              size="lg"
-              onPress={handlePasswordLogin}
-              loading={pwLoading}
-              disabled={pwLoading || !identifier.trim() || !password}
-              style={styles.cta}
-            />
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>эсвэл</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <Button
-              title={loading ? 'Google нээгдэж байна…' : 'Google-ээр нэвтрэх'}
-              icon={loading ? undefined : 'G'}
-              size="lg"
-              onPress={handleLogin}
-              loading={loading}
-              disabled={loading}
-              style={styles.cta}
-            />
-
-            <View style={styles.hintRow}>
-              <Ionicons
-                name={isCloud ? 'shield-checkmark-outline' : 'warning-outline'}
-                size={15}
-                color={isCloud ? colors.textFaint : colors.warning}
-                style={{ marginTop: 1.5 }}
+            <Text style={[styles.label, styles.passwordLabel]}>Нууц үг</Text>
+            <View style={[styles.inputShell, focused === 'password' && styles.inputFocused]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#61738a" />
+              <TextInput
+                ref={passwordRef}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Нууц үгээ оруулна уу"
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                returnKeyType="go"
+                onFocus={() => setFocused('password')}
+                onBlur={() => setFocused(null)}
+                onSubmitEditing={submitPassword}
+                editable={!disabled}
               />
-              <Text style={isCloud ? styles.hint : styles.note}>
-                {isCloud
-                  ? 'Зөвхөн байгууллагаас бүртгэсэн хаяг нэвтэрнэ. Хаягаа админаас лавлана уу.'
-                  : 'Supabase холбогдоогүй байна. Нэвтрэлт ажиллахын тулд .env тохируулна уу.'}
-              </Text>
+              <Pressable onPress={() => setShowPassword((value) => !value)} style={styles.eyeButton} accessibilityRole="button" accessibilityLabel={showPassword ? 'Нууц үг нуух' : 'Нууц үг харуулах'}>
+                <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={21} color="#536581" />
+              </Pressable>
             </View>
+            <Pressable onPress={() => setLocalError('Нууц үг сэргээх бол байгууллагын админтай холбогдоно уу.')} style={styles.forgot}>
+              <Text style={styles.forgotText}>Нууц үгээ мартсан уу?</Text>
+            </Pressable>
+
+            <Pressable onPress={submitPassword} disabled={disabled || !identifier.trim() || !password} style={({ pressed }) => [styles.loginButton, (!identifier.trim() || !password) && styles.loginDisabled, pressed && styles.pressed]}>
+                {passwordLoading ? <ActivityIndicator color="#fff" /> : <><Text style={styles.loginText}>Нэвтрэх</Text><Ionicons name="arrow-forward" size={20} color="#fff" /></>}
+            </Pressable>
+
+            <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText}>эсвэл</Text><View style={styles.dividerLine} /></View>
+            <View style={styles.socialRow}>
+              <Pressable onPress={submitGoogle} disabled={disabled} style={styles.socialButton}>
+                {googleLoading ? <ActivityIndicator color="#0075ad" /> : <><Text style={styles.googleMark}>G</Text><Text style={styles.socialText}>Google-ээр нэвтрэх</Text></>}
+              </Pressable>
+              {Platform.OS === 'ios' && appleReady && AppleAuthentication ? (
+                <AppleAuthentication.AppleAuthenticationButton buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE} cornerRadius={14} style={styles.appleButton} onPress={submitApple} />
+              ) : null}
+            </View>
+            {!isCloud ? <Text style={styles.serviceNote}>Нэвтрэх үйлчилгээ түр боломжгүй байна. Сүлжээгээ шалгаад дахин оролдоно уу.</Text> : null}
           </View>
+          <View style={styles.securityNote}>
+            <Ionicons name="shield-checkmark-outline" size={17} color="#047857" />
+            <Text style={styles.securityText}>Зөвхөн байгууллагаас эрх олгосон ажилтан нэвтрэх боломжтой.</Text>
+          </View>
+          <LegalLinks compact />
         </ScrollView>
       </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
 
+const HERO = [brand[500], brand[700], brand[900]];
+
 function mapError(error = '') {
   const raw = String(typeof error === 'string' ? error : error?.message || '').trim();
-  const code = typeof error === 'string' ? '' : String(error?.code || '');
   let decoded = raw;
-  try {
-    decoded = decodeURIComponent(raw.replace(/\+/g, ' '));
-  } catch (e) {}
-
-  const searchable = `${code} ${raw} ${decoded}`;
-  if (
-    /gmail_not_authorized|not authorized|unauthorized email|email[^\n]*(?:not registered|not allowed)|not[^\n]*allowlist|зөвшөөрөгдөөгүй|бүртгэлгүй|unexpected_failure|database error (?:saving|creating) new user|failed to create user/i.test(searchable)
-    || /^%.*%$/s.test(raw)
-  ) {
-    return 'Энэ мэйл бүртгэлгүй байна.';
-  }
-  if (/unsupported provider|provider is not enabled/i.test(searchable))
-    return 'Google нэвтрэлт Supabase дээр хараахан идэвхжээгүй байна.';
-  if (!decoded || (!/\s/.test(decoded) && decoded.length > 64))
-    return 'Нэвтрэх үед алдаа гарлаа. Дахин оролдоно уу.';
+  try { decoded = decodeURIComponent(raw.replace(/\+/g, ' ')); } catch {}
+  if (/not authorized|not registered|not allowed|gmail_not_authorized|бүртгэлгүй|зөвшөөрөгдөөгүй/i.test(decoded)) return 'Энэ и-мэйл бүртгэлгүй байна.';
+  if (/invalid login|invalid credentials|password/i.test(decoded)) return 'И-мэйл эсвэл нууц үг буруу байна.';
+  if (!decoded) return 'Нэвтрэх үед алдаа гарлаа. Дахин оролдоно уу.';
   return decoded;
 }
 
-const makeStyles = ({ colors, shadow }) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-
-  brandPanel: { paddingBottom: spacing.xxl * 2 },
-  brandInner: { alignItems: 'center', paddingTop: spacing.xxl, paddingHorizontal: spacing.lg },
-  // Логог тойрсон хоёр цагираг — гүн өгнө.
-  haloOuter: {
-    width: 132,
-    height: 132,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  haloInner: {
-    width: 108,
-    height: 108,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  logoTile: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.xl,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    ...shadow.md,
-  },
-  logoImg: { width: '100%', height: '100%' },
-  // Хуудасны дээд ирмэг дэх бариул — доороос гарч ирсэн мэдрэмж өгнө.
-  grip: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
-  },
-  // Брэнд градиент дээрх текст — хоёр горимд ижил тул цагаан тогтмол.
-  brandName: { ...type.h1, color: '#ffffff' },
-  brandTag: {
-    ...type.caption,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 4,
-    letterSpacing: 0.4,
-  },
-
-  sheetWrap: { flex: 1, marginTop: -spacing.xxl },
-  sheetScroll: { flexGrow: 1, justifyContent: 'flex-start', padding: spacing.lg, width: '100%', maxWidth: 520, alignSelf: 'center' },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.lg,
-  },
-  title: { ...type.h2, color: colors.text },
-  subtitle: { ...type.body, color: colors.textMuted, marginTop: 6 },
-
-  errorBox: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.danger + '1a',
-    borderLeftWidth: 3,
-    borderLeftColor: colors.danger,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  errorText: { ...type.caption, fontSize: 13, color: colors.danger, lineHeight: 18 },
-
-  appleBtn: { height: 52, marginTop: spacing.xl },
-
-  // Нэвтрэх хоёр аргын хооронд
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: -spacing.sm,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.outlineVariant },
-  dividerText: { ...type.caption, color: colors.textFaint },
-  field: { marginBottom: spacing.md },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt || colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? 13 : 10,
-    fontSize: 15.5,
-    color: colors.text,
-  },
-  pwWrap: { position: 'relative', justifyContent: 'center' },
-  pwInput: { paddingRight: 46 },
-  pwToggle: { position: 'absolute', right: spacing.md, padding: 4 },
-
-  cta: { marginTop: spacing.xl },
-
-  hintRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-  },
-  hint: {
-    ...type.caption,
-    flex: 1,
-    color: colors.textFaint,
-    lineHeight: 18,
-  },
-  note: {
-    ...type.caption,
-    color: colors.warning,
-    marginTop: spacing.lg,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#f3f6fa' }, flex: { flex: 1 },
+  hero: { position: 'absolute', top: 0, left: 0, right: 0, height: 360, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden' },
+  orb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
+  orbA: { width: 260, height: 260, top: -90, right: -70 },
+  orbB: { width: 160, height: 160, top: 170, left: -60, backgroundColor: 'rgba(255,255,255,0.06)' },
+  content: { flexGrow: 1, width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
+  brandRow: { alignItems: 'flex-start', marginTop: 8 },
+  logoBadge: { backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, shadowColor: '#082c40', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 6 },
+  logo: { width: 104, height: 56 },
+  intro: { marginTop: 22, marginBottom: 22 },
+  kicker: { color: 'rgba(255,255,255,0.78)', fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 1.2 },
+  title: { color: '#fff', fontSize: 32, lineHeight: 38, fontWeight: '800', letterSpacing: -0.7, marginTop: 6 },
+  subtitle: { maxWidth: 360, color: 'rgba(255,255,255,0.86)', fontSize: 15, lineHeight: 22, marginTop: 6 },
+  form: { width: '100%', borderRadius: 24, backgroundColor: '#fff', padding: 20, shadowColor: '#0f172a', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.1, shadowRadius: 28, elevation: 8 },
+  errorBox: { width: '100%', flexDirection: 'row', gap: 9, alignItems: 'flex-start', backgroundColor: '#fff1f2', borderRadius: 14, padding: 12, marginBottom: 14 },
+  errorText: { flex: 1, color: '#7f1d1d', fontSize: 13, lineHeight: 18 },
+  label: { color: '#334155', fontSize: 13, lineHeight: 18, fontWeight: '600', marginBottom: 7 }, passwordLabel: { marginTop: 15 },
+  inputShell: { minHeight: 54, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc', borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
+  inputFocused: { borderColor: brand[500], backgroundColor: '#fff' }, input: { flex: 1, height: 52, color: '#0f172a', fontSize: 16, paddingHorizontal: 11 },
+  eyeButton: { width: 42, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: -10 },
+  forgot: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingLeft: 18 }, forgotText: { color: brand[600], fontSize: 13, fontWeight: '600' },
+  loginButton: { minHeight: 54, borderRadius: 14, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, shadowColor: brand[700], shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 4 },
+  loginDisabled: { backgroundColor: '#94a3b8', shadowOpacity: 0, elevation: 0 },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+  loginText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 18 }, dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: '#cbd5e1' }, dividerText: { color: '#64748b', fontSize: 12 },
+  socialRow: { gap: 10 },
+  socialButton: { minHeight: 52, borderRadius: 14, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11 },
+  googleMark: { color: '#4285f4', fontSize: 20, fontWeight: '800' }, socialText: { color: '#0f172a', fontSize: 15, fontWeight: '600' },
+  appleButton: { width: '100%', height: 52 }, serviceNote: { color: '#92400e', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 12 },
+  securityNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 6, marginTop: 18, marginBottom: 8 },
+  securityText: { flex: 1, color: '#64748b', fontSize: 12, lineHeight: 18 },
 });

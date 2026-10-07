@@ -22,7 +22,7 @@ import * as faceCloud from '../services/faceCloudService';
 import * as faceEdge from '../services/faceEdgeService';
 import { friendlyError } from '../lib/erpMessages';
 import * as deviceApi from '../services/deviceAuthService';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useApp } from '../context/AppContext';
 import { Card, Button, Field, SectionTitle, EmptyState } from '../components/ui';
@@ -42,7 +42,7 @@ import {
   // Бүсэд нэвтрэх/гарах дуу нь `components/LocationTracker.js`-д
   // шилжсэн — бүх дэлгэц, бүх эрхэд ажиллах ёстой тул.
 } from '../services/attendanceSoundService';
-import { dayKey, formatDuration, calculateDayWork } from '../lib/workHours';
+import { dayKey, formatAttendanceMinutes, formatDuration, calculateDayWork } from '../lib/workHours';
 import {
   WEEKDAYS,
   mergeRestDays,
@@ -53,8 +53,12 @@ import {
 } from '../lib/breakSchedule';
 import { distanceMeters } from '../lib/geo';
 import { spacing, radius } from '../theme';
-import { colors as employeeColors } from '../theme/attendanceLight';
-import { colors as adminColors } from '../theme/attendanceDark';
+import { brand } from '../theme/tokens';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors as employeeColors, adminLightColors } from '../theme/attendanceLight';
+import { colors as adminDarkColors } from '../theme/attendanceDark';
+import { useTheme } from '../context/ThemeContext';
+import SlideToConfirm from '../components/SlideToConfirm';
 import EmployeeAttendanceSummary from '../components/EmployeeAttendanceSummary';
 import ChatAvatar from '../components/ChatAvatar';
 import WorkHoursRing from '../components/WorkHoursRing';
@@ -63,6 +67,7 @@ import DateRangeFilterBar from '../components/DateRangeFilterBar';
 import AttendanceFilterSheet from '../components/AttendanceFilterSheet';
 import DateRangeSheet from '../components/DateRangeSheet';
 import * as deptApi from '../services/departmentService';
+import * as companyApi from '../services/companySettingsService';
 
 /**
  * Царай таниулт бүтэлгүйтсэн ШАЛТГААНЫГ хэрэглэгчид тодорхой хэлнэ.
@@ -193,15 +198,20 @@ function weekDates(weekOffset, isoDays) {
 export default function AttendanceScreen() {
   const navigation = useNavigation();
   const faceDetector = useFaceDetection();
-  // ⚠️ Энэ дэлгэц нь аппын Dark/Light СОНГОЛТООС ХАМААРАХГҮЙ:
+  // Өнгө:
   //   • ажилтны тал — үргэлж ЦАЙВАР (`employeeColors`)
-  //   • админы тал  — үргэлж БАРААН (`adminColors`)
-  // Доорх `styles`-ийг зөвхөн АДМИН тал өнгөтэйгөөр ашигладаг тул
-  // `useTheme()`-ийн оронд бараан палитрыг шууд өгнө. Эс бөгөөс утас
-  // цайвар горимд байхад админы modal-ууд цагаан болж, эргэн тойрны
-  // бараан самбартай зөрчилдөнө.
+  //   • админы тал  — аппын Dark/Light горимыг дагана (`adminColors`).
+  //     Өмнө нь үргэлж бараан байсан тул гэрэл горимд бусад дэлгэцээс
+  //     огцом ялгардаг байв. Доорх `styles` болон modal-ууд ч мөн энэ
+  //     палитрыг авдаг тул самбартайгаа нийцтэй хэвээр.
+  const { isDark } = useTheme();
+  // Админы самбар FlatList-ээр зурагддаг тул SafeAreaView-гүй — iPhone дээр
+  // толгой (аватар, мэдэгдэл, тохиргоо) цаг/батерейны мөрний доор орж
+  // дарагдахгүй байв. Дээд зайг шууд тооцно.
+  const insets = useSafeAreaInsets();
+  const adminColors = isDark ? adminDarkColors : adminLightColors;
   const colors = adminColors;
-  const styles = useMemo(() => makeStyles({ colors: adminColors }), []);
+  const styles = useMemo(() => makeStyles({ colors: adminColors }), [adminColors]);
   // Notch / Dynamic Island-тай зөрчилдөхгүй байхын тулд.
   // `SafeAreaView` нь `position: absolute` дотор inset-ээ зөв тооцдоггүй
   // тул шууд hook ашиглана.
@@ -275,6 +285,19 @@ export default function AttendanceScreen() {
     locationId: '',
     note: '',
   });
+  const [companySettings, setCompanySettings] = useState(companyApi.DEFAULT_COMPANY_SETTINGS);
+
+  useEffect(() => {
+    let active = true;
+    companyApi.fetchCompanySettings()
+      .then((value) => {
+        if (!active) return;
+        setCompanySettings(value);
+        setShiftForm((current) => ({ ...current, startTime: companyApi.workStartLabel(value) }));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   /**
    * Долоо хоногийн сонгосон өдрүүд (0 = Ням … 6 = Бямба).
@@ -655,7 +678,7 @@ export default function AttendanceScreen() {
   useEffect(() => {
     if (!isCloud || isAdmin || !myShift || shiftAlertSent.current) return;
     const check = async () => {
-      const [h, m] = (myShift.start_time || '09:00').split(':').map(Number);
+      const [h, m] = companyApi.workStartLabel(companySettings).split(':').map(Number);
       const start = new Date();
       start.setHours(h, m, 0, 0);
       const grace = new Date(start.getTime() + 10 * 60000);
@@ -679,13 +702,13 @@ export default function AttendanceScreen() {
       try {
         await notifyApi.notifyShiftMissed({
           staffName: profile?.name,
-          shiftTime: myShift.start_time,
+          shiftTime: companyApi.workStartLabel(companySettings),
           locationName: myShift.location_name,
         });
       } catch (e) {}
     };
     check();
-  }, [isCloud, isAdmin, myShift, myDayAttendance, locations, profile?.name]);
+  }, [isCloud, isAdmin, myShift, myDayAttendance, locations, profile?.name, companySettings]);
 
   const startCheck = async (type) => {
     if (facePreparing) return;
@@ -883,7 +906,7 @@ export default function AttendanceScreen() {
       longitude: loc?.longitude,
     });
     await loadMyDay();
-    await refreshShiftStatus();
+    await refreshShiftStatus({ requestTracking: type === 'check_in' });
     goPickVehicle(type);
 
     // Бүртгэгдсэн мөчийн цаг — мэдэгдэл дээр харагдана.
@@ -1118,7 +1141,7 @@ export default function AttendanceScreen() {
       });
       await loadRecords();
       await loadMyDay();
-      await refreshShiftStatus();
+      await refreshShiftStatus({ requestTracking: pendingType === 'check_in' });
       goPickVehicle(pendingType);
       setCameraVisible(false);
       Alert.alert(
@@ -1173,7 +1196,7 @@ export default function AttendanceScreen() {
         });
         await loadRecords();
         await loadMyDay();
-        await refreshShiftStatus();
+        await refreshShiftStatus({ requestTracking: pendingType === 'check_in' });
         goPickVehicle(pendingType);
         setCameraVisible(false);
         Alert.alert(
@@ -1220,7 +1243,7 @@ export default function AttendanceScreen() {
         });
         await loadRecords();
         await loadMyDay();
-        await refreshShiftStatus();
+        await refreshShiftStatus({ requestTracking: pendingType === 'check_in' });
         goPickVehicle(pendingType);
         setVerificationStep(0);
         setLivenessChallenge(null);
@@ -1340,7 +1363,7 @@ export default function AttendanceScreen() {
             userId: shiftForm.userId,
             userName: worker.name,
             shiftDate: d,
-            startTime: shiftForm.startTime,
+            startTime: companyApi.workStartLabel(companySettings),
             endTime: shiftForm.endTime,
             locationId: shiftForm.locationId || null,
             note: shiftForm.note.trim(),
@@ -1514,11 +1537,23 @@ ${dates[0]} – ${dates[dates.length - 1]}`
     return Math.max(0, Math.round((end - new Date(shiftStatus.checkInAt)) / 60000));
   })();
 
+  // Hero gradient дээрх өнгө (хоёр горимд ижил — дэвсгэр нь үргэлж брэнд цэнхэр).
+  const hc = {
+    text: '#ffffff',
+    textMuted: 'rgba(255,255,255,0.78)',
+    textFaint: 'rgba(255,255,255,0.66)',
+    primary: '#ffffff',
+    onPrimary: brand[700],
+    surfaceContainerHigh: 'rgba(255,255,255,0.18)',
+    outlineVariant: 'rgba(255,255,255,0.22)',
+    danger: '#ff7a70',
+  };
+
   const myStatus = shiftStatus.checkedOut
-    ? { label: 'Ажил дууссан', icon: 'checkmark-circle', bg: 'rgba(63,207,142,0.16)', fg: '#3fcf8e' }
+    ? { label: 'Ажил дууссан', icon: 'checkmark-circle', bg: adminColors.success + '24', fg: adminColors.success, onBrand: '#86efac' }
     : shiftStatus.checkedIn
-      ? { label: 'Ажил дээр', icon: 'ellipse', bg: 'rgba(0,153,219,0.16)', fg: adminColors.primary }
-      : { label: 'Бүртгүүлээгүй', icon: 'alert-circle-outline', bg: 'rgba(245,181,68,0.16)', fg: '#f5b544' };
+      ? { label: 'Ажил дээр', icon: 'ellipse', bg: 'rgba(0,153,219,0.16)', fg: adminColors.primary, onBrand: '#7dd3fc' }
+      : { label: 'Бүртгүүлээгүй', icon: 'alert-circle-outline', bg: adminColors.warning + '24', fg: adminColors.warning, onBrand: '#fde68a' };
 
   // Админы ӨӨРИЙНХ нь одоогийн байршил — бусад ажилтны байршлыг энд ХАРУУЛАХГҮЙ.
   const adminNearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
@@ -1567,20 +1602,29 @@ ${dates[0]} – ${dates[dates.length - 1]}`
           Админ ч ажилтан адил ирцээ бүртгүүлнэ. Ажилтны талтай ИЖИЛ
           `quickAttendance` урсгалыг ашиглана — царай таниулахгүй, шууд
           бүртгэнэ (байршил + төхөөрөмжийн шалгалт хэвээр). */}
-      <View style={[dashStyles.heroCard, { backgroundColor: adminColors.surfaceContainer }]}>
+      {/* Брэндийн gradient hero — өдрийн ирцийн гол карт. Дотор нь бүх
+          өнгө `hc` (gradient дээр уншигдах цагаан палитр). */}
+      <LinearGradient
+        colors={[brand[500], brand[700], brand[950]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[dashStyles.heroCard, dashStyles.heroGlow]}
+      >
+        <View pointerEvents="none" style={dashStyles.heroOrbA} />
+        <View pointerEvents="none" style={dashStyles.heroOrbB} />
         <View style={dashStyles.heroTopRow}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Өнөөдрийн ирц</Text>
-            <Text style={{ color: adminColors.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>
+            <Text style={{ color: hc.textMuted, fontSize: 12 }}>Өнөөдрийн ирц</Text>
+            <Text style={{ color: hc.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>
               {shiftStatus.checkedOut
                 ? fmtHM(shiftStatus.checkOutAt)
                 : shiftStatus.checkedIn
                   ? fmtHM(shiftStatus.checkInAt)
                   : '--:--'}
             </Text>
-            <View style={[dashStyles.statusChip, { backgroundColor: myStatus.bg }]}>
-              <Ionicons name={myStatus.icon} size={14} color={myStatus.fg} />
-              <Text style={{ color: myStatus.fg, fontSize: 13, fontWeight: '700' }}>
+            <View style={[dashStyles.statusChip, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
+              <Ionicons name={myStatus.icon} size={14} color={myStatus.onBrand} />
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
                 {myStatus.label}
               </Text>
             </View>
@@ -1588,31 +1632,31 @@ ${dates[0]} – ${dates[dates.length - 1]}`
           <WorkHoursRing
             workedMinutes={myWorkedMinutes}
             targetMinutes={myShift ? shiftMinutes(myShift) : 480}
-            colors={adminColors}
+            colors={hc}
           />
         </View>
 
         {/* Ирсэн / Явсан хоёр багана */}
         <View style={dashStyles.inOutRow}>
           <View style={dashStyles.inOutCell}>
-            <View style={[dashStyles.inOutIcon, { borderColor: adminColors.primary }]}>
-              <Ionicons name="arrow-forward" size={15} color={adminColors.primary} />
+            <View style={[dashStyles.inOutIcon, { borderColor: hc.primary }]}>
+              <Ionicons name="arrow-forward" size={15} color={hc.primary} />
             </View>
             <View>
-              <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Ирсэн</Text>
-              <Text style={{ color: adminColors.text, fontSize: 17, fontWeight: '800' }}>
+              <Text style={{ color: hc.textMuted, fontSize: 12 }}>Ирсэн</Text>
+              <Text style={{ color: hc.text, fontSize: 17, fontWeight: '800' }}>
                 {fmtHM(shiftStatus.checkInAt)}
               </Text>
             </View>
           </View>
-          <View style={[dashStyles.inOutDivider, { backgroundColor: adminColors.outlineVariant }]} />
+          <View style={[dashStyles.inOutDivider, { backgroundColor: hc.outlineVariant }]} />
           <View style={dashStyles.inOutCell}>
-            <View style={[dashStyles.inOutIcon, { borderColor: adminColors.primary }]}>
-              <Ionicons name="arrow-forward" size={15} color={adminColors.primary} />
+            <View style={[dashStyles.inOutIcon, { borderColor: hc.primary }]}>
+              <Ionicons name="arrow-forward" size={15} color={hc.primary} />
             </View>
             <View>
-              <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>Явсан</Text>
-              <Text style={{ color: adminColors.text, fontSize: 17, fontWeight: '800' }}>
+              <Text style={{ color: hc.textMuted, fontSize: 12 }}>Явсан</Text>
+              <Text style={{ color: hc.text, fontSize: 17, fontWeight: '800' }}>
                 {fmtHM(shiftStatus.checkOutAt)}
               </Text>
             </View>
@@ -1620,37 +1664,47 @@ ${dates[0]} – ${dates[dates.length - 1]}`
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
-          <Ionicons name="location-outline" size={14} color={adminColors.textFaint} />
-          <Text style={{ color: adminColors.textFaint, fontSize: 12, flex: 1 }} numberOfLines={1}>
+          <Ionicons name="location-outline" size={14} color={hc.textFaint} />
+          <Text style={{ color: hc.textFaint, fontSize: 12, flex: 1 }} numberOfLines={1}>
             {adminLocationLabel}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 7,
+            marginTop: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 9,
+            borderRadius: 12,
+            backgroundColor: hc.primary + '18',
+          }}
+        >
+          <Ionicons name="time-outline" size={16} color={hc.primary} />
+          <Text style={{ color: hc.primary, fontSize: 12, fontWeight: '700', flex: 1 }}>
+            Ирэх цаг {companyApi.workStartLabel(companySettings)} · {companyApi.lateFromLabel(companySettings)}-ээс хоцорсон
           </Text>
         </View>
 
         {/* Ирлээ / Явлаа */}
         {!shiftStatus.checkedOut ? (
           <View style={dashStyles.heroBtnRow}>
+            {/* Гулсуулж бүртгэнэ: Ирлээ → баруун, Явлаа ← зүүн. Санамсаргүй
+                дарж ирц бүртгэгдэхээс сэргийлнэ. */}
             {!shiftStatus.checkedIn ? (
-              <TouchableOpacity
-                style={[dashStyles.heroBtn, { backgroundColor: adminColors.primary, opacity: busy ? 0.55 : 1 }]}
-                disabled={busy}
-                onPress={() => quickAttendance('check_in')}
-                activeOpacity={0.85}
-              >
-                <Text style={{ color: adminColors.onPrimary, fontWeight: '800', fontSize: 15 }}>Ирлээ</Text>
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <SlideToConfirm label="Ирлээ" direction="right" color="#ffffff" textColor={brand[700]} trackColor="rgba(255,255,255,0.14)" loading={busy} onConfirm={() => quickAttendance('check_in')} />
+              </View>
             ) : (
-              <TouchableOpacity
-                style={[dashStyles.heroBtn, { backgroundColor: '#ff6b60', opacity: busy ? 0.55 : 1 }]}
-                disabled={busy}
-                onPress={() => quickAttendance('check_out')}
-                activeOpacity={0.85}
-              >
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Явлаа</Text>
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <SlideToConfirm label="Явлаа" direction="left" color="#ff7a70" trackColor="rgba(255,255,255,0.14)" loading={busy} onConfirm={() => quickAttendance('check_out')} />
+              </View>
             )}
           </View>
         ) : null}
-      </View>
+      </LinearGradient>
 
       {/* Хурдан холбоос — доод хөвөгч цэсийг орлоно */}
       <View style={dashStyles.quickRow}>
@@ -1870,7 +1924,7 @@ ${dates[0]} – ${dates[dates.length - 1]}`
         data={filteredDayRows}
         keyExtractor={(r) => r.employee_id}
         ListHeaderComponent={adminHeader}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingTop: insets.top + spacing.md, paddingBottom: 140 }}
         refreshControl={
           <RefreshControl
             refreshing={dayRowsLoading}
@@ -1951,7 +2005,11 @@ ${dates[0]} – ${dates[dates.length - 1]}`
                 fontWeight: item.late_minutes > 0 ? '700' : '400',
               }}
             >
-              {item.late_minutes > 0 ? `${item.late_minutes}м` : item.early_leave_minutes > 0 ? `-${item.early_leave_minutes}м` : '--'}
+              {item.late_minutes > 0
+                ? formatAttendanceMinutes(item.late_minutes)
+                : item.early_leave_minutes > 0
+                  ? `-${formatAttendanceMinutes(item.early_leave_minutes)}`
+                  : '--'}
             </Text>
           </TouchableOpacity>
         )}
@@ -2244,12 +2302,13 @@ ${dates[0]} – ${dates[dates.length - 1]}`
                 ))}
               </ScrollView>
               <View style={styles.timeRow}>
-                <TimeSelect
-                  label="Эхлэх цаг"
-                  value={shiftForm.startTime}
-                  onChange={(t) => setShiftForm({ ...shiftForm, startTime: t })}
-                  allowClear={false}
-                />
+                <View style={styles.fixedTimeWrap}>
+                  <Text style={styles.fixedTimeLabel}>Эхлэх цаг</Text>
+                  <View style={styles.fixedTimeBox}>
+                    <Ionicons name="lock-closed-outline" size={15} color={adminColors.primary} />
+                    <Text style={styles.fixedTimeValue}>{companyApi.workStartLabel(companySettings)}</Text>
+                  </View>
+                </View>
                 <TimeSelect
                   label="Дуусах цаг"
                   value={shiftForm.endTime}
@@ -2321,6 +2380,25 @@ const dashStyles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,153,219,0.28)',
   },
+  heroGlow: {
+    borderWidth: 0,
+    overflow: 'hidden',
+    shadowColor: '#0075ad',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.35,
+    shadowRadius: 26,
+    elevation: 10,
+  },
+  heroOrbA: { position: 'absolute', width: 240, height: 240, borderRadius: 120, top: -110, right: -70, backgroundColor: 'rgba(255,255,255,0.10)' },
+  heroOrbB: { position: 'absolute', width: 180, height: 180, borderRadius: 90, bottom: -90, left: -50, backgroundColor: 'rgba(56,189,248,0.18)' },
+  heroCardLight: {
+    borderColor: 'rgba(15,23,42,0.05)',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+  },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   statusChip: {
@@ -2341,7 +2419,7 @@ const dashStyles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingTop: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.10)',
+    borderTopColor: 'rgba(255,255,255,0.18)',
   },
   inOutCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   inOutIcon: {
@@ -2701,6 +2779,20 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   weekDay: { width: 56, color: colors.text, fontWeight: '800', fontSize: 13, paddingTop: spacing.lg },
   timeRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  fixedTimeWrap: { flex: 1 },
+  fixedTimeLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  fixedTimeBox: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '14',
+  },
+  fixedTimeValue: { color: colors.primary, fontSize: 15, fontWeight: '800' },
   restBadge: {
     color: colors.accent,
     fontSize: 14,

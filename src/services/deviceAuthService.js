@@ -105,6 +105,8 @@ export async function getDeviceFingerprint() {
  */
 export async function verifyDeviceForAttendance(userId) {
   if (!userId) return { verified: false, deviceId: null, reason: 'no-user' };
+  // The local demo has no real administrator to approve a reviewer's device.
+  if (supabase?.__demo) return { verified: true, deviceId: null, reason: null };
   let deviceId = null;
   try {
     const fp = await getDeviceFingerprint();
@@ -129,8 +131,10 @@ export async function verifyDeviceForAttendance(userId) {
 
 export async function ensureDeviceApproval(user) {
   if (!user?.id) return { status: 'approved', bypass: true };
-  const fp = await getDeviceFingerprint();
+  if (supabase?.__demo) return { status: 'approved', bypass: true, demo: true };
+  let fp = null;
   try {
+    fp = await getDeviceFingerprint();
     const { data: existing, error } = await supabase
       .from(TABLE)
       .select('*')
@@ -139,11 +143,13 @@ export async function ensureDeviceApproval(user) {
       .maybeSingle();
 
     if (error) {
-      // Хүснэгт байхгүй / алдаа — хатуу блоклохгүй
-      return { status: 'approved', deviceId: fp.device_id, error: true };
+      return { status: 'pending', deviceId: fp.device_id, error: true };
     }
 
     if (existing) {
+      if (existing.status === 'pending') {
+        supabase.functions.invoke('device-approval-notify', { body: { requestId: existing.id } }).catch(() => {});
+      }
       return { status: existing.status || 'pending', deviceId: fp.device_id, row: existing };
     }
 
@@ -159,8 +165,9 @@ export async function ensureDeviceApproval(user) {
       .select()
       .single();
     if (insErr) {
-      return { status: 'approved', deviceId: fp.device_id, error: true };
+      return { status: 'pending', deviceId: fp.device_id, error: true };
     }
+    supabase.functions.invoke('device-approval-notify', { body: { requestId: created.id } }).catch(() => {});
     try {
       await notifyApi.notifyDeviceRequestToSuperadmins({
         userName: user.name,
@@ -173,7 +180,7 @@ export async function ensureDeviceApproval(user) {
     } catch (e) {}
     return { status: 'pending', deviceId: fp.device_id, row: created };
   } catch (e) {
-    return { status: 'approved', deviceId: fp.device_id, error: true };
+    return { status: 'pending', deviceId: fp?.device_id || null, error: true };
   }
 }
 

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import HeaderAccountActions from './HeaderAccountActions';
 import { Button, Card } from './ui';
+import SlideToConfirm from './SlideToConfirm';
 
 export default function EmployeeAttendanceSummary({ profile, shiftStatus, busy, scheduleLabel, dateLabel, onCheckIn, onCheckOut, onRefresh, error }) {
   const { colors } = useTheme();
@@ -24,14 +25,20 @@ export default function EmployeeAttendanceSummary({ profile, shiftStatus, busy, 
           <View style={styles.timeCell}><Text style={{ color: colors.textMuted }}>Ирсэн</Text><Text style={[styles.time, { color: colors.text }]}>{time(shiftStatus.checkInAt)}</Text></View>
           <View style={styles.timeCell}><Text style={{ color: colors.textMuted }}>Явсан</Text><Text style={[styles.time, { color: colors.text }]}>{time(shiftStatus.checkOutAt)}</Text></View>
         </View>
-        <View style={styles.actions}>
-          <Button title="Ирлээ" icon="→" onPress={onCheckIn} disabled={busy || shiftStatus.checkedIn} style={{ flex: 1 }} size="lg" />
-          <Button title="Явлаа" icon="←" onPress={onCheckOut} disabled={busy || !shiftStatus.checkedIn || shiftStatus.checkedOut} style={{ flex: 1 }} size="lg" variant="ghost" />
-        </View>
+        {/* Гулсуулж бүртгэнэ: Ирлээ → баруун, Явлаа ← зүүн. */}
+        {!shiftStatus.checkedOut ? (
+          <View style={styles.actions}>
+            {!shiftStatus.checkedIn ? (
+              <SlideToConfirm label="Ирлээ" direction="right" color={colors.primary} textColor={colors.onPrimary} loading={busy} onConfirm={onCheckIn} />
+            ) : (
+              <SlideToConfirm label="Явлаа" direction="left" color={colors.danger} loading={busy} onConfirm={onCheckOut} />
+            )}
+          </View>
+        ) : null}
         {busy && <Text accessibilityLiveRegion="polite" style={[styles.schedule, { color: colors.primary }]}>Ирц бүртгэж байна…</Text>}
         {!!error && <Text accessibilityRole="alert" style={[styles.schedule, { color: colors.danger }]}>{error}</Text>}
       </Card>
-      <Text style={[styles.hint, { color: colors.textMuted }]}>Ирэхдээ “Ирлээ”, ажлаа дуусгаад “Явлаа” товчийг дарна. Байршлыг бүртгэх үед шалгана.</Text>
+      <Text style={[styles.hint, { color: colors.textMuted }]}>Ирэхдээ “Ирлээ”-г баруун тийш, ажлаа дуусгаад “Явлаа”-г зүүн тийш гулсуулна. Байршлыг бүртгэх үед шалгана.</Text>
       <View style={styles.links}>
         <Button variant="ghost" title="Ирцийн түүх" onPress={() => navigation.navigate('AttendanceHistory')} />
         <Button variant="ghost" title="Сарын нэгтгэл" onPress={() => navigation.navigate('AttendanceMonthlySummary')} />

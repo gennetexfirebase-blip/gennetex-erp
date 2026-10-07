@@ -52,20 +52,20 @@ export const ink = {
 
 export const darkColors = {
   // --- Semantic ---
-  background: '#0e1724',
-  onBackground: '#edf3fb',
-  surface: '#162234',
-  surfaceDim: '#0e1724',
-  surfaceBright: '#344860',
-  surfaceContainerLowest: '#0a111c',
-  surfaceContainerLow: '#111d2d',
-  surfaceContainer: '#162234',
-  surfaceContainerHigh: '#1c2c41',
-  surfaceContainerHighest: '#25374e',
-  onSurface: '#edf3fb',
-  onSurfaceVariant: '#a0b0c5',
-  outline: '#768aa4',
-  outlineVariant: '#2a3a50',
+  background: '#0b1220',
+  onBackground: '#f8fafc',
+  surface: '#111c2e',
+  surfaceDim: '#0b1220',
+  surfaceBright: '#26364c',
+  surfaceContainerLowest: '#080e19',
+  surfaceContainerLow: '#0f1929',
+  surfaceContainer: '#111c2e',
+  surfaceContainerHigh: '#18263a',
+  surfaceContainerHighest: '#223249',
+  onSurface: '#f8fafc',
+  onSurfaceVariant: '#a8b5c7',
+  outline: '#7f8ea3',
+  outlineVariant: '#2b3a50',
 
   // Дүүргэлт болох брэнд өнгө + түүн дээрх текст.
   // #201e1f маягийн бараан текст #0099db дээр 5.1:1 — логоны өөрийнх нь хослол.
@@ -80,23 +80,24 @@ export const darkColors = {
   errorColor: '#ff6b60',
 
   // --- Legacy alias (хуучин screen-үүд эдгээрийг ашигладаг) ---
-  bg: '#0e1724',
-  bgAlt: '#111d2d',
-  surfaceAlt: '#1c2c41',
-  surfaceHi: '#25374e',
-  // Гадаргуу дээрх текст/дүрс болж ордог тул тод хувилбарыг нь авна (7.5:1).
-  primary: '#53bce9',
-  primaryDark: '#0099db',
-  primarySoft: 'rgba(0,153,219,0.14)',
-  accent: '#8fd3f2',
+  bg: '#0b1220',
+  bgAlt: '#0f1929',
+  surfaceAlt: '#18263a',
+  surfaceHi: '#223249',
+  // Логоны цэнхэрийн шатлалаас (brand[400]) — гадаргуу дээр 6.6:1, дэвсгэр
+  // дээр 7.2:1. Өмнө нь Tailwind-ийн sky (#38bdf8) байсан тул брэндээс зөрдөг байв.
+  primary: brand[400],
+  primaryDark: brand[500],
+  primarySoft: 'rgba(47,171,228,0.15)',
+  accent: brand[300],
   success: '#3fcf8e',
   successDark: '#1f9d63',
   successSoft: 'rgba(63,207,142,0.13)',
   warning: '#f5b544',
   danger: '#ff6b60',
-  text: '#edf3fb',
-  textMuted: '#a0b0c5',
-  textFaint: '#92a4bc',
+  text: '#f8fafc',
+  textMuted: '#a8b5c7',
+  textFaint: '#94a3b8',
   border: 'rgba(255,255,255,0.09)',
   borderHi: '#2a3a50',
   onPrimary: '#06222e',
@@ -114,58 +115,60 @@ export const darkColors = {
 
 export const lightColors = {
   // --- Semantic ---
-  background: '#f3f6fa',
-  onBackground: '#18283d',
+  // Цэнхэр өнгөтэй үл ялиг зохицсон саарал (цэвэр саарал биш).
+  background: '#f4f7fb',
+  onBackground: '#0f172a',
   surface: '#ffffff',
-  surfaceDim: '#eaf0f7',
+  surfaceDim: '#eaf0f6',
   surfaceBright: '#ffffff',
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#edf3f9',
+  surfaceContainerLow: '#f8fafc',
   surfaceContainer: '#ffffff',
-  surfaceContainerHigh: '#e5edf6',
-  surfaceContainerHighest: '#d9e3ee',
-  onSurface: '#18283d',
-  onSurfaceVariant: '#5f7086',
-  outline: '#9c9ca4',
-  outlineVariant: '#dfe6ef',
+  surfaceContainerHigh: '#f1f5f9',
+  surfaceContainerHighest: '#e2e8f0',
+  onSurface: '#0f172a',
+  onSurfaceVariant: '#475569',
+  outline: '#94a3b8',
+  outlineVariant: '#e2e8f0',
 
   // Цагаан текст уншигдахын тулд брэндээс нэг шат бараан (4.67:1).
   // Цэвэр #0099db-г дүрс/хүрээ/онцлолд ашиглана — доорх `brandPure`.
-  primaryContainer: '#0075ad',
+  primaryContainer: brand[600],
   onPrimaryContainer: '#ffffff',
-  primaryFixedDim: '#00628f',
+  primaryFixedDim: brand[700],
 
-  secondary: '#00628f',
-  secondaryContainer: '#d2eefc',
-  onSecondaryContainer: '#00486b',
-  tertiary: '#18283d',
-  errorColor: '#d92d20',
+  secondary: '#334155',
+  secondaryContainer: '#e2e8f0',
+  onSecondaryContainer: '#1e293b',
+  tertiary: '#0f172a',
+  errorColor: '#b91c1c',
 
   // --- Legacy alias ---
-  bg: '#f3f6fa',
-  bgAlt: '#eaf0f7',
-  surfaceAlt: '#edf3f9',
-  surfaceHi: '#e5edf6',
-  primary: '#0075ad',
-  primaryDark: '#00628f',
-  primarySoft: 'rgba(0,153,219,0.10)',
-  accent: '#00628f',
-  success: '#0b7a44',
-  successDark: '#0b6b3d',
-  successSoft: 'rgba(11,122,68,0.10)',
-  warning: '#b45309',
-  danger: '#d92d20',
-  text: '#18283d',
-  textMuted: '#5f7086',
-  textFaint: '#61738a',
-  border: '#dfe6ef',
-  borderHi: '#bdccdc',
+  bg: '#f4f7fb',
+  bgAlt: '#eaf0f6',
+  surfaceAlt: '#f8fafc',
+  surfaceHi: '#f1f5f9',
+  // brand[600] — цагаан дээр 5.1:1, дэвсгэр дээр 4.7:1 (WCAG AA).
+  primary: brand[600],
+  primaryDark: brand[700],
+  primarySoft: 'rgba(0,117,173,0.10)',
+  accent: brand[600],
+  success: '#047857',
+  successDark: '#065f46',
+  successSoft: 'rgba(4,120,87,0.10)',
+  warning: '#92400e',
+  danger: '#b91c1c',
+  text: '#0f172a',
+  textMuted: '#475569',
+  textFaint: '#64748b',
+  border: '#e2e8f0',
+  borderHi: '#cbd5e1',
   onPrimary: '#ffffff',
 
   // glass helpers
   glassBg: 'rgba(255,255,255,0.96)',
-  glassBorder: 'rgba(32,30,31,0.08)',
-  overlay: 'rgba(32,30,31,0.48)',
+  glassBorder: 'rgba(15,23,42,0.08)',
+  overlay: 'rgba(15,23,42,0.48)',
   glowShadow: '#0099db',
 };
 
@@ -177,8 +180,14 @@ lightColors.brandPure = brand[500];
 export function makeGradients(c) {
   return {
     header: [c.surfaceDim, c.surface],
-    primary: [c.primaryContainer, c.primaryFixedDim],
-    brand: ['#112b44', '#075275'],
+    // Үндсэн товч — логоны цэнхэрээс гүн цэнхэр рүү (хоёр горимд ижил,
+    // дээр нь цагаан текст: brand[600] дээр 4.9:1).
+    primary: [brand[500], brand[700]],
+    brand: ['#0f172a', '#0c4a6e'],
+    // Hero хэсгүүдэд (нэвтрэх, нүүр, ирц) — логоны цэнхэрээс гүн цэнхэр
+    // рүү. Дээр нь цагаан текст: brand[700] дээр 6.6:1, brand[500] дээр
+    // 3.2:1 тул том/тод текстэд л тавина.
+    hero: [brand[500], brand[700], brand[900]],
     success: [c.success, c.successDark],
     danger: [c.danger, c.danger],
     warning: [c.warning, c.warning],
@@ -187,21 +196,21 @@ export function makeGradients(c) {
 }
 
 export function makeShadow(c, isDark) {
-  const col = isDark ? '#000000' : '#201e1f';
+  const col = isDark ? '#000000' : '#0f172a';
   return {
     sm: {
       shadowColor: col,
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: isDark ? 0.22 : 0.05,
-      shadowRadius: 3,
+      shadowOpacity: isDark ? 0.18 : 0.04,
+      shadowRadius: 2,
       elevation: 1,
     },
     md: {
       shadowColor: col,
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.28 : 0.07,
-      shadowRadius: 10,
-      elevation: 3,
+      shadowOpacity: isDark ? 0.22 : 0.055,
+      shadowRadius: 8,
+      elevation: 2,
     },
     lg: {
       shadowColor: col,

@@ -154,7 +154,7 @@ fi
 echo "[4/4] Supabase webhook тохируулж байна..."
 curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
   -H "Content-Type: application/json" \
-  -d "{\"url\":\"${SUPABASE_WEBHOOK_URL}\",\"secret_token\":\"${WEBHOOK_SECRET}\",\"allowed_updates\":[\"message\"]}" \
+  -d "{\"url\":\"${SUPABASE_WEBHOOK_URL}\",\"secret_token\":\"${WEBHOOK_SECRET}\",\"allowed_updates\":[\"message\",\"callback_query\"]}" \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print('Webhook:', 'OK' if d.get('ok') else d)"
 
 echo ""

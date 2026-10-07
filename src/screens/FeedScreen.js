@@ -1201,7 +1201,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   createStoryImg: { width: '100%', height: '100%' },
   createStoryPlaceholder: {
     flex: 1,
-    backgroundColor: colors.surfaceContainerHigh,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

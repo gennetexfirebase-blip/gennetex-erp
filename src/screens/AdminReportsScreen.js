@@ -10,11 +10,12 @@ import {
   RefreshControl,
   Linking,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader, Card, EmptyState } from '../components/ui';
 import NavIcon from '../components/NavIcon';
+import { Ionicons } from '@expo/vector-icons';
 import { spacing, radius } from '../theme';
 import { accentMap } from '../theme/accents';
 import { useTheme, useStyles } from '../context/ThemeContext';
@@ -34,6 +35,7 @@ const TYPE_ACCENT = {
 };
 
 export default function AdminReportsScreen() {
+  const navigation = useNavigation();
   const { colors, shadow, isDark } = useTheme();
   const accents = accentMap(isDark);
   const styles = useStyles(makeStyles);
@@ -86,6 +88,16 @@ export default function AdminReportsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} />
           }
         >
+          <TouchableOpacity style={styles.row} activeOpacity={0.85} onPress={() => navigation.navigate('WorkHeightRiskReport')}>
+            <View style={[styles.badge, { backgroundColor: (accents.rose || colors.danger) + '18'}]}>
+              <Ionicons name="warning-outline" size={21} color={accents.rose || colors.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>Өндөрт ажиллах ХАБЭА тайлан</Text>
+              <Text style={styles.sub}>Эрсдэл · зөвшөөрөл · PPE · осол, зөрчил · PDF / Excel</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {!error && reports.length === 0 ? (
             <EmptyState text="Одоогоор тайлан ирээгүй байна."/>

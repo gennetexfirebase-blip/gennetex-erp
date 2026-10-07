@@ -9,7 +9,7 @@
 // `AttendanceScreen`-ийн employee салбар болон түүний дэд дэлгэцүүд эндээс
 // шууд импортолж ашиглана, `useTheme()`-ээр ДАМЖУУЛАХГҮЙ (админы тохиргооноос
 // үл хамааран үргэлж цайвар байх ёстой тул).
-import { brand, makeShadow } from './tokens';
+import { brand, lightColors, makeShadow } from './tokens';
 
 export const colors = {
   background: '#F3F6FA',
@@ -37,6 +37,14 @@ export const colors = {
 };
 
 export const shadow = makeShadow(colors, false);
+
+// Админы «Ирц» самбарын ЦАЙВАР хувилбар — апп гэрэл горимд байхад
+// `attendanceDark`-ийн оронд хэрэглэнэ (бусад дэлгэцтэй нийцүүлэх).
+export const adminLightColors = {
+  ...lightColors,
+  primary: brand[600],
+  primaryDark: brand[700],
+};
 export const isDark = false;
 
 export default { colors, shadow, isDark };
