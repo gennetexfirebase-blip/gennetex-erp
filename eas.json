@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "promptToConfigurePushNotifications": false
   },
   "build": {
     "development": {
@@ -25,15 +26,14 @@
       "autoIncrement": true
     },
     "production": {
+      "distribution": "store",
+      "environment": "production",
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {
         "resourceClass": "m-medium"
-      },
-      "env": {
-        "NODE_ENV": "production"
       }
     }
   },
@@ -44,6 +44,12 @@
         "releaseStatus": "draft"
       },
       "ios": {}
+    },
+    "alpha": {
+      "android": {
+        "track": "alpha",
+        "releaseStatus": "draft"
+      }
     }
   }
 }

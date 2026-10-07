@@ -25,7 +25,8 @@ const NATIVE_ONLY_PLUGINS = new Set([
 ]);
 
 const androidGoogleServices = './google-services.json';
-const iosGoogleServices = './GoogleService-Info.plist';
+// EAS дээр file төрлийн env хувьсагчаар өгч болно (android-тай адил).
+const iosGoogleServices = process.env.GOOGLE_SERVICE_INFO_PLIST || './GoogleService-Info.plist';
 
 /**
  * Газрын зураг — OpenStreetMap.

@@ -16,7 +16,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification",
@@ -35,9 +35,6 @@
         "NSLocationAlwaysUsageDescription": "Ажилтны байршлыг ажлын цагт тасралтгүй хянахад шаардлагатай."
       },
       "bundleIdentifier": "com.gennetex.erp",
-      "entitlements": {
-        "com.apple.developer.pushkit.unrestricted-voip": true
-      },
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
@@ -209,6 +206,7 @@
     "plugins": [
       "./plugins/withFirebaseManifestFix",
       "./plugins/withIncomingCallManifest",
+      "./plugins/withRNFirebaseDisableSPM",
       "@react-native-firebase/app",
       [
         "expo-location",
