@@ -11,6 +11,7 @@ import { vehicleTankLiters, fuelLevelColor } from '../lib/vehicleFuelStats';
 import FuelTankGauge from '../components/FuelTankGauge';
 import MongoliaPlate from '../components/MongoliaPlate';
 import * as vehicleApi from '../services/vehicleService';
+import { supabase } from '../lib/supabase';
 
 /**
  * Өдрийн машин сонгох.
@@ -42,7 +43,8 @@ export default function VehicleScreen() {
   );
   const myVehicle = vehicles.find((v) => v.id === myVehicleId) || null;
   const myCrew = myVehicleId ? crews[myVehicleId] : null;
-  const checkedIn = !isCloud || (shiftStatus?.checkedIn && !shiftStatus?.checkedOut);
+  // Demo данс (Play шинжээч) өнөөдрийн ирцгүй тул шууд сонгох жагсаалт харна.
+  const checkedIn = !isCloud || !!supabase?.__demo || (shiftStatus?.checkedIn && !shiftStatus?.checkedOut);
 
   const load = useCallback(async () => {
     setError(null);

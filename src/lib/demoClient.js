@@ -39,8 +39,20 @@ function bucket(table) {
   return overlay.get(table);
 }
 
+// Өнөөдрийн машины баг: { [vehicleId]: { trip_id, members:[{id,name,role}] } }
+let demoVehicleCrews = seedVehicleCrews();
+
+function seedVehicleCrews() {
+  // Нэг машинд жолооч урьдчилан сууна — шинжээч сонгоход «хамт яваа»
+  // болж, 2 хүний баг хэрхэн бүрддэгийг шууд харна.
+  const first = demoTable('vehicles')?.[0];
+  if (!first?.id) return {};
+  return { [first.id]: { trip_id: `demo-trip-${first.id}`, members: [{ id: 'demo-driver', name: 'Бат-Эрдэнэ', role: 'driver' }] } };
+}
+
 export function resetDemoOverlay() {
   overlay.clear();
+  demoVehicleCrews = seedVehicleCrews();
 }
 
 function rowsFor(table) {
@@ -209,6 +221,32 @@ export const demoClient = {
     }
     if (name === 'admin_list_authorized_users') {
       return Promise.resolve({ data: demoTable('authorized_users'), error: null });
+    }
+    // Машин сонгох (QR-ийн оронд) — Play шинжээч demo-гоор нэвтэрч
+    // туршдаг тул сонголт дэлгэц дээр харагдах ёстой. Сессийн туршид
+    // санах ойд хадгална; 2-оос олон хүн болон давхар сонголтыг серверийн
+    // адил хориглоно.
+    if (name === 'join_vehicle_today') {
+      const vehicle = rowsFor('vehicles').find(row => row.id === args.p_vehicle_id);
+      if (!vehicle) return Promise.resolve({ data: null, error: { message: 'vehicle_not_found' } });
+      const mine = Object.entries(demoVehicleCrews).find(([, c]) => c.members.some(m => m.id === DEMO_USER.id));
+      if (mine) {
+        if (mine[0] === vehicle.id) return Promise.resolve({ data: { trip_id: mine[1].trip_id, already: true }, error: null });
+        const plate = rowsFor('vehicles').find(row => row.id === mine[0])?.plate_number || '';
+        return Promise.resolve({ data: null, error: { message: `already_in_other:${plate}` } });
+      }
+      const crew = demoVehicleCrews[vehicle.id] || (demoVehicleCrews[vehicle.id] = { trip_id: `demo-trip-${vehicle.id}`, members: [] });
+      if (crew.members.length >= 2) return Promise.resolve({ data: null, error: { message: 'vehicle_full' } });
+      const role = crew.members.length ? 'passenger' : 'driver';
+      crew.members.push({ id: DEMO_USER.id, name: DEMO_USER.name || 'Demo', role });
+      return Promise.resolve({ data: { trip_id: crew.trip_id, role }, error: null });
+    }
+    if (name === 'vehicle_crews_today') {
+      const data = Object.entries(demoVehicleCrews).map(([vehicleId, c]) => ({ vehicle_id: vehicleId, trip_id: c.trip_id, members: c.members }));
+      return Promise.resolve({ data, error: null });
+    }
+    if (name === 'vehicle_trip_distance_km') {
+      return Promise.resolve({ data: 12.4, error: null });
     }
     // Бусад RPC — амжилттай гэж хариулна. Шинжээч товч дарахад
     // алдаа гарахгүй байх нь чухал.
