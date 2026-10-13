@@ -22,6 +22,7 @@ import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { ERP_NOT_FOUND } from '../lib/erpMessages';
 import * as feedApi from '../services/feedService';
+import { moderationActions, useBlockedUsers } from '../services/moderationService';
 import { formatRelativeTime } from '../lib/formatTime';
 
 const REACTION_OPTIONS = [
@@ -53,6 +54,16 @@ export default function FeedPostScreen() {
   const [commenting, setCommenting] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const blockedIds = useBlockedUsers(me?.id);
+
+  /** Бусдын пост/сэтгэгдэл дээр: Мэдээлэх, Хэрэглэгчийг хаах. */
+  const openModeration = (targetType, targetId, user, excerpt) => {
+    const actions = moderationActions(me, { targetType, targetId, targetUser: user, excerpt }, () => {
+      if (targetType === 'post') navigation.goBack();
+    });
+    if (!actions.length) return;
+    Alert.alert(user.name || 'Ажилтан', undefined, [...actions, { text: 'Болих', style: 'cancel' }]);
+  };
 
   const load = useCallback(async () => {
     if (!postId) return;
@@ -161,7 +172,17 @@ export default function FeedPostScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Пост</Text>
-        <View style={styles.iconBtn} />
+        {post.author_id !== me?.id ? (
+          <TouchableOpacity
+            style={styles.iconBtn}
+            accessibilityLabel="Мэдээлэх эсвэл хаах"
+            onPress={() => openModeration('post', post.id, { id: post.author_id, name: post.author_name }, post.content)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.iconBtn} />
+        )}
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -230,8 +251,13 @@ export default function FeedPostScreen() {
 
           <View style={styles.commentsCard}>
             <Text style={styles.commentsTitle}>Сэтгэгдэл</Text>
-            {(post.comments || []).map((c) => (
-              <View key={c.id} style={styles.commentRow}>
+            {(post.comments || []).filter((c) => !blockedIds.has(String(c.user_id))).map((c) => (
+              <Pressable
+                key={c.id}
+                style={styles.commentRow}
+                onLongPress={() => openModeration('comment', c.id, { id: c.user_id, name: c.user_name }, c.content)}
+                delayLongPress={350}
+              >
                 <TouchableOpacity onPress={() => navigation.navigate('FeedProfile', { userId: c.user_id })}>
                   {c.user_avatar_url ? (
                     <Image source={{ uri: c.user_avatar_url }} style={styles.commentAvatarImg} />
@@ -246,9 +272,19 @@ export default function FeedPostScreen() {
                     <Text style={styles.commentAuthor}>{c.user_name}</Text>
                     <Text style={styles.commentText}>{c.content}</Text>
                   </View>
-                  <Text style={styles.commentTime}>{formatRelativeTime(c.created_at)}</Text>
+                  <View style={styles.commentMeta}>
+                    <Text style={styles.commentTime}>{formatRelativeTime(c.created_at)}</Text>
+                    {c.user_id !== me?.id ? (
+                      <TouchableOpacity
+                        hitSlop={8}
+                        onPress={() => openModeration('comment', c.id, { id: c.user_id, name: c.user_name }, c.content)}
+                      >
+                        <Text style={styles.commentReport}>Мэдээлэх</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         </ScrollView>
@@ -382,7 +418,9 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   commentAuthor: { color: colors.text, fontWeight: '700', fontSize: 13 },
   commentText: { color: colors.text, fontSize: 14, marginTop: 1 },
-  commentTime: { color: colors.textMuted, fontSize: 11, marginTop: 3, marginLeft: 4 },
+  commentTime: { color: colors.textMuted, fontSize: 11, marginLeft: 4 },
+  commentMeta: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 3 },
+  commentReport: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',

@@ -32,6 +32,29 @@ test('upsert replaces matching rows instead of duplicating settings', async () =
   assert.equal((await client.from('notification_settings').select()).data.length, 1);
 });
 
+test('report and block work in demo mode (App Store reviewer path)', async () => {
+  const { client } = setup();
+  const mod = createLoader({
+    react: { useEffect() {}, useState: (v) => [typeof v === 'function' ? v() : v, () => {}] },
+    'react-native': { Alert: { alert() {} } },
+    '../lib/supabase': { supabase: client },
+  })('src/services/moderationService.js');
+  const me = { id: 'demo-user', name: 'Gennetex Demo' };
+  await mod.reportContent(me, { targetType: 'post', targetId: 'p1', targetUser: { id: 'u2', name: 'Batbaatar' }, excerpt: 'x', reason: 'spam' });
+  const reports = await client.from('content_reports').select().eq('reporter_id', 'demo-user');
+  assert.equal(reports.data.length, 1);
+  assert.equal(reports.data[0].reason, 'spam');
+
+  await mod.blockUser(me, { id: 'u2', name: 'Batbaatar' });
+  await mod.blockUser(me, { id: 'u2', name: 'Batbaatar' });
+  assert.deepEqual(Array.from(await mod.loadBlockedUsers('demo-user')), ['u2']);
+  await mod.unblockUser(me, 'u2');
+  assert.deepEqual(Array.from(await mod.loadBlockedUsers('demo-user')), []);
+  // Өөрийгөө хаах, өөрийн контентод цэс гаргахгүй.
+  assert.equal(mod.moderationActions(me, { targetType: 'post', targetUser: { id: 'demo-user' } }).length, 0);
+  assert.equal(mod.moderationActions(me, { targetType: 'post', targetUser: { id: 'u2' } }).length, 2);
+});
+
 test('attendance OR neq filters preserve approved active sessions', async () => {
   const { client } = setup();
   await client.from('test_attendance').insert([{ id: 'a', status: 'approved' }, { id: 'b', status: 'rejected' }, { id: 'c', status: null }]);

@@ -27,6 +27,7 @@ import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as feedApi from '../services/feedService';
+import { moderationActions, useBlockedUsers } from '../services/moderationService';
 import * as meetingApi from '../services/meetingService';
 import LiveStreamModal, { liveRoomFromId } from '../components/LiveStreamModal';
 import { formatRelativeTime } from '../lib/formatTime';
@@ -253,6 +254,12 @@ function PostCard({ post, me, onReact, onOpenReactPicker, onShare, sharing, onDe
       { text: 'Пост нээх', onPress: () => onOpenPost?.(post) },
       { text: 'Хуваалцах', onPress: () => onShare?.(post) },
       ...(mine ? [{ text: 'Устгах', style: 'destructive', onPress: () => onDelete(post) }] : []),
+      ...moderationActions(me, {
+        targetType: 'post',
+        targetId: post.id,
+        targetUser: { id: post.author_id, name: post.author_name },
+        excerpt: post.content,
+      }),
       { text: 'Болих', style: 'cancel' },
     ]);
   };
@@ -320,6 +327,8 @@ export default function FeedScreen() {
   const me = currentUser;
 
   const [posts, setPosts] = useState([]);
+  // Хаасан хэрэглэгчдийн пост энэ хэрэглэгчид харагдахгүй.
+  const blockedIds = useBlockedUsers(me?.id);
   const [storyGroups, setStoryGroups] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -658,7 +667,7 @@ export default function FeedScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
-          data={posts}
+          data={blockedIds.size ? posts.filter((p) => !blockedIds.has(String(p.author_id))) : posts}
           keyExtractor={(p) => p.id}
           showsVerticalScrollIndicator={false}
           refreshControl={

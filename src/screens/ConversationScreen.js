@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import VideoCallModal from '../components/VideoCallModal';
 import { sendPushToUser } from '../services/notificationService';
 import ActiveTripsBanner from '../components/ActiveTripsBanner';
 import * as chatApi from '../services/chatService';
+import { moderationActions, useBlockedUsers } from '../services/moderationService';
 import { useCall } from '../context/CallContext';
 import VoiceMessageButton from '../components/VoiceMessageButton';
 import VoiceRecorderBar from '../components/VoiceRecorderBar';
@@ -156,6 +157,12 @@ export default function ConversationScreen() {
   const room = conversationId;
 
   const [messages, setMessages] = useState([]);
+  // Хаасан хэрэглэгчийн мессеж энэ хэрэглэгчид харагдахгүй.
+  const blockedIds = useBlockedUsers(currentUser?.id);
+  const shown = useMemo(
+    () => (blockedIds.size ? messages.filter((m) => !blockedIds.has(String(m.sender_id))) : messages),
+    [messages, blockedIds]
+  );
   const [text, setText] = useState('');
   const [error, setError] = useState(null);
   const [callVisible, setCallVisible] = useState(false);
@@ -306,6 +313,21 @@ export default function ConversationScreen() {
       Alert.alert('Мессеж', 'Юу хийх вэ?', options);
     },
     [me, startEdit, confirmDelete]
+  );
+
+  /** Бусдын мессеж дээр удаан дарахад: Мэдээлэх, Хэрэглэгчийг хаах. */
+  const openModeration = useCallback(
+    (item) => {
+      const actions = moderationActions(me, {
+        targetType: 'message',
+        targetId: item.id,
+        targetUser: { id: item.sender_id, name: item.sender_name },
+        excerpt: item.content || item.attachment_type,
+      });
+      if (!actions.length) return;
+      Alert.alert(item.sender_name || 'Мессеж', 'Юу хийх вэ?', [...actions, { text: 'Болих', style: 'cancel' }]);
+    },
+    [me]
   );
 
   const sendVoiceText = useCallback(
@@ -668,10 +690,10 @@ export default function ConversationScreen() {
       >
         <FlatList
           ref={listRef}
-          data={messages}
+          data={shown}
           keyExtractor={(m) => m.id}
           style={styles.chatBg}
-          contentContainerStyle={[styles.messageList, !messages.length && styles.messageListEmpty]}
+          contentContainerStyle={[styles.messageList, !shown.length && styles.messageListEmpty]}
           renderItem={({ item, index }) => {
             const mine = item.sender_id === me?.id;
             const hasImage = item.attachment_type === 'image' && item.attachment_url;
@@ -679,8 +701,8 @@ export default function ConversationScreen() {
             const hasFile = item.attachment_type === 'file' && item.attachment_url;
             const hasAudio = item.attachment_type === 'audio' && item.attachment_url;
             const mediaOnly = (hasImage || hasVideo) && !item.content && !hasFile;
-            const prev = messages[index - 1];
-            const next = messages[index + 1];
+            const prev = shown[index - 1];
+            const next = shown[index + 1];
             const showDate = !prev || !isSameChatDay(prev.created_at, item.created_at);
             const sameSenderAsPrev = prev && prev.sender_id === item.sender_id && !showDate;
             const sameSenderAsNext = next && next.sender_id === item.sender_id && isSameChatDay(next.created_at, item.created_at);
@@ -724,7 +746,7 @@ export default function ConversationScreen() {
                         });
                       }
                     }}
-                    onLongPress={mine ? () => openMessageActions(item) : undefined}
+                    onLongPress={() => (mine ? openMessageActions(item) : openModeration(item))}
                     delayLongPress={400}
                     style={styles.bubbleTouch}
                   >

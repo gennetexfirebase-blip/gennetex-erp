@@ -59,6 +59,7 @@ export const DEMO_USER = {
 };
 
 // ── Хуурамч ажилтнууд ─────────────────────────────────────────────
+const DEMO_EMAIL_NAMES = ['', 'batbaatar', 'sarantuya', 'enkhbayar', 'oyunchimeg', 'munkhbat', 'altantsetseg', 'ganzorig'];
 export const DEMO_PROFILES = [
   DEMO_USER,
   mk('00000000-0000-4000-8000-000000000001', 'Батбаатар', 'Дорж', 'Сүлжээний инженер', 'dm-dep-1', 'employee'),
@@ -75,7 +76,8 @@ function mk(id, name, last, position, dept, role) {
     id,
     name,
     last_name: last,
-    email: `${id}@demo.local`,
+    // Шалгагчид жирийн ажлын имэйл шиг харагдана (UUID@demo.local биш).
+    email: `${DEMO_EMAIL_NAMES[Number(id.slice(-1))] || 'ajiltan'}@demo.gennetex.mn`,
     role,
     position,
     phone: `99${id.slice(-1)}0-${1000 + Number(id.slice(-1)) * 111}`,

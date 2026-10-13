@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { Card, ScreenHeader, Button } from '../components/ui';
 import { useApp } from '../context/AppContext';
@@ -7,6 +7,7 @@ import { spacing, radius } from '../theme';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/erpMessages';
 import LegalLinks from '../components/LegalLinks';
+import { listBlockedUsers, unblockUser, useBlockedUsers } from '../services/moderationService';
 
 /**
  * Нууцлал ба бүртгэл устгах.
@@ -68,6 +69,16 @@ export default function PrivacyScreen() {
   const { currentUser, signOut } = useApp();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const blockedIds = useBlockedUsers(currentUser?.id);
+  const blockedList = useMemo(() => listBlockedUsers(), [blockedIds]);
+
+  const unblock = async (u) => {
+    try {
+      await unblockUser(currentUser, u.id);
+    } catch (e) {
+      Alert.alert('Алдаа', friendlyError(e));
+    }
+  };
 
   const confirmDelete = () => {
     Alert.alert(
@@ -160,6 +171,26 @@ export default function PrivacyScreen() {
           </Text>
         </Card>
 
+        <Card style={styles.card}>
+          <Text style={styles.h2}>Пост, чатын дүрэм ба хаасан хэрэглэгчид</Text>
+          <Text style={styles.p}>
+            Зохисгүй, доромжилсон, дарамталсан контент хатуу хориотой. Ийм пост, сэтгэгдэл,
+            мессеж дээр «⋯» эсвэл удаан дарж «Мэдээлэх»-ийг сонгоно уу — админ 24 цагийн
+            дотор шалгаж, контентыг устгах, зөрчил гаргагчийн эрхийг хаана. «Хэрэглэгчийг
+            хаах»-аар тухайн хүний контентыг өөрөөсөө нууж болно.
+          </Text>
+          {blockedList.length === 0 ? (
+            <Text style={styles.who}>Хаасан хэрэглэгч алга.</Text>
+          ) : (
+            blockedList.map((u) => (
+              <View key={u.id} style={styles.blockRow}>
+                <Text style={styles.blockName} numberOfLines={1}>{u.name || 'Ажилтан'}</Text>
+                <Button title="Нээх" variant="ghost" size="sm" onPress={() => unblock(u)} />
+              </View>
+            ))
+          )}
+        </Card>
+
         <Card style={[styles.card, styles.danger]}>
           <Text style={[styles.h2, { color: colors.danger }]}>Бүртгэл устгах</Text>
           <Text style={styles.p}>
@@ -196,6 +227,8 @@ const makeStyles = ({ colors }) =>
     container: { flex: 1, backgroundColor: colors.bg },
     card: { marginBottom: spacing.md },
     danger: { borderWidth: 1, borderColor: colors.danger },
+    blockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+    blockName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
     h1: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: spacing.sm },
     h2: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 6 },
     p: { color: colors.textMuted, fontSize: 13.5, lineHeight: 20 },
