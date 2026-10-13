@@ -4,10 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, EmptyState, LoadingState, HeaderButton } from '../components/ui';
 import * as attApi from '../services/attendanceService';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 export default function AttendanceWifiScreen({ navigation }) {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,6 +78,6 @@ export default function AttendanceWifiScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: spacing.lg, marginBottom: spacing.sm },
 });

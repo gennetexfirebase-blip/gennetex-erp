@@ -199,7 +199,7 @@ export default function NavIcon({
   size = 22,
   color = '#77777f',
   active = false,
-  activeColor = '#0099db',
+  activeColor = '#0B6E4F',
 }) {
   const tint = active ? activeColor : color;
   const render = ICONS[name];

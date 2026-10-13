@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Wordmark } from '../components/ds';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -12,7 +12,7 @@ import * as deviceApi from '../services/deviceAuthService';
 
 // Шинэ төхөөрөмжөөр нэвтрэхэд системийн админы зөвшөөрөл хүлээх дэлгэц
 export default function DeviceGateScreen({ deviceInfo, onApproved }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles(makeStyles);
   const { currentUser, signOut } = useApp();
   const [info, setInfo] = useState(deviceInfo || {});
@@ -75,14 +75,13 @@ export default function DeviceGateScreen({ deviceInfo, onApproved }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" backgroundColor="#f6faff" />
-      <View style={styles.glow} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
-        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+        <View style={styles.logo}><Wordmark sub="Ажлын нэгдсэн орчин" /></View>
         <View style={styles.center}>
-          <LinearGradient colors={rejected ? ['#ff7b72', '#e33737'] : ['#37c2ff', '#087cff']} style={styles.iconWrap}>
-            <Ionicons name={rejected ? 'close-circle-outline' : 'shield-checkmark-outline'} size={42} color="#fff" />
-          </LinearGradient>
+          <View style={[styles.iconWrap, { backgroundColor: rejected ? colors.badSoft : colors.brandSoft }]}>
+            <Ionicons name={rejected ? 'close-circle-outline' : 'shield-checkmark-outline'} size={40} color={rejected ? colors.bad : colors.brand} />
+          </View>
           <Text style={styles.title}>
             {rejected ? 'Төхөөрөмж татгалзагдсан' : 'Шинэ төхөөрөмж илрлээ'}
           </Text>
@@ -134,58 +133,23 @@ function Info({ k, v, styles }) {
   );
 }
 
-const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f6faff' },
-  glow: { position: 'absolute', width: 340, height: 340, borderRadius: 170, top: -210, right: -150, backgroundColor: '#e0f3ff' },
+const makeStyles = ({ colors, shadow }) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.ground },
   safe: { flex: 1, paddingHorizontal: 20, paddingBottom: 14 },
-  logo: { width: 142, height: 86, alignSelf: 'center', marginTop: 4 },
+  logo: { alignSelf: 'center', marginTop: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', maxWidth: 470, width: '100%', alignSelf: 'center', paddingBottom: 10 },
-  iconWrap: {
-    width: 82,
-    height: 82,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    shadowColor: '#087cff',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 15,
-    elevation: 7,
-  },
-  title: { color: '#10213d', fontSize: 24, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 },
-  sub: { color: '#61738a', fontSize: 14, textAlign: 'center', marginTop: 10, lineHeight: 21, paddingHorizontal: spacing.md, maxWidth: 390 },
-  waitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, backgroundColor: '#e8f5ff', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10 },
-  waitText: { color: '#0075ad', fontSize: 13, fontWeight: '800' },
-  infoCard: {
-    marginTop: 22,
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#dce7f2',
-    padding: 16,
-    gap: 2,
-    shadowColor: '#15324d',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  infoRow: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e9eff5' },
-  infoK: { color: '#71829b', fontSize: 12.5 },
-  infoV: { color: '#10213d', fontSize: 12.5, fontWeight: '800', flex: 1, textAlign: 'right' },
-  signOut: {
-    alignSelf: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: '#ffaaa5',
-    backgroundColor: '#fff4f3',
-  },
-  retry: { marginTop: spacing.lg, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.pill, backgroundColor: colors.primary },
-  retryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  signOutText: { color: '#d92d20', fontWeight: '800', fontSize: 14 },
-  version: { color: '#8a9aaf', fontSize: 11, textAlign: 'center', marginTop: 10 },
+  iconWrap: { width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  title: { color: colors.ink, fontSize: 22, fontWeight: '700', textAlign: 'center', letterSpacing: -0.4 },
+  sub: { color: colors.muted, fontSize: 14.5, textAlign: 'center', marginTop: 8, lineHeight: 21, paddingHorizontal: spacing.md, maxWidth: 360 },
+  waitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, backgroundColor: colors.brandSoft, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10 },
+  waitText: { color: colors.brand, fontSize: 13, fontWeight: '700' },
+  infoCard: { marginTop: 22, width: '100%', backgroundColor: colors.card, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6, ...shadow.md },
+  infoRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.line },
+  infoK: { color: colors.muted, fontSize: 13.5 },
+  infoV: { color: colors.ink, fontSize: 13.5, fontWeight: '600', flex: 1, textAlign: 'right' },
+  signOut: { alignSelf: 'center', paddingHorizontal: spacing.xl, height: 44, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.badSoft },
+  retry: { marginTop: spacing.lg, paddingHorizontal: spacing.xl, height: 48, justifyContent: 'center', borderRadius: 16, backgroundColor: colors.brand },
+  retryText: { color: colors.brandInk, fontWeight: '600', fontSize: 15 },
+  signOutText: { color: colors.bad, fontWeight: '600', fontSize: 14 },
+  version: { color: colors.faint, fontSize: 12, textAlign: 'center', marginTop: 10 },
 });

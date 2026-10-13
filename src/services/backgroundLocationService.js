@@ -5,6 +5,7 @@ import { Alert, DeviceEventEmitter, Platform, Linking } from 'react-native';
 import * as Application from 'expo-application';
 import { supabase } from '../lib/supabase';
 import { sendLocation, syncLocations } from '../tracking/services/locationService';
+import { notifyNearbyFullBoxes } from './fieldWorkService';
 
 import { isExpoGo } from '../lib/runtimeEnv';
 
@@ -58,13 +59,27 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     await stopTracking();
     return;
   }
-  for (const location of [...(data?.locations || [])].sort((a, b) => a.timestamp - b.timestamp)) {
+  const sorted = [...(data?.locations || [])].sort((a, b) => a.timestamp - b.timestamp);
+  for (const location of sorted) {
     // A revoked session cannot capture points arriving after End Work.
     const current = await getTrackedUser();
     if (current?.id !== user.id) break;
     await sendLocation(user.id, location).catch(() => {});
   }
+  await checkFullBoxes(user.id, sorted[sorted.length - 1]).catch(() => {});
 });
+
+const BOX_CHECK_KEY = '@box_full_last_check';
+const BOX_CHECK_EVERY_MS = 90 * 1000;
+
+/** Дүүрсэн боксны ойролцоо ирсэн эсэх — 90 секундэд нэг удаа (сервер дээр). */
+async function checkFullBoxes(userId, location) {
+  if (!location?.coords) return;
+  const last = Number(await AsyncStorage.getItem(BOX_CHECK_KEY)) || 0;
+  if (Date.now() - last < BOX_CHECK_EVERY_MS) return;
+  await AsyncStorage.setItem(BOX_CHECK_KEY, String(Date.now()));
+  await notifyNearbyFullBoxes(userId, location.coords);
+}
 
 /** Арын хяналт аль хэдийн ажиллаж байгаа эсэх. */
 export async function isTracking() {
@@ -190,7 +205,7 @@ async function startTrackingInternal(user, { requestPermissions = false, isCurre
             foregroundService: {
               notificationTitle: 'ERP байршлын үйлчилгээ ажиллаж байна',
               notificationBody: 'Ажлын цагт байршлыг админд илгээж байна',
-              notificationColor: '#0099db',
+              notificationColor: '#0B6E4F',
               killServiceOnDestroy: false,
             },
           }

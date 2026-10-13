@@ -14,10 +14,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader, Card, EmptyState } from '../components/ui';
-import NavIcon from '../components/NavIcon';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radius } from '../theme';
-import { accentMap } from '../theme/accents';
+import { FilterChips, ModuleTile, PillButton } from '../components/ds';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as reportApi from '../services/reportService';
 
@@ -27,17 +26,16 @@ const TYPE_LABEL = {
   vehicle: 'Машин',
 };
 
-// Төрлийн өнгө нь горимоос хамаарна — accentMap(isDark)-аар шийднэ.
-const TYPE_ACCENT = {
-  material: 'brand',
-  tool: 'amber',
-  vehicle: 'slate',
+// Prototype: төрөл бүрийн icon хавтан [Phosphor icon, өнгө].
+const TYPE_LOOK = {
+  material: ['archive', 'blue'],
+  tool: ['hammer', 'amber'],
+  vehicle: ['car', 'slate'],
 };
 
 export default function AdminReportsScreen() {
   const navigation = useNavigation();
-  const { colors, shadow, isDark } = useTheme();
-  const accents = accentMap(isDark);
+  const { colors } = useTheme();
   const styles = useStyles(makeStyles);
   const { isAdmin, isCloud } = useApp();
   const [reports, setReports] = useState([]);
@@ -45,6 +43,7 @@ export default function AdminReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  const [rfilter, setRfilter] = useState('all');
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -76,47 +75,91 @@ export default function AdminReportsScreen() {
     );
   }
 
+  // Prototype «Тайлан»: ХАБЭА онцлох карт → шүүлтүүр → сараар бүлэглэсэн мөрүүд.
+  const shownReports = rfilter === 'all' ? reports : reports.filter((r) => r.report_type === rfilter);
+  const now = new Date();
+  const groups = [];
+  shownReports.forEach((r) => {
+    const d = new Date(r.created_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const label = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+      ? 'Энэ сар'
+      : `${d.getFullYear() === now.getFullYear() ? '' : `${d.getFullYear()} оны `}${d.getMonth() + 1}-р сар`;
+    let g = groups.find((x) => x.key === key);
+    if (!g) groups.push((g = { key, label, rows: [] }));
+    g.rows.push(r);
+  });
+  const p2 = (n) => String(n).padStart(2, '0');
+  const stamp = (iso) => {
+    const d = new Date(iso);
+    return `${p2(d.getMonth() + 1)}.${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  };
+
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Ажилтны тайлан" subtitle="Илгээсэн тайлангууд"/>
+      <ScreenHeader
+        title="Тайлан"
+        subtitle="Илгээсэн тайлангууд"
+        right={<PillButton title="Шинэ" icon="add" onPress={() => navigation.navigate('EmployeeReport')} />}
+      />
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.brand} />
       ) : (
         <ScrollView
           contentContainerStyle={styles.body}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.brand} />
           }
         >
-          <TouchableOpacity style={styles.row} activeOpacity={0.85} onPress={() => navigation.navigate('WorkHeightRiskReport')}>
-            <View style={[styles.badge, { backgroundColor: (accents.rose || colors.danger) + '18'}]}>
-              <Ionicons name="warning-outline" size={21} color={accents.rose || colors.danger} />
+          <TouchableOpacity style={styles.feature} activeOpacity={0.85} onPress={() => navigation.navigate('WorkHeightRiskReport')}>
+            <ModuleTile icon="hard-hat" tone="amber" size={48} radius={14} iconSize={24} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.featureTitle}>Өндөрт ажиллах ХАБЭА тайлан</Text>
+              <Text style={styles.sub}>Эрсдэл · зөвшөөрөл · PPE · осол, зөрчил</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Өндөрт ажиллах ХАБЭА тайлан</Text>
-              <Text style={styles.sub}>Эрсдэл · зөвшөөрөл · PPE · осол, зөрчил · PDF / Excel</Text>
-            </View>
-            <Text style={styles.arrow}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.faint} />
           </TouchableOpacity>
+
+          <FilterChips
+            style={styles.chips}
+            value={rfilter}
+            onChange={setRfilter}
+            items={[
+              { key: 'all', label: 'Бүгд' },
+              { key: 'vehicle', label: 'Машин' },
+              { key: 'tool', label: 'Багаж' },
+              { key: 'material', label: 'Бараа' },
+            ]}
+          />
+
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          {!error && reports.length === 0 ? (
-            <EmptyState text="Одоогоор тайлан ирээгүй байна."/>
+          {!error && shownReports.length === 0 ? (
+            <EmptyState text="Одоогоор тайлан ирээгүй байна." />
           ) : (
-            reports.map((r) => (
-              <TouchableOpacity key={r.id} style={styles.row} activeOpacity={0.85} onPress={() => setSelected(r)}>
-                <View style={[styles.badge, { backgroundColor: (accents[TYPE_ACCENT[r.report_type]] || colors.primary) + '18'}]}>
-                  <NavIcon name="report" size={20} color={accents[TYPE_ACCENT[r.report_type]] || colors.primary} />
+            groups.map((g) => (
+              <View key={g.key}>
+                <Text style={styles.datehd}>{g.label}</Text>
+                <View style={styles.groupCard}>
+                  {g.rows.map((r, i) => {
+                    const [icon, tone] = TYPE_LOOK[r.report_type] || ['file-text', 'slate'];
+                    return (
+                      <TouchableOpacity key={r.id} style={[styles.reprow, i > 0 && styles.rowBorder]} activeOpacity={0.85} onPress={() => setSelected(r)}>
+                        <ModuleTile icon={icon} tone={tone} size={42} radius={13} iconSize={22} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.title} numberOfLines={2}>{r.title}</Text>
+                          <Text style={styles.sub} numberOfLines={1}>
+                            {r.user_name || 'Ажилтан'} · {TYPE_LABEL[r.report_type] || r.report_type}
+                          </Text>
+                        </View>
+                        <View style={styles.rightCol}>
+                          {r.pdf_url || r.body_html ? <Text style={styles.ftag}>PDF</Text> : null}
+                          <Text style={styles.time}>{stamp(r.created_at)}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.title}>{r.title}</Text>
-                  <Text style={styles.sub}>
-                    {r.user_name || 'Ажилтан'} · {TYPE_LABEL[r.report_type] || r.report_type}
-                    {r.pdf_url ? '· PDF' : ''}
-                  </Text>
-                  <Text style={styles.date}>{new Date(r.created_at).toLocaleString('mn-MN')}</Text>
-                </View>
-                <Text style={styles.arrow}>›</Text>
-              </TouchableOpacity>
+              </View>
             ))
           )}
         </ScrollView>
@@ -168,8 +211,18 @@ export default function AdminReportsScreen() {
 }
 
 const makeStyles = ({ colors, shadow }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgAlt },
-  body: { padding: spacing.lg, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: colors.ground },
+  body: { paddingHorizontal: 16, paddingBottom: 40 },
+  feature: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, marginBottom: 12, ...shadow.md },
+  featureTitle: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  chips: { marginHorizontal: -16, marginBottom: 4 },
+  datehd: { color: colors.muted, fontSize: 13, fontWeight: '700', marginTop: 18, marginBottom: 8, marginHorizontal: 4 },
+  groupCard: { backgroundColor: colors.card, borderRadius: 20, ...shadow.md },
+  reprow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.line },
+  rightCol: { alignItems: 'flex-end', gap: 4 },
+  ftag: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.field, color: colors.muted, overflow: 'hidden' },
+  time: { color: colors.faint, fontSize: 12, fontVariant: ['tabular-nums'] },
   error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md, lineHeight: 20 },
   row: {
     flexDirection: 'row',
@@ -190,8 +243,8 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { color: colors.text, fontSize: 15, fontWeight: '800'},
-  sub: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  title: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  sub: { color: colors.muted, fontSize: 12.5, marginTop: 2 },
   date: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
   arrow: { color: colors.textMuted, fontSize: 24, fontWeight: '300'},
   modal: { flex: 1, backgroundColor: colors.bg },

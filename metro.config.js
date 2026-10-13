@@ -81,7 +81,23 @@ try {
 // Expo-гийн node-stdlib "stub" resolver-аас түрүүлж барихын тулд
 // custom resolveRequest ашиглана (extraNodeModules хангалтгүй тохиолдолд).
 const upstreamResolveRequest = config.resolver.resolveRequest;
+// Апп доторх Ionicons → дизайны Lucide icon (src/iconShim/vectorIconsShim.js).
+// Shim өөрөө болон node_modules жинхэнэ багцыг ашиглана.
+// ⚠️ Shim ТУСДАА хавтсанд байх ёстой: Metro нэг хавтасны resolve-ийг
+//    кэшлэдэг тул shim бусад компоненттой нэг хавтсанд байхад
+//    (src/components) хэн нь түрүүлж resolve хийснээс хамаарч тэр хавтасны
+//    бүх файл жинхэнэ Ionicons руу очиж, icon «?» болж байв.
+const ICONS_SHIM = path.resolve(__dirname, 'src/iconShim/vectorIconsShim.js');
+const APP_SRC = [path.resolve(__dirname, 'src') + path.sep, path.resolve(__dirname, 'App.js')];
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (
+    moduleName === '@expo/vector-icons' &&
+    context.originModulePath !== ICONS_SHIM &&
+    APP_SRC.some((p) => context.originModulePath.startsWith(p))
+  ) {
+    return { type: 'sourceFile', filePath: ICONS_SHIM };
+  }
   const shim = NODE_SHIMS[moduleName];
   if (shim) {
     return { type: 'sourceFile', filePath: shim };

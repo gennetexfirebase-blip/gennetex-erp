@@ -38,6 +38,7 @@ import React, {
 import { View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { buildMapHtml } from './mapHtml';
+import PERSON_AVATARS from '../theme/personAvatars';
 
 // `react-native-maps`-тай нийцтэй байхын тулд үлдээв. Дуудагч дэлгэцүүд
 // `provider={PROVIDER_GOOGLE}` дамжуулсаар байгаа ч эффектгүй.
@@ -93,6 +94,13 @@ function collect(children, out) {
   return out;
 }
 
+function personAvatarDataUri(name) {
+  if (!PERSON_AVATARS.length) return null;
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(PERSON_AVATARS[h % PERSON_AVATARS.length])}`;
+}
+
 function normalizeMarkers(list) {
   return list.map((p) => ({
     latitude: p.coordinate?.latitude ?? null,
@@ -102,7 +110,8 @@ function normalizeMarkers(list) {
     pinColor: p.pinColor ?? null,
     label: p.label ?? null,
     dim: !!p.dim,
-    avatarUri: p.avatarUri ?? null,
+    // Зураггүй хүнд prototype шиг зурсан хүний дүрс (нэрээр тогтмол).
+    avatarUri: p.avatarUri ?? (p.avatarName ? personAvatarDataUri(p.avatarName) : null),
     avatarName: p.avatarName ?? null,
     focused: !!p.focused,
     tint: p.tint ?? null,

@@ -238,11 +238,11 @@ export default function GennetexAiScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle={colors.ground === '#0B0F14' ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={22} color={colors.onPrimaryContainer} />
+            <Ionicons name="chevron-back" size={24} color={colors.ink} />
           </TouchableOpacity>
           <View style={styles.headerAvatar}>
             <Image source={GENNETEX_LOGO} style={styles.headerLogo} resizeMode="contain" />
@@ -343,13 +343,13 @@ export default function GennetexAiScreen() {
 
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  headerSafe: { backgroundColor: colors.surfaceDim },
+  headerSafe: { backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.line },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.bg,
     gap: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

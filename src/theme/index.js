@@ -1,6 +1,15 @@
-import { brand, ink, darkColors, lightColors, makeGradients, makeShadow } from './tokens';
+import { Platform } from 'react-native';
+import { brand, ink, iconTones, darkColors, lightColors, makeGradients, makeShadow } from './tokens';
 
-export { brand, ink, darkColors, lightColors, makeGradients, makeShadow };
+export { brand, ink, iconTones, darkColors, lightColors, makeGradients, makeShadow };
+
+/**
+ * Фонт. iOS дээр системийн SF Pro (fontFamily өгөхгүй), бусад дээр мөн
+ * системийн фонт. Лого бичиг "Gennetex" нь Fredoka (app.json → expo-font).
+ */
+export const fonts = {
+  wordmark: Platform.select({ ios: 'Fredoka-Medium', android: 'Fredoka_500Medium', default: 'Fredoka' }),
+};
 
 // Static default (dark = үндсэн горим).
 // АНХААР: энэ нь горимоос хамаарахгүй тул зөвхөн горимд хамаарахгүй утгад
@@ -23,9 +32,15 @@ export const spacing = {
 
 export const radius = {
   sm: 8,
-  md: 10,
+  md: 12,
   lg: 16,
   xl: 20,
+  // design/theme.ts
+  tile: 16,
+  input: 14,
+  button: 16,
+  card: 20,
+  sheet: 26,
   pill: 999,
   full: 999,
 };

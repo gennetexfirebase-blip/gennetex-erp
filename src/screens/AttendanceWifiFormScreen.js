@@ -7,10 +7,12 @@ import EmployeeSelectSheet from '../components/EmployeeSelectSheet';
 import { useApp } from '../context/AppContext';
 import * as attApi from '../services/attendanceService';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 export default function AttendanceWifiFormScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const { currentUser, fetchEmployees } = useApp();
   const profile = currentUser;
@@ -123,7 +125,7 @@ export default function AttendanceWifiFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   assignBtn: { height: 48, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: spacing.xl },

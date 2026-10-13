@@ -9,13 +9,15 @@ import {
   Image,
   StatusBar,
   Pressable,
+  TextInput,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useTheme, useStyles } from '../context/ThemeContext';
-import { EmptyState, ScreenHeader } from '../components/ui';
+import { EmptyState } from '../components/ui';
+import { Avatar as DsAvatar } from '../components/ds';
 import * as chatApi from '../services/chatService';
 import { formatConvTime } from '../lib/formatTime';
 import { isOnline } from '../lib/online';
@@ -68,22 +70,17 @@ function ConversationAvatar({ conv, meId, employees }) {
     if (conv.avatar_url) {
       return <Image source={{ uri: conv.avatar_url }} style={styles.convAvatarImg} />;
     }
+    // Prototype: бүлэг — өнгөт дугуй + 2 үсэг.
     return (
       <View style={[styles.convAvatar, { backgroundColor: avatarColor(conv.title || 'G') }]}>
-        <Ionicons name="people" size={26} color="#fff" />
+        <Text style={styles.convAvatarText}>{String(conv.title || 'Бүлэг').slice(0, 2)}</Text>
       </View>
     );
   }
 
+  // Хувь хүн — зураг, эсвэл дизайны зурсан хүний дүрс.
   const emp = findEmployeeForConv(conv, meId, employees);
-  if (emp?.avatar_url) {
-    return <Image source={{ uri: emp.avatar_url }} style={styles.convAvatarImg} />;
-  }
-  return (
-    <View style={[styles.convAvatar, { backgroundColor: avatarColor(conv.title) }]}>
-      <Text style={styles.convAvatarText}>{initials(conv.title)}</Text>
-    </View>
-  );
+  return <DsAvatar uri={emp?.avatar_url} name={conv.title || ''} size={48} />;
 }
 
 function ConversationRow({ conv, me, employees, onPress }) {
@@ -131,6 +128,7 @@ export default function ChatScreen() {
   const [employees, setEmployees] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState(null);
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
     if (!isCloud || !me?.id) return;
@@ -206,11 +204,33 @@ export default function ChatScreen() {
     });
   };
 
+  // Хайлт — яриа болон ажилтан (шинэ яриа эхлүүлэх) хоёуланг шүүнэ.
+  const q = query.trim().toLowerCase();
+  const shownConvs = q ? sortedConversations.filter((c) => String(c.title || '').toLowerCase().includes(q)) : sortedConversations;
+  const convPeople = new Set(conversations.filter((c) => !c.is_group).flatMap((c) => (c.members || []).map((m) => m.user_id)));
+  const shownPeople = q
+    ? employees.filter((e) => `${e.last_name || ''} ${e.name || ''}`.toLowerCase().includes(q))
+    : employees.filter((e) => !convPeople.has(e.id)).slice(0, 0);
+
+  const header = (
+    <SafeAreaView edges={['top']} style={styles.header}>
+      <Text style={styles.headerTitle}>Чат</Text>
+      <View style={styles.headerActions}>
+        <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('ChatArchive')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Архив">
+          <Ionicons name="archive-outline" size={20} color={colors.ink} />
+        </Pressable>
+        <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('NewGroup')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Шинэ яриа">
+          <Ionicons name="create-outline" size={20} color={colors.ink} />
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+
   if (!isCloud) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surfaceDim} />
-        <ScreenHeader title="Чатууд" back={false} />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ground} />
+        {header}
         <EmptyState text="Чат хийхэд Supabase холбогдсон байх шаардлагатай." />
       </View>
     );
@@ -218,167 +238,140 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surfaceDim} />
-      <ScreenHeader
-        title="Чатууд"
-        back={false}
-        right={
-          <>
-            <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('ChatArchive')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Архив">
-              <Ionicons name="archive-outline" size={22} color={colors.onSurface} />
-            </Pressable>
-            <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('NewGroup')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Шинэ групп">
-              <Ionicons name="create-outline" size={22} color={colors.onSurface} />
-            </Pressable>
-          </>
-        }
-      />
-
-      <FlatList
-        data={sortedConversations}
-        keyExtractor={(c) => c.id}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <View>
-            {error ? (
-              <View style={styles.errorBar}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.peopleStrip}
-            >
-              <TouchableOpacity
-                style={styles.personCard}
-                onPress={() => navigation.navigate('GennetexAi')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.personAvatar, styles.personAvatarAi]}>
-                  <Image source={GENNETEX_LOGO} style={styles.aiLogoImg} resizeMode="contain" />
-                </View>
-                <Text style={styles.personName} numberOfLines={2}>Gennetex AI</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.personCard}
-                onPress={() => navigation.navigate('TelegramChat')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.personAvatar, { backgroundColor: '#229ED9' }]}>
-                  <Ionicons name="paper-plane" size={26} color="#fff" />
-                </View>
-                <Text style={styles.personName} numberOfLines={2}>Telegram</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.personCard}
-                onPress={() => navigation.navigate('NewGroup')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.personAvatar, styles.personAvatarNew]}>
-                  <Ionicons name="people" size={26} color={colors.primary} />
-                </View>
-                <Text style={styles.personName} numberOfLines={2}>Шинэ групп</Text>
-              </TouchableOpacity>
-              {employees.map((emp) => (
-                <TouchableOpacity
-                  key={emp.id}
-                  style={styles.personCard}
-                  onPress={() => openDirect(emp)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.personAvatarWrap}>
-                    {emp.avatar_url ? (
-                      <Image source={{ uri: emp.avatar_url }} style={styles.personAvatarImg} />
-                    ) : (
-                      <View style={[styles.personAvatar, { backgroundColor: avatarColor(emp.name) }]}>
-                        <Text style={styles.personAvatarText}>{initials(emp.name)}</Text>
-                      </View>
-                    )}
-                    <View
-                      style={[
-                        styles.personDot,
-                        { backgroundColor: isOnline(emp.last_seen) ? colors.success : colors.textFaint },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.personName} numberOfLines={2}>
-                    {emp.name || 'Ажилтан'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.listDivider} />
-
-            <TouchableOpacity
-              style={styles.aiRow}
-              onPress={() => navigation.navigate('GennetexAi')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.aiAvatar}>
-                <Image source={GENNETEX_LOGO} style={styles.aiLogoImgLg} resizeMode="contain" />
-              </View>
-              <View style={styles.aiBody}>
-                <View style={styles.convTop}>
-                  <Text style={styles.aiTitle}>Gennetex AI</Text>
-                  <View style={styles.aiBadge}>
-                    <Text style={styles.aiBadgeText}>AI</Text>
-                  </View>
-                </View>
-                <Text style={styles.aiLast} numberOfLines={1}>
-                  Сүлжээний асуултаа асуугаарай · заавар + YouTube
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-            <View style={styles.rowDivider} />
-          </View>
-        }
-        renderItem={({ item }) => (
-          <ConversationRow
-            conv={item}
-            me={me}
-            employees={employees}
-            onPress={() => openConversation(item)}
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ground} />
+      {header}
+      <ScrollView contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.search}>
+          <Ionicons name="search" size={19} color={colors.faint} />
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Хүн, бүлэг хайх"
+            placeholderTextColor={colors.faint}
+            autoCorrect={false}
           />
-        )}
-        ItemSeparatorComponent={() => <View style={styles.rowDivider} />}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Ionicons name="chatbubbles-outline" size={48} color={colors.textFaint} />
-            <Text style={styles.emptyTitle}>Яриа алга</Text>
-            <Text style={styles.emptySub}>Дээрх ажилтан дээр дарж эхлүүлнэ үү</Text>
-          </View>
-        }
-      />
+          {query ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Цэвэрлэх">
+              <Ionicons name="close-circle" size={18} color={colors.faint} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <View style={styles.card}>
+          {!q ? (
+            <>
+              <TouchableOpacity style={styles.convRow} onPress={() => navigation.navigate('GennetexAi')} activeOpacity={0.65}>
+                <View style={[styles.convAvatar, { backgroundColor: colors.ai }]}>
+                  <Text style={styles.convAvatarText}>Ge</Text>
+                </View>
+                <View style={styles.convBody}>
+                  <View style={styles.convTop}>
+                    <Text style={styles.convTitle} numberOfLines={1}>Gennetex AI</Text>
+                  </View>
+                  <Text style={styles.convLast} numberOfLines={1}>Сүлжээний асуултаа асуугаарай · заавар + YouTube</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.convRow, styles.rowBorder]} onPress={() => navigation.navigate('TelegramChat')} activeOpacity={0.65}>
+                <View style={[styles.convAvatar, { backgroundColor: '#229ED9' }]}>
+                  <Ionicons name="paper-plane" size={22} color="#fff" />
+                </View>
+                <View style={styles.convBody}>
+                  <Text style={styles.convTitle} numberOfLines={1}>Telegram</Text>
+                  <Text style={styles.convLast} numberOfLines={1}>Telegram групп, ярианууд</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          ) : null}
+          {shownConvs.map((item, i) => (
+            <View key={item.id} style={(i > 0 || !q) && styles.rowBorder}>
+              <ConversationRow conv={item} me={me} employees={employees} onPress={() => openConversation(item)} />
+            </View>
+          ))}
+          {shownPeople.map((emp, i) => (
+            <TouchableOpacity
+              key={emp.id}
+              style={[styles.convRow, (i > 0 || shownConvs.length > 0) && styles.rowBorder]}
+              onPress={() => openDirect(emp)}
+              activeOpacity={0.65}
+            >
+              <View style={styles.convAvatarWrap}>
+                <DsAvatar uri={emp.avatar_url} name={emp.name || ''} size={48} online={isOnline(emp.last_seen)} />
+              </View>
+              <View style={styles.convBody}>
+                <Text style={styles.convTitle} numberOfLines={1}>{[emp.last_name, emp.name].filter(Boolean).join(' ') || 'Ажилтан'}</Text>
+                <Text style={styles.convLast} numberOfLines={1}>{emp.position || 'Шинэ яриа эхлүүлэх'}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          {q && !shownConvs.length && !shownPeople.length ? (
+            <Text style={styles.emptySub}>«{query}» олдсонгүй</Text>
+          ) : null}
+        </View>
+        {!q && !sortedConversations.length ? (
+          <Text style={styles.hint}>Шинэ яриа эхлүүлэхдээ хайлтад ажилтны нэрийг бичнэ үү.</Text>
+        ) : null}
+      </ScrollView>
     </View>
   );
 }
 
 const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.ground },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#0F1722',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 48,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    marginBottom: 12,
+    shadowColor: '#0F1722',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  searchInput: { flex: 1, color: colors.ink, fontSize: 15, padding: 0 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.line },
+  hint: { color: colors.muted, fontSize: 13, textAlign: 'center', marginTop: 14 },
   headerSafe: { backgroundColor: colors.surfaceDim },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: colors.surfaceDim,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
+    backgroundColor: colors.ground,
   },
-  headerTitle: { color: colors.onSurface, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  // Дизайн: «Чат» 30/700 гарчиг.
+  headerTitle: { color: colors.ink, fontSize: 30, fontWeight: '700', letterSpacing: -0.6 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerBtn: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listContent: { paddingBottom: 110 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 110 },
   errorBar: {
     backgroundColor: colors.danger + "1f",
     paddingHorizontal: 16,
@@ -470,22 +463,22 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   convRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
     gap: 12,
   },
   convAvatarWrap: { position: 'relative' },
   convAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   convAvatarImg: { width: 54, height: 54, borderRadius: 27 },
-  convAvatarText: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  convAvatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   convOnlineDot: {
     position: 'absolute',
     right: 1,
@@ -510,11 +503,11 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     gap: 8,
     marginBottom: 3,
   },
-  convTitle: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '600' },
-  convTime: { color: colors.textMuted, fontSize: 13, flexShrink: 0 },
+  convTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '700' },
+  convTime: { color: colors.faint, fontSize: 12, flexShrink: 0, fontVariant: ['tabular-nums'] },
   convBottom: { flexDirection: 'row', alignItems: 'center' },
   convCheck: { marginRight: 3 },
-  convLast: { flex: 1, color: colors.textMuted, fontSize: 15, lineHeight: 19 },
+  convLast: { flex: 1, color: colors.muted, fontSize: 13.5, lineHeight: 18, marginTop: 2 },
   rowDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,

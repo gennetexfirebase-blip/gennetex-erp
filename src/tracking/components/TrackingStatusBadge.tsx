@@ -1,8 +1,13 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { LocationPoint, trackingStatus } from '../utils/locationUtils';
+import { Chip } from '../../components/ds';
+
+/** Төлөвийг өнгөт chip-ээр харуулна (design: төлөв бүр chip-тэй). */
 export default function TrackingStatusBadge({ point, now }: { point: LocationPoint; now: number }) {
   const status = trackingStatus(point, now);
-  return <Text style={{ color: status === 'online' ? '#16a34a' : status === 'weak' ? '#ca8a04' : '#64748b', fontWeight: '700' }}>
-    ● {status === 'online' ? 'Online' : status === 'weak' ? 'Weak connection' : 'Offline'}</Text>;
+  return status === 'online'
+    ? <Chip text="Онлайн" tone="ok" icon="ellipse" />
+    : status === 'weak'
+      ? <Chip text="Сул холболт" tone="warn" icon="ellipse" />
+      : <Chip text="Офлайн" tone="muted" icon="ellipse" />;
 }

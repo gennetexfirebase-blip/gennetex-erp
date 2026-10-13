@@ -3,6 +3,7 @@ import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import * as notifyApi from './notificationService';
 import { distanceMeters } from '../lib/geo';
+import { refreshAttendanceWidget } from './attendanceWidgetService';
 
 const TABLE = 'attendance';
 const BUCKET = 'attendance';
@@ -120,6 +121,9 @@ export async function insertAttendance(record) {
   } catch (e) {
     /* мэдэгдэлгүй ч ирц бүртгэгдсэн */
   }
+
+  // Нүүр дэлгэцийн widget-ийн төлөвийг шинэчилнэ (хүлээхгүй).
+  refreshAttendanceWidget().catch(() => {});
 
   return data;
 }

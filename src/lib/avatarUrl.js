@@ -11,6 +11,8 @@ export function sanitizeAvatarUrl(url) {
   if (/^(file|content):\/\//i.test(u)) return u;
   if (/supabase\.co\/storage\//i.test(u)) return u;
   if (IMAGE_EXT.test(u)) return u;
+  // Google бүртгэлийн профайл зураг (өргөтгөлгүй URL).
+  if (/^https:\/\/lh\d\.googleusercontent\.com\//i.test(u)) return u;
   if (/^https?:\/\//i.test(u)) return null;
   return null;
 }

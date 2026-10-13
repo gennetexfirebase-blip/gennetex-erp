@@ -124,6 +124,11 @@ import DigitalTwinScreen from './src/screens/enhancements/DigitalTwinScreen';
 import TodayDetailScreen from './src/screens/enhancements/TodayDetailScreen';
 import OfflineQueueScreen from './src/screens/enhancements/OfflineQueueScreen';
 import BranchAdminScreen from './src/screens/enhancements/BranchAdminScreen';
+import ActsScreen from './src/screens/ActsScreen';
+import ActEditorScreen from './src/screens/ActEditorScreen';
+import ActDetailScreen from './src/screens/ActDetailScreen';
+import ActSettingsScreen from './src/screens/ActSettingsScreen';
+import FieldWorkScreen from './src/screens/FieldWorkScreen';
 import FeatureFlagsScreen from './src/screens/enhancements/FeatureFlagsScreen';
 import BarcodeModeScreen from './src/screens/enhancements/BarcodeModeScreen';
 import PublicTicketsScreen from './src/screens/enhancements/PublicTicketsScreen';
@@ -139,6 +144,7 @@ import WorkHeightIncidentScreen from './src/screens/WorkHeightIncidentScreen';
 import WorkHeightIncidentDetailScreen from './src/screens/WorkHeightIncidentDetailScreen';
 import WorkHeightRiskReportScreen from './src/screens/WorkHeightRiskReportScreen';
 import LocationTracker from './src/components/LocationTracker';
+import AttendanceWidgetSync from './src/components/AttendanceWidgetSync';
 import SiteVisitVerifier from './src/components/SiteVisitVerifier';
 import CallHost from './src/components/CallHost';
 import IncomingLiveInviteManager from './src/components/IncomingLiveInviteManager';
@@ -185,7 +191,7 @@ function MainTabs() {
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Нүүр' }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Ирц' }} />
-      <Tab.Screen name="Feed" component={FeedScreen} options={{ title: 'Пост' }} />
+      <Tab.Screen name="Feed" component={FeedScreen} options={{ title: 'Мэдээ мэдээлэл' }} />
       <Tab.Screen name="Chat" component={ChatScreen} options={{ title: 'Чат' }} />
     </Tab.Navigator>
   );
@@ -325,6 +331,11 @@ function AppStack() {
       <Stack.Screen name="TodayDetail" component={TodayDetailScreen} />
       <Stack.Screen name="OfflineQueue" component={OfflineQueueScreen} />
       <Stack.Screen name="BranchAdmin" component={BranchAdminScreen} />
+      <Stack.Screen name="Acts" component={ActsScreen} />
+      <Stack.Screen name="ActEditor" component={ActEditorScreen} />
+      <Stack.Screen name="ActDetail" component={ActDetailScreen} />
+      <Stack.Screen name="ActSettings" component={ActSettingsScreen} />
+      <Stack.Screen name="FieldWork" component={FieldWorkScreen} />
       <Stack.Screen name="FeatureFlags" component={FeatureFlagsScreen} />
       <Stack.Screen name="BarcodeMode" component={BarcodeModeScreen} />
       <Stack.Screen name="PublicTickets" component={PublicTicketsScreen} />
@@ -527,6 +538,7 @@ function Root({ shareRef }) {
     <>
       <OfflineSyncBanner />
       <LocationTracker />
+      <AttendanceWidgetSync />
       <SiteVisitVerifier />
       <CallHost />
       <IncomingLiveInviteManager />

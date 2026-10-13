@@ -6,9 +6,10 @@ import RequestCard from '../components/RequestCard';
 import { useApp } from '../context/AppContext';
 import * as reqApi from '../services/attendanceRequestService';
 import * as leaveApi from '../services/leaveRequestService';
+import * as attApi from '../services/attendanceService';
 import { attendanceRequestTypeLabel, attendanceRequestStatusLabel } from '../lib/attendanceRequestTypes';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 const STATUS_FILTERS = [
@@ -18,10 +19,14 @@ const STATUS_FILTERS = [
   { key: 'rejected', label: 'Татгалзсан' },
 ];
 
-export default function AttendanceRequestsScreen() {
+export default function AttendanceRequestsScreen({ route }) {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const { currentUser } = useApp();
   const profile = currentUser;
-  const [tab, setTab] = useState('time'); // 'time' | 'employee'
+  // 'remote' — зайнаас бүртгүүлсэн ирц (өмнө нь Ирц дэлгэц дээр шууд харагддаг байв).
+  const [tab, setTab] = useState(route?.params?.tab || 'time'); // 'time' | 'employee' | 'remote'
+  const [remoteCount, setRemoteCount] = useState(0);
   const [status, setStatus] = useState('pending');
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [rows, setRows] = useState([]);
@@ -33,7 +38,11 @@ export default function AttendanceRequestsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (tab === 'time') {
+      // Зайнаас ирсэн хүлээгдэж буй ирцийн тоог таб дээр үргэлж харуулна.
+      attApi.fetchPendingAttendance().then((d) => setRemoteCount((d || []).length)).catch(() => {});
+      if (tab === 'remote') {
+        setRows((await attApi.fetchPendingAttendance()) || []);
+      } else if (tab === 'time') {
         const data = await reqApi.fetchAttendanceRequests({ status });
         setRows(data || []);
       } else {
@@ -53,13 +62,16 @@ export default function AttendanceRequestsScreen() {
   }, [load]);
 
   const decide = async (row, decision) => {
-    if (decision === 'rejected') {
+    // Зайнаас ирсэн ирцэд шалтгаан хадгалах талбар байхгүй — шууд татгалзана.
+    if (decision === 'rejected' && tab !== 'remote') {
       setRejectTarget(row);
       setRejectReason('');
       return;
     }
     try {
-      if (tab === 'time') {
+      if (tab === 'remote') {
+        await attApi.setAttendanceStatus(row.id, decision);
+      } else if (tab === 'time') {
         await reqApi.decideAttendanceRequest(row.id, decision);
       } else {
         await leaveApi.updateLeaveRequestStatus(row.id, decision, {
@@ -100,6 +112,7 @@ export default function AttendanceRequestsScreen() {
         {[
           { key: 'time', label: 'Цагийн хүсэлт' },
           { key: 'employee', label: 'Ажилтны хүсэлт' },
+          { key: 'remote', label: 'Зайнаас', count: remoteCount },
         ].map((t) => {
           const active = tab === t.key;
           return (
@@ -108,13 +121,18 @@ export default function AttendanceRequestsScreen() {
               style={[styles.segmentBtn, { backgroundColor: active ? colors.primary : colors.surfaceContainer }]}
               onPress={() => setTab(t.key)}
             >
-              <Text style={{ color: active ? colors.onPrimary : colors.text, fontWeight: '700' }}>{t.label}</Text>
+              <Text style={{ color: active ? colors.onPrimary : colors.text, fontWeight: '700', fontSize: 13, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t.label}</Text>
+              {t.count ? (
+                <View style={[styles.segBadge, { backgroundColor: colors.error || '#D23A2F' }]}>
+                  <Text style={styles.segBadgeText}>{t.count}</Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md }}>
+      <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md, display: tab === 'remote' ? 'none' : 'flex' }}>
         <TouchableOpacity
           style={[styles.statusDropdown, { backgroundColor: colors.surfaceContainer }]}
           onPress={() => setStatusMenuOpen((v) => !v)}
@@ -153,7 +171,20 @@ export default function AttendanceRequestsScreen() {
           }
           ListEmptyComponent={<EmptyState text="Хүлээгдэж буй хүсэлт байхгүй" />}
           renderItem={({ item }) =>
-            tab === 'time' ? (
+            tab === 'remote' ? (
+              <RequestCard
+                title={`Зайнаас ${item.type === 'check_in' ? 'ирсэн' : 'явсан'}`}
+                employeeName={item.staff_name}
+                dateLabel={new Date(item.created_at).toLocaleString('mn-MN')}
+                status={item.status}
+                statusLabel="Хүлээгдэж буй"
+                reason={[item.distance_m != null ? `Цэгээс ~${item.distance_m}м зайд` : null, item.note].filter(Boolean).join(' · ') || null}
+                createdAt={item.created_at}
+                colors={colors}
+                onApprove={() => decide(item, 'approved')}
+                onReject={() => decide(item, 'rejected')}
+              />
+            ) : tab === 'time' ? (
               <RequestCard
                 title={attendanceRequestTypeLabel(item.type)}
                 employeeName={item.employee_name}
@@ -216,9 +247,11 @@ export default function AttendanceRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   segmentRow: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.lg, marginTop: spacing.md },
-  segmentBtn: { flex: 1, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  segmentBtn: { flex: 1, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 6 },
+  segBadge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
+  segBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   statusDropdown: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
   dropdownMenu: { marginTop: 6, borderRadius: 12, paddingVertical: 4, alignSelf: 'flex-start', minWidth: 160 },
   dropdownItem: { paddingHorizontal: 14, paddingVertical: 10 },

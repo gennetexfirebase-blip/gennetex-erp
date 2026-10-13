@@ -73,7 +73,7 @@ async function urlToBytes(url?: string | null) {
 type PreparedStamp = { dataUrl: string; bytes: Uint8Array };
 const preparedStampCache = new Map<string, Promise<PreparedStamp | null>>();
 
-function prepareTransparentStamp(url?: string | null): Promise<PreparedStamp | null> {
+export function prepareTransparentStamp(url?: string | null): Promise<PreparedStamp | null> {
   if (!url) return Promise.resolve(null);
   const cached = preparedStampCache.get(url);
   if (cached) return cached;

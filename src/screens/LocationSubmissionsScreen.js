@@ -5,11 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from '../components/Map';
 import { ScreenHeader, EmptyState, LoadingState } from '../components/ui';
 import * as attApi from '../services/attendanceService';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 /** "Илгээсэн байршил" — attendance хүснэгтийн lat/lng-тэй мөрүүдийг л феэд болгож харуулна (шинэ хүснэгт үүсгэхгүй). */
 export default function LocationSubmissionsScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +90,7 @@ export default function LocationSubmissionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   card: { borderRadius: 16, padding: spacing.lg, marginBottom: spacing.md },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
   mapPreview: { height: 130, borderRadius: 12, overflow: 'hidden' },

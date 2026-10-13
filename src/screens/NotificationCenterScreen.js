@@ -12,20 +12,20 @@ import * as notificationApi from '../services/notificationCenterService';
 
 /** Төрөл бүрийн дүрс, өнгө, монгол шошго. */
 const TYPE_META = {
-  message: { emoji: '💬', label: 'Чат', tone: '#2ec5c0' },
-  chat: { emoji: '💬', label: 'Чат', tone: '#2ec5c0' },
-  order: { emoji: '📦', label: 'Захиалга', tone: '#f5b544' },
-  payment: { emoji: '💳', label: 'Төлбөр', tone: '#3fcf8e' },
-  task: { emoji: '✅', label: 'Даалгавар', tone: '#3fcf8e' },
-  admin: { emoji: '📣', label: 'Систем', tone: '#2f9fe0' },
-  system: { emoji: '⚙️', label: 'Систем', tone: '#2f9fe0' },
-  urgent: { emoji: '⚠️', label: 'Яаралтай', tone: '#ff6b60' },
-  device: { emoji: '📱', label: 'Шинэ', tone: '#9b6dff' },
-  attendance_pending: { emoji: '🔔', label: 'Ирц', tone: '#2f9fe0' },
+  message: { emoji: '💬', label: 'Чат', tone: '#0C978E' },
+  chat: { emoji: '💬', label: 'Чат', tone: '#0C978E' },
+  order: { emoji: '📦', label: 'Захиалга', tone: '#B86E00' },
+  payment: { emoji: '💳', label: 'Төлбөр', tone: '#15924A' },
+  task: { emoji: '✅', label: 'Даалгавар', tone: '#15924A' },
+  admin: { emoji: '📣', label: 'Систем', tone: '#0B8A55' },
+  system: { emoji: '⚙️', label: 'Систем', tone: '#0B8A55' },
+  urgent: { emoji: '⚠️', label: 'Яаралтай', tone: '#D23A2F' },
+  device: { emoji: '📱', label: 'Шинэ', tone: '#6F4FD8' },
+  attendance_pending: { emoji: '🔔', label: 'Ирц', tone: '#0B8A55' },
 };
 
 function metaFor(type) {
-  return TYPE_META[type] || { emoji: '🔔', label: 'Мэдэгдэл', tone: '#2f9fe0' };
+  return TYPE_META[type] || { emoji: '🔔', label: 'Мэдэгдэл', tone: '#0B8A55' };
 }
 
 function fmtDate(iso) {

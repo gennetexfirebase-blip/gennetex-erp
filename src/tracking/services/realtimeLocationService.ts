@@ -7,11 +7,11 @@ export function trackingClient() {
 export async function fetchCurrentLocations(employeeId?: string): Promise<LocationPoint[]> {
   const rows: LocationPoint[] = [];
   for (let offset = 0; ; offset += 500) {
-    let query = trackingClient().from('current_locations').select('*, profiles(name)').order('employee_id').range(offset, offset + 499);
+    let query = trackingClient().from('current_locations').select('*, profiles(name, avatar_url)').order('employee_id').range(offset, offset + 499);
     if (employeeId) query = query.eq('employee_id', employeeId);
     const { data, error } = await query;
     if (error) throw error;
-    rows.push(...(data || []).map((row: any) => ({ ...row, name: row.profiles?.name, timestamp: Number(row.timestamp) })));
+    rows.push(...(data || []).map((row: any) => ({ ...row, name: row.profiles?.name, avatar_url: row.profiles?.avatar_url || null, timestamp: Number(row.timestamp) })));
     if ((data || []).length < 500) return rows;
   }
 }

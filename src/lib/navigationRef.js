@@ -1,9 +1,7 @@
 import { createNavigationContainerRef } from '@react-navigation/native';
 
 export const navigationRef = createNavigationContainerRef();
-let pendingNotification = null;
-
-/**
+let pendingNotification = null;/**
  * Дэлгэц рүү шилжих — компонентээс гадуур (сервис, tracker) ашиглана.
  *
  * Навигац бэлэн болоогүй үед ЧИМЭЭГҮЙ өнгөрнө: апп ачаалж дуусаагүй
@@ -91,6 +89,12 @@ export function navigateFromNotification(data) {
       break;
     case 'job_application':
       navigationRef.navigate('AdminApplications', { applicationId: data.applicationId || data.entityId });
+      break;
+    case 'act_submitted':
+    case 'act_approved':
+    case 'act_returned':
+      if (data.actId) navigationRef.navigate('ActDetail', { id: data.actId });
+      else navigationRef.navigate('Acts');
       break;
     case 'admin':
     case 'system':

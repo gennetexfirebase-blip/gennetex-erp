@@ -4,20 +4,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   TextInput,
-  Image,
-  Platform,
+  Pressable,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
-import NavIcon from '../components/NavIcon';
-import { spacing, radius } from '../theme';
-import { accent, accentMap } from '../theme/accents';
+import { spacing } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { roleLabel, canTakeServiceCalls } from '../lib/roles';
 import { effectivePermissions } from '../lib/permissions';
@@ -27,17 +22,27 @@ import * as tracking from '../services/trackingService';
 import * as vehicleApi from '../services/vehicleService';
 import { countTodayCheckIns } from '../services/attendanceService';
 import * as ohaabApi from '../services/ohaabService';
-import * as meetingApi from '../services/meetingService';
-import { formatDate } from '../lib/formatTime';
 import TodayDashboard from '../components/enhancements/TodayDashboard';
 import HomeAttendanceCard from '../components/HomeAttendanceCard';
 import HeaderAccountActions from '../components/HeaderAccountActions';
 import HomeLiveMap from '../components/HomeLiveMap';
+import {
+  Badge,
+  Box,
+  Chip,
+  ModuleTile,
+  PhIcon,
+  SectionHeader,
+  Segmented,
+  StatGrid,
+  Wordmark,
+} from '../components/ds';
 
+// 2026-10-11: Нүүрнээс хассан — Store шалгалт, Telegram чат, Миний Telegram,
+// Ирц (дээрх ирцийн карт, товчлол байгаа), Чат (доод цэсэнд), Зам оновчлох,
+// Дуудлагын түүх, Мэдлэгийн сан, Оффлайн queue. «Авсан сургалт» удирдлага руу.
 const EMPLOYEE_MODULES = [
-  { key: 'EmployeeTraining', label: 'Авсан сургалт', icon: 'attendance', accent: 'green' },
-  { key: 'StoreReadiness', label: 'Store шалгалт', icon: 'report', accent: 'brand' },
-  { key: 'WorkHeightRisk', label: 'Өндөрт ажиллах ХАБЭА', icon: 'attendance', accent: 'rose' },
+  { key: 'WorkHeightRisk', label: 'Өндөрт ажиллах', icon: 'attendance', accent: 'rose' },
   { key: 'Ohaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber' },
   // Бараа материал / багажийг ажилтан ӨӨРӨӨ авахгүй — зөвхөн админ олгоно.
   // Тиймээс агуулахын жагсаалт руу орох хавтас байхгүй, зөвхөн өөрт нь
@@ -48,68 +53,65 @@ const EMPLOYEE_MODULES = [
   { key: 'MyContract', label: 'Миний гэрээ', icon: 'report', accent: 'indigo'},
   { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', accent: 'indigo'},
   { key: 'Vehicle', label: 'Машин сонгох', icon: 'vehicle', accent: 'amber' },
-  { key: 'Fuel', label: 'Бензиний баримт илгээх', icon: 'fuel', accent: 'amber' },
+  { key: 'Fuel', label: 'Бензиний баримт', icon: 'fuel', accent: 'amber' },
   { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber' },
-  { key: 'TelegramChat', label: 'Telegram чат', icon: 'chat', accent: 'teal' },
-  { key: 'MyTelegram', label: 'Миний Telegram', icon: 'chat', accent: 'teal' },
   { key: 'Calls', label: 'Дуудлага', icon: 'calls', accent: 'teal'},
+  // Талбайн ажил: өмнөх/дараах зураг + GPS автоматаар.
+  { key: 'BoxTag', label: 'Боксны таг', route: 'FieldWork', params: { kind: 'box_tag' } },
+  { key: 'Transfer', label: 'Шилжүүлэг', route: 'FieldWork', params: { kind: 'transfer' } },
+  // Зураг авахад GPS хадгалагдаж, ойртсон ажилтанд зурагтай push очно.
+  { key: 'BoxFull', label: 'Дүүрсэн бокс', route: 'FieldWork', params: { kind: 'box_full' } },
   { key: 'Meeting', label: 'Хурал', icon: 'chat', accent: 'teal'},
-  { key: 'Attendance', label: 'Ирц', icon: 'attendance', accent: 'indigo'},
   { key: 'MyShift', label: 'Хуваарь харах', icon: 'clock', accent: 'indigo'},
   { key: 'MyPayroll', label: 'Миний цалин', icon: 'report', accent: 'indigo'},
   { key: 'EmployeeReport', label: 'Ажилтан тайлан', icon: 'report', accent: 'slate'},
   { key: 'Feedback', label: 'Санал гомдол', icon: 'report', accent: 'rose'},
-  { key: 'Chat', label: 'Чат', icon: 'chat', accent: 'teal'},
-  { key: 'CallHistory', label: 'Дуудлагын түүх', icon: 'calls', accent: 'brand'},
   // --- Enhancements (additive) ---
-  { key: 'RouteOptimize', label: 'Зам оновчлох', icon: 'location', accent: 'green' },
-  { key: 'KnowledgeBase', label: 'Мэдлэгийн сан', icon: 'report', accent: 'slate' },
   { key: 'ToolCheckIn', label: 'Багаж нөхцөл', icon: 'tools', accent: 'brand' },
   { key: 'BarcodeMode', label: 'Barcode горим', icon: 'qr', accent: 'brand' },
-  { key: 'OfflineQueue', label: 'Оффлайн queue', icon: 'clock', accent: 'slate' },
+  // Акт бичих эрх олгогдсон ажилтанд л харагдана.
+  { key: 'Acts', label: 'Акт бичих', icon: 'report', accent: 'green', need: 'acts.create' },
 ];
 
+// 2026-10-11: Анхааруулгын төв, Тохиргооны төв → Профайл руу. Ажлын байр/баг,
+// Очсон лог, Live Ops, Дуудлагын өртөг, Автомат оноолт, Predictive, Public
+// tickets, Feature flags — нүүрнээс хассан.
 const ADMIN_MODULES = [
-  { key: 'OperationalAlerts', label: 'Анхааруулгын төв', icon: 'attendance', accent: 'rose', need: 'approve' },
-  { key: 'BusinessSettings', label: 'Тохиргооны төв', icon: 'tools', accent: 'slate', need: 'approve', adminOnly: true },
   { key: 'AdminOhaab', label: 'ХААБ заавар', icon: 'attendance', accent: 'amber', need: 'approve' },
+  // Сургалт, сертификатыг удирдлага бүртгэнэ (ажилтны цэснээс шилжүүлсэн).
+  { key: 'EmployeeTraining', label: 'Авсан сургалт', icon: 'attendance', accent: 'green', need: 'employees' },
+  { key: 'FieldWorkAdmin', label: 'Талбайн ажил', route: 'FieldWork', params: { kind: 'all' }, need: 'approve' },
   { key: 'Employees', label: 'Ажилтан бүртгэх', icon: 'employees', accent: 'indigo', need: 'employees' },
   // ⚠️ "Хэлтэс" нь нүүр дэлгэцийн хавтан БИШ. Хэлтсийг ажилтан нэмэх
   //    хэсгээс (Ажилтан бүртгэх → Хэлтэс) сонгож, хөгжүүлэгч тэндээсээ
   //    шинээр үүсгэнэ. Ингэснээр "хаана хэлтэс нэмдэг билээ" гэсэн
   //    хоёр өөр зам үүсэхгүй.
-  { key: 'AdminApplications', label: 'Ажлын байрны анкет', icon: 'employees', accent: 'indigo', need: 'employees'},
+  { key: 'AdminApplications', label: 'Ажлын анкет', icon: 'employees', accent: 'indigo', need: 'employees'},
   { key: 'AdminContracts', label: 'Хөдөлмөрийн гэрээ', icon: 'report', accent: 'indigo', need: 'employees'},
   { key: 'AdminReports', label: 'Тайлан', icon: 'report', accent: 'slate', need: 'employees'},
   // Багийн ӨДРИЙН гүйцэтгэл: хэдэн баг · өдөрт хэдэн айл · хэр хугацаанд.
   // Компанийн хэмжээний дүн тул `adminOnly` — ахлах, менежерт харагдахгүй.
-  { key: 'AdminWorkPerformance', label: 'Ажилчдын гүйцэтгэл', icon: 'report', accent: 'green', need: 'employees', adminOnly: true },
+  { key: 'AdminWorkPerformance', label: 'Гүйцэтгэл', icon: 'report', accent: 'green', need: 'employees', adminOnly: true },
   { key: 'Payroll', label: 'Цалин тооцоо', icon: 'report', accent: 'indigo', need: 'payroll' },
   { key: 'AdminFeedback', label: 'Санал гомдол', icon: 'report', accent: 'rose', need: 'employees'},
   { key: 'EmployeeDirectory', label: 'Ажилтны мэдээлэл', icon: 'employees', accent: 'indigo', need: 'employees'},
-  { key: 'SiteWork', label: 'Ажлын байр / баг', icon: 'location', accent: 'green', need: 'approve'},
   { key: 'AdminCalls', label: 'Бүх дуудлага', icon: 'calls', accent: 'teal', need: 'approve'},
-  { key: 'AdminVisits', label: 'Очсон лог', icon: 'location', accent: 'green', need: 'approve'},
   { key: 'Requisition', label: 'Шаардах хуудас', icon: 'report', accent: 'brand', need: 'inventory'},
-  { key: 'VehiclesAdmin', label: 'Машины мэдээлэл солих', icon: 'qr', accent: 'amber', need: 'employees' },
+  { key: 'VehiclesAdmin', label: 'Машины хяналт', icon: 'qr', accent: 'amber', need: 'employees' },
   { key: 'VehicleSpecs', label: 'Машины оношилгоо', icon: 'vehicle', accent: 'amber', need: 'employees' },
-  { key: 'FleetFuel', label: 'Бензин зарцуулалт', icon: 'fuel', accent: 'amber', need: 'employees' },
+  { key: 'FleetFuel', label: 'Шатахуун зарцуулалт', icon: 'fuel', accent: 'amber', need: 'employees' },
   { key: 'Inventory', label: 'Бараа материал', icon: 'inventory', accent: 'brand', need: 'inventory' },
   // Багаж ба хангамж нэг хавтанд. Хоёул ажилтанд ОЛГОГДДОГ зүйл тул
   // хамт байрлана. Бараа материал нь агуулахын үлдэгдэл — тусдаа.
   { key: 'ToolsHub', label: 'Багаж, хангамж', icon: 'tools', accent: 'brand', need: 'inventory' },
   { key: 'ToolAllocation', label: 'Ажилтны үлдэгдэл', icon: 'allocation', accent: 'brand', need: 'inventory' },
   // --- Enhancements (additive) ---
-  { key: 'LiveOps', label: 'Live Ops', icon: 'location', accent: 'green', need: 'approve' },
   { key: 'SlaReport', label: 'SLA & KPI', icon: 'report', accent: 'slate', need: 'employees' },
-  { key: 'AutoDispatch', label: 'Автомат оноолт', icon: 'calls', accent: 'teal', need: 'approve' },
   { key: 'LowStock', label: 'Бага үлдэгдэл', icon: 'inventory', accent: 'rose', need: 'inventory' },
-  { key: 'CallCost', label: 'Дуудлагын өртөг', icon: 'report', accent: 'slate', need: 'employees' },
   { key: 'PayrollExport', label: 'Цалин export', icon: 'report', accent: 'indigo', need: 'payroll' },
-  { key: 'Predictive', label: 'Predictive', icon: 'location', accent: 'slate', need: 'employees' },
-  { key: 'PublicTickets', label: 'Public tickets', icon: 'chat', accent: 'teal', need: 'employees' },
-  { key: 'BranchAdmin', label: 'Салбар', icon: 'location', accent: 'slate', need: 'employees' },
-  { key: 'FeatureFlags', label: 'Feature flags', icon: 'ai', accent: 'slate', need: 'employees' },
+  // akt.gennetex.com — ажил гүйцэтгэлийн акт. Эрх олгогдсон хүн (админ ч гэсэн)
+  // болон Захирал, sysadmin-д л харагдана.
+  { key: 'Acts', label: 'Акт', icon: 'report', accent: 'green', need: 'acts.create' },
 ];
 
 // AI боломжуудыг тусад нь тод хэсэг болгож харуулна
@@ -127,8 +129,9 @@ const AI_MODULES_ADMIN = [
 ];
 
 const ADMIN_KEYS = new Set(ADMIN_MODULES.map((m) => m.key));
-/** Админ инженер биш — энэ модуль зөвхөн ажилтанд */
-const ADMIN_HIDDEN_KEYS = new Set(['Calls']);
+/** Админ инженер биш — энэ модуль зөвхөн ажилтанд. «Ажлын байр» нь
+ *  удирдлагаас хасагдсан тул админы үйлчилгээний цэсэнд ч гарахгүй. */
+const ADMIN_HIDDEN_KEYS = new Set(['Calls', 'SiteWork']);
 
 function greeting() {
   const h = new Date().getHours();
@@ -137,10 +140,140 @@ function greeting() {
   return 'Оройн мэнд';
 }
 
+// ---------------------------------------------------------------------------
+// Шинэ дизайн: модулийн бүлэг, Phosphor duotone icon, өнгө (design §4 Нүүр)
+// ---------------------------------------------------------------------------
+
+/** Модуль бүрийн [Phosphor icon, өнгө]. */
+const MODULE_LOOK = {
+  // Хүний нөөц
+  Employees: ['user-plus', 'blue'],
+  EmployeeDirectory: ['identification-card', 'indigo'],
+  AdminApplications: ['identification-badge', 'teal'],
+  AdminContracts: ['signature', 'purple'],
+  SiteWork: ['buildings', 'slate'],
+  AdminWorkPerformance: ['trophy', 'amber'],
+  Payroll: ['calculator', 'green'],
+  PayrollExport: ['download-simple', 'teal'],
+  // Дуудлага ба үйл ажиллагаа
+  AdminCalls: ['headset', 'blue'],
+  AdminVisits: ['footprints', 'teal'],
+  CallCost: ['money', 'green'],
+  LiveOps: ['pulse', 'red'],
+  SlaReport: ['gauge', 'amber'],
+  AutoDispatch: ['shuffle', 'purple'],
+  PublicTickets: ['ticket', 'pink'],
+  Predictive: ['trend-up', 'indigo'],
+  // Агуулах ба тээвэр
+  Inventory: ['archive', 'amber'],
+  ToolsHub: ['toolbox', 'red'],
+  ToolAllocation: ['stack', 'indigo'],
+  LowStock: ['package', 'pink'],
+  Requisition: ['note-pencil', 'blue'],
+  VehiclesAdmin: ['car-profile', 'teal'],
+  VehicleSpecs: ['wrench', 'slate'],
+  FleetFuel: ['gas-pump', 'green'],
+  // Систем ба тайлан
+  AdminReports: ['chart-bar', 'blue'],
+  Acts: ['note-pencil', 'teal'],
+  OperationalAlerts: ['bell-ringing', 'red'],
+  BusinessSettings: ['gear-six', 'slate'],
+  AdminOhaab: ['shield-check', 'green'],
+  AdminFeedback: ['chat-centered-dots', 'pink'],
+  FeatureFlags: ['toggle-right', 'purple'],
+  AdminDevices: ['device-mobile', 'indigo'],
+  // Ажилтан — Миний
+  Attendance: ['calendar-check', 'green'],
+  MyShift: ['clock', 'blue'],
+  LeaveRequest: ['calendar-plus', 'teal'],
+  MyPayroll: ['wallet', 'amber'],
+  MyContract: ['file-text', 'indigo'],
+  MyStock: ['package', 'pink'],
+  MyTools: ['hammer', 'slate'],
+  EmployeeReport: ['clipboard-text', 'purple'],
+  // Ажил ба дуудлага
+  Calls: ['phone-call', 'green'],
+  BoxTag: ['archive', 'teal'],
+  Transfer: ['repeat', 'indigo'],
+  BoxFull: ['package', 'amber'],
+  FieldWorkAdmin: ['map-pin', 'teal'],
+  Vehicle: ['car', 'blue'],
+  Fuel: ['receipt', 'amber'],
+  BarcodeMode: ['barcode', 'slate'],
+  ToolCheckIn: ['wrench', 'red'],
+  // Аюулгүй ажиллагаа
+  EmployeeTraining: ['graduation-cap', 'purple'],
+  Ohaab: ['shield-check', 'green'],
+  WorkHeightRisk: ['hard-hat', 'amber'],
+  KnowledgeBase: ['books', 'indigo'],
+  // Харилцаа
+  Chat: ['chats-circle', 'blue'],
+  TelegramChat: ['paper-plane-tilt', 'teal'],
+  MyTelegram: ['at', 'indigo'],
+  Meeting: ['video-camera', 'pink'],
+  Feedback: ['chat-centered-dots', 'red'],
+  // AI
+  AiAdmin: ['sparkle', 'purple'],
+  GennetexAi: ['chat-teardrop-dots', 'purple'],
+  AiInventoryHome: ['scan', 'purple'],
+  AdminPerformance: ['chart-line-up', 'purple'],
+  AdminAppUsage: ['chart-pie-slice', 'purple'],
+};
+
+const ADMIN_GROUPS = [
+  ['Хүний нөөц', ['Employees', 'EmployeeDirectory', 'AdminApplications', 'AdminContracts', 'EmployeeTraining', 'AdminWorkPerformance', 'Payroll', 'PayrollExport']],
+  ['Дуудлага ба үйл ажиллагаа', ['AdminCalls', 'FieldWorkAdmin', 'SlaReport']],
+  ['Агуулах ба тээвэр', ['Inventory', 'ToolsHub', 'ToolAllocation', 'LowStock', 'Requisition', 'VehiclesAdmin', 'VehicleSpecs', 'FleetFuel']],
+  ['Систем ба тайлан', ['AdminReports', 'Acts', 'AdminOhaab', 'AdminFeedback', 'AdminDevices']],
+];
+
+const SERVICE_GROUPS = [
+  ['Миний', ['MyShift', 'LeaveRequest', 'MyPayroll', 'MyContract', 'MyStock', 'MyTools', 'EmployeeReport']],
+  ['Ажил ба дуудлага', ['Acts', 'Calls', 'BoxTag', 'BoxFull', 'Transfer', 'Vehicle', 'Fuel', 'BarcodeMode', 'ToolCheckIn', 'FleetFuel', 'SiteWork']],
+  ['Аюулгүй ажиллагаа', ['Ohaab', 'WorkHeightRisk']],
+  ['Харилцаа', ['Meeting', 'Feedback', 'EmployeeDirectory']],
+];
+
+/** «Чөлөөний хүсэлт» — тусдаа дэлгэц биш, Ирцийн хүсэлтийн маягт руу. */
+const LEAVE_MODULE = { key: 'LeaveRequest', label: 'Чөлөөний хүсэлт', route: 'AttendanceRequestForm' };
+
+/** Эрхээр шүүсэн модулиудыг бүлэгт хуваана; бүлэгт ороогүй нь «Бусад». */
+function groupModules(modules, groups) {
+  const byKey = new Map(modules.map((m) => [m.key, m]));
+  const used = new Set();
+  const out = [];
+  for (const [title, keys] of groups) {
+    const items = keys.filter((k) => byKey.has(k) && !used.has(k)).map((k) => {
+      used.add(k);
+      return byKey.get(k);
+    });
+    if (items.length) out.push({ title, items });
+  }
+  const rest = modules.filter((m) => !used.has(m.key));
+  if (rest.length) out.push({ title: 'Бусад', items: rest });
+  return out;
+}
+
+/** Хэрэглэгчийн хадгалсан дарааллаар бүлэг доторх хавтангуудыг эрэмбэлнэ. */
+function sortByOrder(items, ordered) {
+  const idx = new Map(ordered.map((m, i) => [m.key, i]));
+  return [...items].sort((a, b) => (idx.get(a.key) ?? 999) - (idx.get(b.key) ?? 999));
+}
+
+function firstName(name) {
+  const parts = String(name || '').trim().split(/\s+/);
+  // «Б. Батболд» → «Батболд»
+  return parts.length > 1 && parts[0].length <= 3 ? parts[parts.length - 1] : parts[0] || '';
+}
+
+const WEEKDAYS = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
+function longDate(d) {
+  return `${WEEKDAYS[d.getDay()]}, ${d.getMonth() + 1}-р сарын ${d.getDate()}`;
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { colors, isDark, gradients } = useTheme();
-  const accents = useMemo(() => accentMap(isDark), [isDark]);
+  const { colors } = useTheme();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const styles = useStyles(makeStyles);
   const { authProfile, profile, isAdmin, isSuperAdmin, isCloud, fetchEmployees, currentUser } = useApp();
@@ -150,16 +283,11 @@ export default function HomeScreen() {
   const [now, setNow] = useState(() => new Date());
   const [ohaabSignedToday, setOhaabSignedToday] = useState(true);
 
-  // Динамик хэмжээ тооцоолох (flex wrap болон gap тохируулахад багтахгүй байхаас сэргийлнэ)
-  const bodyPadding = 16; // spacing.lg
-  const tileGap = 14;
-  const moduleColumns = SCREEN_WIDTH >= 520 ? 4 : 3;
-  const availableWidth = SCREEN_WIDTH - bodyPadding * 2;
-  const tileWidth = Math.floor((availableWidth - tileGap * (moduleColumns - 1)) / moduleColumns);
-  const tileHeight = moduleColumns === 3
-    ? Math.max(108, Math.round(tileWidth * 1.0))
-    : Math.round(tileWidth * 1.1);
-  const aiCardWidth = Math.floor((availableWidth - tileGap) - 1) / 2;
+  // Модулийн сүлжээ: 4 багана, бүлгийн карт дотор (padding 8, gap 4).
+  const moduleColumns = 4;
+  const gridWidth = SCREEN_WIDTH - 32 - 16;
+  const tileWidth = Math.floor((gridWidth - 4 * (moduleColumns - 1)) / moduleColumns);
+  const tileHeight = 96;
 
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 30_000);
@@ -200,38 +328,29 @@ export default function HomeScreen() {
     }, [isAdmin, isCloud, fetchEmployees, currentUser])
   );
 
-  const dateStr = formatDate(now);
-
   // Админ дуудлагаар явах эрхтэй эсэх (superadmin эрх өгсөн үед)
   const role = authProfile?.role;
   const canTakeCalls = canTakeServiceCalls(authProfile);
-  const serviceModules = useMemo(
-    () =>
-      isAdmin
-        ? EMPLOYEE_MODULES.filter(
-            (m) =>
-              !ADMIN_KEYS.has(m.key) &&
-              (!ADMIN_HIDDEN_KEYS.has(m.key) || (m.key === 'Calls' && canTakeCalls))
-          )
-        : EMPLOYEE_MODULES,
-    [isAdmin, canTakeCalls]
-  );
+  /** Эрхийн чадвар (src/lib/permissions.js) — модулийн 
+eed-ээр шүүнэ. */
+  const capabilities = useMemo(() => effectivePermissions(authProfile), [authProfile]);
+  const serviceModules = useMemo(() => {
+    const base = isAdmin
+      ? EMPLOYEE_MODULES.filter(
+          (m) =>
+            !ADMIN_KEYS.has(m.key) &&
+            (!ADMIN_HIDDEN_KEYS.has(m.key) || (m.key === 'Calls' && canTakeCalls))
+        )
+      : EMPLOYEE_MODULES;
+    return [...base.filter((m) => !m.need || capabilities[m.need]), LEAVE_MODULE];
+  }, [isAdmin, canTakeCalls, capabilities]);
 
   /**
-   * Удирдлагын модулиудыг ЧАДВАРаар шүүнэ.
-   *
-   * Эрхийн нэрээр биш чадвараар шалгаснаар ахлах хэлтсээ, админ бүгдийг
-   * харна — тус бүрд нь тусдаа жагсаалт зохиох шаардлагагүй.
-   *
-   * Чадвар нь ХОЁР эх сурвалжтай: эрхийн түвшний анхны утга, дээр нь
-   * хөгжүүлэгчийн хүн тус бүрд тохируулсан тусгай зөвшөөрөл
-   * (`src/lib/permissions.js`).
+   * Удирдлагын модулиудыг ЧАДВАРаар шүүнэ (`src/lib/permissions.js`).
    */
-  const capabilities = useMemo(() => effectivePermissions(authProfile), [authProfile]);
-
-  /** Удирдлагын хэсэг харуулах эсэх — ядаж нэг чадвартай бол. */
+  // «Акт бичих» нь удирдлагын эрх биш — энгийн ажилтанд удирдлагын цэс нээхгүй.
   const hasAdminArea = useMemo(
-    () => Object.values(capabilities).some(Boolean),
+    () => Object.entries(capabilities).some(([k, v]) => v && k !== 'acts.create'),
     [capabilities]
   );
 
@@ -245,24 +364,18 @@ export default function HomeScreen() {
     [isSuperAdmin]
   );
 
-  // Чадвараар шүүнэ. `adminModules`-аас ХОЙШ байх ёстой — эс бөгөөс
-  // тодорхойлогдохоос өмнө уншиж TDZ алдаа өгнө.
-  //
-  // `adminOnly` нь чадвараас ДЭЭГҮҮР: тухайн модуль компанийн хэмжээний
-  // мэдээлэл харуулдаг тул зөвхөн админ, хөгжүүлэгчид нээгдэнэ (ахлах,
-  // менежер нь `employees` чадвартай ч болохгүй).
+  // `adminOnly` нь чадвараас ДЭЭГҮҮР — зөвхөн админ, хөгжүүлэгчид.
   const adminVisibleModules = useMemo(
     () => adminModules.filter((m) => (!m.need || capabilities[m.need]) && (!m.adminOnly || isAdmin)),
     [adminModules, capabilities, isAdmin]
   );
 
   // ---------------------------------------------------------------------
-  // Хавтангийн дараалал — хэрэглэгч өөрөө чирж зөөнө
+  // Хавтангийн дараалал — хэрэглэгч өөрөө чирж зөөнө (төхөөрөмж дээр).
   // ---------------------------------------------------------------------
-  // Дараалал нь ХЭРЭГЛЭГЧ БҮРЭЭР төхөөрөмж дээр хадгалагдана. Эрхээс
-  // үл хамааран (ажилтан, ахлах, админ, хөгжүүлэгч) бүгд зөөж чадна.
   const tileUserId = authProfile?.id || currentUser?.id || null;
   const [tileOrders, setTileOrders] = useState({ admin: null, service: null });
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -295,651 +408,339 @@ export default function HomeScreen() {
     [serviceModules, tileOrders.service]
   );
 
-  /**
-   * Хавтангийн хайлт.
-   *
-   * ⚠️ Эрхээс хамаараад 28 хүртэл хавтан гурван баганаар өрөгддөг тул
-   *    хэрэгтэй зүйлээ нүдээрээ хайх нь удаан. Хайлт нь БҮХ хавтанг
-   *    (удирдлага + үйлчилгээ) нэг дор шүүнэ — хэрэглэгч аль хэсэгт
-   *    байгааг нь санах шаардлагагүй.
-   */
+  const showAdminMenu = hasAdminArea && orderedAdminModules.length > 0;
+  const [menu, setMenu] = useState('admin');
+  const section = showAdminMenu ? menu : 'service';
+  const sectionModules = section === 'admin' ? orderedAdminModules : orderedServiceModules;
+  const groups = useMemo(
+    () =>
+      groupModules(sectionModules, section === 'admin' ? ADMIN_GROUPS : SERVICE_GROUPS).map((g) => ({
+        ...g,
+        items: sortByOrder(g.items, sectionModules),
+      })),
+    [sectionModules, section]
+  );
+
+  /** Хайлт — БҮХ хавтанг (удирдлага + үйлчилгээ) нэг дор шүүнэ. */
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
-
   const searchHits = useMemo(() => {
     if (!q) return null;
-    return [...orderedAdminModules, ...orderedServiceModules].filter((m) =>
-      String(m.label || '').toLowerCase().includes(q)
-    );
+    const seen = new Set();
+    return [...orderedAdminModules, ...orderedServiceModules].filter((m) => {
+      if (seen.has(m.key) || !String(m.label || '').toLowerCase().includes(q)) return false;
+      seen.add(m.key);
+      return true;
+    });
   }, [q, orderedAdminModules, orderedServiceModules]);
 
   const go = (m) => {
-    navigation.navigate(m.key);
+    navigation.navigate(m.route || m.key, m.params);
   };
 
-  /**
-   * Хавтангийн ДОТООД харагдац.
-   *
-   * Дарах/чирэх үйлдлийг гаднах `DraggableTileGrid` хариуцна — тиймээс
-   * энд зөвхөн зураг, нэрийг зурна (өргөн, өндрийг нь мөн тэр өгнө).
-   */
+  /** Хавтангийн харагдац: duotone icon хавтан + 2 мөр шошго. */
   const renderTileFace = (m, { dragging } = {}) => {
-    const tint = accents[m.accent] || accents.brand;
-    const ion = MODULE_ICONS[m.key];
+    const [icon, tone] = MODULE_LOOK[m.key] || [null, 'slate'];
     return (
-      <View
-        style={[
-          styles.tile,
-          { flex: 1 },
-          dragging && styles.tileDragging,
-        ]}
-      >
-        <View style={[styles.tileIcon, { backgroundColor: tint + '16' }]}>
-          {ion ? <Ionicons name={ion} size={25} color={tint} /> : <NavIcon name={m.icon} size={24} color={tint} />}
-        </View>
-        <Text style={styles.tileLabel} numberOfLines={3}>
+      <View style={[styles.mod, dragging && styles.modDragging]}>
+        <ModuleTile icon={icon || MODULE_ICONS[m.key]} tone={tone} size={54} radius={17} iconSize={26} />
+        <Text style={styles.modLabel} numberOfLines={2}>
           {m.label}
         </Text>
       </View>
     );
   };
 
-  const renderAiCard = (m, i) => (
-    <AiCard key={`${m.key}-${i}`} m={m} styles={styles} width={aiCardWidth} onPress={() => go(m)} />
-  );
-
-  return (
-    <View style={styles.container}>
-
-      {/* Толгой контенттой ХАМТ гүйлгэгдэнэ — өмнө нь тогтмол байсан тул
-          гүйлгэхэд контент дугуй булангийн завсраар ард нь харагддаг байв. */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-      {/* Брэндийн hero толгой — мэндчилгээ, огноо, мэдэгдэл нэг дор. */}
-      <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBg}>
-        <View style={styles.heroOrb} />
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandLockup}>
-            <View style={styles.brandMarkCrop}>
-              <Image
-                source={require('../../assets/logo.png')}
-                style={styles.brandMarkImage}
-                resizeMode="contain"
-              />
-            </View>
-            <View>
-              <Text style={styles.brandWord}>GENNETEX</Text>
-              <Text style={styles.brandTagline}>ERP АЖЛЫН НЭГДСЭН ОРЧИН</Text>
-            </View>
-          </View>
-          <HeaderAccountActions onBrand />
-        </View>
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greeting()}</Text>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
-            <Text style={styles.welcomeLine}>Өнөөдрийн ажлаа эндээс үргэлжлүүлнэ үү.</Text>
-          </View>
-          <View style={styles.datePill}>
-            <Ionicons name="calendar-outline" size={14} color="#fff" />
-            <Text style={styles.date}>{dateStr}</Text>
-          </View>
-        </View>
-      </SafeAreaView>
-      </LinearGradient>
-      <View style={styles.body}>
-        {/* Ажилчдын байршил — дарахад «Байршил хяналт» нээгдэнэ (тусдаа хавтан нуугдсан). */}
-        <HomeLiveMap onPress={() => navigation.navigate('LiveTracking')} />
-        <QuickHomeModules
-          styles={styles}
-          isAdmin={isAdmin}
-          stats={stats}
-          onGo={(key) => navigation.navigate(key)}
-        />
-        <TodayDashboard />
-
-        {isCloud && !ohaabSignedToday ? (
-          <TouchableOpacity
-            style={styles.ohaabBanner}
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Ohaab')}
-          >
-            <View style={styles.ohaabPill}>
-              <Text style={styles.ohaabPillText}>ХААБ</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.ohaabTitle}>Өнөөдрийн заавар баталгаажуулаагүй</Text>
-              <Text style={styles.ohaabSub}>Уншиж гарын үсэг зурна уу · бараа/багаж бүртгэхэд шаардлагатай</Text>
-            </View>
-            <Text style={styles.ohaabArrow}>→</Text>
-          </TouchableOpacity>
-        ) : null}
-
-        {/* Ирцийн ТӨЛӨВ — хуучин "Цаг бүртгэх" товч нь ирсэн эсэхийг
-            хэлдэггүй байсан тул Ирц дэлгэц рүү орж шалгах шаардлагатай
-            байв. Одоо карт өөрөө хэлнэ. */}
-        <HomeAttendanceCard />
-
-        <View style={styles.searchBar}>
-          <NavIcon name="qr" size={16} color={colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Хайх — ирц, багаж, цалин…"
-            placeholderTextColor={colors.textFaint}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {query ? (
-            <TouchableOpacity onPress={() => setQuery('')} hitSlop={10}>
-              <Text style={styles.searchClear}>✕</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Хайлт идэвхтэй үед бусад бүх хэсгийг НУУНА — үр дүн
-            хуудсын хаа нэгтээ нуугдвал хайлт өөрөө утгагүй болно. */}
-        {searchHits ? (
-          <View style={styles.searchWrap}>
-            <Text style={styles.searchCount}>
-              {searchHits.length ? `${searchHits.length} үр дүн` : 'Олдсонгүй'}
-            </Text>
-            {searchHits.length ? (
-              <View style={styles.searchGrid}>
-                {searchHits.map((m) => (
-                  <TouchableOpacity
-                    key={m.key}
-                    style={[styles.searchTile, { width: tileWidth, height: tileWidth }]}
-                    onPress={() => go(m)}
-                    activeOpacity={0.85}
-                  >
-                    {renderTileFace(m)}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.searchEmpty}>
-                Өөр үгээр хайж үзнэ үү — жишээ нь «ирц», «багаж», «цалин».
-              </Text>
-            )}
-          </View>
-        ) : null}
-
-        <View style={{ display: searchHits ? 'none' : 'flex' }}>
-          <View style={styles.aiHeaderRow}>
-            <View style={styles.aiTitleWrap}>
-              <View style={styles.aiBadge}>
-                <NavIcon name="ai" size={16} color="#fff" />
-              </View>
-              <Text style={styles.sectionTitle}>AI туслах</Text>
-            </View>
-            <View style={styles.aiTag}>
-                <Text style={styles.aiTagText}>Шинэ</Text>
-            </View>
-          </View>
-          <View style={styles.aiGrid}>{aiModules.map(renderAiCard)}</View>
-        </View>
-
-        {hasAdminArea && !searchHits ? (
-          <>
-            <View style={styles.adminHeaderRow}>
-              <Text style={styles.sectionTitle}>Удирдлага</Text>
-              <View style={styles.adminTag}>
-                <Text style={styles.adminTagText}>{roleLabel(role).toUpperCase()}</Text>
-              </View>
-            </View>
-
-            <View style={styles.statRow}>
-              <Stat icon="employees" value={stats.employees} label="Ажилтан" color={colors.primary} />
-              <Stat icon="online" value={stats.online} label="Online" color={colors.success} />
-            </View>
-            <View style={styles.statRow}>
-              <Stat icon="attendance" value={stats.checkins} label="Өнөөдрийн ирц" color={colors.accent} />
-              <Stat icon="vehicle" value={stats.vehicles} label="Машин" color={colors.warning} />
-            </View>
-
-            {capabilities.employees ? <TouchableOpacity style={styles.adminCta} activeOpacity={0.85} onPress={() => navigation.navigate('Employees')}>
-              <View style={styles.adminCtaIcon}>
-                <NavIcon name="employees" size={22} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.adminCtaTitle}>Шинэ ажилтан бүртгэх</Text>
-                <Text style={styles.adminCtaSub}>Gmail хаягийг зөвшөөрч, ажилтан бүртгэнэ</Text>
-              </View>
-              <Text style={styles.adminCtaArrow}>→</Text>
-            </TouchableOpacity> : null}
-
-            <Text style={styles.dragHint}>Хавтанг удаан дараад чирж байрлалыг солино.</Text>
-            <DraggableTileGrid
-              items={orderedAdminModules}
-              columns={moduleColumns}
-              tileWidth={tileWidth}
-              tileHeight={tileHeight}
-              gap={tileGap}
-              renderItem={renderTileFace}
-              onPressItem={go}
-              onOrderChange={(keys) => saveOrder('admin', keys)}
-              style={{ marginTop: spacing.sm }}
-            />
-          </>
-        ) : (
-          <Text style={styles.welcomeSub}>Доорх үйлчилгээнүүдээс сонгон ажлаа үргэлжлүүлнэ үү.</Text>
-        )}
-
-        {searchHits ? null : (
-          <>
-            <Text style={styles.sectionTitle}>{isAdmin ? 'Ажилтны үйлчилгээ' : 'Үйлчилгээ'}</Text>
-            <Text style={styles.dragHint}>Хавтанг удаан дараад чирж байрлалыг солино.</Text>
-            <DraggableTileGrid
-              items={orderedServiceModules}
-              columns={moduleColumns}
-              tileWidth={tileWidth}
-              tileHeight={tileHeight}
-              gap={tileGap}
-              renderItem={renderTileFace}
-              onPressItem={go}
-              onOrderChange={(keys) => saveOrder('service', keys)}
-              style={{ marginTop: spacing.sm }}
-            />
-          </>
-        )}
-      </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-function QuickHomeModules({ styles, isAdmin, stats, onGo }) {
-  const { colors } = useTheme();
-  const cards = [
-    { key: 'Attendance', title: 'Ирц', icon: 'calendar-outline', badge: stats.checkins || '' },
-    { key: isAdmin ? 'Inventory' : 'MyStock', title: isAdmin ? 'Агуулах' : 'Миний бараа', icon: 'cube-outline', badge: isAdmin ? stats.employees || '' : '' },
-    { key: isAdmin ? 'FleetFuel' : 'Fuel', title: 'Шатахуун', icon: 'car-sport-outline', badge: stats.vehicles || '' },
-  ];
-  return (
-    <View style={styles.quickCards}>
-      {cards.map((card, index) => (
-        <TouchableOpacity key={card.key} style={styles.quickCard} onPress={() => onGo(card.key)} activeOpacity={0.86}>
-          {index > 0 ? <View style={styles.quickDivider} /> : null}
-          <View style={styles.quickCardIcon}>
-            <Ionicons name={card.icon} size={22} color={colors.primary} />
-          </View>
-          {card.badge !== '' ? <Text style={styles.quickCardBadge}>{card.badge}</Text> : null}
-          <Text style={styles.quickCardTitle} numberOfLines={1}>{card.title}</Text>
-        </TouchableOpacity>
+  const renderGrid = (items) => (
+    <View style={styles.grid}>
+      {items.map((m) => (
+        <Pressable
+          key={m.key}
+          style={({ pressed }) => [{ width: tileWidth, borderRadius: 14 }, pressed && { backgroundColor: colors.field }]}
+          onPress={() => go(m)}
+          accessibilityRole="button"
+          accessibilityLabel={m.label}
+        >
+          {renderTileFace(m)}
+        </Pressable>
       ))}
     </View>
   );
+
+  const shortcuts = isAdmin
+    ? [
+        { key: 'Attendance', label: 'Ирц', icon: 'calendar-check', tone: 'green', badge: stats.checkins },
+        { key: 'Inventory', label: 'Агуулах', icon: 'warehouse', tone: 'amber' },
+        { key: 'FleetFuel', label: 'Шатахуун', icon: 'gas-pump', tone: 'red', badge: stats.vehicles },
+        { key: 'AdminCalls', label: 'Дуудлага', icon: 'phone-call', tone: 'blue' },
+      ]
+    : [
+        { key: 'Attendance', label: 'Ирц', icon: 'calendar-check', tone: 'green' },
+        { key: 'Calls', label: 'Дуудлага', icon: 'phone-call', tone: 'blue' },
+        { key: 'MyPayroll', label: 'Цалин', icon: 'wallet', tone: 'amber' },
+        { key: 'MyShift', label: 'Хуваарь', icon: 'clock', tone: 'indigo' },
+      ];
+
+  const extraAlerts =
+    isCloud && !ohaabSignedToday
+      ? [{ key: 'ohaab', icon: 'shield-half-outline', tone: 'amber', title: 'Өнөөдрийн ХААБ заавар', sub: 'Уншиж гарын үсэг зурна уу', onPress: () => navigation.navigate('Ohaab') }]
+      : [];
+
+  return (
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Толгой: лого + Gennetex ERP, мэдэгдэл, зураг → Профайл */}
+          <View style={styles.apphead}>
+            <Wordmark sub="Ажлын нэгдсэн орчин" />
+            <HeaderAccountActions />
+          </View>
+
+          <View style={styles.greet}>
+            <Text style={styles.greetDate}>{longDate(now)}</Text>
+            <Text style={styles.greetTitle} numberOfLines={2}>
+              {greeting()}, {firstName(name)}
+            </Text>
+          </View>
+
+          <HomeAttendanceCard />
+
+          <View style={styles.search}>
+            <Ionicons name="search" size={19} color={colors.faint} />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={isAdmin ? 'Ирц, багаж, цалин хайх…' : 'Цалин, багаж, сургалт хайх…'}
+              placeholderTextColor={colors.faint}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {query ? (
+              <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Цэвэрлэх">
+                <Ionicons name="close-circle" size={19} color={colors.faint} />
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => navigation.navigate('BarcodeMode')} hitSlop={10} accessibilityLabel="Barcode уншуулах">
+                <Ionicons name="barcode-outline" size={21} color={colors.faint} />
+              </Pressable>
+            )}
+          </View>
+
+          {searchHits ? (
+            <Box style={styles.group}>
+              <Text style={styles.groupTitle}>
+                {searchHits.length ? `${searchHits.length} үр дүн` : 'Олдсонгүй'}
+              </Text>
+              {searchHits.length ? (
+                renderGrid(searchHits)
+              ) : (
+                <Text style={styles.searchEmpty}>Өөр үгээр хайж үзнэ үү — жишээ нь «ирц», «багаж», «цалин».</Text>
+              )}
+            </Box>
+          ) : (
+            <>
+              <View style={styles.shorts}>
+                {shortcuts.map((s) => (
+                  <Pressable
+                    key={s.key}
+                    style={({ pressed }) => [styles.short, pressed && { opacity: 0.8 }]}
+                    onPress={() => navigation.navigate(s.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.label}
+                  >
+                    <ModuleTile icon={s.icon} tone={s.tone} size={46} radius={15} iconSize={24} />
+                    <Text style={styles.shortLabel} numberOfLines={1}>
+                      {s.label}
+                    </Text>
+                    {s.badge ? <Badge value={s.badge} tone="ink" style={styles.shortBadge} /> : null}
+                  </Pressable>
+                ))}
+              </View>
+
+              <TodayDashboard alerts={extraAlerts} title={isAdmin ? 'Өнөөдөр' : 'Миний өнөөдөр'} />
+
+              {isAdmin ? (
+                <>
+                  <SectionHeader title="Шууд байршил" action="Бүгд" onAction={() => navigation.navigate('LiveTracking')} />
+                  <HomeLiveMap onPress={() => navigation.navigate('LiveTracking')} />
+                </>
+              ) : null}
+
+              <SectionHeader title="AI туслах" chip="Шинэ" chipTone="ai" />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hsWrap} contentContainerStyle={styles.hs}>
+                {aiModules.map((m, i) => (
+                  <AiCard key={m.key} m={m} hero={i === 0} styles={styles} onPress={() => go(m)} />
+                ))}
+              </ScrollView>
+
+              {showAdminMenu ? (
+                <>
+                  <SectionHeader title="Удирдлага" right={<Chip text={roleLabel(role)} tone="blue" />} />
+                  <Box>
+                    <StatGrid
+                      size={22}
+                      items={[
+                        { label: 'Ажилтан', value: String(stats.employees), onPress: capabilities.employees ? () => navigation.navigate('Employees') : undefined },
+                        { label: 'Онлайн', value: String(stats.online), live: true, onPress: () => navigation.navigate('LiveTracking') },
+                        { label: 'Өнөөдрийн ирц', value: String(stats.checkins), onPress: () => navigation.navigate('Attendance') },
+                        { label: 'Машин', value: String(stats.vehicles), onPress: () => navigation.navigate('VehiclesAdmin') },
+                      ]}
+                    />
+                  </Box>
+                </>
+              ) : null}
+
+              <SectionHeader title={showAdminMenu ? 'Бүх цэс' : 'Ажилтны үйлчилгээ'} />
+              {showAdminMenu ? (
+                <Segmented
+                  style={{ marginBottom: 12 }}
+                  value={menu}
+                  onChange={(k) => {
+                    setMenu(k);
+                    setEditing(false);
+                  }}
+                  options={[
+                    { key: 'admin', label: 'Удирдлага' },
+                    { key: 'service', label: 'Ажилтны үйлчилгээ' },
+                  ]}
+                />
+              ) : null}
+
+              {editing ? (
+                <Box style={styles.group}>
+                  <Text style={styles.groupTitle}>Хавтанг удаан дараад чирж байрлалыг солино</Text>
+                  <DraggableTileGrid
+                    items={sectionModules}
+                    columns={moduleColumns}
+                    tileWidth={tileWidth}
+                    tileHeight={tileHeight}
+                    gap={4}
+                    renderItem={renderTileFace}
+                    onPressItem={go}
+                    onOrderChange={(keys) => saveOrder(section, keys)}
+                  />
+                </Box>
+              ) : (
+                groups.map((g) => (
+                  <Box key={g.title} style={styles.group}>
+                    <View style={styles.groupHead}>
+                      <Text style={styles.groupTitle}>{g.title}</Text>
+                      <Text style={styles.groupTitle}>{g.items.length}</Text>
+                    </View>
+                    {renderGrid(g.items)}
+                  </Box>
+                ))
+              )}
+
+              <Pressable style={styles.edit} onPress={() => setEditing((v) => !v)} accessibilityRole="button">
+                <Ionicons name={editing ? 'checkmark' : 'apps-outline'} size={16} color={colors.muted} />
+                <Text style={styles.editText}>{editing ? 'Болсон' : 'Цэсийн дарааллыг засах'}</Text>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
 }
 
-function AiCard({ m, styles, width, onPress }) {
-  const { isDark } = useTheme();
-  const tint = accent(m.accent, isDark);
+/** AI туслахын хэвтээ карт. Эхнийх нь онцлох (ai дэвсгэр). */
+function AiCard({ m, hero, styles, onPress }) {
+  const { colors } = useTheme();
+  const [icon] = MODULE_LOOK[m.key] || ['sparkle'];
   return (
-    <View style={{ width }}>
-      <TouchableOpacity
-        style={[styles.aiCard, { borderColor: tint + '40', backgroundColor: tint + '10' }]}
-        activeOpacity={0.9}
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={m.sub ? `${m.label}. ${m.sub}` : m.label}
-      >
-        <View style={[styles.aiCardIcon, { backgroundColor: tint + '22' }]}>
-          <NavIcon name={m.icon} size={22} color={tint} />
+    <Pressable
+      style={({ pressed }) => [styles.aic, hero && { backgroundColor: colors.ai }, pressed && { opacity: 0.85 }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={m.sub ? `${m.label}. ${m.sub}` : m.label}
+    >
+      {hero ? (
+        <View style={[styles.aicHeroTile]}>
+          <PhIcon name={icon} size={22} color="#FFFFFF" />
         </View>
-        <Text style={styles.aiCardTitle} numberOfLines={1}>{m.label}</Text>
-        {m.sub ? <Text style={styles.aiCardSub} numberOfLines={2}>{m.sub}</Text> : null}
-      </TouchableOpacity>
-    </View>
+      ) : (
+        <ModuleTile icon={icon} tone="purple" size={40} radius={12} iconSize={22} />
+      )}
+      <Text style={[styles.aicTitle, hero && { color: '#FFFFFF' }]} numberOfLines={2}>
+        {m.label}
+      </Text>
+      {m.sub ? (
+        <Text style={[styles.aicSub, hero && { color: 'rgba(255,255,255,0.78)' }]} numberOfLines={2}>
+          {m.sub}
+        </Text>
+      ) : null}
+    </Pressable>
   );
 }
 
-function Stat({ icon, value, label, color }) {
-  const styles = useStyles(makeStyles);
-  return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIcon, { backgroundColor: color + '14'}]}>
-        <NavIcon name={icon} size={20} color={color} />
-      </View>
-      <View>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </View>
-    </View>
-  );
-}
-
-const TILE_GAP = spacing.md;
-
-// Модуль бүрт өөрийн утгатай дүрс. Өмнө нь NavIcon-ийн цөөн дүрс давтагдаж
-// (календарь — сургалт, ХААБ, өндөрт ажиллах, анхааруулга; тайлан — 5 газар)
-// аль нь аль модуль болохыг дүрсээр ялгах боломжгүй байв.
+// Хуучин Ionicons дүрс — MODULE_LOOK-д ороогүй шинэ модульд нөөц болно.
 const MODULE_ICONS = {
-  EmployeeTraining: 'school-outline', StoreReadiness: 'storefront-outline', WorkHeightRisk: 'warning-outline',
-  Ohaab: 'shield-checkmark-outline', AdminOhaab: 'shield-checkmark-outline', MyStock: 'cube-outline',
-  MyTools: 'hammer-outline', SiteWork: 'business-outline', MyContract: 'document-text-outline',
-  EmployeeDirectory: 'id-card-outline', Vehicle: 'car-outline', Fuel: 'receipt-outline', FleetFuel: 'speedometer-outline',
-  TelegramChat: 'paper-plane-outline', MyTelegram: 'at-outline', Calls: 'call-outline', Meeting: 'videocam-outline',
-  Attendance: 'calendar-outline', MyShift: 'time-outline', MyPayroll: 'wallet-outline', EmployeeReport: 'clipboard-outline',
-  Feedback: 'chatbox-ellipses-outline', AdminFeedback: 'chatbox-ellipses-outline', Chat: 'chatbubbles-outline',
-  AdminApplications: 'reader-outline', AdminCalls: 'headset-outline', AdminContracts: 'documents-outline',
-  AdminReports: 'bar-chart-outline', AdminVisits: 'footsteps-outline', AdminWorkPerformance: 'trophy-outline',
-  AutoDispatch: 'git-network-outline', BarcodeMode: 'barcode-outline', BranchAdmin: 'git-branch-outline',
-  BusinessSettings: 'settings-outline', CallCost: 'cash-outline', CallHistory: 'list-outline', Employees: 'person-add-outline',
-  Inventory: 'archive-outline', KnowledgeBase: 'library-outline', LiveOps: 'pulse-outline', LowStock: 'alert-circle-outline',
-  OfflineQueue: 'cloud-offline-outline', OperationalAlerts: 'notifications-circle-outline', Payroll: 'calculator-outline',
-  PayrollExport: 'download-outline', Predictive: 'analytics-outline', PublicTickets: 'ticket-outline',
-  Requisition: 'create-outline', RouteOptimize: 'map-outline', SlaReport: 'stats-chart-outline',
-  ToolAllocation: 'layers-outline', ToolCheckIn: 'checkmark-done-outline', ToolsHub: 'construct-outline',
-  VehicleSpecs: 'build-outline', VehiclesAdmin: 'car-sport-outline', AdminTeams: 'people-outline', Teams: 'people-outline',
+  OfflineQueue: 'cloud-offline-outline', AdminTeams: 'people-outline', Teams: 'people-outline',
 };
 
-const makeStyles = ({ colors, shadow, isDark }) => {
-  const A = accentMap(isDark);
-  return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  heroBg: {
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    overflow: 'hidden',
-  },
-  heroOrb: {
-    position: 'absolute', width: 220, height: 220, borderRadius: 110,
-    top: -80, right: -60, backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 58 },
-  brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 185 },
-  brandMarkCrop: { width: 46, height: 46, overflow: 'hidden', borderRadius: 14, backgroundColor: '#fff' },
-  brandMarkImage: { position: 'absolute', width: 80, height: 66, left: -17, top: -1 },
-  brandWord: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 0.6 },
-  brandTagline: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 7.5,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    marginTop: 1,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-end', paddingTop: spacing.md },
-  headerRight: { alignItems: 'flex-end', gap: spacing.sm },
-  // Цаг агаар: цагтай нэг мөрөнд зэрэгцүүлж, баруун талдаа зайтай.
-  // `flex-start` тул доорх нэр, badge, огнооны байрлалд нөлөөлөхгүй.
-  headerWeather: { alignSelf: 'flex-start', marginTop: 4, marginRight: spacing.md },
-  headerClock: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
-  greeting: { color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 18 },
-  welcomeLine: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
-  datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)', marginLeft: spacing.sm },
+const makeStyles = ({ colors, shadow }) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.ground },
+    scroll: { paddingHorizontal: spacing.lg, paddingTop: 10, paddingBottom: 120 },
 
-  // Хавтангийн хайлт
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    minHeight: 50,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.lg,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 15,
-    padding: 0,
-  },
-  searchClear: { color: colors.textMuted, fontSize: 15, fontWeight: '700', paddingHorizontal: 4 },
+    apphead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 6 },
+    greet: { marginTop: 22, marginBottom: 16 },
+    greetDate: { color: colors.muted, fontSize: 14, fontWeight: '500' },
+    greetTitle: { color: colors.ink, fontSize: 28, fontWeight: '700', letterSpacing: -0.5, marginTop: 4 },
 
-  searchWrap: { marginBottom: spacing.lg },
-  searchCount: {
-    color: colors.textMuted,
-    fontSize: 12.5,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-  },
-  searchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  searchTile: { borderRadius: radius.lg, overflow: 'hidden' },
-  searchEmpty: { color: colors.textFaint, fontSize: 13.5, lineHeight: 20 },
-  name: { color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 2, letterSpacing: -0.6 },
-  date: { color: '#fff', fontSize: 11.5, fontWeight: '600', textTransform: 'capitalize'},
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  avatarImg: { width: '100%', height: '100%', borderRadius: 26 },
-  avatarLetter: { color: colors.primary, fontSize: 22, fontWeight: '800'},
-  body: { paddingTop: spacing.lg, paddingHorizontal: spacing.lg },
-  homeHero: {
-    minHeight: 112,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)',
-    ...(isDark ? shadow.sm : shadow.md),
-  },
-  heroCopy: { flex: 1, padding: spacing.lg },
-  livePill: { alignSelf: 'flex-start', marginBottom: 7, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  livePillText: { color: colors.success, fontSize: 11, fontWeight: '700' },
-  heroOnlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
-  heroTitle: { color: colors.text, fontSize: 18, lineHeight: 24, fontWeight: '700', letterSpacing: -0.3 },
-  heroSub: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  heroAction: { width: 58, minHeight: 64, marginRight: spacing.md, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  quickCards: { flexDirection: 'row', marginBottom: spacing.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)', borderRadius: radius.xl, ...(isDark ? shadow.sm : shadow.md) },
-  quickCard: { flex: 1, minHeight: 100, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 12 },
-  quickDivider: { position: 'absolute', left: 0, top: 14, bottom: 14, width: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  quickCardIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 7, backgroundColor: colors.primarySoft },
-  quickCardBadge: { position: 'absolute', top: 8, right: 8, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, overflow: 'hidden', textAlign: 'center', textAlignVertical: 'center', color: colors.primary, backgroundColor: colors.primarySoft, fontSize: 10, fontWeight: '700' },
-  quickCardTitle: { color: colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  clockCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
-  clockLabel: { color: colors.textMuted, fontSize: 13 },
-  clockSub: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 2 },
-  clockBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: colors.success,
-  },
-  clockBtnText: { color: '#fff', fontWeight: '800'},
-  welcomeSub: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.md },
-  sectionTitle: { color: colors.text, fontSize: 18, lineHeight: 24, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm },
-  roleChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.bgAlt,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  roleChipAdmin: { backgroundColor: colors.primarySoft, borderColor: colors.primary + "55" },
-  roleChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700'},
-  roleChipTextAdmin: { color: colors.primary },
-  adminHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  adminTag: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginBottom: spacing.md,
-    marginTop: spacing.sm,
-  },
-  adminTagText: { color: colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  statRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  statCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
-  statIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statValue: { color: colors.text, fontSize: 22, fontWeight: '800'},
-  statLabel: { color: colors.textMuted, fontSize: 12 },
-  adminCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.sm,
-  },
-  adminCtaIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminCtaTitle: { color: colors.text, fontSize: 16, fontWeight: '800'},
-  adminCtaSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  adminCtaArrow: { color: colors.primary, fontSize: 22, fontWeight: '800'},
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP },
-  // Хавтан DraggableTileGrid-ийн нүдэнд байрладаг тул нүдээ БҮТЭН дүүргэнэ.
-  // (Өмнө нь width: '31%' байсан тул нүдний 31%-ийг л эзэлж, карт болгоход
-  //  нарийхан дугуй болж текст тасардаг байв.)
-  tile: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)',
-    ...(isDark ? {} : shadow.sm),
-  },
-  tileIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 9,
-    alignSelf: 'center',
-  },
-  tileLabel: {
-    width: '100%',
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 15.5,
-  },
-  // Чирч байгаа хавтан — өргөгдсөн мэт харагдана
-  tileDragging: {
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceAlt,
-    ...shadow.lg,
-  },
-  dragHint: { color: colors.textFaint, fontSize: 11, marginTop: spacing.xs },
-  aiHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  aiTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  aiBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: A.violet,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  aiTag: {
-    backgroundColor: A.violet + '22',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginBottom: spacing.md,
-    marginTop: spacing.sm,
-  },
-  aiTagText: { color: A.violet, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  aiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP, marginBottom: spacing.lg },
-  aiCard: {
-    width: '100%',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    ...shadow.sm,
-  },
-  aiCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  aiCardTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  aiCardSub: { color: colors.textMuted, fontSize: 12, marginTop: 2, lineHeight: 16 },
-  ohaabBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: isDark ? 'rgba(245,181,68,0.12)' : '#fff7ed',
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(245,181,68,0.35)' : '#fed7aa',
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  ohaabPill: {
-    backgroundColor: A.amber,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ohaabPillText: { color: '#fff', fontWeight: '900', fontSize: 10 },
-  ohaabTitle: { color: isDark ? '#fde68a' : '#9a3412', fontWeight: '800', fontSize: 15 },
-  ohaabSub: { color: isDark ? 'rgba(253,230,138,0.8)' : '#c2410c', fontSize: 12, marginTop: 2, lineHeight: 16 },
-  ohaabArrow: { color: isDark ? '#fde68a' : '#9a3412', fontSize: 22, fontWeight: '800' },
-});
-};
+    search: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      height: 48,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      backgroundColor: colors.card,
+      marginBottom: 12,
+      ...shadow.md,
+    },
+    searchInput: { flex: 1, color: colors.ink, fontSize: 15, padding: 0 },
+    searchEmpty: { color: colors.muted, fontSize: 13.5, lineHeight: 20, marginHorizontal: 8, marginBottom: 8 },
+
+    shorts: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    short: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      paddingTop: 14,
+      paddingBottom: 12,
+      paddingHorizontal: 4,
+      alignItems: 'center',
+      gap: 8,
+      ...shadow.md,
+    },
+    shortLabel: { color: colors.ink, fontSize: 13, fontWeight: '600' },
+    shortBadge: { position: 'absolute', top: 8, right: 10, borderWidth: 0 },
+
+    hsWrap: { marginHorizontal: -spacing.lg, flexGrow: 0 },
+    hs: { gap: 10, paddingHorizontal: spacing.lg, paddingBottom: 4 },
+    aic: {
+      width: 152,
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      padding: 14,
+      gap: 10,
+      ...shadow.md,
+    },
+    aicHeroTile: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+    aicTitle: { color: colors.ink, fontSize: 15, fontWeight: '700', lineHeight: 19 },
+    aicSub: { color: colors.muted, fontSize: 12.5, lineHeight: 17, marginTop: -4 },
+
+    group: { paddingTop: 14, paddingHorizontal: 8, paddingBottom: 8 },
+    groupHead: { flexDirection: 'row', justifyContent: 'space-between' },
+    groupTitle: { color: colors.muted, fontSize: 13, fontWeight: '700', letterSpacing: 0.2, marginHorizontal: 8, marginBottom: 10 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    mod: { alignItems: 'center', gap: 7, paddingTop: 6, paddingBottom: 10, paddingHorizontal: 2 },
+    modDragging: { backgroundColor: colors.field, borderRadius: 14 },
+    modLabel: { color: colors.ink, fontSize: 11.5, fontWeight: '500', lineHeight: 14.5, textAlign: 'center', minHeight: 29 },
+
+    edit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'center', height: 36, paddingHorizontal: 14, marginTop: 6 },
+    editText: { color: colors.muted, fontSize: 13, fontWeight: '600' },
+  });

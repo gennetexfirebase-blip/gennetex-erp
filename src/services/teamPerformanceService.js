@@ -535,7 +535,7 @@ export async function buildTeamPerformance({ from, to, mode = 'month' }) {
 const MAX_CHART_POINTS = 31;
 
 export const CHART_COLORS = {
-  ail: '#0099db',
+  ail: '#0B6E4F',
   baiguulga: '#0b7a44',
   perTeam: '#6d4aa8',
   minutes: '#b45309',
@@ -882,7 +882,7 @@ export function buildExportCharts(result) {
       sheet: CHART_SHEET,
       catCol: 0,
       series: [
-        { col: 1, name: 'Айл', color: '0099DB' },
+        { col: 1, name: 'Айл', color: '0B6E4F' },
         { col: 2, name: 'Байгууллага', color: '0B7A44' },
       ],
     },
@@ -906,7 +906,7 @@ export function buildExportCharts(result) {
       sheet: TEAM_SHEET,
       catCol: 0,
       series: [
-        { col: 3, name: 'Айл', color: '0099DB' },
+        { col: 3, name: 'Айл', color: '0B6E4F' },
         { col: 4, name: 'Байгууллага', color: '0B7A44' },
       ],
     },

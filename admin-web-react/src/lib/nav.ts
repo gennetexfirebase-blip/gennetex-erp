@@ -68,7 +68,6 @@ export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon }[]
   { view: 'feedback', label: 'Санал гомдол', icon: MessageSquare },
   { view: 'applications', label: 'Ажлын байрны анкет', icon: ClipboardList },
   { view: 'publicsite', label: 'Вэб сайт', icon: Globe },
-  { view: 'contracts', label: 'Хөдөлмөрийн гэрээ', icon: FileSignature },
   { view: 'devices', label: 'Төхөөрөмж зөвшөөрөл', icon: Smartphone },
   { view: 'aiappusage', label: 'AI апп хэрэглээ', icon: MonitorSmartphone },
   { view: 'aiperformance', label: 'AI гүйцэтгэл', icon: Sparkles },
@@ -107,6 +106,7 @@ export const NAV: NavItem[] = [
     label: 'Тайлан',
     icon: FileText,
     children: [
+      { label: 'Цагийн тайлан', to: '/report/time' },
       { label: 'Өдрөөр', to: '/report/daily' },
       { label: 'Ажилтнаар', to: '/report/employee' },
       { label: 'Ерөнхий', to: '/report/general' },
@@ -117,6 +117,7 @@ export const NAV: NavItem[] = [
   { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, isNew: true },
   { label: 'Хэлтэс', to: '/department', icon: Building2 },
   { label: 'Хуваарь', to: '/schedule', icon: CalendarDays },
+  { label: 'Хөдөлмөрийн гэрээ', to: '/admin/documents/contracts', icon: FileSignature, isNew: true },
   { label: 'Байршил', to: '/location', icon: MapPin },
   { label: 'Утас баталгаажуулах', to: '/phone-verification', icon: BadgeCheck, isNew: true },
   { label: 'SMS илгээх', to: '/outbound-sms', icon: Send, isNew: true },

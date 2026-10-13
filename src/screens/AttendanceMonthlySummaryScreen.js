@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, LoadingState, ErrorState } from '../components/ui';
 import { useApp } from '../context/AppContext';
 import * as attApi from '../services/attendanceService';
-import { colors } from '../theme/attendanceLight';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 function monthRange(offset = 0) {
@@ -23,6 +23,8 @@ function minutesToHours(mins) {
 }
 
 export default function AttendanceMonthlySummaryScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const { currentUser } = useApp();
   const profile = currentUser;
@@ -138,7 +140,7 @@ export default function AttendanceMonthlySummaryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: spacing.lg },
   monthArrow: { padding: 8 },
   monthPill: { borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 8 },

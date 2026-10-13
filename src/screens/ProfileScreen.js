@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import Notifications from '../lib/notificationsCompat';
@@ -55,20 +56,24 @@ import QRCode from '../components/QRCode';
 import { formatEmployeeBadge } from '../lib/employeeBadge';
 import * as vehicleApi from '../services/vehicleService';
 import { roleLabel } from '../lib/roles';
+import { hasPermission } from '../lib/permissions';
 import { DEVELOPER_LABEL, SUPERADMIN_EMAIL, HAS_DEVELOPER_EMAIL } from '../lib/developerConfig';
 import { useNavigation } from '@react-navigation/native';
-import { spacing, radius, type } from '../theme';
+import { spacing, radius, type, lightColors, darkColors } from '../theme';
+import { Avatar, Chip, PillButton, RoundButton } from '../components/ds';
+import { supabase } from '../lib/supabase';
+import * as leaveApi from '../services/leaveRequestService';
 import { useTheme, useStyles } from '../context/ThemeContext';
 
 const THEME_OPTIONS = [
-  { key: 'light', label: 'Цайвар', icon: '☀' },
-  { key: 'dark', label: 'Бараан', icon: '☾' },
-  { key: 'system', label: 'Систем', icon: '⚙' },
+  { key: 'system', label: 'Систем' },
+  { key: 'light', label: 'Цагаан' },
+  { key: 'dark', label: 'Харанхуй' },
 ];
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
-  const { colors, gradients, mode, setMode } = useTheme();
+  const { colors, mode, setMode } = useTheme();
   const styles = useStyles(makeStyles);
   const { authProfile, profile, isAdmin, isSuperAdmin, isCloud, signOut, updateMyProfile } = useApp();
   const canEdit = isAdmin;
@@ -330,6 +335,38 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [withDriver, setWithDriver] = useState(null);
+  // Prototype: Сарын ирц · Ажилласан өдөр · Чөлөө (энэ жил авсан)
+  const [pstats, setPstats] = useState({ percent: null, days: null, leave: null });
+
+  useEffect(() => {
+    if (!isCloud || !authProfile?.id) return;
+    let active = true;
+    (async () => {
+      try {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const { data } = await supabase
+          .from('attendance')
+          .select('created_at,type,status')
+          .eq('staff_id', String(authProfile.id))
+          .eq('type', 'check_in')
+          .gte('created_at', monthStart.toISOString());
+        const days = new Set((data || []).filter((r) => r.status !== 'rejected').map((r) => new Date(r.created_at).toDateString())).size;
+        let workdays = 0;
+        for (let d = new Date(monthStart); d <= now; d.setDate(d.getDate() + 1)) {
+          if (d.getDay() !== 0 && d.getDay() !== 6) workdays += 1;
+        }
+        const leaves = await leaveApi.fetchMyLeaveRequests(authProfile.id, 100).catch(() => []);
+        const leave = leaves
+          .filter((r) => r.status === 'approved' && String(r.date_from || '').startsWith(String(now.getFullYear())))
+          .reduce((sum, r) => sum + (leaveApi.countLeaveDays(r) || 0), 0);
+        if (active) setPstats({ percent: workdays ? Math.min(100, Math.round((days / workdays) * 100)) : 0, days, leave });
+      } catch (e) {}
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isCloud, authProfile?.id]);
 
   useEffect(() => {
     if (!isCloud || !authProfile?.id || isAdmin) return;
@@ -438,62 +475,72 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* --- Брэнд өнгөт толгой --- */}
-      <LinearGradient
-        colors={gradients.hero}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Буцах" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }}>
-            <Text style={{ color: '#fff', fontSize: 16 }}>‹ Буцах</Text>
-          </Pressable>
-          <View style={styles.headerRow}>
-            <Pressable
-              onPress={changeAvatar}
-              disabled={uploading || !canEditAvatar}
-              accessibilityRole={canEditAvatar ? 'button' : undefined}
-              accessibilityLabel={canEditAvatar ? 'Профайл зураг солих' : undefined}
-            >
-              <View style={styles.avatar}>
-                {uploading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-                ) : (
-                  <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
-                )}
-              </View>
-              {canEditAvatar && !uploading ? (
-                <View style={styles.camBadge}>
-                  <Text style={styles.camIcon}>✎</Text>
-                </View>
-              ) : null}
-            </Pressable>
-
-            <View style={styles.headerText}>
-              <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
-              <Text style={styles.headerEmail} numberOfLines={1}>{email}</Text>
-              <View style={styles.rolePill}>
-                <Text style={styles.rolePillText}>
-                  {roleLabel(authProfile?.role || 'employee')}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+      <SafeAreaView edges={['top']} style={styles.topbar}>
+        <RoundButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Буцах" />
+        <Text style={styles.topTitle}>Профайл</Text>
+        {canEdit && authProfile ? (
+          <PillButton title="Засах" icon="create-outline" soft onPress={editing ? () => setEditing(false) : startEdit} />
+        ) : null}
+      </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        {/* --- Том зураг, нэр, chip-үүд --- */}
+        <View style={styles.phero}>
+          <Pressable
+            onPress={changeAvatar}
+            disabled={uploading || !canEditAvatar}
+            accessibilityRole={canEditAvatar ? 'button' : undefined}
+            accessibilityLabel={canEditAvatar ? 'Профайл зураг солих' : undefined}
+          >
+            <View style={styles.pavRing}>
+              {uploading ? (
+                <View style={[styles.pavLoading]}>
+                  <ActivityIndicator color={colors.brand} />
+                </View>
+              ) : (
+                <Avatar uri={avatarUrl} name={name} size={96} />
+              )}
+            </View>
+            {canEditAvatar && !uploading ? (
+              <View style={styles.camBadge}>
+                <Ionicons name="camera" size={15} color={colors.bg} />
+              </View>
+            ) : null}
+          </Pressable>
+          <Text style={styles.pname} numberOfLines={1}>{name}</Text>
+          <Text style={styles.pmeta} numberOfLines={1}>
+            {['Женнетекс ХХК', authProfile?.department_name || authProfile?.position].filter(Boolean).join(' · ')}
+          </Text>
+          <View style={styles.chips2}>
+            <Chip text={roleLabel(authProfile?.role || 'employee')} tone="blue" />
+            {authProfile?.badge_code || authProfile?.employee_code ? <Chip text={authProfile.badge_code || authProfile.employee_code} tone="muted" /> : null}
+            <Chip text={isCloud ? 'Онлайн' : 'Локал'} tone={isCloud ? 'ok' : 'muted'} icon={isCloud ? 'ellipse' : undefined} />
+          </View>
+        </View>
+
+        {authProfile ? (
+          <View style={styles.pstats}>
+            {[
+              [pstats.percent == null ? '—' : `${pstats.percent}%`, 'Сарын ирц'],
+              [pstats.days == null ? '—' : String(pstats.days), 'Ажилласан өдөр'],
+              [pstats.leave == null ? '—' : String(pstats.leave), 'Чөлөө авсан'],
+            ].map(([v, l], i) => (
+              <View key={l} style={[styles.pstat, i > 0 && styles.pstatBorder]}>
+                <Text style={styles.pstatValue}>{v}</Text>
+                <Text style={styles.pstatLabel}>{l}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {/* --- Идэвхтэй аялал --- */}
         {withDriver ? (
           <>
             <GroupLabel>Хамт яваа аялал</GroupLabel>
             <ListGroup>
-              <ListRow icon="◉" label="Жолооч" value={withDriver.driver_name || '—'} chevron={false} />
+              <ListRow icon="car-outline" label="Жолооч" value={withDriver.driver_name || '—'} chevron={false} />
               <ListRow
-                icon="▤"
+                icon="document-text-outline"
                 label={withDriver.plate_number || 'Машин'}
                 right={<StatusPill text="Идэвхтэй" tone="success" />}
                 chevron={false}
@@ -532,18 +579,24 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <>
-              <ListGroup>
-                <ListRow icon="◧" label="Нэр" value={authProfile.name || '—'} chevron={false} />
-                <ListRow icon="▣" label="Албан тушаал" value={authProfile.position || '—'} chevron={false} />
-                <ListRow icon="✆" label="Утас" value={authProfile.phone || '—'} chevron={false} />
-                <ListRow
-                  icon="◆"
-                  label="Эрх"
-                  value={roleLabel(authProfile?.role || 'employee')}
-                  chevron={false}
-                />
-                {canEdit ? <ListRow icon="✎" label="Мэдээлэл засах" onPress={startEdit} /> : null}
-              </ListGroup>
+              <View style={styles.infoCard}>
+                {[
+                  ['call-outline', 'Утас', authProfile.phone],
+                  ['mail-outline', 'Имэйл', email],
+                  ['business-outline', 'Хэлтэс', authProfile.department_name || authProfile.position],
+                  ['calendar-outline', 'Ажилд орсон', authProfile.created_at ? String(authProfile.created_at).slice(0, 10).replace(/-/g, '.') : ''],
+                ].map(([icon, label, value], i) => (
+                  <View key={label} style={[styles.infoRow, i > 0 && styles.infoBorder]}>
+                    <View style={styles.infoIcon}>
+                      <Ionicons name={icon} size={19} color={colors.ink} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.infoLabel}>{label}</Text>
+                      <Text style={styles.infoValue} numberOfLines={1}>{value || '—'}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
               {!canEdit ? (
                 <Text style={styles.lockedNote}>
                   Нэр, утас, албан тушаалыг админ засна. Профайл зураг дээр дарж солино.
@@ -555,28 +608,79 @@ export default function ProfileScreen() {
           <Text style={styles.lockedNote}>Нэвтэрсэн хэрэглэгчийн мэдээлэл энд харагдана.</Text>
         )}
 
-        {/* --- QR --- */}
-        {authProfile && !isAdmin ? (
+        {/* --- Харагдах байдал: Систем / Цагаан / Харанхуй --- */}
+        <GroupLabel>Харагдах байдал</GroupLabel>
+        <View style={styles.themeCard}>
+          <View style={styles.theme3}>
+            {THEME_OPTIONS.map((opt) => {
+              const active = mode === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  style={({ pressed }) => [
+                    styles.themeOption,
+                    { borderColor: active ? colors.brand : colors.line },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  onPress={() => setMode(opt.key)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={opt.label}
+                >
+                  <ThemeMock kind={opt.key} />
+                  <Text style={styles.themeLabel}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* --- Удирдлага (админ): нүүрнээс шилжүүлсэн төвүүд --- */}
+        {authProfile && hasPermission(authProfile, 'approve') ? (
+          <>
+            <GroupLabel>Удирдлага</GroupLabel>
+            <ListGroup>
+              <ListRow icon="alert-circle-outline" label="Анхааруулгын төв" onPress={() => navigation.navigate('OperationalAlerts')} />
+              {isAdmin ? (
+                <ListRow icon="settings-outline" label="Тохиргооны төв" onPress={() => navigation.navigate('BusinessSettings')} />
+              ) : null}
+            </ListGroup>
+          </>
+        ) : null}
+
+        {/* --- Мэдэгдэл --- */}
+        {authProfile ? (
           <>
             <GroupLabel>Мэдэгдэл</GroupLabel>
             <ListGroup>
+              <ListRow icon="notifications-outline" label="Мэдэгдлийн тохиргоо" onPress={() => navigation.navigate('NotificationSettings')} />
+              <ListRow icon="paper-plane-outline" label="Telegram" value="Миний Telegram" onPress={() => navigation.navigate('MyTelegram')} />
+            </ListGroup>
+          </>
+        ) : null}
+
+        {/* --- Оношилгоо (ажилтан) --- */}
+        {authProfile && !isAdmin ? (
+          <>
+            <GroupLabel>Оношилгоо</GroupLabel>
+            <ListGroup>
               <ListRow
-                icon="🔔"
+                icon="pulse-outline"
                 label={pushChecking ? 'Шалгаж байна…' : 'Мэдэгдэл ирэхгүй бол шалгах'}
                 onPress={pushChecking ? undefined : checkPush}
               />
               <ListRow
-                icon="📨"
+                icon="mail-unread-outline"
                 label={pushTesting ? 'Илгээж байна…' : 'Тест мэдэгдэл илгээх'}
                 onPress={pushTesting ? undefined : testPush}
               />
               <ListRow
-                icon="📞"
+                icon="call-outline"
                 label="Ирэх дуудлагын дэлгэц шалгах"
                 onPress={testIncomingCall}
               />
               <ListRow
-                icon="📍"
+                icon="location-outline"
                 label="Байршил хяналт шалгах"
                 onPress={checkLocation}
               />
@@ -587,7 +691,8 @@ export default function ProfileScreen() {
               {MODE_OPTIONS.map((opt) => (
                 <ListRow
                   key={opt.key}
-                  icon={perf.mode === opt.key ? '◉' : '○'}
+                  icon={perf.mode === opt.key ? 'radio-button-on' : 'radio-button-off'}
+                  accent={perf.mode === opt.key ? colors.brand : undefined}
                   label={opt.label}
                   value={
                     opt.key === MODES.AUTO
@@ -609,11 +714,11 @@ export default function ProfileScreen() {
             <GroupLabel>Миний QR</GroupLabel>
             <ListGroup>
               <ListRow
-                icon="▦"
+                icon="qr-code-outline"
                 label={showQr ? 'QR-ыг нуух' : 'QR-ыг харуулах'}
                 onPress={() => setShowQr((v) => !v)}
                 chevron={false}
-                right={<Text style={styles.toggleCaret}>{showQr ? '⌃' : '⌄'}</Text>}
+                right={<Ionicons name={showQr ? 'chevron-up' : 'chevron-down'} size={18} color={colors.faint} />}
               />
               {showQr ? (
                 <View style={styles.qrBox}>
@@ -627,159 +732,151 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {/* --- Харагдац --- */}
-        <GroupLabel>Харагдац</GroupLabel>
-        <View style={styles.themeCard}>
-          <View style={styles.themeRow}>
-            {THEME_OPTIONS.map((opt) => {
-              const active = mode === opt.key;
-              return (
-                <Pressable
-                  key={opt.key}
-                  style={({ pressed }) => [
-                    styles.themeOption,
-                    active && styles.themeOptionActive,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  onPress={() => setMode(opt.key)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={opt.label}
-                >
-                  <Text style={[styles.themeIcon, active && styles.themeIconActive]}>{opt.icon}</Text>
-                  <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* --- Тусламж --- */}
+        {/* --- Бусад --- */}
         {authProfile ? (
           <>
-            <GroupLabel>{DEVELOPER_LABEL}тэй холбогдох</GroupLabel>
+            <GroupLabel>Бусад</GroupLabel>
             <ListGroup>
               <ListRow
-                icon="✉"
+                icon="help-circle-outline"
+                label={`Тусламж · ${DEVELOPER_LABEL}`}
+                onPress={() => navigation.navigate('DeveloperContact')}
+              />
+              <ListRow
+                icon="mail-outline"
                 label="Холбоо барих"
                 value={HAS_DEVELOPER_EMAIL ? SUPERADMIN_EMAIL : 'Тохируулаагүй'}
                 chevron={false}
               />
-              <ListRow
-                icon="➤"
-                label="Мэдээ илгээх"
-                onPress={() => navigation.navigate('DeveloperContact')}
-              />
               {isSuperAdmin ? (
                 <ListRow
-                  icon="▼"
+                  icon="file-tray-full-outline"
                   label="Над руу ирсэн мэдээ"
                   onPress={() => navigation.navigate('DeveloperInbox')}
                 />
               ) : null}
+              <ListRow icon="language-outline" label="Хэл" value="Монгол" chevron={false} />
+              <ListRow
+                icon="shield-checkmark-outline"
+                label="Нууцлал, нөхцөл, бүртгэл устгах"
+                onPress={() => navigation.navigate('Privacy')}
+              />
             </ListGroup>
           </>
-        ) : null}
-
-        <GroupLabel>Нууцлал ба өгөгдөл</GroupLabel>
-        <ListGroup>
-          <ListRow
-            icon="↗"
-            label="Нууцлал, нөхцөл, бүртгэл устгах"
-            onPress={() => navigation.navigate('Privacy')}
-          />
-        </ListGroup>
+        ) : (
+          <>
+            <GroupLabel>Нууцлал ба өгөгдөл</GroupLabel>
+            <ListGroup>
+              <ListRow
+                icon="shield-checkmark-outline"
+                label="Нууцлал, нөхцөл, бүртгэл устгах"
+                onPress={() => navigation.navigate('Privacy')}
+              />
+            </ListGroup>
+          </>
+        )}
 
         {/* --- Гарах --- */}
         <View style={{ marginTop: spacing.xl }}>
           <ListGroup>
-            <ListRow icon="⏻" label="Системээс гарах" danger onPress={confirmSignOut} chevron={false} />
+            <ListRow icon="log-out-outline" label="Системээс гарах" danger onPress={confirmSignOut} chevron={false} />
           </ListGroup>
         </View>
 
         <Text style={styles.connNote}>
-          {isCloud ? 'Supabase холбогдсон' : 'Локал горим'}
+          Gennetex ERP v{Constants.expoConfig?.version || ''} · {isCloud ? 'Supabase холбогдсон' : 'Локал горим'}
         </Text>
       </ScrollView>
     </View>
   );
 }
 
-const makeStyles = ({ colors, shadow }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+/** Харагдах байдлын жижиг preview (Систем = хагас цагаан, хагас харанхуй). */
+function ThemeMock({ kind }) {
+  const L = lightColors;
+  const D = darkColors;
+  const pane = (c) => (
+    <View style={{ flex: 1, backgroundColor: c.ground, padding: 7, gap: 5 }}>
+      <View style={{ height: 7, borderRadius: 4, width: '70%', backgroundColor: c.ink, opacity: 0.85 }} />
+      <View style={{ height: 7, borderRadius: 4, backgroundColor: c.card }} />
+      <View style={{ height: 7, borderRadius: 4, width: '50%', backgroundColor: c.brand }} />
+    </View>
+  );
+  return (
+    <View style={mockStyles.mock}>
+      {kind === 'system' ? (
+        <>
+          {pane(L)}
+          {pane(D)}
+        </>
+      ) : (
+        pane(kind === 'dark' ? D : L)
+      )}
+    </View>
+  );
+}
 
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-    paddingTop: spacing.lg,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImg: { width: '100%', height: '100%' },
-  // Брэнд градиент дээрх текст — хоёр горимд ижил тул цагаан тогтмол.
-  avatarLetter: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
+const mockStyles = StyleSheet.create({
+  mock: { width: '100%', height: 58, borderRadius: 9, overflow: 'hidden', flexDirection: 'row', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+});
+
+const makeStyles = ({ colors, shadow }) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.ground },
+  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: 6, backgroundColor: colors.ground },
+  topTitle: { flex: 1, color: colors.ink, fontSize: 21, fontWeight: '700', letterSpacing: -0.4, marginLeft: 12 },
+  pstats: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 20, marginTop: 18, ...shadow.md },
+  pstat: { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 6 },
+  pstatBorder: { borderLeftWidth: 1, borderLeftColor: colors.line },
+  pstatValue: { color: colors.ink, fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  pstatLabel: { color: colors.muted, fontSize: 12.5, marginTop: 2, textAlign: 'center' },
+  infoCard: { backgroundColor: colors.card, borderRadius: 20, ...shadow.md },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  infoBorder: { borderTopWidth: 1, borderTopColor: colors.line },
+  infoIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: colors.field, alignItems: 'center', justifyContent: 'center' },
+  infoLabel: { color: colors.muted, fontSize: 13 },
+  infoValue: { color: colors.ink, fontSize: 15, fontWeight: '600', marginTop: 1 },
+
+  body: { paddingHorizontal: spacing.lg, paddingBottom: 60 },
+
+  phero: { alignItems: 'center', paddingTop: 8, paddingBottom: 6 },
+  pavRing: { width: 96, height: 96, borderRadius: 48, borderWidth: 4, borderColor: colors.bg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.field },
+  pavLoading: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
   camBadge: {
     position: 'absolute',
     right: -2,
     bottom: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#ffffff',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: colors.ground,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadow.sm,
   },
-  camIcon: { fontSize: 13, color: '#201e1f' },
-  headerText: { flex: 1, minWidth: 0 },
-  headerName: { ...type.h2, color: '#ffffff' },
-  headerEmail: { ...type.caption, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
-  rolePill: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  rolePillText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
-
-  body: { padding: spacing.lg, paddingBottom: 144 },
+  pname: { color: colors.ink, fontSize: 22, fontWeight: '700', marginTop: 14, marginBottom: 2 },
+  pmeta: { color: colors.muted, fontSize: 14 },
+  chips2: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 10 },
 
   editCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.card,
+    borderRadius: radius.card,
     padding: spacing.lg,
+    ...shadow.md,
   },
   editActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
 
   lockedNote: {
     ...type.caption,
-    color: colors.textFaint,
+    color: colors.muted,
     marginTop: spacing.sm,
     marginLeft: spacing.xs,
     lineHeight: 17,
   },
 
-  toggleCaret: { color: colors.textFaint, fontSize: 14 },
   qrBox: { alignItems: 'center', paddingVertical: spacing.xl, paddingHorizontal: spacing.lg },
   perfHint: {
-    color: colors.textFaint,
+    color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 6,
@@ -788,39 +885,34 @@ const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   },
   qrHint: {
     ...type.caption,
-    color: colors.textFaint,
+    color: colors.muted,
     textAlign: 'center',
     marginTop: spacing.md,
     lineHeight: 17,
   },
 
   themeCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.sm,
+    backgroundColor: colors.card,
+    borderRadius: radius.card,
+    ...shadow.md,
   },
-  themeRow: { flexDirection: 'row', gap: spacing.sm },
+  theme3: { flexDirection: 'row', gap: 8, padding: 16, paddingTop: 12 },
   themeOption: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    gap: 8,
+    padding: 8,
+    paddingBottom: 10,
+    borderRadius: 14,
+    borderWidth: 2,
+    backgroundColor: colors.card,
   },
-  themeOptionActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary + '55' },
-  themeIcon: { fontSize: 18, color: colors.textMuted },
-  themeIconActive: { color: colors.primary },
-  themeLabel: { ...type.caption, color: colors.textMuted },
-  themeLabelActive: { color: colors.primary, fontWeight: '700' },
+  themeLabel: { color: colors.ink, fontSize: 13, fontWeight: '600' },
 
   connNote: {
     ...type.caption,
-    color: colors.textFaint,
+    color: colors.faint,
     textAlign: 'center',
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
   },
 });

@@ -12,8 +12,10 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { PillButton, RoundButton } from '../components/ds';
 import { requestLibraryAccess } from '../lib/mediaLibraryAccess';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +45,6 @@ import { SIZE_KINDS, sizeKind, detectSizeKind } from '../lib/supplySizes';
 import { LinearGradient } from 'expo-linear-gradient';
 import { brand } from '../theme/tokens';
 
-const HERO_GRADIENT = [brand[500], brand[700], brand[900]];
 
 const EMPTY_FORM = {
   name: '',
@@ -185,6 +186,7 @@ export default function InventoryScreen() {
   const [giveItem, setGiveItem] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
+  const [lowOnly, setLowOnly] = useState(false);
   const [saving, setSaving] = useState(false);
   const [boxes, setBoxes] = useState([]);
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
@@ -766,94 +768,106 @@ ${qty} ${giveItem.unit} → ${employee.name}
 
   const formImageUri = form.imageUri || form.image_url;
 
+  // Prototype «Агуулах»: нийт үнэлгээ → бага үлдэгдлийн шар мөр → үйлдлийн
+  // chip-үүд → хайлт → нэг карт доторх барааны жагсаалт (зураг, үнэ, үлдэгдэл).
+  const shown = lowOnly ? filtered.filter((it) => isLow(it) || Number(it.quantity) <= 0) : filtered;
+
   const listHeader = (
     <View style={styles.listHeader}>
       {isAdmin && showPrice ? (
-        <LinearGradient colors={HERO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summaryCard}>
-          <View pointerEvents="none" style={styles.summaryOrb} />
+        <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Агуулахын нийт үнэлгээ</Text>
           <Text style={styles.summaryValue}>{formatMNT(totalValue)}</Text>
-        </LinearGradient>
+        </View>
       ) : null}
 
       {!isAdmin ? (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>Зөвхөн харах</Text>
           <Text style={styles.bannerText}>
-            Бараа материал болон багажийг ажилтан өөрөө авах боломжгүй. Админ олгосны
-            дараа «Миний үлдэгдэл» хэсэгт харагдана.
+            Бараа материал болон багажийг ажилтан өөрөө авах боломжгүй. Админ олгосны дараа «Миний үлдэгдэл» хэсэгт харагдана.
           </Text>
         </View>
       ) : null}
 
       {isAdmin && lowStockCount > 0 ? (
-        <View style={styles.alertCard}>
-          <Ionicons name="warning" size={20} color={colors.warning} />
+        <Pressable style={styles.alertCard} onPress={() => setLowOnly((v) => !v)} accessibilityRole="button">
+          <Ionicons name="warning-outline" size={22} color={colors.warn} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Бага үлдэгдэл</Text>
-            <Text style={styles.alertText}>{lowStockCount} {meta.lowLabel} дахин нөхөх шаардлагатай.</Text>
+            <Text style={styles.alertTitle}>Бага үлдэгдэл · {lowStockCount} {meta.lowLabel}</Text>
+            <Text style={styles.alertText}>{lowOnly ? 'Бүгдийг харах' : 'Дахин нөхөх шаардлагатай'}</Text>
           </View>
-        </View>
+          <Ionicons name={lowOnly ? 'close' : 'chevron-forward'} size={18} color={colors.warn} />
+        </Pressable>
+      ) : null}
+
+      {isAdmin ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} style={styles.chipScroll}>
+          <Pressable style={styles.actChip} onPress={() => navigation.navigate('ToolAllocation', { category })}>
+            <Ionicons name="person-outline" size={16} color={colors.ink} />
+            <Text style={styles.actChipText}>Хэн авсан</Text>
+          </Pressable>
+          <Pressable style={styles.actChip} onPress={() => navigation.navigate('InventoryReceipts', { category })}>
+            <Ionicons name="cube-outline" size={16} color={colors.ink} />
+            <Text style={styles.actChipText}>Орлого</Text>
+          </Pressable>
+          <Pressable style={styles.actChip} onPress={() => navigation.navigate('Requisition')}>
+            <Ionicons name="clipboard-outline" size={16} color={colors.ink} />
+            <Text style={styles.actChipText}>Шаардах</Text>
+          </Pressable>
+        </ScrollView>
       ) : null}
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={18} color={colors.textFaint} style={styles.searchIcon} />
+        <Ionicons name="search" size={19} color={colors.faint} />
         <TextInput
           style={styles.searchInput}
-          placeholder={`${meta.label} хайх...`}
-          placeholderTextColor={colors.textFaint}
+          placeholder={`${meta.label} хайх`}
+          placeholderTextColor={colors.faint}
           value={search}
           onChangeText={setSearch}
         />
         {search ? (
           <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            <Ionicons name="close-circle" size={18} color={colors.faint} />
           </TouchableOpacity>
         ) : null}
       </View>
-
-      <Text style={styles.countLabel}>{filtered.length} нэр төрөл</Text>
     </View>
   );
 
-  /**
-   * Жагсаалтын мөр — ЗУРАГГҮЙ.
-   *
-   * Өмнө нь 2 баганат зурагтай сүлжээ байсан. Нэг дэлгэцэнд 4 бараа
-   * багтдаг тул хэдэн зуун нэр төрөл дундаас хайх боломжгүй байв.
-   * Одоо нэр, үлдэгдлээр нь жагсаана — зураг нь нэр дээр дарахад
-   * нээгдэх дэлгэрэнгүй цонхонд харагдана.
-   */
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item, index }) => {
     // Бараа тус бүрийн босгыг ашиглана (isLow), глобал LOW_STOCK-ыг биш.
     const low = isLow(item);
     const isOut = item.quantity <= 0;
-
+    const first = index === 0;
+    const last = index === shown.length - 1;
     return (
       <TouchableOpacity
-        style={[styles.row, shadow.sm]}
+        style={[styles.row, first && styles.rowFirst, last && styles.rowLast, !first && styles.rowBorder]}
         activeOpacity={0.85}
         onPress={() => setDetailItem(item)}
         onLongPress={isAdmin ? () => openEdit(item) : undefined}
       >
-        <View style={[styles.rowDot, { backgroundColor: isOut ? colors.danger : low ? colors.warning : colors.success }]} />
-
-        <View style={{ flex: 1 }}>
+        <View style={styles.thumb}>
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} style={styles.thumbImg} />
+          ) : (
+            <Ionicons name="cube-outline" size={20} color={colors.muted} />
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.rowSub} numberOfLines={1}>
-            {showPrice ? `${formatMNT(item.price)} / ${item.unit}` : item.unit}
-            {item.barcode ? ` · ▮ ${item.barcode}` : ''}
+            {showPrice ? `${Number(item.price) ? formatMNT(item.price) : 'Үнэгүй'} / ${item.unit}` : item.unit}
           </Text>
         </View>
-
         <View style={styles.rowQtyWrap}>
-          <Text style={[styles.rowQty, low && { color: colors.warning }, isOut && { color: colors.danger }]}>
-            {item.quantity}
+          <Text style={[styles.rowQty, low && { color: colors.warn }, isOut && { color: colors.bad }]}>
+            {Number(item.quantity).toLocaleString('en-US')}
           </Text>
           <Text style={styles.rowUnit}>{item.unit}</Text>
         </View>
-
-        <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
       </TouchableOpacity>
     );
   };
@@ -862,39 +876,26 @@ ${qty} ${giveItem.unit} → ${employee.name}
     <View style={styles.container}>
       <ScreenHeader
         title={screenTitle}
-        subtitle={isCloud ? 'Онлайн' : 'Офлайн'}
+        subtitle={`${filtered.length} нэр төрөл · Төв агуулах`}
         right={
-          <View style={styles.headerBtns}>
-            {!isAdmin ? (
-              <HeaderButton
-                title="Миний үлдэгдэл"
-                onPress={() => navigation.navigate(category === 'tool' ? 'MyTools' : 'MyStock')}
-              />
-            ) : (
-              <>
-                {/* Код/хайрцгийн QR уншиж олгох нь одоо АДМИНы үйлдэл.
-
-                    Хангамж (хувцас, гутал) дээр QR БАЙХГҮЙ: тэдгээр нь
-                    размераар ялгагддаг бөгөөд бар код наагддаггүй. Уншуулах
-                    товч харагдвал ажилтан юу уншуулахаа хайж цаг алдана. */}
-                {!isSupply ? <HeaderButton title="Унших" onPress={openScan} /> : null}
-                <HeaderButton
-                  title="Хэн авсан"
-                  onPress={() => navigation.navigate('ToolAllocation', { category })}
-                />
-                <HeaderButton
-                  title="Орлого"
-                  onPress={() => navigation.navigate('InventoryReceipts', { category })}
-                />
-                <HeaderButton title="Нэмэх" onPress={openAdd} />
-              </>
-            )}
-          </View>
+          !isAdmin ? (
+            <PillButton
+              title="Миний"
+              icon="person-outline"
+              soft
+              onPress={() => navigation.navigate(category === 'tool' ? 'MyTools' : 'MyStock')}
+            />
+          ) : (
+            <View style={styles.headerBtns}>
+              {!isSupply ? <RoundButton icon="scan-outline" onPress={openScan} accessibilityLabel="Унших" /> : null}
+              <PillButton title="Нэмэх" icon="add" onPress={openAdd} />
+            </View>
+          )
         }
       />
 
       <FlatList
-        data={filtered}
+        data={shown}
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
         {...listPerfProps()}
@@ -902,7 +903,7 @@ ${qty} ${giveItem.unit} → ${employee.name}
         contentContainerStyle={styles.listContent}
         refreshControl={
           isCloud ? (
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
           ) : undefined
         }
         ListEmptyComponent={<EmptyState text={meta.empty} />}
@@ -1681,78 +1682,43 @@ ${qty} ${giveItem.unit} → ${employee.name}
   );
 }
 
-const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  headerBtns: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  listContent: { padding: spacing.lg, paddingBottom: 48 },
-  listHeader: { marginBottom: spacing.md },
-  summaryCard: {
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-  },
-  summaryOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, top: -80, right: -40, backgroundColor: 'rgba(255,255,255,0.10)' },
-  summaryLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  summaryValue: { color: '#fff', fontSize: 30, fontWeight: '900', marginTop: 4, letterSpacing: -0.6 },
-  banner: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  bannerTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginBottom: spacing.xs },
-  bannerText: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginBottom: spacing.md },
-  bannerBtns: { flexDirection: 'row', gap: spacing.sm },
-  alertCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.warning + '12',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.warning + '40',
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  alertTitle: { color: colors.warning, fontWeight: '800', fontSize: 14 },
-  alertText: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  searchIcon: { marginRight: spacing.sm },
-  searchInput: { flex: 1, paddingVertical: spacing.md, color: colors.text, fontSize: 15 },
-  countLabel: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
+const makeStyles = ({ colors, shadow }) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.ground },
+  headerBtns: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  listContent: { paddingHorizontal: 16, paddingBottom: 48 },
+  listHeader: { marginBottom: 12 },
+  summaryCard: { borderRadius: 20, paddingVertical: 18, paddingHorizontal: 16, marginBottom: 12, backgroundColor: colors.card, ...shadow.md },
+  summaryLabel: { color: colors.muted, fontSize: 13, fontWeight: '600' },
+  summaryValue: { color: colors.ink, fontSize: 30, fontWeight: '700', marginTop: 4, letterSpacing: -0.6, fontVariant: ['tabular-nums'] },
+  banner: { backgroundColor: colors.brandSoft, borderRadius: 16, padding: 16, marginBottom: 12 },
+  bannerTitle: { color: colors.ink, fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  bannerText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  bannerBtns: { flexDirection: 'row', gap: 8 },
+  alertCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.warnSoft, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 12 },
+  alertTitle: { color: colors.warn, fontWeight: '700', fontSize: 14.5 },
+  alertText: { color: colors.ink, opacity: 0.75, fontSize: 13, marginTop: 1 },
+  chipScroll: { marginHorizontal: -16, marginBottom: 12, flexGrow: 0 },
+  chipRow: { paddingHorizontal: 16, gap: 8 },
+  actChip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  actChipText: { color: colors.ink, fontSize: 13.5, fontWeight: '600' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, paddingHorizontal: 14, borderRadius: 14, backgroundColor: colors.card, ...shadow.md },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: colors.ink, fontSize: 15, padding: 0 },
+  countLabel: { color: colors.muted, fontSize: 13, marginBottom: 8 },
 
-  // --- Жагсаалтын мөр (зурaггүй) ---
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
+  // --- Жагсаалт: нэг карт доторх мөрүүд (prototype .item) ---
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, paddingVertical: 12, paddingHorizontal: 16 },
+  rowFirst: { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  rowLast: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.line },
+  thumb: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.field, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  thumbImg: { width: '100%', height: '100%' },
   rowDot: { width: 8, height: 8, borderRadius: 4 },
-  rowName: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  rowName: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  rowSub: { color: colors.muted, fontSize: 12.5, marginTop: 2 },
   rowQtyWrap: { alignItems: 'flex-end', minWidth: 52 },
-  rowQty: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  rowUnit: { color: colors.textFaint, fontSize: 10 },
-
+  rowQty: { color: colors.ink, fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  rowUnit: { color: colors.muted, fontSize: 11.5 },
   // --- Дэлгэрэнгүй цонх ---
   detailImageWrap: { alignItems: 'center', marginBottom: spacing.md },
   detailName: { color: colors.text, fontSize: 20, fontWeight: '800', textAlign: 'center' },
@@ -1844,7 +1810,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     borderColor: colors.border,
   },
   stepText: { color: colors.text, fontWeight: '800', fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(10,14,20,0.45)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,

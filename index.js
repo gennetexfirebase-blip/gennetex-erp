@@ -3,6 +3,8 @@ import './src/lib/telegram/polyfills';
 import './src/lib/appDialog';
 // Switch → брэнд өнгө (апп даяар нэг загвар).
 import './src/lib/themedSwitch';
+// Үсгийн фонт → Golos Text (Android, вэб); iOS дээр SF Pro.
+import './src/lib/themedText';
 import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 import App from './App';
@@ -50,4 +52,9 @@ try {
   });
 } catch (e) {}
 
-registerRootComponent(App);
+// Компьютерийн браузерт утасны хүрээ (iframe) — апп нь хүрээн дотор mount хийнэ.
+const { mountWebPhoneFrame } = require('./src/lib/webPhoneFrame');
+const { Platform } = require('react-native');
+if (!(Platform.OS === 'web' && mountWebPhoneFrame())) {
+  registerRootComponent(App);
+}

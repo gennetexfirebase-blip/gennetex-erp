@@ -15,7 +15,7 @@ import {
 } from '../lib/attendanceRequestTypes';
 import * as reqApi from '../services/attendanceRequestService';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceLight';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 async function pickImage() {
@@ -55,6 +55,8 @@ function humanDay(key) {
 }
 
 export default function AttendanceRequestFormScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const { currentUser } = useApp();
   const profile = currentUser;
@@ -280,7 +282,7 @@ export default function AttendanceRequestFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
   dateStep: {
     width: 46,

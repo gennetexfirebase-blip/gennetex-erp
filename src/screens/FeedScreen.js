@@ -30,6 +30,7 @@ import * as feedApi from '../services/feedService';
 import * as meetingApi from '../services/meetingService';
 import LiveStreamModal, { liveRoomFromId } from '../components/LiveStreamModal';
 import { formatRelativeTime } from '../lib/formatTime';
+import { Avatar as DsAvatar } from '../components/ds';
 
 const REACTION_OPTIONS = [
   { key: 'like', emoji: '👍', label: 'Like', color: '#1877F2' },
@@ -54,14 +55,8 @@ function myReaction(post, userId) {
 }
 
 function Avatar({ name, size = 40, uri, onPress }) {
-  const styles = useStyles(makeStyles);
-  const body = uri ? (
-    <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
-  ) : (
-    <View style={[styles.avatarFallback, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.avatarLetter, { fontSize: size * 0.36 }]}>{initials(name)}</Text>
-    </View>
-  );
+  // Зураг байхгүй бол дизайны зурсан хүний дүрс (ds.js Avatar).
+  const body = <DsAvatar uri={uri} name={name || ''} size={size} />;
   if (!onPress) return body;
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
@@ -241,197 +236,78 @@ function ReactionBadges({ counts = {} }) {
   );
 }
 
-function PostCard({
-  post,
-  me,
-  onReact,
-  onOpenReactPicker,
-  onShare,
-  sharing,
-  onComment,
-  onDelete,
-  onOpenPost,
-  onOpenProfile,
-  commentText,
-  onChangeComment,
-  commenting,
-}) {
+/**
+ * Пост карт — prototype («Пост» таб): radius 20 карт, аватар + нэр + цаг,
+ * текст, зураг, доор нь ♡ · 💬 тоо. Зүрх дарвал like (удаан дарвал
+ * reaction сонгоно), карт дарвал пост нээгдэж сэтгэгдэл бичнэ.
+ */
+function PostCard({ post, me, onReact, onOpenReactPicker, onShare, sharing, onDelete, onOpenPost, onOpenProfile }) {
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
   const mine = post.author_id === me?.id;
   const reacted = myReaction(post, me?.id);
   const active = REACTION_OPTIONS.find((r) => r.key === reacted);
-  const previewComments = (post.comments || []).slice(-2);
-  const hasStats = post.reactionTotal > 0 || post.commentCount > 0;
-  const hasComments = previewComments.length > 0;
 
   const openMenu = () => {
-    if (!mine) {
-      onOpenPost?.(post);
-      return;
-    }
-    Alert.alert(post.author_name || 'Пост', undefined, [
+    Alert.alert(post.author_name || 'Мэдээ', undefined, [
       { text: 'Пост нээх', onPress: () => onOpenPost?.(post) },
-      { text: 'Устгах', style: 'destructive', onPress: () => onDelete(post) },
+      { text: 'Хуваалцах', onPress: () => onShare?.(post) },
+      ...(mine ? [{ text: 'Устгах', style: 'destructive', onPress: () => onDelete(post) }] : []),
       { text: 'Болих', style: 'cancel' },
     ]);
   };
 
   return (
-    <View style={styles.postCard}>
+    <Pressable style={styles.postCard} onPress={() => onOpenPost?.(post)} onLongPress={openMenu} delayLongPress={350}>
       <View style={styles.postHeader}>
-        <Avatar
-          name={post.author_name}
-          size={42}
-          uri={post.author_avatar_url}
-          onPress={() => onOpenProfile?.(post.author_id)}
-        />
+        <Avatar name={post.author_name} size={40} uri={post.author_avatar_url} onPress={() => onOpenProfile?.(post.author_id)} />
         <TouchableOpacity style={styles.postHeaderMeta} onPress={() => onOpenProfile?.(post.author_id)} activeOpacity={0.7}>
           <Text style={styles.postAuthor} numberOfLines={1}>{post.author_name || 'Ажилтан'}</Text>
-          <View style={styles.postMetaRow}>
-            <Text style={styles.postTime}>{formatRelativeTime(post.created_at)}</Text>
-            <View style={styles.metaDot} />
-            <Ionicons name="earth" size={11} color={colors.textMuted} />
-          </View>
+          <Text style={styles.postTime} numberOfLines={1}>{formatRelativeTime(post.created_at)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.moreBtn} onPress={openMenu} hitSlop={10}>
-          <Ionicons name="ellipsis-horizontal" size={22} color={colors.textMuted} />
+        <TouchableOpacity style={styles.moreBtn} onPress={openMenu} hitSlop={10} accessibilityLabel="Цэс">
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.faint} />
         </TouchableOpacity>
       </View>
 
-      <Pressable onPress={() => onOpenPost?.(post)} style={styles.postBodyWrap}>
-        {post.content ? <Text style={styles.postBody}>{post.content}</Text> : null}
-        {post.tags?.length ? (
-          <View style={styles.tagsRow}>
-            {post.tags.map((t) => (
-              <TouchableOpacity
-                key={t.user_id}
-                style={styles.tagChip}
-                onPress={() => onOpenProfile?.(t.user_id)}
-              >
-                <Text style={styles.tagText}>@{t.user_name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
-      </Pressable>
-
-      {post.image_url ? (
-        <Pressable onPress={() => onOpenPost?.(post)}>
-          <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" />
-        </Pressable>
-      ) : null}
-
-      {hasStats ? (
-        <View style={styles.countsRow}>
-          <TouchableOpacity style={styles.countsLeft} onPress={() => onOpenReactPicker(post)} activeOpacity={0.7}>
-            <ReactionBadges counts={post.reactionCounts} />
-            {post.reactionTotal > 0 ? (
-              <Text style={styles.countsText}>{post.reactionTotal}</Text>
-            ) : null}
-          </TouchableOpacity>
-          {post.commentCount > 0 ? (
-            <TouchableOpacity onPress={() => onOpenPost?.(post)} activeOpacity={0.7}>
-              <Text style={styles.countsText}>
-                {post.commentCount} сэтгэгдэл
-              </Text>
+      {post.content ? <Text style={styles.postBody}>{post.content}</Text> : null}
+      {post.tags?.length ? (
+        <View style={styles.tagsRow}>
+          {post.tags.map((t) => (
+            <TouchableOpacity key={t.user_id} style={styles.tagChip} onPress={() => onOpenProfile?.(t.user_id)}>
+              <Text style={styles.tagText}>@{t.user_name}</Text>
             </TouchableOpacity>
-          ) : null}
+          ))}
         </View>
       ) : null}
 
-      <View style={[styles.actionsDivider, !hasStats && styles.actionsDividerTight]} />
-      <View style={styles.actionsRow}>
+      {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" /> : null}
+
+      <View style={styles.postBar}>
         <Pressable
-          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          style={styles.barItem}
           onPress={() => onReact(post, reacted || 'like')}
           onLongPress={() => onOpenReactPicker(post)}
           delayLongPress={220}
+          hitSlop={6}
+          accessibilityLabel="Таалагдсан"
         >
-          {reacted ? (
-            <Text style={styles.actionEmoji}>{active?.emoji}</Text>
+          {reacted && active?.emoji && reacted !== 'like' ? (
+            <Text style={styles.barEmoji}>{active.emoji}</Text>
           ) : (
-            <Ionicons name="thumbs-up-outline" size={20} color={colors.textMuted} />
+            <Ionicons name={reacted ? 'heart' : 'heart-outline'} size={19} color={reacted ? colors.bad : colors.muted} />
           )}
-          <Text style={[styles.actionLabel, reacted && { color: active?.color }]}>
-            {active?.label || 'Like'}
-          </Text>
+          <Text style={[styles.barText, reacted && { color: colors.bad }]}>{post.reactionTotal || 0}</Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
-          onPress={() => onOpenPost?.(post)}
-        >
-          <Ionicons name="chatbubble-outline" size={19} color={colors.textMuted} />
-          <Text style={styles.actionLabel}>Сэтгэгдэл</Text>
+        <Pressable style={styles.barItem} onPress={() => onOpenPost?.(post)} hitSlop={6} accessibilityLabel="Сэтгэгдэл">
+          <Ionicons name="chatbubble-outline" size={18} color={colors.muted} />
+          <Text style={styles.barText}>{post.commentCount || 0}</Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
-          onPress={() => onShare?.(post)}
-          disabled={sharing}
-        >
-          {sharing ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="arrow-redo-outline" size={20} color={colors.textMuted} />
-          )}
-          <Text style={styles.actionLabel}>Share</Text>
+        <Pressable style={styles.barItem} onPress={() => onShare?.(post)} disabled={sharing} hitSlop={6} accessibilityLabel="Хуваалцах">
+          {sharing ? <ActivityIndicator size="small" color={colors.brand} /> : <Ionicons name="share-outline" size={18} color={colors.muted} />}
         </Pressable>
       </View>
-
-      <View style={styles.commentsBlock}>
-        {post.commentCount > 2 ? (
-          <TouchableOpacity onPress={() => onOpenPost?.(post)} activeOpacity={0.7}>
-            <Text style={styles.viewMoreComments}>
-              Бүх сэтгэгдэл харах ({post.commentCount})
-            </Text>
-          </TouchableOpacity>
-        ) : null}
-
-        {hasComments
-          ? previewComments.map((c) => (
-              <View key={c.id} style={styles.commentRow}>
-                <Avatar
-                  name={c.user_name}
-                  size={34}
-                  uri={c.user_avatar_url}
-                  onPress={() => onOpenProfile?.(c.user_id)}
-                />
-                <Pressable style={styles.commentBubble} onPress={() => onOpenPost?.(post)}>
-                  <Text style={styles.commentAuthor}>{c.user_name || 'Ажилтан'}</Text>
-                  <Text style={styles.commentText} numberOfLines={3}>{c.content}</Text>
-                </Pressable>
-              </View>
-            ))
-          : null}
-
-        <View style={styles.writeCommentRow}>
-          <Avatar name={me?.name} size={34} uri={me?.avatar_url} />
-          <View style={styles.writeCommentField}>
-            <TextInput
-              style={styles.writeCommentInput}
-              placeholder="Сэтгэгдэл бичих..."
-              placeholderTextColor={colors.textMuted}
-              value={commentText}
-              onChangeText={onChangeComment}
-              multiline
-            />
-            {(commentText?.trim() || commenting) && (
-              <TouchableOpacity
-                onPress={() => onComment(post)}
-                disabled={!commentText?.trim() || commenting}
-                style={styles.sendBtn}
-              >
-                {commenting ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons name="send" size={18} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -450,6 +326,7 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [composer, setComposer] = useState('');
+  const [composerOpen, setComposerOpen] = useState(false);
   const [imageUri, setImageUri] = useState(null);
   const [tags, setTags] = useState([]);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -744,7 +621,7 @@ export default function FeedScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.logo}>gennetex</Text>
+          <Text style={styles.logo} numberOfLines={1}>Мэдээ мэдээлэл</Text>
         </View>
         <View style={styles.center}>
           <Text style={styles.emptyText}>Supabase холбогдсон байх шаардлагатай.</Text>
@@ -757,23 +634,18 @@ export default function FeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surfaceDim} />
 
-      {/* Header — Figma Facebook UI */}
+      {/* Header — prototype: том «Пост» гарчиг + дугуй товчнууд */}
       <View style={styles.header}>
-        <Text style={styles.logo}>gennetex</Text>
+        <Text style={styles.logo} numberOfLines={1}>Мэдээ мэдээлэл</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.liveHeaderBtn} onPress={startLive} activeOpacity={0.85}>
-            <Ionicons name="videocam" size={18} color="#fff" />
-            <Text style={styles.liveHeaderText}>Live</Text>
+          <TouchableOpacity style={styles.headerIcon} onPress={startLive} accessibilityLabel="Live">
+            <Ionicons name="videocam-outline" size={20} color={colors.bad} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('FeedSearch')}>
-            <Ionicons name="search" size={20} color={colors.text} />
+          <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('FeedSearch')} accessibilityLabel="Хайх">
+            <Ionicons name="search" size={20} color={colors.ink} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => openProfile(me?.id)}>
-            {authProfile?.avatar_url ? (
-              <Image source={{ uri: authProfile.avatar_url }} style={styles.headerAvatar} />
-            ) : (
-              <Ionicons name="person" size={18} color={colors.text} />
-            )}
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setComposerOpen((v) => !v)} accessibilityLabel="Пост бичих">
+            <Ionicons name={composerOpen ? 'close' : 'create-outline'} size={20} color={colors.ink} />
           </TouchableOpacity>
         </View>
       </View>
@@ -802,7 +674,8 @@ export default function FeedScreen() {
           }
           ListHeaderComponent={
             <View>
-              {/* Create post */}
+              {/* Create post — толгойн ✎ товчоор нээгдэнэ */}
+              {composerOpen || composer.trim() || imageUri ? (
               <View style={styles.createPostCard}>
                 <View style={styles.createPostRow}>
                   <Avatar
@@ -884,8 +757,7 @@ export default function FeedScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-
-              <View style={styles.spacer} />
+              ) : null}
 
               {activeMeeting?.id ? (
                 <TouchableOpacity style={styles.meetingBanner} activeOpacity={0.9} onPress={joinMeeting}>
@@ -912,18 +784,16 @@ export default function FeedScreen() {
                 </TouchableOpacity>
               ) : null}
 
-              {activeMeeting?.id ? <View style={styles.spacer} /> : null}
-
-              <StoriesRow
-                me={me}
-                authProfile={authProfile}
-                storyGroups={storyGroups}
-                onCreate={createStory}
-                onOpen={setViewerGroup}
-                creating={storyCreating}
-              />
-
-              <View style={styles.spacer} />
+              {storyGroups.length ? (
+                <StoriesRow
+                  me={me}
+                  authProfile={authProfile}
+                  storyGroups={storyGroups}
+                  onCreate={createStory}
+                  onOpen={setViewerGroup}
+                  creating={storyCreating}
+                />
+              ) : null}
             </View>
           }
           renderItem={({ item }) => (
@@ -938,12 +808,9 @@ export default function FeedScreen() {
               onDelete={handleDelete}
               onOpenPost={openPost}
               onOpenProfile={openProfile}
-              commentText={commentDrafts[item.id] || ''}
-              onChangeComment={(t) => setCommentDrafts((prev) => ({ ...prev, [item.id]: t }))}
-              commenting={commentingId === item.id}
             />
           )}
-          ItemSeparatorComponent={() => <View style={styles.spacer} />}
+          contentContainerStyle={styles.listPad}
           ListEmptyComponent={
             loading ? (
               <View style={styles.center}>
@@ -1038,28 +905,34 @@ export default function FeedScreen() {
 }
 
 const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.ground },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surfaceDim,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: colors.ground,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
+  // Дизайн: «Пост» 30/700 ink гарчиг.
   logo: {
-    color: colors.primary,
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -1.2,
+    flex: 1,
+    marginRight: 8,
+    color: colors.ink,
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: -0.6,
   },
   headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceContainerHigh,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1076,7 +949,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   liveHeaderText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 
-  createPostCard: { backgroundColor: colors.surface, paddingTop: 12 },
+  createPostCard: { backgroundColor: colors.card, paddingTop: 12, borderRadius: 20, marginHorizontal: 16, marginBottom: 12, overflow: 'hidden' },
   createPostRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1277,19 +1150,28 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     textShadowRadius: 4,
   },
 
-  postCard: { backgroundColor: colors.surface },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 10,
+  // Prototype пост карт: radius 20, padding 16, бага сүүдэр.
+  listPad: { paddingHorizontal: 16 },
+  postCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#0F1722',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
+  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   postHeaderMeta: { flex: 1, minWidth: 0, justifyContent: 'center' },
-  postAuthor: { color: colors.text, fontSize: 15, fontWeight: '700', letterSpacing: -0.1 },
+  postAuthor: { color: colors.ink, fontSize: 15, fontWeight: '700' },
   postMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 },
-  postTime: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
+  postTime: { color: colors.muted, fontSize: 13, marginTop: 1 },
+  postBar: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  barItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  barText: { color: colors.muted, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  barEmoji: { fontSize: 16 },
   metaDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: colors.textMuted },
   moreBtn: {
     width: 36,
@@ -1299,20 +1181,8 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     justifyContent: 'center',
   },
   postBodyWrap: { paddingBottom: 4 },
-  postBody: {
-    color: colors.text,
-    fontSize: 15.5,
-    lineHeight: 21,
-    paddingHorizontal: 14,
-    paddingBottom: 8,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingBottom: 8,
-  },
+  postBody: { color: colors.ink, fontSize: 15, lineHeight: 22.5, marginBottom: 12 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   tagChip: {
     backgroundColor: colors.primarySoft,
     borderRadius: 12,
@@ -1321,9 +1191,11 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   tagText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   postImage: {
-    width: SCREEN_W,
-    height: Math.round(SCREEN_W * 0.92),
-    backgroundColor: colors.surfaceContainerHigh,
+    width: '100%',
+    height: Math.round((SCREEN_W - 64) * 0.5),
+    borderRadius: 14,
+    marginBottom: 12,
+    backgroundColor: colors.field,
   },
   countsRow: {
     flexDirection: 'row',
@@ -1428,8 +1300,8 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   center: { alignItems: 'center', padding: 48 },
   emptyText: { color: colors.textMuted, fontSize: 15 },
   loadLogo: { width: 90, height: 70 },
-  errorBar: { backgroundColor: '#FEE2E2', paddingHorizontal: 14, paddingVertical: 8 },
-  errorText: { color: '#B91C1C', fontSize: 13 },
+  errorBar: { backgroundColor: colors.badSoft, paddingHorizontal: 14, paddingVertical: 8 },
+  errorText: { color: colors.bad, fontSize: 13 },
 
   modalBg: {
     flex: 1,

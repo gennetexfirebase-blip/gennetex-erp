@@ -9,7 +9,11 @@ import {
   Alert,
   RefreshControl,
   TouchableOpacity,
+  Pressable,
+  Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Avatar, Chip, FilterChips, PillButton, RoundButton } from '../components/ds';
 import QRCode from '../components/QRCode';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useApp } from '../context/AppContext';
@@ -53,6 +57,7 @@ export default function VehiclesAdminScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [vfilter, setVfilter] = useState('all');
 
   const load = useCallback(async () => {
     if (!isCloud) return;
@@ -227,16 +232,31 @@ export default function VehiclesAdminScreen() {
     );
   }
 
+  // Prototype «Машины хяналт»: замд яваа аялал → шүүлтүүр → машины карт.
+  const activeTrips = trips.filter((t) => t.status === 'active' || (!t.ended_at && t.started_at));
+  const onRoad = (v) => !!fuelByVehicle[v.id]?.active || activeTrips.some((t) => t.vehicle_id === v.id);
+  const levelOf = (v) => fuelByVehicle[v.id]?.currentLevel ?? Number(v.fuel_level_percent ?? 0);
+  const counts = {
+    all: list.length,
+    road: list.filter(onRoad).length,
+    free: list.filter((v) => !onRoad(v)).length,
+    low: list.filter((v) => levelOf(v) < 40).length,
+  };
+  const shownList = list.filter((v) =>
+    vfilter === 'road' ? onRoad(v) : vfilter === 'free' ? !onRoad(v) : vfilter === 'low' ? levelOf(v) < 40 : true
+  );
+  const firstTrip = activeTrips[0];
+  const hhmm = (ts) => (ts ? new Date(ts).toTimeString().slice(0, 5) : '');
+
   return (
     <View style={styles.container}>
       <ScreenHeader
         title="Машины хяналт"
-        subtitle={`${list.length} машин · жолооч · аяллын түүх`}
+        subtitle={`${list.length} машин · ${counts.road} замд`}
         right={
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <HeaderButton title="QR" onPress={() => setScanVisible(true)} />
-            <HeaderButton title="Логууд" onPress={openLogs} />
-            <HeaderButton title="Нэмэх" onPress={openAdd} />
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <RoundButton icon="qr-code-outline" onPress={() => setScanVisible(true)} accessibilityLabel="QR унших" />
+            <PillButton title="Нэмэх" icon="add" onPress={openAdd} />
           </View>
         }
       />
@@ -245,53 +265,98 @@ export default function VehiclesAdminScreen() {
         <EmptyState text="Машин бүртгэхэд Supabase холбогдсон байх шаардлагатай." />
       ) : (
         <FlatList
-          ListHeaderComponent={<VehicleCheckoutOverview trips={trips} />}
-          data={list}
+          ListHeaderComponent={
+            <View>
+              <View style={styles.tripCard}>
+                <View style={styles.tripIcon}>
+                  <Ionicons name="navigate-outline" size={22} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.tripTitle}>Одоо замд яваа: {activeTrips.length} аялал</Text>
+                  <Text style={styles.tripSub} numberOfLines={1}>
+                    {firstTrip
+                      ? [firstTrip.vehicle_code || firstTrip.plate_number, firstTrip.driver_name, `${hhmm(firstTrip.started_at)}-өөс`].filter(Boolean).join(' · ')
+                      : 'Замд яваа машин алга'}
+                  </Text>
+                </View>
+                <Pressable style={styles.tripBtn} onPress={openLogs}>
+                  <Ionicons name="time-outline" size={16} color={colors.ink} />
+                  <Text style={styles.tripBtnText}>Түүх</Text>
+                </Pressable>
+              </View>
+              <FilterChips
+                style={styles.chips}
+                value={vfilter}
+                onChange={setVfilter}
+                items={[
+                  { key: 'all', label: 'Бүгд', count: counts.all },
+                  { key: 'free', label: 'Сул', count: counts.free },
+                  { key: 'road', label: 'Замд', count: counts.road },
+                  { key: 'low', label: 'Түлш бага', count: counts.low },
+                ]}
+              />
+            </View>
+          }
+          data={shownList}
           keyExtractor={(v) => v.id}
-          contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
           }
           renderItem={({ item }) => {
             const fuel = fuelByVehicle[item.id];
-            const lvl = fuel?.currentLevel ?? Number(item.fuel_level_percent ?? 0);
+            const lvl = Math.max(0, Math.min(100, Math.round(levelOf(item))));
             const tank = vehicleTankLiters(item);
             const remain = fuel?.remainingLiters ?? Math.round(((lvl / 100) * tank) * 10) / 10;
-            const km = fuel?.totalKm ?? 0;
+            const road = onRoad(item);
+            const barColor = lvl < 40 ? colors.bad : lvl < 70 ? colors.warn : colors.ok;
             return (
-              <Card style={styles.row}>
-                <FuelTankGauge levelPercent={lvl} tankLiters={tank} remainingLiters={remain} height={96} showLabels={false} />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.plateBoxInline}>
-                    <MongoliaPlate plate={item.plate_number} size="sm" />
-                    {fuel?.active ? <Badge text="Явж байна" color={colors.success} /> : null}
+              <View style={styles.car}>
+                <View style={styles.carTop}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.carCode}>{item.code || '—'}</Text>
+                    <Text style={styles.carSub} numberOfLines={1}>
+                      {[item.model, `${item.liters_per_100km} л/100км`].filter(Boolean).join(' · ')}
+                    </Text>
                   </View>
-                  <Text style={styles.code}>{item.code}</Text>
-                  <Text style={styles.sub}>
-                    {item.liters_per_100km} л/100км · сав {tank}л · {item.driver_name || 'жолоочгүй'}
-                  </Text>
-                  <Text style={[styles.fuelMeta, { color: fuelLevelColor(lvl) }]}>
-                    {lvl}% · {remain.toFixed(1)}л үлдсэн · {km.toFixed(1)} км
-                  </Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: `${lvl}%`, backgroundColor: fuelLevelColor(lvl) }]} />
-                  </View>
+                  <MongoliaPlate plate={item.plate_number} size="sm" showCar={false} />
                 </View>
-                <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
-                  <TouchableOpacity onPress={() => openEdit(item)}>
-                    <Badge text="Засах" color={colors.warning} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setQrItem(item)}>
-                    <Badge text="QR" color={colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setRefillVehicle(item)} hitSlop={8}>
-                    <Text style={styles.refill}>Сав</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={8}>
-                    <Text style={styles.delete}>Устгах</Text>
-                  </TouchableOpacity>
+                <View style={styles.drv}>
+                  {item.driver_name ? (
+                    <>
+                      <Avatar name={item.driver_name} uri={employees.find((e) => e.id === item.driver_id || e.user_id === item.driver_id)?.avatar_url} size={24} />
+                      <Text style={styles.drvName} numberOfLines={1}>{item.driver_name}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.drvNone}>Жолооч оноогоогүй</Text>
+                  )}
+                  <Chip text={road ? 'Замд' : 'Сул'} tone={road ? 'blue' : 'ok'} style={{ marginLeft: 'auto' }} />
                 </View>
-              </Card>
+                <View style={styles.fuelRow}>
+                  <Text style={styles.fuelLabel}>Түлш · {tank}л сав</Text>
+                  <Text style={styles.fuelVal}>{lvl}% · {Number(remain).toFixed(1)}л</Text>
+                </View>
+                <View style={styles.barTrack}>
+                  <View style={[styles.barFill, { width: `${lvl}%`, backgroundColor: barColor }]} />
+                </View>
+                <View style={styles.acts}>
+                  <Pressable style={styles.act} onPress={() => openEdit(item)}>
+                    <Ionicons name="pencil-outline" size={15} color={colors.ink} />
+                    <Text style={styles.actText}>Засах</Text>
+                  </Pressable>
+                  <Pressable style={styles.act} onPress={() => setQrItem(item)}>
+                    <Ionicons name="qr-code-outline" size={15} color={colors.ink} />
+                    <Text style={styles.actText}>QR</Text>
+                  </Pressable>
+                  <Pressable style={styles.act} onPress={() => setRefillVehicle(item)}>
+                    <Ionicons name="water-outline" size={15} color={colors.ink} />
+                    <Text style={styles.actText}>Сав</Text>
+                  </Pressable>
+                  <Pressable style={[styles.act, styles.actDel]} onPress={() => handleDelete(item)} accessibilityLabel="Устгах">
+                    <Ionicons name="trash-outline" size={15} color={colors.bad} />
+                  </Pressable>
+                </View>
+              </View>
             );
           }}
           ListEmptyComponent={<EmptyState text="Машин бүртгэгдээгүй байна." />}
@@ -497,7 +562,8 @@ export default function VehiclesAdminScreen() {
                 <MongoliaPlate plate={qrItem.plate_number} size="lg" showCar={false} style={styles.qrPlateWrap} />
                 <Text style={styles.qrCode}>{qrItem.code}</Text>
                 <View style={styles.qrBox}>
-                  <QRCode value={qrItem.code} size={340} />
+                  {/* Цонхноос хэтрэхгүй — картын дотор багтах хэмжээ. */}
+                <QRCode value={qrItem.code} size={Math.min(230, Dimensions.get('window').width - 140)} />
                 </View>
                 <Text style={styles.qrInfo}>
                   {qrItem.liters_per_100km} л/100км
@@ -541,9 +607,31 @@ function eventMeta(event) {
   }
 }
 
-const makeStyles = ({ colors }) =>
+const makeStyles = ({ colors, shadow }) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg },
+    container: { flex: 1, backgroundColor: colors.ground },
+    // Prototype «Машины хяналт»
+    tripCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, marginBottom: 12, ...shadow.md },
+    tripIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+    tripTitle: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+    tripSub: { color: colors.muted, fontSize: 13, marginTop: 2 },
+    tripBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+    tripBtnText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
+    chips: { marginHorizontal: -16, marginBottom: 14 },
+    car: { padding: 16, borderRadius: 20, backgroundColor: colors.card, marginBottom: 12, ...shadow.md },
+    carTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    carCode: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+    carSub: { color: colors.muted, fontSize: 12.5, marginTop: 1 },
+    drv: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+    drvName: { color: colors.ink, fontSize: 13.5, fontWeight: '600', flexShrink: 1 },
+    drvNone: { color: colors.muted, fontSize: 13 },
+    fuelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 },
+    fuelLabel: { color: colors.muted, fontSize: 12.5 },
+    fuelVal: { color: colors.ink, fontSize: 12.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    acts: { flexDirection: 'row', gap: 6, marginTop: 14 },
+    act: { flex: 1, height: 36, borderRadius: 10, backgroundColor: colors.field, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+    actDel: { backgroundColor: colors.badSoft },
+    actText: { color: colors.ink, fontSize: 12.5, fontWeight: '600' },
     row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
     plateBoxInline: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
     platePreview: { alignItems: 'center', marginBottom: spacing.md, marginTop: -4 },
@@ -551,14 +639,8 @@ const makeStyles = ({ colors }) =>
     licenseVal: { color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: spacing.sm },
     qrPlateWrap: { alignSelf: 'center', marginBottom: spacing.sm },
     fuelMeta: { fontSize: 13, fontWeight: '800', marginTop: 6 },
-    barTrack: {
-      height: 8,
-      borderRadius: 999,
-      backgroundColor: colors.bgAlt,
-      overflow: 'hidden',
-      marginTop: 8,
-    },
-    barFill: { height: '100%', borderRadius: 999 },
+    barTrack: { height: 8, borderRadius: 4, backgroundColor: colors.field, overflow: 'hidden' },
+    barFill: { height: '100%', borderRadius: 4 },
     refill: { color: colors.primary, fontSize: 12, fontWeight: '700' },
     code: { color: colors.text, fontSize: 15, fontWeight: '800' },
     sub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
@@ -599,7 +681,7 @@ const makeStyles = ({ colors }) =>
       maxWidth: 420,
     },
     qrCode: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.lg },
-    qrBox: { backgroundColor: '#fff', padding: spacing.lg, borderRadius: radius.md },
+    qrBox: { backgroundColor: '#fff', padding: 14, borderRadius: radius.md, alignSelf: 'center' },
     qrInfo: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: spacing.lg },
     qrHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.sm, lineHeight: 18 },
     logRow: {

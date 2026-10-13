@@ -15,6 +15,8 @@ export interface PushNotification {
   data?: Record<string, string>;
   channelId?: string;
   sound?: string;
+  /** Мэдэгдэлд харагдах зураг (https). Android дээр томоор, iOS дээр FCM-ээр. */
+  imageUrl?: string;
 }
 
 export type PushAudience =
@@ -134,12 +136,13 @@ export async function sendPushAudience(db: SupabaseClient, audience: PushAudienc
    *    Data-only үед л апп өөрөө сэрж, дуудлагын дэлгэцээ гаргана.
    */
   const isCallPush = notification.type === 'incoming_call' || notification.type === 'call';
+  const imageUrl = /^https:\/\//i.test(notification.imageUrl || '') ? notification.imageUrl : undefined;
 
   for (let offset = 0; offset < tokens.length; offset += 500) {
     const chunk = tokens.slice(offset, offset + 500);
     const result = await messaging.sendEachForMulticast({
       tokens: chunk,
-      ...(isCallPush ? {} : { notification: { title: notification.title, body: notification.body } }),
+      ...(isCallPush ? {} : { notification: { title: notification.title, body: notification.body, ...(imageUrl ? { imageUrl } : {}) } }),
       data,
       android: {
         priority: 'high',
@@ -160,13 +163,15 @@ export async function sendPushAudience(db: SupabaseClient, audience: PushAudienc
                 visibility: 'public',
                 defaultSound: true,
                 defaultVibrateTimings: true,
+                ...(imageUrl ? { imageUrl } : {}),
               },
             }),
       },
       apns: {
         // iOS дээр data-only мессеж аппыг сэрээхийн тулд content-available
         headers: isCallPush ? { 'apns-push-type': 'background', 'apns-priority': '5' } : undefined,
-        payload: { aps: { sound: notification.sound || 'default', badge: 1, contentAvailable: true } },
+        payload: { aps: { sound: notification.sound || 'default', badge: 1, contentAvailable: true, ...(imageUrl ? { mutableContent: true } : {}) } },
+        ...(imageUrl ? { fcmOptions: { imageUrl } } : {}),
       },
     });
     sent += result.successCount;

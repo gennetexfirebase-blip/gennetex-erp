@@ -77,11 +77,11 @@ export default function FuelPriceCard({ isAdmin, onChanged }) {
   const byType = (t) => prices.find((p) => p.fuel_type === t);
 
   return (
-    <Card>
+    <View style={styles.card}>
       <View style={styles.head}>
-        <SectionTitle style={{ marginBottom: 0 }}>Түлшний үнэ (1 литр)</SectionTitle>
-        <TouchableOpacity onPress={load} hitSlop={8}>
-          <Ionicons name="refresh" size={17} color={colors.textMuted} />
+        <Text style={styles.headTitle}>Түлшний үнэ · 1 литр</Text>
+        <TouchableOpacity onPress={load} hitSlop={8} style={styles.roundBtn} accessibilityLabel="Шинэчлэх">
+          <Ionicons name="refresh" size={18} color={colors.ink} />
         </TouchableOpacity>
       </View>
 
@@ -140,7 +140,9 @@ export default function FuelPriceCard({ isAdmin, onChanged }) {
                     {row ? formatMNT(row.price_mnt) : '—'}
                   </Text>
                   {isAdmin ? (
-                    <Ionicons name="create-outline" size={15} color={colors.primary} />
+                    <View style={styles.edBtn}>
+                      <Ionicons name="pencil-outline" size={15} color={colors.muted} />
+                    </View>
                   ) : null}
                 </TouchableOpacity>
               )}
@@ -149,36 +151,24 @@ export default function FuelPriceCard({ isAdmin, onChanged }) {
         })
       )}
 
-      <Text style={styles.hint}>
-        {isAdmin
-          ? 'Үнэ солигдсон бол энд шинэчилнэ — бүх админд шууд харагдана. Өмнөх цэнэглэлтүүд өөрсдийн үеийн үнээ хадгална.'
-          : 'Түлшний үнийг зөвхөн админ шинэчилнэ.'}
-      </Text>
-    </Card>
+    </View>
   );
 }
 
-const makeStyles = ({ colors }) => StyleSheet.create({
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  label: { color: colors.text, fontSize: 14.5, fontWeight: '700' },
-  date: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
+const makeStyles = ({ colors, shadow }) => StyleSheet.create({
+  // Prototype «Түлшний үнэ · 1 литр» (.price)
+  card: { backgroundColor: colors.card, borderRadius: 20, marginBottom: 12, ...shadow.md },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+  headTitle: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  roundBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: colors.line },
+  label: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  date: { color: colors.muted, fontSize: 12, marginTop: 1, fontVariant: ['tabular-nums'] },
 
-  valueBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  value: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  valueMissing: { color: colors.textMuted },
+  valueBtn: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  value: { color: colors.ink, fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  valueMissing: { color: colors.muted },
+  edBtn: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.field, alignItems: 'center', justifyContent: 'center' },
 
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   input: {

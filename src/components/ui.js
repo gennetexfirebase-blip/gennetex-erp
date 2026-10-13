@@ -9,7 +9,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,21 +16,19 @@ import { radius, spacing, touch, type } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 export function Card({ children, style, elevated = true, borderless = false }) {
-  const { colors, shadow, isDark } = useTheme();
+  const { colors, shadow } = useTheme();
+  // Дизайн: `card` дэвсгэр, radius 20, padding 16, маш бага сүүдэр, хүрээгүй.
+  void borderless;
   return (
     <View
       style={[
         {
-          backgroundColor: colors.surface,
-          borderRadius: radius.xl,
+          backgroundColor: colors.card,
+          borderRadius: radius.card,
           padding: spacing.lg,
           marginBottom: spacing.md,
-          // Гэрэл горимд хүрээг маш бүдэг болгож гүнийг сүүдрээр илэрхийлнэ;
-          // бараан горимд сүүдэр харагдахгүй тул хүрээ хэвээр.
-          borderWidth: 1,
-          borderColor: borderless ? 'transparent' : (isDark ? colors.border : 'rgba(15,23,42,0.05)'),
         },
-        elevated && (isDark ? shadow.sm : shadow.md),
+        elevated && shadow.md,
         style,
       ]}
     >
@@ -51,19 +48,19 @@ export function Button({
   loading = false,
   accessibilityLabel,
 }) {
-  const { colors, gradients, shadow } = useTheme();
-  const GRADIENT_MAP = {
-    primary: gradients.primary,
-    success: gradients.success,
-    danger: gradients.danger,
-    warning: gradients.warning,
+  const { colors } = useTheme();
+  // Дизайн: градиентгүй, нэг өнгөт дүүргэлт. Үндсэн = brand, аюултай = bad.
+  const FILL = {
+    primary: [colors.brand, colors.brandInk],
+    success: [colors.ok, '#FFFFFF'],
+    danger: [colors.bad, '#FFFFFF'],
+    warning: [colors.warn, '#FFFFFF'],
   };
-  const grad = GRADIENT_MAP[variant];
+  const fill = FILL[variant];
   const inert = disabled || loading;
   const sizeStyle = size === 'sm' ? styles.btnSm : size === 'lg' ? styles.btnLg : styles.btnMd;
-  const textSize = size === 'sm' ? 13 : size === 'lg' ? 17 : 15;
-  // Градиент товч дээр контраст текст; ghost дээр primary
-  const fg = grad && !inert ? '#ffffff' : disabled ? colors.textFaint : colors.primary;
+  const textSize = size === 'sm' ? 14 : size === 'lg' ? 17 : 16;
+  const fg = fill && !inert ? fill[1] : disabled ? colors.faint : variant === 'ghost' ? colors.ink : colors.ink;
 
   const content = (
     <View style={styles.btnRow}>
@@ -84,21 +81,14 @@ export function Button({
     accessibilityState: { disabled: !!inert, busy: !!loading },
   };
 
-  if (grad && !inert) {
+  if (fill && !inert) {
     return (
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [style, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.btn, sizeStyle, { backgroundColor: fill[0] }, style, pressed && styles.pressed]}
         {...a11y}
       >
-        <LinearGradient
-          colors={grad}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.btn, sizeStyle, shadow.glow]}
-        >
-          {content}
-        </LinearGradient>
+        {content}
       </Pressable>
     );
   }
@@ -108,11 +98,11 @@ export function Button({
       style={({ pressed }) => [
         styles.btn,
         sizeStyle,
-        { backgroundColor: inert ? colors.surfaceAlt : colors.surfaceContainerHigh },
+        { backgroundColor: colors.field },
         variant === 'ghost' && {
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: colors.outlineVariant,
+          backgroundColor: colors.card,
+          borderWidth: 1.5,
+          borderColor: colors.line,
         },
         style,
         pressed && !inert && styles.pressed,
@@ -150,30 +140,26 @@ export function Field({
     : wantedHeight
       ? { minHeight: wantedHeight }
       : null;
-  const borderColor = error
-    ? colors.danger
-    : focused
-      ? colors.primaryContainer
-      : colors.outlineVariant;
+  // Дизайн: `field` дэвсгэр, хүрээгүй; фокуст `ink` хүрээ + `bg` дэвсгэр.
+  const borderColor = error ? colors.bad : focused ? colors.ink : 'transparent';
   return (
     <View style={[{ marginBottom: spacing.md }, wrapStyle]}>
       {label ? (
-        <Text style={[styles.label, { color: colors.textMuted }, labelStyle]}>
+        <Text style={[styles.label, { color: colors.ink }, labelStyle]}>
           {label}
           {required ? <Text style={{ color: colors.danger }}> *</Text> : null}
         </Text>
       ) : null}
       <TextInput
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.faint}
         accessibilityLabel={label}
         style={[
           styles.input,
           {
-            backgroundColor: colors.surfaceContainerLow,
+            backgroundColor: focused ? colors.bg : colors.field,
             borderColor,
-            color: colors.text,
+            color: colors.ink,
           },
-          focused && { borderWidth: 1.5 },
           multilineStyle,
           inputStyle,
         ]}
@@ -192,18 +178,28 @@ export function Field({
 
 export function Badge({ text, color }) {
   const { colors } = useTheme();
-  const c = color || colors.primary;
+  const c = color || colors.brand;
   return (
-    <View style={[styles.badge, { backgroundColor: c + '1f', borderColor: 'transparent' }]}>
-      <View style={[styles.dot, { backgroundColor: c }]} />
+    <View style={[styles.badge, { backgroundColor: softOf(c, colors), borderColor: 'transparent' }]}>
       <Text style={[styles.badgeText, { color: c }]}>{text}</Text>
     </View>
   );
 }
 
+/** Семантик өнгөнд тохирох зөөлөн дэвсгэр (chip). Бусад өнгөнд 12%. */
+function softOf(c, colors) {
+  if (c === colors.brand) return colors.brandSoft;
+  if (c === colors.ok) return colors.okSoft;
+  if (c === colors.warn) return colors.warnSoft;
+  if (c === colors.bad) return colors.badSoft;
+  if (c === colors.ai) return colors.aiSoft;
+  if (c === colors.muted || c === colors.textMuted || c === colors.textFaint) return colors.field;
+  return typeof c === 'string' && c.length === 7 ? c + '1f' : colors.field;
+}
+
 export function ScreenHeader({ title, subtitle, right, icon, back, onBackPress }) {
   const navigation = useNavigation();
-  const { colors, isDark, shadow } = useTheme();
+  const { colors } = useTheme();
   const showBack = back === undefined ? navigation.canGoBack() : back;
   const handleBack = () => {
     if (onBackPress) onBackPress();
@@ -213,7 +209,7 @@ export function ScreenHeader({ title, subtitle, right, icon, back, onBackPress }
     <View
       style={[
         styles.header,
-        { backgroundColor: colors.background, borderBottomColor: 'transparent' },
+        { backgroundColor: colors.ground, borderBottomColor: 'transparent' },
       ]}
     >
       <SafeAreaView edges={['top']}>
@@ -223,26 +219,22 @@ export function ScreenHeader({ title, subtitle, right, icon, back, onBackPress }
               <Pressable
                 style={({ pressed }) => [
                   styles.backBtn,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: isDark ? colors.outlineVariant : 'rgba(15,23,42,0.06)',
-                  },
-                  !isDark && shadow.sm,
+                  { backgroundColor: colors.bg, borderColor: colors.line },
                   pressed && styles.pressed,
                 ]}
                 onPress={handleBack}
-                hitSlop={8}
+                hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel="Буцах"
               >
-                <Ionicons name="chevron-back" size={22} color={colors.text} />
+                <Ionicons name="chevron-back" size={20} color={colors.ink} />
               </Pressable>
             ) : icon ? (
               <Text style={styles.headerIcon}>{icon}</Text>
             ) : null}
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text
-                style={[styles.headerTitle, { color: colors.onSurface }]}
+                style={[styles.headerTitle, { color: colors.ink }]}
                 numberOfLines={2}
                 accessibilityRole="header"
               >
@@ -263,19 +255,16 @@ export function ScreenHeader({ title, subtitle, right, icon, back, onBackPress }
 }
 
 export function StatCard({ label, value, color, icon }) {
-  const { colors, shadow, isDark } = useTheme();
-  const c = color || colors.primary;
+  const { colors, shadow } = useTheme();
+  // Дизайн (KpiTile): том тоо + шошго. Тоо нь `ink`; семантик өнгө өгсөн
+  // үед (ok/warn/bad) тэр өнгөөр.
+  const semantic = color && color !== colors.primary && color !== colors.accent;
+  const c = semantic ? color : colors.ink;
   return (
     <View
-      style={[
-        styles.statCard,
-        { backgroundColor: colors.surface, borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)' },
-        isDark ? shadow.sm : shadow.md,
-      ]}
+      style={[styles.statCard, { backgroundColor: colors.card }, shadow.md]}
       accessibilityLabel={`${label}: ${value}`}
     >
-      {/* Өнгөт зурвас — карт бүрийн утгыг нүдээр ялгана */}
-      <View style={[styles.statAccent, { backgroundColor: c }]} />
       {icon ? <Text style={styles.statIcon}>{icon}</Text> : null}
       <Text style={[styles.statValue, { color: c }]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
@@ -303,18 +292,22 @@ export function EmptyState({ text, title, subtitle, icon = 'file-tray-outline', 
   const iconName = icon === '·' ? 'file-tray-outline' : GLYPH_ICONS[icon] || (Ionicons.glyphMap?.[icon] ? icon : null);
   return (
     <View style={styles.empty}>
-      <View style={[styles.emptyIconWrap, { backgroundColor: colors.primarySoft }]}>
+      <View style={[styles.emptyIconWrap, { backgroundColor: colors.brandSoft }]}>
         {iconName ? (
-          <Ionicons name={iconName} size={32} color={colors.primary} />
+          <Ionicons name={iconName} size={36} color={colors.brand} />
         ) : (
-          <Text style={[styles.emptyIcon, { color: colors.primary }]}>{icon}</Text>
+          <Text style={[styles.emptyIcon, { color: colors.brand }]}>{icon}</Text>
         )}
       </View>
+      {/* Гарчиггүй дуудлагад ч дизайн «icon + гарчиг + тайлбар» хэлбэрийг барина. */}
+      {!title && (text || subtitle) ? (
+        <Text style={[styles.emptyTitle, { color: colors.ink }]}>{text || subtitle}</Text>
+      ) : null}
       {/* Зарим дэлгэц `title`/`subtitle` дамжуулдаг — өмнө нь хоосон гардаг байв. */}
       {title ? <Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text> : null}
-      {text || subtitle ? <Text style={[styles.emptyText, { color: colors.textMuted }]}>{text || subtitle}</Text> : null}
+      {title && (text || subtitle) ? <Text style={[styles.emptyText, { color: colors.muted }]}>{text || subtitle}</Text> : null}
       {action && actionLabel ? (
-        <Button title={actionLabel} onPress={action} size="sm" style={{ marginTop: spacing.md }} />
+        <Button title={actionLabel} onPress={action} size="sm" style={{ marginTop: spacing.lg, borderRadius: radius.pill }} />
       ) : null}
     </View>
   );
@@ -433,7 +426,8 @@ export function HeaderButton({ title, icon, onPress, accessibilityLabel }) {
     <Pressable
       style={({ pressed }) => [
         styles.headerBtn,
-        { backgroundColor: colors.primarySoft, borderColor: colors.primary + '40' },
+        // Дизайн: pill товч — brand дэвсгэр, цагаан бичиг.
+        { backgroundColor: colors.brand, borderColor: colors.brand },
         pressed && styles.pressed,
       ]}
       onPress={onPress}
@@ -441,8 +435,16 @@ export function HeaderButton({ title, icon, onPress, accessibilityLabel }) {
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || title || 'Товч'}
     >
-      {icon ? <Text style={[styles.headerBtnIcon, { color: colors.primary }]}>{icon}</Text> : null}
-      {title ? <Text style={[styles.headerBtnText, { color: colors.primary }]}>{title}</Text> : null}
+      {icon ? (
+        icon === '+' ? (
+          <Ionicons name="add" size={18} color={colors.brandInk} />
+        ) : Ionicons.glyphMap?.[icon] ? (
+          <Ionicons name={icon} size={17} color={colors.brandInk} />
+        ) : (
+          <Text style={[styles.headerBtnIcon, { color: colors.brandInk }]}>{icon}</Text>
+        )
+      ) : null}
+      {title ? <Text style={[styles.headerBtnText, { color: colors.brandInk }]}>{title}</Text> : null}
     </Pressable>
   );
 }
@@ -464,25 +466,24 @@ export function GroupLabel({ children, style }) {
  * Тусад нь `divider` зурах шаардлагагүй, өөрөө хийнэ.
  */
 export function ListGroup({ children, style }) {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   const items = React.Children.toArray(children).filter(Boolean);
   return (
     <View
       style={[
         {
-          backgroundColor: colors.surface,
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          borderColor: colors.border,
-          overflow: 'hidden',
+          backgroundColor: colors.card,
+          borderRadius: radius.card,
+          paddingVertical: 4,
         },
+        shadow.md,
         style,
       ]}
     >
       {items.map((child, i) => (
         <View key={i}>
           {i > 0 ? (
-            <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
+            <View style={[styles.divider, { backgroundColor: colors.line }]} />
           ) : null}
           {child}
         </View>
@@ -524,13 +525,16 @@ export function ListRow({
   chevron = true,
 }) {
   const { colors } = useTheme();
-  const tint = danger ? colors.danger : accentColor || colors.primary;
-  const labelColor = disabled ? colors.textFaint : danger ? colors.danger : colors.text;
+  // Дизайн (Профайлын .set мөр): icon хавтан нь `field` дэвсгэр + `ink`;
+  // өнгө өгсөн бол тэр өнгөөр, аюултай бол `bad`.
+  const tint = danger ? colors.bad : accentColor || colors.ink;
+  const tileBg = danger ? colors.badSoft : accentColor ? softOf(accentColor, colors) : colors.field;
+  const labelColor = disabled ? colors.faint : danger ? colors.bad : colors.ink;
 
   const body = (
     <View style={styles.rowInner}>
       {icon ? (
-        <View style={[styles.rowIcon, { backgroundColor: tint + '16' }]}>
+        <View style={[styles.rowIcon, { backgroundColor: tileBg }]}>
           <RowIcon icon={icon} color={tint} />
         </View>
       ) : null}
@@ -567,15 +571,16 @@ export function ListRow({
 export function StatusPill({ text, tone = 'neutral' }) {
   const { colors } = useTheme();
   const TONES = {
-    success: colors.success,
-    warning: colors.warning,
-    danger: colors.danger,
-    info: colors.primary,
-    neutral: colors.textMuted,
+    success: [colors.ok, colors.okSoft],
+    warning: [colors.warn, colors.warnSoft],
+    danger: [colors.bad, colors.badSoft],
+    info: [colors.brand, colors.brandSoft],
+    ai: [colors.ai, colors.aiSoft],
+    neutral: [colors.muted, colors.field],
   };
-  const c = TONES[tone] || TONES.neutral;
+  const [c, bg] = TONES[tone] || TONES.neutral;
   return (
-    <View style={[styles.pill, { backgroundColor: c + '1a' }]}>
+    <View style={[styles.pill, { backgroundColor: bg }]}>
       <Text style={[styles.pillText, { color: c }]} numberOfLines={1}>
         {text}
       </Text>
@@ -591,9 +596,10 @@ export function FilterChip({ label, active, onPress }) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
+        // Дизайн (FilterChips): идэвхтэй нь `ink` дэвсгэр.
         {
-          backgroundColor: active ? colors.primarySoft : 'transparent',
-          borderColor: active ? colors.primary : colors.outlineVariant,
+          backgroundColor: active ? colors.ink : colors.card,
+          borderColor: active ? colors.ink : colors.line,
         },
         pressed && styles.pressed,
       ]}
@@ -601,14 +607,12 @@ export function FilterChip({ label, active, onPress }) {
       accessibilityState={{ selected: !!active }}
     >
       <Text
-        style={[styles.chipText, { color: active ? colors.primary : colors.textMuted }]}
+        style={[styles.chipText, { color: active ? colors.bg : colors.ink }]}
         numberOfLines={1}
       >
         {label}
       </Text>
-      <Text style={[styles.chipCaret, { color: active ? colors.primary : colors.textFaint }]}>
-        ⌄
-      </Text>
+      <Ionicons name="chevron-down" size={14} color={active ? colors.bg : colors.muted} />
     </Pressable>
   );
 }
@@ -617,7 +621,7 @@ export function FilterChip({ label, active, onPress }) {
 export function SegmentTabs({ tabs, value, onChange }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.segWrap, { borderBottomColor: colors.outlineVariant }]}>
+    <View style={[styles.segWrap, { borderBottomColor: colors.line }]}>
       {tabs.map((t) => {
         const key = t.key ?? t;
         const label = t.label ?? t;
@@ -631,7 +635,7 @@ export function SegmentTabs({ tabs, value, onChange }) {
             accessibilityState={{ selected: on }}
           >
             <Text
-              style={[styles.segText, { color: on ? colors.primary : colors.textMuted }]}
+              style={[styles.segText, { color: on ? colors.ink : colors.muted }]}
               numberOfLines={1}
             >
               {label}
@@ -639,7 +643,7 @@ export function SegmentTabs({ tabs, value, onChange }) {
             <View
               style={[
                 styles.segBar,
-                { backgroundColor: on ? colors.primary : 'transparent' },
+                { backgroundColor: on ? colors.brand : 'transparent' },
               ]}
             />
           </Pressable>
@@ -656,7 +660,7 @@ export function BottomBar({ children, style }) {
     <View
       style={[
         styles.bottomBar,
-        { backgroundColor: colors.surface, borderTopColor: colors.outlineVariant },
+        { backgroundColor: colors.bg, borderTopColor: colors.line },
         style,
       ]}
     >
@@ -672,16 +676,14 @@ export function BottomBar({ children, style }) {
  * Профайл / Нэвтрэх дэлгэцэд ашиглана.
  */
 export function BrandHeader({ children, height, style }) {
-  const { gradients } = useTheme();
+  // Дизайн: градиент толгой байхгүй — `ground` дэвсгэр.
+  const { colors } = useTheme();
   return (
-    <LinearGradient
-      colors={gradients.brand}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }, height && { height }, style]}
+    <View
+      style={[{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, backgroundColor: colors.ground }, height && { height }, style]}
     >
       <SafeAreaView edges={['top']}>{children}</SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -697,7 +699,7 @@ export function formatMNT(value) {
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   btn: {
-    borderRadius: radius.lg,
+    borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -707,39 +709,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   btnMd: {
-    minHeight: touch.min,
+    minHeight: 52,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
   },
   btnLg: {
-    minHeight: 52,
+    minHeight: 56,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
   },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   btnIcon: {},
-  btnText: { fontWeight: '700', letterSpacing: 0.1 },
+  btnText: { fontWeight: '600' },
   label: {
     marginBottom: spacing.xs,
     ...type.label,
   },
   input: {
-    minHeight: 52,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
+    minHeight: 54,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderWidth: 1,
-    fontSize: 15,
+    borderWidth: 1.5,
+    fontSize: 16,
   },
   fieldMsg: { marginTop: 5, fontSize: 12, fontWeight: '500' },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: 1,
+    paddingHorizontal: 9,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 0,
     gap: 5,
   },
   dot: { width: 6, height: 6, borderRadius: 3 },
@@ -751,72 +753,68 @@ const styles = StyleSheet.create({
   },
   // Гарчиг дор хаяж ~200pt авна; үйлдлийн товчнууд багтахгүй бол
   // гарчигтай давхцахын оронд ДООШОО шинэ мөрөнд буулгана.
+  // Prototype .subhead: буцах · гарчиг (2 мөр хүртэл) · баруун товчнууд нэг мөрөнд.
   headerRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: spacing.sm,
-    rowGap: spacing.sm,
+    gap: 12,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flexGrow: 1, flexShrink: 1, flexBasis: 200, minWidth: 0 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1, minWidth: 0 },
   headerRight: {
     flexShrink: 0,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: spacing.xs,
-    marginLeft: 'auto',
-    maxWidth: '100%',
+    gap: 8,
   },
   headerIcon: { fontSize: 30 },
   backBtn: {
-    width: touch.icon,
-    height: touch.icon,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   backIcon: { fontSize: 28, fontWeight: '800', marginTop: -4 },
-  headerTitle: { ...type.h2, fontSize: 24, fontWeight: '800', letterSpacing: -0.6 },
+  headerTitle: { fontSize: 21, lineHeight: 25, fontWeight: '700', letterSpacing: -0.4 },
   headerSub: { ...type.caption, fontSize: 13, marginTop: 2 },
   statCard: {
     flex: 1,
     borderRadius: radius.xl,
     padding: spacing.lg,
-    paddingTop: spacing.lg + 4,
-    borderWidth: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     overflow: 'hidden',
   },
   statAccent: { position: 'absolute', top: 0, left: '30%', right: '30%', height: 4, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 },
   statIcon: { fontSize: 22, marginBottom: 4 },
-  statValue: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: 12, marginTop: 2, textAlign: 'center' },
+  statValue: { fontSize: 26, fontWeight: '700', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   sectionTitle: {
     ...type.h3,
     marginBottom: spacing.md,
   },
   empty: { alignItems: 'center', paddingVertical: spacing.xxl },
   emptyIconWrap: {
-    width: 72,
-    height: 72,
+    width: 76,
+    height: 76,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
   },
   emptyIcon: { fontSize: 32, lineHeight: 38, fontWeight: '600' },
-  emptyTitle: { textAlign: 'center', fontSize: 16, fontWeight: '700', marginBottom: 4, paddingHorizontal: spacing.xl },
+  emptyTitle: { textAlign: 'center', fontSize: 18, fontWeight: '700', marginBottom: 6, paddingHorizontal: spacing.xl },
   emptyText: { textAlign: 'center', fontSize: 14, lineHeight: 20, paddingHorizontal: spacing.xl },
   headerBtn: {
-    minHeight: touch.compact,
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: radius.pill,
     borderWidth: 1,
   },
@@ -825,14 +823,14 @@ const styles = StyleSheet.create({
 
   // --- Жагсаалтын хэв маяг ---
   groupLabel: {
-    ...type.caption,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
     marginBottom: spacing.sm,
     marginTop: spacing.lg,
     marginLeft: spacing.xs,
   },
-  divider: { height: StyleSheet.hairlineWidth, marginLeft: 56 },
+  divider: { height: 1 },
   row: { minHeight: touch.min + 8 },
   rowInner: {
     flexDirection: 'row',
@@ -843,27 +841,28 @@ const styles = StyleSheet.create({
     minHeight: touch.min + 8,
   },
   rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowIconText: { fontSize: 15 },
   rowLabel: { ...type.bodyStrong, flex: 1, minWidth: 0 },
-  rowValue: { ...type.caption, fontSize: 13, flexShrink: 1, textAlign: 'right' },
+  rowValue: { fontSize: 14, flexShrink: 1, textAlign: 'right' },
   rowChevron: { fontSize: 22, fontWeight: '600', marginLeft: 2 },
 
   pill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
+    paddingHorizontal: 9,
+    height: 24,
+    justifyContent: 'center',
+    borderRadius: 12,
   },
-  pillText: { fontSize: 11, fontWeight: '700' },
+  pillText: { fontSize: 12, fontWeight: '700' },
 
   chip: {
-    minHeight: touch.compact,
+    minHeight: 34,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -871,13 +870,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
   },
-  chipText: { fontSize: 13, fontWeight: '600' },
+  chipText: { fontSize: 13.5, fontWeight: '600' },
   chipCaret: { fontSize: 12, marginTop: -3 },
 
   segWrap: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
   segItem: { flex: 1, alignItems: 'center', paddingTop: spacing.md, gap: spacing.sm },
-  segText: { fontSize: 14, fontWeight: '700' },
-  segBar: { height: 2, alignSelf: 'stretch', borderRadius: 1 },
+  segText: { fontSize: 14, fontWeight: '600' },
+  segBar: { height: 3, alignSelf: 'stretch', marginHorizontal: '18%', borderRadius: 3 },
 
   bottomBar: { borderTopWidth: StyleSheet.hairlineWidth },
   bottomBarRow: {

@@ -3,6 +3,7 @@
  */
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Box, StatGrid, SectionHeader, IconRow, Chip } from '../ds';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useApp } from '../../context/AppContext';
 import { useTheme, useStyles } from '../../context/ThemeContext';
@@ -12,7 +13,13 @@ import { getPendingCount } from '../../services/offlineQueueService';
 import { isFlagOn } from '../../lib/featureFlags';
 import { formatCountdown } from '../../lib/callSla';
 
-export default function TodayDashboard() {
+/**
+ * Нүүрний «Өнөөдөр» карт + «Анхаарах» жагсаалт (дизайн §4 Нүүр).
+ *
+ * `alerts` — Нүүр дэлгэцээс ирэх нэмэлт анхааруулга (ж: ХААБ заавар).
+ * `title` — ажилтанд «Миний өнөөдөр».
+ */
+export default function TodayDashboard({ alerts: extraAlerts = [], title = 'Өнөөдөр' } = {}) {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useStyles(makeStyles);
@@ -55,168 +62,99 @@ export default function TodayDashboard() {
     }, [currentUser?.id, isAdmin, isCloud])
   );
 
-  if (!isFlagOn('smartToday') || data?.enabled === false) return null;
+  const disabled = !isFlagOn('smartToday') || data?.enabled === false;
+
+  // Анхаарах зүйлс — Нүүрээс ирсэн + энэ картын өгөгдлөөс.
+  const alerts = [...extraAlerts];
+  if (!disabled && !loading) {
+    if (isAdmin && data?.lowStockCount > 0) {
+      alerts.push({ key: 'low', icon: 'cube-outline', tone: 'red', title: `Бага үлдэгдэлтэй ${data.lowStockCount} бараа`, sub: 'Агуулахын нөөц дуусах дөхсөн', onPress: () => navigation.navigate('LowStock') });
+    }
+    const slaN = data?.slaWarnings?.length || 0;
+    if (slaN > 0) {
+      alerts.push({ key: 'sla', icon: 'timer-outline', tone: 'red', title: `${slaN} дуудлагын SLA хэтэрсэн`, sub: 'Хариу өгөх хугацаа дууссан', onPress: () => navigation.navigate('SlaReport') });
+    }
+    if (offlinePending > 0) {
+      alerts.push({ key: 'offline', icon: 'cloud-upload-outline', tone: 'slate', title: `Оффлайн дараалал: ${offlinePending}`, sub: 'Сүлжээнд холбогдмогц илгээгдэнэ', onPress: () => navigation.navigate('OfflineQueue') });
+    }
+  }
+
+  const alertList = alerts.length ? (
+    <>
+      <SectionHeader title={isAdmin ? 'Анхаарах' : 'Хийх зүйлс'} chip={alerts.length} chipTone={isAdmin ? 'bad' : 'warn'} />
+      <Box style={{ paddingVertical: 4 }}>
+        {alerts.map((a, i) => (
+          <IconRow key={a.key} first={i === 0} icon={a.icon} tone={a.tone} title={a.title} sub={a.sub} onPress={a.onPress} />
+        ))}
+      </Box>
+    </>
+  ) : null;
+
+  if (disabled) return alertList;
 
   if (loading) {
     return (
-      <View style={styles.card}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.muted}>Өнөөдрийн мэдээлэл ачаалж байна…</Text>
-      </View>
+      <>
+        <Box pad style={styles.loading}>
+          <ActivityIndicator color={colors.brand} />
+          <Text style={styles.muted}>Өнөөдрийн мэдээлэл ачаалж байна…</Text>
+        </Box>
+        {alertList}
+      </>
     );
   }
 
   const myOpen = data?.myCalls?.length || 0;
   const sla = data?.slaWarnings?.length || 0;
+  const openN = data?.openCalls?.length ?? myOpen;
   const topCalls = (data?.myCalls || data?.openCalls || []).slice(0, 3);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Өнөөдөр</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('TodayDetail')}>
-          <Text style={styles.link}>Дэлгэрэнгүй →</Text>
-        </TouchableOpacity>
-      </View>
+    <>
+      <Box>
+        <View style={styles.boxhead}>
+          <Text style={styles.title}>{title}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('TodayDetail')} hitSlop={8}>
+            <Text style={styles.link}>Дэлгэрэнгүй</Text>
+          </TouchableOpacity>
+        </View>
+        <StatGrid
+          topBorder
+          items={[
+            { label: 'Миний дуудлага', value: String(myOpen), onPress: () => navigation.navigate('Calls') },
+            { label: 'SLA хэтэрсэн', value: String(sla), color: sla ? colors.bad : undefined, onPress: () => navigation.navigate('SlaReport') },
+            { label: 'Нээлттэй', value: String(openN), onPress: () => navigation.navigate(isAdmin ? 'AdminCalls' : 'Calls') },
+          ]}
+        />
+      </Box>
 
-      <View style={styles.row}>
-        <Chip label="Миний дуудлага" value={String(myOpen)} color={colors.primary} onPress={() => navigation.navigate('Calls')} styles={styles} />
-        <Chip label="SLA" value={String(sla)} color={sla ? colors.danger : colors.success} onPress={() => navigation.navigate('SlaReport')} styles={styles} />
-        {/* ⚠️ "Ирц ✓/—" чип ЭНД БАЙХГҮЙ. Нүүр дэлгэцийн
-            `HomeAttendanceCard` нь ижил зүйлийг хамаагүй илүү
-            нарийвчлалтай (хэдэн цагт ирсэн, хэр удаж байгаа)
-            харуулдаг тул хоёр газар хоёр өөр хариулт өгөхөөс
-            сэргийлэв. */}
-      </View>
-
-      {offlinePending > 0 ? (
-        <TouchableOpacity style={styles.offlineBanner} onPress={() => navigation.navigate('OfflineQueue')}>
-          <Text style={styles.offlineText}>Оффлайн queue: {offlinePending} үйлдэл хүлээгдэж байна</Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {!data?.checkInToday ? (
-        <TouchableOpacity style={styles.warn} onPress={() => navigation.navigate('Attendance')}>
-          <Text style={styles.warnText}>Өнөөдөр цаг бүртгээгүй · Цаг бүртгэх →</Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {isAdmin && data?.lowStockCount > 0 ? (
-        <TouchableOpacity style={styles.warn} onPress={() => navigation.navigate('LowStock')}>
-          <Text style={styles.warnText}>Бага үлдэгдэл: {data.lowStockCount} бараа →</Text>
-        </TouchableOpacity>
-      ) : null}
+      {alertList}
 
       {topCalls.length ? (
-        <View style={styles.list}>
-          <Text style={styles.subTitle}>Ойрын дуудлагууд</Text>
-          {topCalls.map((c) => (
-            <TouchableOpacity
+        <Box style={{ paddingVertical: 4, marginTop: alertList ? 0 : 0 }}>
+          {topCalls.map((c, i) => (
+            <IconRow
               key={c.id}
-              style={styles.callRow}
+              first={i === 0}
+              icon="location-outline"
+              tone="blue"
+              title={c.customer || '—'}
+              sub={[c.address || c.status, formatCountdown(c.slaMs != null ? c.slaMs : null)].filter((x) => x && x !== '—').join(' · ')}
+              right={i === 0 ? <Chip text="Дараагийн" tone="blue" /> : null}
               onPress={() => navigation.navigate('CallDetail', { callId: c.id, call: c })}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.callName} numberOfLines={1}>{c.customer || '—'}</Text>
-                <Text style={styles.callAddr} numberOfLines={1}>{c.address || c.status}</Text>
-              </View>
-              <Text style={styles.callSla}>{formatCountdown(
-                c.sla_deadline || c.created_at
-                  ? (c.slaMs != null ? c.slaMs : null)
-                  : null
-              )}</Text>
-            </TouchableOpacity>
+            />
           ))}
-        </View>
-      ) : (
-        <Text style={styles.muted}>Нээлттэй дуудлага алга</Text>
-      )}
-
-      <View style={styles.quickRow}>
-        <QBtn label="Зам" onPress={() => navigation.navigate('RouteOptimize')} styles={styles} />
-        <QBtn label="KB" onPress={() => navigation.navigate('KnowledgeBase')} styles={styles} />
-        {isAdmin ? <QBtn label="Ops" onPress={() => navigation.navigate('LiveOps')} styles={styles} /> : null}
-      </View>
-    </View>
+        </Box>
+      ) : null}
+    </>
   );
 }
 
-function Chip({ label, value, color, onPress, styles }) {
-  return (
-    <TouchableOpacity style={[styles.chip, { backgroundColor: color + '14' }]} onPress={onPress} activeOpacity={0.85}>
-      <Text style={[styles.chipVal, { color }]}>{value}</Text>
-      <Text style={styles.chipLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function QBtn({ label, onPress, styles }) {
-  return (
-    <TouchableOpacity style={styles.qbtn} onPress={onPress}>
-      <Text style={styles.qbtnText}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const makeStyles = ({ colors, shadow, isDark }) =>
+const makeStyles = ({ colors }) =>
   StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.xl,
-      padding: spacing.lg,
-      marginBottom: spacing.lg,
-      borderWidth: 1,
-      borderColor: isDark ? colors.border : 'rgba(15,23,42,0.05)',
-      ...(isDark ? shadow.sm : shadow.md),
-    },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-    title: { color: colors.text, fontSize: 17, fontWeight: '800' },
-    link: { color: colors.primary, fontWeight: '700', fontSize: 13 },
-    row: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-    chip: {
-      flex: 1,
-      borderRadius: radius.lg,
-      borderWidth: 0,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.sm,
-      alignItems: 'center',
-      backgroundColor: colors.surfaceContainerLow || colors.bgAlt,
-    },
-    chipVal: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
-    chipLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 2, textAlign: 'center' },
-    muted: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
-    warn: {
-      backgroundColor: colors.warning + '22',
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-    },
-    warnText: { color: colors.warning, fontWeight: '700', fontSize: 13 },
-    offlineBanner: {
-      backgroundColor: colors.accent + '22',
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-    },
-    offlineText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
-    list: { marginTop: spacing.sm },
-    subTitle: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: spacing.sm },
-    callRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    callName: { color: colors.text, fontWeight: '700', fontSize: 14 },
-    callAddr: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-    callSla: { color: colors.textFaint, fontSize: 11, fontWeight: '700', marginLeft: 8 },
-    quickRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-    qbtn: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.pill,
-      backgroundColor: colors.primarySoft,
-    },
-    qbtnText: { color: colors.primary, fontWeight: '800', fontSize: 12 },
+    loading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    boxhead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+    title: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+    link: { color: colors.brand, fontWeight: '600', fontSize: 14 },
+    muted: { color: colors.muted, fontSize: 13 },
   });

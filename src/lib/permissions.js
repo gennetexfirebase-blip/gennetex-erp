@@ -30,6 +30,9 @@ import {
   canManagePayroll,
 } from './roles';
 
+/** Захирал — актыг баталгаажуулдаг тул «Акт» модуль үргэлж нээлттэй. */
+const ACT_DIRECTOR_EMAIL = 'bayasgalan.gennetex@gmail.com';
+
 /**
  * Тохируулж болох эрхүүд.
  *
@@ -62,6 +65,14 @@ export const PERMISSIONS = [
     label: 'Цалин',
     desc: 'Цалин тооцох, харах — эмзэг мэдээлэл',
   },
+  {
+    // akt.gennetex.com-тэй ижил түлхүүр (сервер: act_can('create')).
+    // Энгийн ажилтан зөвхөн өөрийн актаа бичиж Захирал, sysadmin руу
+    // илгээнэ; Захирал баталгаажуулна.
+    key: 'acts.create',
+    label: 'Акт бичих',
+    desc: 'Ажил гүйцэтгэлийн акт бичиж Захиралд илгээх',
+  },
 ];
 
 export const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
@@ -85,6 +96,10 @@ export function roleDefaultPermission(role, key) {
       return canApproveRequests(role);
     case 'payroll':
       return canManagePayroll(role);
+    case 'acts.create':
+      // Түвшнээр автоматаар нээгдэхгүй — энгийн админ ч гэсэн sysadmin
+      // «Акт → Тохиргоо → Ажилтанд эрх олгох»-оос эрх авна (сервер ижил).
+      return false;
     default:
       return false;
   }
@@ -99,6 +114,7 @@ export function hasPermission(profile, key) {
   const role = normalizeRole(profile?.role);
   // Хөгжүүлэгчийг хэзээ ч хаахгүй.
   if (role === ROLES.SUPERADMIN) return true;
+  if (key === 'acts.create' && String(profile?.email || '').trim().toLowerCase() === ACT_DIRECTOR_EMAIL) return true;
 
   const override = profile?.permissions?.[key];
   if (typeof override === 'boolean') return override;

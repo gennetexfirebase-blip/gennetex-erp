@@ -9,12 +9,14 @@ import EmployeeSelectSheet from '../components/EmployeeSelectSheet';
 import { useApp } from '../context/AppContext';
 import * as attApi from '../services/attendanceService';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 const UB_REGION = { latitude: 47.9184, longitude: 106.9177, latitudeDelta: 0.05, longitudeDelta: 0.05 };
 
 export default function AttendanceLocationFormScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const route = useRoute();
   const editing = route.params?.location || null;
@@ -154,7 +156,7 @@ export default function AttendanceLocationFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   mapWrap: { height: 240, borderRadius: 18, overflow: 'hidden' },
   assignBtn: { height: 48, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: spacing.xl },

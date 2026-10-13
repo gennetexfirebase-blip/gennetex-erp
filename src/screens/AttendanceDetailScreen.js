@@ -10,7 +10,7 @@ import * as attApi from '../services/attendanceService';
 import * as reqApi from '../services/attendanceRequestService';
 import { attendanceRequestTypeLabel, attendanceRequestStatusLabel } from '../lib/attendanceRequestTypes';
 import { formatAttendanceMinutes, formatDuration } from '../lib/workHours';
-import { colors as darkColors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 function fmtTime(iso) {
@@ -31,12 +31,14 @@ const STATUS_META = {
 };
 
 /** Хоёр баганатай мэдээллийн нүд — icon + шошго + утга. */
-function InfoCell({ icon, label, value, colors, iconFg = '#2f9fe0' }) {
+function InfoCell({ icon, label, value, colors, iconFg }) {
+  const { colors: darkColors } = useTheme();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.infoCell}>
       <View style={styles.infoLabelRow}>
         <View style={[styles.infoIcon, { backgroundColor: 'rgba(0,153,219,0.14)' }]}>
-          <Ionicons name={icon} size={12} color={iconFg} />
+          <Ionicons name={icon} size={12} color={iconFg || colors.brand} />
         </View>
         <Text style={{ color: colors.textMuted, fontSize: 11 }} numberOfLines={1}>
           {label}
@@ -50,6 +52,8 @@ function InfoCell({ icon, label, value, colors, iconFg = '#2f9fe0' }) {
 }
 
 function SectionTitleRow({ icon, title, colors }) {
+  const { colors: darkColors } = useTheme();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.sectionTitleRow}>
       <Ionicons name={icon} size={15} color={colors.primary} />
@@ -59,6 +63,8 @@ function SectionTitleRow({ icon, title, colors }) {
 }
 
 export default function AttendanceDetailScreen() {
+  const { colors: darkColors } = useTheme();
+  const styles = useStyles(makeStyles);
   const route = useRoute();
   const navigation = useNavigation();
   const { employeeId, employeeName, date, row = {}, avatarUrl } = route.params || {};
@@ -181,7 +187,7 @@ export default function AttendanceDetailScreen() {
                   label={row.late_minutes > 0 ? 'Хоцорсон' : 'Эрт явсан'}
                   value={formatAttendanceMinutes(row.late_minutes || row.early_leave_minutes)}
                   colors={colors}
-                  iconFg="#ff6b60"
+                  iconFg={darkColors.bad}
                 />
               </>
             ) : (
@@ -371,7 +377,7 @@ export default function AttendanceDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: darkColors }) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',

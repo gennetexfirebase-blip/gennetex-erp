@@ -5,11 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as attApi from '../services/attendanceService';
 import * as deptApi from '../services/departmentService';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 /** Тохиргооны нэг мөр — өнгөт icon, гарчиг/тайлбар, badge, сум. */
 function SettingRow({ icon, iconColor, title, subtitle, badge, badgeTone, onPress, isLast }) {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   return (
     <>
       <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
@@ -46,6 +48,8 @@ function SettingRow({ icon, iconColor, title, subtitle, badge, badgeTone, onPres
 
 /** Admin Ирц модулийн тохиргооны төв. */
 export default function AttendanceSettingsScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const [locationCount, setLocationCount] = useState(null);
   const [wifiCount, setWifiCount] = useState(null);
@@ -100,7 +104,7 @@ export default function AttendanceSettingsScreen() {
           />
           <SettingRow
             icon="location"
-            iconColor="#2f9fe0"
+            iconColor={colors.brand}
             title="Байршил"
             subtitle="Ирцийн байршлын цэг, радиус"
             badge={locationCount == null ? null : `${locationCount} цэг`}
@@ -109,7 +113,7 @@ export default function AttendanceSettingsScreen() {
           />
           <SettingRow
             icon="wifi"
-            iconColor="#2f9fe0"
+            iconColor={colors.brand}
             title="Wi-Fi"
             subtitle="Сүлжээний хязгаарлалт"
             badge={wifiCount == null ? null : wifiCount > 0 ? 'Идэвхтэй' : 'Хоосон'}
@@ -118,7 +122,7 @@ export default function AttendanceSettingsScreen() {
           />
           <SettingRow
             icon="business"
-            iconColor="#2f9fe0"
+            iconColor={colors.brand}
             title="Алба хэлтэс"
             subtitle="Хэлтэс, бүтэц тохируулах"
             badge={deptCount ? `${deptCount}` : null}
@@ -133,14 +137,14 @@ export default function AttendanceSettingsScreen() {
         <View style={styles.card}>
           <SettingRow
             icon="map"
-            iconColor="#2f9fe0"
+            iconColor={colors.brand}
             title="Илгээсэн байршил"
             subtitle="Ажилтны илгээсэн координат"
             onPress={() => navigation.navigate('AttendanceLocationSubmissions')}
           />
           <SettingRow
             icon="notifications"
-            iconColor="#2f9fe0"
+            iconColor={colors.brand}
             title="Мэдэгдэл илгээх"
             subtitle="Сануулга, мэдэгдлийн тохиргоо"
             badge="ON"
@@ -153,7 +157,7 @@ export default function AttendanceSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   backBtn: {
     width: 46,

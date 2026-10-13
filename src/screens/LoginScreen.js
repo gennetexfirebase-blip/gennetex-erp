@@ -3,16 +3,31 @@ import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, Sc
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
-import { brand } from '../theme/tokens';
+import { useTheme, useStyles } from '../context/ThemeContext';
+import { Wordmark } from '../components/ds';
 import { useApp } from '../context/AppContext';
 import LegalLinks from '../components/LegalLinks';
+import Svg, { Path } from 'react-native-svg';
+
+/** Google-ийн албан ёсны олон өнгийн «G» лого. */
+function GoogleLogo({ size = 22 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48">
+      <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.5z" />
+      <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <Path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <Path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.5z" />
+    </Svg>
+  );
+}
 
 let AppleAuthentication;
 try { AppleAuthentication = require('expo-apple-authentication'); } catch { AppleAuthentication = null; }
 
 export default function LoginScreen() {
   const passwordRef = useRef(null);
+  const { colors, isDark } = useTheme();
+  const styles = useStyles(makeStyles);
   const { signIn, signInWithGoogle, signInWithApple, authError, isCloud } = useApp();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -48,61 +63,47 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
-      {/* Брэндийн hero — дэлгэцийн дээд хэсгийг дүүргэж, маягт түүн дээр давхарлана. */}
-      <LinearGradient colors={HERO} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-        <View style={[styles.orb, styles.orbA]} />
-        <View style={[styles.orb, styles.orbB]} />
-      </LinearGradient>
-      <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <SafeAreaView style={styles.flex} edges={['top', 'left', 'right', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.brandRow}>
-            <View style={styles.logoBadge}>
-              <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="Gennetex" />
-            </View>
+            <Wordmark size={22} logoSize={36} sub="Ажлын нэгдсэн орчин" />
           </View>
-          <View style={styles.intro}>
-            <Text style={styles.kicker}>АЖЛЫН НЭГДСЭН ОРЧИН</Text>
-            <Text style={styles.title} accessibilityRole="header">Тавтай морил</Text>
-            <Text style={styles.subtitle}>Ирц, ажил, машин, бараа материалаа нэг дор удирдана.</Text>
-          </View>
+          <Text style={styles.title} accessibilityRole="header">Нэвтрэх</Text>
+          <Text style={styles.lead}>Ажилтны код эсвэл имэйл хаягаараа нэвтэрнэ үү.</Text>
 
-          {shownError ? <View style={styles.errorBox} accessibilityRole="alert"><Ionicons name="alert-circle-outline" size={18} color="#d92d20" /><Text style={styles.errorText}>{mapError(shownError)}</Text></View> : null}
+          {shownError ? <View style={styles.errorBox} accessibilityRole="alert"><Ionicons name="alert-circle-outline" size={18} color={colors.bad} /><Text style={styles.errorText}>{mapError(shownError)}</Text></View> : null}
 
           <View style={styles.form}>
-            <Text style={styles.label}>И-мэйл</Text>
-            <View style={[styles.inputShell, focused === 'email' && styles.inputFocused]}>
-              <Ionicons name="mail-outline" size={20} color="#61738a" />
-              <TextInput
-                value={identifier}
-                onChangeText={setIdentifier}
-                placeholder="name@gennetex.com"
-                placeholderTextColor="#94a3b8"
-                style={styles.input}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="username"
-                textContentType="username"
-                returnKeyType="next"
-                onFocus={() => setFocused('email')}
-                onBlur={() => setFocused(null)}
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                editable={!disabled}
-              />
-            </View>
+            <Text style={styles.label}>Ажилтны код эсвэл имэйл</Text>
+            <TextInput
+              value={identifier}
+              onChangeText={setIdentifier}
+              placeholder="name@gennetex.com"
+              placeholderTextColor={colors.faint}
+              style={[styles.input, focused === 'email' && styles.inputFocused]}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="username"
+              textContentType="username"
+              returnKeyType="next"
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              editable={!disabled}
+            />
 
             <Text style={[styles.label, styles.passwordLabel]}>Нууц үг</Text>
-            <View style={[styles.inputShell, focused === 'password' && styles.inputFocused]}>
-              <Ionicons name="lock-closed-outline" size={20} color="#61738a" />
+            <View>
               <TextInput
                 ref={passwordRef}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Нууц үгээ оруулна уу"
-                placeholderTextColor="#94a3b8"
-                style={styles.input}
+                placeholderTextColor={colors.faint}
+                style={[styles.input, { paddingRight: 96 }, focused === 'password' && styles.inputFocused]}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -114,8 +115,8 @@ export default function LoginScreen() {
                 onSubmitEditing={submitPassword}
                 editable={!disabled}
               />
-              <Pressable onPress={() => setShowPassword((value) => !value)} style={styles.eyeButton} accessibilityRole="button" accessibilityLabel={showPassword ? 'Нууц үг нуух' : 'Нууц үг харуулах'}>
-                <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={21} color="#536581" />
+              <Pressable onPress={() => setShowPassword((value) => !value)} style={styles.pwShow} accessibilityRole="button" accessibilityLabel={showPassword ? 'Нууц үг нуух' : 'Нууц үг харуулах'}>
+                <Text style={styles.pwShowText}>{showPassword ? 'Нуух' : 'Харуулах'}</Text>
               </Pressable>
             </View>
             <Pressable onPress={() => setLocalError('Нууц үг сэргээх бол байгууллагын админтай холбогдоно уу.')} style={styles.forgot}>
@@ -123,24 +124,34 @@ export default function LoginScreen() {
             </Pressable>
 
             <Pressable onPress={submitPassword} disabled={disabled || !identifier.trim() || !password} style={({ pressed }) => [styles.loginButton, (!identifier.trim() || !password) && styles.loginDisabled, pressed && styles.pressed]}>
-                {passwordLoading ? <ActivityIndicator color="#fff" /> : <><Text style={styles.loginText}>Нэвтрэх</Text><Ionicons name="arrow-forward" size={20} color="#fff" /></>}
+              {passwordLoading ? <ActivityIndicator color={colors.brandInk} /> : <Text style={styles.loginText}>Нэвтрэх</Text>}
             </Pressable>
 
             <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.dividerText}>эсвэл</Text><View style={styles.dividerLine} /></View>
             <View style={styles.socialRow}>
-              <Pressable onPress={submitGoogle} disabled={disabled} style={styles.socialButton}>
-                {googleLoading ? <ActivityIndicator color="#0075ad" /> : <><Text style={styles.googleMark}>G</Text><Text style={styles.socialText}>Google-ээр нэвтрэх</Text></>}
+              <Pressable onPress={submitGoogle} disabled={disabled} style={({ pressed }) => [styles.socialButton, pressed && styles.pressed]}>
+                {googleLoading ? <ActivityIndicator color={colors.ink} /> : <><GoogleLogo size={22} /><Text style={styles.socialText}>Google-ээр нэвтрэх</Text></>}
               </Pressable>
+              {/* Apple — Google-ийн доор. iPhone дээр Apple-ийн өөрийн товч, бусад дээр түр ижил загвартай товч. */}
               {Platform.OS === 'ios' && appleReady && AppleAuthentication ? (
-                <AppleAuthentication.AppleAuthenticationButton buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE} cornerRadius={14} style={styles.appleButton} onPress={submitApple} />
-              ) : null}
+                <AppleAuthentication.AppleAuthenticationButton buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={isDark ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK} cornerRadius={16} style={styles.appleButton} onPress={submitApple} />
+              ) : (
+                <Pressable
+                  onPress={() => (Platform.OS === 'ios' ? submitApple() : setLocalError('Apple-ээр нэвтрэх нь iPhone дээр ажиллана.'))}
+                  disabled={disabled}
+                  style={({ pressed }) => [styles.socialButton, styles.appleFallback, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="logo-apple" size={22} color={colors.bg} />
+                  <Text style={[styles.socialText, { color: colors.bg }]}>Apple-ээр нэвтрэх</Text>
+                </Pressable>
+              )}
             </View>
             {!isCloud ? <Text style={styles.serviceNote}>Нэвтрэх үйлчилгээ түр боломжгүй байна. Сүлжээгээ шалгаад дахин оролдоно уу.</Text> : null}
           </View>
-          <View style={styles.securityNote}>
-            <Ionicons name="shield-checkmark-outline" size={17} color="#047857" />
-            <Text style={styles.securityText}>Зөвхөн байгууллагаас эрх олгосон ажилтан нэвтрэх боломжтой.</Text>
-          </View>
+          <Text style={styles.smallFoot}>
+            Бүртгэлгүй юу? <Text style={styles.smallFootStrong}>Хүний нөөцөд хандах</Text>
+          </Text>
           <LegalLinks compact />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -148,8 +159,6 @@ export default function LoginScreen() {
     </View>
   );
 }
-
-const HERO = [brand[500], brand[700], brand[900]];
 
 function mapError(error = '') {
   const raw = String(typeof error === 'string' ? error : error?.message || '').trim();
@@ -161,37 +170,30 @@ function mapError(error = '') {
   return decoded;
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f6fa' }, flex: { flex: 1 },
-  hero: { position: 'absolute', top: 0, left: 0, right: 0, height: 360, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden' },
-  orb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
-  orbA: { width: 260, height: 260, top: -90, right: -70 },
-  orbB: { width: 160, height: 160, top: 170, left: -60, backgroundColor: 'rgba(255,255,255,0.06)' },
-  content: { flexGrow: 1, width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
-  brandRow: { alignItems: 'flex-start', marginTop: 8 },
-  logoBadge: { backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, shadowColor: '#082c40', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 6 },
-  logo: { width: 104, height: 56 },
-  intro: { marginTop: 22, marginBottom: 22 },
-  kicker: { color: 'rgba(255,255,255,0.78)', fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 1.2 },
-  title: { color: '#fff', fontSize: 32, lineHeight: 38, fontWeight: '800', letterSpacing: -0.7, marginTop: 6 },
-  subtitle: { maxWidth: 360, color: 'rgba(255,255,255,0.86)', fontSize: 15, lineHeight: 22, marginTop: 6 },
-  form: { width: '100%', borderRadius: 24, backgroundColor: '#fff', padding: 20, shadowColor: '#0f172a', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.1, shadowRadius: 28, elevation: 8 },
-  errorBox: { width: '100%', flexDirection: 'row', gap: 9, alignItems: 'flex-start', backgroundColor: '#fff1f2', borderRadius: 14, padding: 12, marginBottom: 14 },
-  errorText: { flex: 1, color: '#7f1d1d', fontSize: 13, lineHeight: 18 },
-  label: { color: '#334155', fontSize: 13, lineHeight: 18, fontWeight: '600', marginBottom: 7 }, passwordLabel: { marginTop: 15 },
-  inputShell: { minHeight: 54, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc', borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
-  inputFocused: { borderColor: brand[500], backgroundColor: '#fff' }, input: { flex: 1, height: 52, color: '#0f172a', fontSize: 16, paddingHorizontal: 11 },
-  eyeButton: { width: 42, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: -10 },
-  forgot: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingLeft: 18 }, forgotText: { color: brand[600], fontSize: 13, fontWeight: '600' },
-  loginButton: { minHeight: 54, borderRadius: 14, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, shadowColor: brand[700], shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 4 },
-  loginDisabled: { backgroundColor: '#94a3b8', shadowOpacity: 0, elevation: 0 },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
-  loginText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 18 }, dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: '#cbd5e1' }, dividerText: { color: '#64748b', fontSize: 12 },
-  socialRow: { gap: 10 },
-  socialButton: { minHeight: 52, borderRadius: 14, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11 },
-  googleMark: { color: '#4285f4', fontSize: 20, fontWeight: '800' }, socialText: { color: '#0f172a', fontSize: 15, fontWeight: '600' },
-  appleButton: { width: '100%', height: 52 }, serviceNote: { color: '#92400e', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 12 },
-  securityNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 6, marginTop: 18, marginBottom: 8 },
-  securityText: { flex: 1, color: '#64748b', fontSize: 12, lineHeight: 18 },
+const makeStyles = ({ colors }) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg }, flex: { flex: 1 },
+  content: { flexGrow: 1, width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24 },
+  brandRow: { marginBottom: 22 },
+  title: { color: colors.ink, fontSize: 32, fontWeight: '700', letterSpacing: -0.8 },
+  lead: { color: colors.muted, fontSize: 16, lineHeight: 23, marginTop: 8, marginBottom: 26 },
+  form: { width: '100%' },
+  errorBox: { width: '100%', flexDirection: 'row', gap: 9, alignItems: 'flex-start', backgroundColor: colors.badSoft, borderRadius: 14, padding: 12, marginBottom: 14 },
+  errorText: { flex: 1, color: colors.bad, fontSize: 13, lineHeight: 18 },
+  label: { color: colors.ink, fontSize: 14, fontWeight: '600', marginBottom: 7 }, passwordLabel: { marginTop: 16 },
+  input: { height: 54, borderRadius: 14, borderWidth: 1.5, borderColor: 'transparent', backgroundColor: colors.field, color: colors.ink, fontSize: 16, paddingHorizontal: 16 },
+  inputFocused: { borderColor: colors.ink, backgroundColor: colors.bg },
+  pwShow: { position: 'absolute', right: 6, top: 7, height: 40, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 10 },
+  pwShowText: { color: colors.ink, fontSize: 14, fontWeight: '600' },
+  forgot: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center', paddingLeft: 18 }, forgotText: { color: colors.brand, fontSize: 14, fontWeight: '600' },
+  loginButton: { height: 56, borderRadius: 16, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  loginDisabled: { opacity: 0.45 },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  loginText: { color: colors.brandInk, fontSize: 17, fontWeight: '600' },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 24 }, dividerLine: { flex: 1, height: 1, backgroundColor: colors.line }, dividerText: { color: colors.muted, fontSize: 14 },
+  socialRow: { gap: 12 },
+  socialButton: { height: 56, borderRadius: 16, borderWidth: 1.5, borderColor: colors.line, backgroundColor: colors.bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  appleFallback: { backgroundColor: colors.ink, borderColor: colors.ink }, socialText: { color: colors.ink, fontSize: 17, fontWeight: '600' },
+  appleButton: { width: '100%', height: 56 }, serviceNote: { color: colors.warn, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 12 },
+  smallFoot: { color: colors.muted, fontSize: 15, textAlign: 'center', marginTop: 26, marginBottom: 8 },
+  smallFootStrong: { color: colors.ink, fontWeight: '600' },
 });

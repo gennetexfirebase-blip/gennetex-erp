@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   wrap: { ...StyleSheet.absoluteFillObject },
   map: { ...StyleSheet.absoluteFillObject },
   pin: {
-    backgroundColor: '#0099db',
+    backgroundColor: '#0B6E4F',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,

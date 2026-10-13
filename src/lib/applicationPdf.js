@@ -166,7 +166,7 @@ export function buildApplicationHtml(app) {
     letter-spacing: .3px; margin: 0 0 6px; display: flex; align-items: center; gap: 6px;
   }
   h2 .no {
-    background: #0099db; color: #fff; width: 15px; height: 15px; border-radius: 3px;
+    background: #0B6E4F; color: #fff; width: 15px; height: 15px; border-radius: 3px;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 9px; font-weight: 800;
   }

@@ -1,0 +1,88 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "version": "1.5.0",
+    "copyright": "2026 Gennetex LLC",
+    "release": {
+      "automaticRelease": true
+    },
+    "info": {
+      "en-US": {
+        "description": "Gennetex ERP — Женнетекс ХХК-ийн ажилтнуудын талбарын ажлын апп. Ирц, машин, дуудлага, агуулах, багийн харилцааг нэг дор.\n\nИРЦ\n• Ирцээ апп нээлгүйгээр нүүр дэлгэцийн widget-ээс нэг товчоор бүртгэнэ\n• Нэг чирэлтээр ирсэн, явснаа бүртгэнэ — байршлаар баталгаажна\n• Ажилласан цаг, ээлж, ирцийн түүх\n• Зайнаас бүртгүүлэх хүсэлтийг удирдлага зөвшөөрнө\n\nМАШИН\n• Өнөөдрийн машинаа сонгоно, км автоматаар тооцогдоно\n• Түлшний түвшин, бензиний төрөл, цэнэглэлт\n• Машины торгууль, бодит цагийн байршил\n\nАГУУЛАХ\n• Бараа материал, багаж, орлого, шаардах хуудас\n• Боксны таг, шилжүүлэг, дүүрсэн боксын зурагтай бүртгэл\n\nБАГ\n• Мэдээ мэдээлэл, чат, дуудлага, мэдэгдэл\n• ХАБЭА заавар, сургалт, гэрчилгээ\n\nЗөвхөн байгууллагын админы үүсгэсэн дансаар нэвтэрнэ. Байршлыг зөвхөн ирсэн-явсан хооронд ирц шалгах, машины км тооцоход ашиглана.\n\n—\n\nGennetex ERP is the field operations app for Gennetex employees. It brings attendance, vehicles, service calls, inventory and team communication together in one place.\n\nATTENDANCE\n• Check in and out from the home-screen widget without opening the app\n• Swipe to check in and check out, with location verification\n• Live work hours, shifts and attendance history\n• Remote attendance requests for manager approval\n\nVEHICLES\n• After checking in, choose the vehicle you drive today\n• Up to two employees form a crew for each vehicle\n• Kilometres are calculated automatically from the crew's work-hour location\n• Fuel level and refuel receipts\n\nFIELD SERVICE\n• Receive and manage service calls\n• Record arrival and departure at work sites\n• Attach photos and notes\n\nINVENTORY & TOOLS\n• See the materials, tools and supplies assigned to you\n• Barcode scanning and live stock totals\n\nTEAM\n• Chat, voice messages and calls with colleagues\n• Push notifications for new calls and messages\n• Safety instructions, work-at-height checklists and training records\n\nACCESS\nAccounts are created by your company administrator. Only authorized Gennetex employees can sign in.\n\nLOCATION\nLocation is collected only between check-in and check-out to verify attendance and calculate vehicle mileage. It is visible only to authorized company administrators.",
+        "keywords": [
+          "attendance",
+          "timesheet",
+          "field service",
+          "fleet",
+          "fuel",
+          "inventory",
+          "employee",
+          "check in",
+          "GPS",
+          "work orders",
+          "Mongolia"
+        ],
+        "marketingUrl": "https://gennetex.com",
+        "promoText": "Ирцээ апп нээлгүйгээр нүүр дэлгэцийн widget-ээс нэг товчоор бүртгэ. Шинэ, илүү цэвэрхэн дизайнтай боллоо.",
+        "releaseNotes": "Ирцээ илүү хялбар бүртгэнэ — апп руу орох шаардлагагүй боллоо!\n\n• Ирцийн widget: утасны нүүр дэлгэцээс нэг товчоор «Ирлээ», «Явлаа» бүртгэнэ. Ажилласан цаг, ээлжийн явц шууд харагдана. Түгжээтэй дэлгэц дээр ч ирцийн төлөв гарна.\n• Шинэ, илүү боловсронгуй дизайн: цэвэрхэн ногоон загвар, шинэ icon, профайл зураг, бүх дэлгэц шинэчлэгдлээ.\n• Байршил хяналт: ажилтнууд газрын зураг дээр зурагтайгаа харагдана, машинтай явж буйг хурдтай нь харуулна.\n• Агуулах: Боксны таг, Шилжүүлэг, Дүүрсэн бокс — зураг, GPS-тэй бүртгэл; ойролцоох ажилтанд мэдэгдэл очно.\n• Машины хяналт: түлш цэнэглэхдээ бензиний төрлөө сонгоно; машины торгуулийн жагсаалт.\n• Акт: Захирлын баталгаажуулалт, тамга; эрхийг админ олгоно.\n• Сургалт: гэрчилгээний зураг хадгалах, гэрчилгээ автоматаар үүсгэх.\n• «Пост» хэсэг «Мэдээ мэдээлэл» болж шинэчлэгдлээ; Чат шинэ загвартай боллоо.\n• Зайнаас бүртгүүлэх хүсэлтийг «Хүсэлт» хэсгээс шийдвэрлэнэ.\n• Google-ээр нэвтрэх товч шинэчлэгдэж, Apple-ээр нэвтрэх боломж нэмэгдлээ.\n• Алдааны засварууд.\n\n—\nCheck in without opening the app: a new home-screen widget, a refreshed design, live location with photos, and more.",
+        "supportUrl": "https://gennetex.com/support",
+        "title": "Gennetex ERP",
+        "subtitle": "Ирц, машин, агуулах нэг дор",
+        "privacyPolicyUrl": "https://gennetex.com/privacy",
+        "screenshots": {
+          "APP_IPHONE_67": [
+            "store-assets/v1.5.0/app-store/01-widget.png",
+            "store-assets/v1.5.0/app-store/02-attendance.png",
+            "store-assets/v1.5.0/app-store/03-home.png",
+            "store-assets/v1.5.0/app-store/04-vehicles.png",
+            "store-assets/v1.5.0/app-store/05-inventory.png",
+            "store-assets/v1.5.0/app-store/06-feed.png"
+          ]
+        }
+      }
+    },
+    "categories": [
+      "BUSINESS",
+      "PRODUCTIVITY"
+    ],
+    "advisory": {
+      "ageRatingOverride": "NONE",
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "kidsAgeBand": null,
+      "koreaAgeRatingOverride": "NONE",
+      "lootBox": false,
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "unrestrictedWebAccess": false,
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "advertising": false,
+      "ageAssurance": false,
+      "ageRatingOverrideV2": "NONE",
+      "developerAgeRatingInfoUrl": null,
+      "gunsOrOtherWeapons": "NONE",
+      "healthOrWellnessTopics": false,
+      "messagingAndChat": true,
+      "parentalControls": false,
+      "userGeneratedContent": true
+    },
+    "review": {
+      "firstName": "Adiyasuren",
+      "lastName": "Bayanmunkh",
+      "email": "6822103@gmail.com",
+      "phone": "+97695238118",
+      "demoUsername": "Gennetex",
+      "demoPassword": "Gennetex@2026",
+      "demoRequired": true,
+      "notes": "Gennetex ERP is a field-operations app used by the staff of Gennetex LLC, a telecommunications service company in Mongolia. User accounts are provided by the employer's administrator, similar to other workplace apps.\n\nTo review the app, sign in with the demo account above. It opens a sandbox with sample data, so every screen can be explored without affecting real records.\n\nWhat employees use it for: recording attendance at their work site, choosing the company vehicle they drive that day, handling service calls, managing warehouse stock and tools, and communicating with their team.\n\nNew in 1.5.0: a home-screen widget that lets employees check in and out without opening the app. The widget sends the request only while the employee is inside the work-site area; otherwise it opens the app.\n\nLocation: used only between check-in and check-out to verify attendance and calculate the mileage of the vehicle the employee selected. Tracking stops automatically at check-out and is visible only to authorized company administrators.\n\nVoIP push is used for incoming calls between colleagues (CallKit)."
+    }
+  }
+}

@@ -4,10 +4,12 @@ import { useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from '../components/Map';
 import { ScreenHeader } from '../components/ui';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 export default function MapDetailScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const route = useRoute();
   const {
     latitude,
@@ -65,7 +67,7 @@ export default function MapDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   card: {
     position: 'absolute',
     left: spacing.lg,

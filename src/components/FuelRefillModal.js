@@ -51,7 +51,11 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
   const [loadingPrice, setLoadingPrice] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const fuelType = vehicle?.fuel_type || 'ai92';
+  // Бензиний төрлийг цэнэглэх бүрд сонгоно — анхдагч нь машины сүүлийн төрөл.
+  const [fuelType, setFuelType] = useState(vehicle?.fuel_type || 'ai92');
+  useEffect(() => {
+    if (visible) setFuelType(vehicle?.fuel_type || 'ai92');
+  }, [visible, vehicle?.fuel_type]);
 
   useEffect(() => {
     if (!visible) return;
@@ -113,6 +117,7 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
         amountMnt: amountNum,
         pricePerLiter: hasCard ? cardPriceNum : null,
         refueledOn,
+        fuelType,
       });
       onClose?.();
       await onDone?.();
@@ -150,6 +155,25 @@ export default function FuelRefillModal({ visible, vehicle, onClose, onDone }) {
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled">
+            <Text style={styles.label}>Бензиний төрөл</Text>
+            <View style={styles.typeRow}>
+              {fuelApi.FUEL_TYPES.map((t) => {
+                const on = t.key === fuelType;
+                return (
+                  <TouchableOpacity
+                    key={t.key}
+                    style={[styles.typeChip, on && styles.typeChipOn]}
+                    onPress={() => setFuelType(t.key)}
+                    disabled={saving}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Text style={[styles.typeText, on && styles.typeTextOn]}>{t.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             {/* Одоогийн үнэ — тооцоо юунаас гарч байгаа нь ил байх ёстой. */}
             <View style={styles.priceBox}>
               {loadingPrice ? (
@@ -365,6 +389,11 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
+  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.md },
+  typeChip: { height: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, justifyContent: 'center' },
+  typeChipOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  typeText: { color: colors.ink, fontSize: 13.5, fontWeight: '600' },
+  typeTextOn: { color: colors.bg },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
   quickChip: {
     paddingHorizontal: spacing.md,

@@ -3,7 +3,7 @@
     "name": "Gennetex ERP",
     "slug": "gennetex-erp",
     "scheme": "gennetex-erp",
-    "version": "1.4.2",
+    "version": "1.5.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -30,6 +30,10 @@
         "NSLocationAlwaysUsageDescription": "Ажилтны байршлыг ажлын цагт тасралтгүй хянахад шаардлагатай."
       },
       "bundleIdentifier": "com.gennetex.erp",
+      "appleTeamId": "GXN2HQ78CL",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.gennetex.erp"]
+      },
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
@@ -150,7 +154,7 @@
           }
         ]
       },
-      "buildNumber": "6",
+      "buildNumber": "7",
       "usesAppleSignIn": true
     },
     "android": {
@@ -192,14 +196,25 @@
       },
       "package": "com.gennetex.erp",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 7,
+      "versionCode": 8,
       "allowBackup": false
     },
     "web": {
       "favicon": "./assets/logo.png"
     },
     "plugins": [
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Fredoka_500Medium.ttf",
+            "./assets/fonts/GolosText_400Regular.ttf",
+            "./assets/fonts/GolosText_500Medium.ttf",
+            "./assets/fonts/GolosText_600SemiBold.ttf",
+            "./assets/fonts/GolosText_700Bold.ttf"
+          ]
+        }
+      ],
       "expo-sharing",
       [
         "expo-splash-screen",
@@ -240,7 +255,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#0099db",
+          "color": "#0B6E4F",
           "defaultChannel": "general_v2",
           "sounds": [
             "./assets/sounds/incoming_call.wav"
@@ -290,6 +305,7 @@
         {}
       ],
       "expo-apple-authentication",
+      "@bacons/apple-targets",
       [
         "expo-build-properties",
         {

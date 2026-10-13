@@ -31,7 +31,7 @@ export function useLiveEmployees(enabled: boolean, employeeId?: string) {
         if (!knownNames.has(row.employee_id)) {
           knownNames.add(row.employee_id);
           fetchCurrentLocations(row.employee_id).then(records => {
-            if (active && records[0]) setEmployees(old => old.map(p => p.employee_id === row.employee_id ? { ...p, name: records[0].name } : p));
+            if (active && records[0]) setEmployees(old => old.map(p => p.employee_id === row.employee_id ? { ...p, name: records[0].name, avatar_url: records[0].avatar_url } : p));
           }).catch(() => knownNames.delete(row.employee_id));
         }
         if (fetching) pending.set(row.employee_id, row);

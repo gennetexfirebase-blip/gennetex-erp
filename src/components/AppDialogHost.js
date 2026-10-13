@@ -91,10 +91,10 @@ export default function AppDialogHost() {
       onRequestClose={onRequestClose}
       onDismiss={finish}
     >
-      <Pressable style={[styles.backdrop, { backgroundColor: isDark ? 'rgba(2,6,23,0.72)' : 'rgba(15,23,42,0.45)' }]} onPress={onBackdrop}>
+      <Pressable style={[styles.backdrop, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(10,14,20,0.45)' }]} onPress={onBackdrop}>
         <Animated.View style={{ width: '100%', alignItems: 'center', transform: [{ scale }] }}>
           <Pressable
-            style={[styles.card, { backgroundColor: isDark ? colors.surfaceContainerHigh : '#fff' }]}
+            style={[styles.card, { backgroundColor: colors.bg }]}
             accessibilityViewIsModal
             accessibilityRole="alert"
           >
@@ -114,9 +114,9 @@ export default function AppDialogHost() {
                 if (isPrimary) {
                   return (
                     <Pressable key={`${label}-${i}`} onPress={onPress} style={({ pressed }) => [stacked ? null : styles.flex, pressed && styles.pressed]} accessibilityRole="button">
-                      <LinearGradient colors={[brand[500], brand[700]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btn}>
-                        <Text style={[styles.btnText, { color: '#fff' }]} numberOfLines={2}>{label}</Text>
-                      </LinearGradient>
+                      <View style={[styles.btn, { backgroundColor: colors.brand }]}>
+                        <Text style={[styles.btnText, { color: colors.brandInk }]} numberOfLines={2}>{label}</Text>
+                      </View>
                     </Pressable>
                   );
                 }
@@ -129,12 +129,12 @@ export default function AppDialogHost() {
                       styles.btn,
                       stacked ? null : styles.flex,
                       isDanger
-                        ? { backgroundColor: colors.danger }
-                        : { backgroundColor: isDark ? colors.surfaceContainerHighest : '#f1f5f9' },
+                        ? { backgroundColor: colors.badSoft }
+                        : { backgroundColor: colors.field },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.btnText, { color: isDanger ? '#fff' : isCancel ? colors.textMuted : colors.text }]} numberOfLines={2}>
+                    <Text style={[styles.btnText, { color: isDanger ? colors.bad : isCancel ? colors.muted : colors.ink }]} numberOfLines={2}>
                       {label}
                     </Text>
                   </Pressable>
@@ -152,13 +152,13 @@ export default function AppDialogHost() {
 function toneFor(title, buttons, colors) {
   const t = String(title || '').toLowerCase();
   if (/алдаа|амжилтгүй|болсонгүй|чадсангүй|олдсонгүй|error|failed/.test(t))
-    return { icon: 'close-circle', color: colors.danger, soft: colors.danger + '1f' };
+    return { icon: 'close-circle', color: colors.bad, soft: colors.badSoft };
   if (buttons.some((b) => b.style === 'destructive') || /устгах|гарах|цуцлах/.test(t))
-    return { icon: 'trash-outline', color: colors.danger, soft: colors.danger + '1f' };
+    return { icon: 'trash-outline', color: colors.bad, soft: colors.badSoft };
   if (/анхаар|зөвшөөрөл|шаардлагатай|бүртгүүлнэ|warning/.test(t))
-    return { icon: 'warning', color: colors.warning, soft: colors.warning + '24' };
+    return { icon: 'warning', color: colors.warn, soft: colors.warnSoft };
   if (/амжилттай|бүртгэгдлээ|нэмэгдлээ|сонгогдлоо|хадгаллаа|илгээгдлээ|дууслаа|боллоо/.test(t))
-    return { icon: 'checkmark-circle', color: colors.success, soft: colors.success + '1f' };
+    return { icon: 'checkmark-circle', color: colors.ok, soft: colors.okSoft };
   if (/явлаа|ирлээ|зураг/.test(t)) return { icon: 'camera-outline', color: colors.primary, soft: colors.primarySoft };
   return { icon: 'information-circle', color: colors.primary, soft: colors.primarySoft };
 }
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 380,
-    borderRadius: 28,
+    borderRadius: 26,
     paddingHorizontal: 22,
     paddingTop: 26,
     paddingBottom: 18,
@@ -180,12 +180,12 @@ const styles = StyleSheet.create({
     elevation: 16,
   },
   iconWrap: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  title: { fontSize: 19, fontWeight: '800', textAlign: 'center', letterSpacing: -0.3 },
+  title: { fontSize: 19, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
   message: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 8 },
   actions: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 22 },
   actionsStacked: { flexDirection: 'column' },
   flex: { flex: 1 },
-  btn: { minHeight: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  btn: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   btnText: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
 });

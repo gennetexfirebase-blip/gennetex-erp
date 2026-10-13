@@ -4,35 +4,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
-import { LinearGradient } from 'expo-linear-gradient';
 import TrackingMap, { TrackingMapHandle } from '../tracking/components/TrackingMap';
 import { useTheme } from '../context/ThemeContext';
-import { brand } from '../theme/tokens';
+import { Avatar, Chip, FilterChips, RoundButton } from '../components/ds';
 import TrackingBottomSheet from '../tracking/components/TrackingBottomSheet';
 import { useLiveEmployees, useTrackingClock } from '../tracking/hooks/useLiveEmployees';
 import { lastSeen, trackingStatus } from '../tracking/utils/locationUtils';
 
 const FILTERS = [
-  ['all', 'Бүгд'], ['online', 'Online'], ['offline', 'Offline'], ['moving', 'Замд'], ['stopped', 'Зогсож байгаа'],
+  ['all', 'Бүгд'], ['online', 'Онлайн'], ['offline', 'Офлайн'], ['moving', 'Замд'],
 ] as const;
 
 export default function LiveTrackingScreen({ navigation }: any) {
-  const { isAdmin, isCloud } = useApp();
+  const { isAdmin, isCloud, currentUser } = useApp();
   const focused = useIsFocused();
   const { employees, loading, error } = useLiveEmployees(isAdmin && isCloud && focused);
   const now = useTrackingClock();
-  // Live Tracking нээгдэхэд ажиллаж, байршлаа илгээж буй хүмүүсийг
-  // шууд харуулна. Бусад төлөвийг дээрх filter-ээс сонгож болно.
-  const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>('online');
+  // Дизайны дагуу нээгдэхэд бүх ажилтныг харуулна; төлөвөөр filter-ээс шүүнэ.
+  const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>('all');
   const [query, setQuery] = useState('');
   const [selected, select] = useState<string>();
   const [satellite, setSatellite] = useState(false);
   const map = useRef<TrackingMapHandle>(null);
-  const { colors, isDark } = useTheme();
-  // Доод хуудас (жагсаалт) гэрэл/бараан горимыг дагана.
-  const sheet = isDark
-    ? { bg: 'rgba(17,28,46,0.98)', row: colors.surfaceContainerHigh, border: colors.outlineVariant, title: colors.text, meta: colors.textMuted }
-    : { bg: 'rgba(250,252,255,0.98)', row: '#ffffff', border: '#edf1f5', title: '#0a1931', meta: '#61738a' };
+  const { colors, shadow } = useTheme();
+  // Доод хуудас: 34% → дарахад 78% (design §4 Байршил хяналт).
+  const [big, setBig] = useState(false);
 
   const statusFor = (point: any) => {
     const base = trackingStatus(point, now);
@@ -58,61 +54,108 @@ export default function LiveTrackingScreen({ navigation }: any) {
   }, [employees, filter, query, now]);
 
   if (!isAdmin || !isCloud) {
-    return <SafeAreaView style={styles.denied}><Ionicons name="lock-closed-outline" size={36} color="#087cff" /><Text style={styles.deniedTitle}>Live Tracking</Text><Text style={styles.deniedText}>Энэ хэсэгт нэвтэрсэн админ хандах эрхтэй.</Text><Pressable onPress={() => navigation.goBack()} style={styles.deniedButton}><Text style={styles.deniedButtonText}>Буцах</Text></Pressable></SafeAreaView>;
+    return (
+      <SafeAreaView style={[styles.denied, { backgroundColor: colors.ground }]}>
+        <Ionicons name="lock-closed-outline" size={36} color={colors.brand} />
+        <Text style={[styles.deniedTitle, { color: colors.ink }]}>Байршил хяналт</Text>
+        <Text style={[styles.deniedText, { color: colors.muted }]}>Энэ хэсэгт нэвтэрсэн админ хандах эрхтэй.</Text>
+        <Pressable onPress={() => navigation.goBack()} style={[styles.deniedButton, { backgroundColor: colors.brand }]}>
+          <Text style={[styles.deniedButtonText, { color: colors.brandInk }]}>Буцах</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
   }
 
-  return (
-    <View style={styles.root}>
-      <LinearGradient colors={[brand[500], brand[700], brand[900]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerBg}>
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <View style={styles.topRow}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconButton} accessibilityRole="button"><Ionicons name="chevron-back" size={24} color="#fff" /></Pressable>
-          <View style={styles.heading}><Text style={styles.title}>Байршил хяналт</Text><Text style={styles.subtitle}>{employees.length} ажилтан бүртгэлтэй</Text></View>
-          <View style={styles.onlineWrap}><View style={styles.onlineDot} /><Text style={styles.onlineText}>{counts.online} онлайн</Text></View>
-        </View>
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}><Ionicons name="search-outline" size={23} color="#b8c5d4" /><TextInput value={query} onChangeText={setQuery} placeholder="Ажилтан хайх..." placeholderTextColor="#b8c5d4" style={styles.searchInput} /></View>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-          {FILTERS.map(([id, label]) => (
-            <Pressable key={id} onPress={() => setFilter(id)} style={[styles.chip, filter === id && styles.chipActive]} accessibilityRole="button" accessibilityState={{ selected: filter === id }}>
-              <Text style={[styles.chipText, filter === id && styles.chipTextActive]}>{label}</Text>
-              <View style={[styles.chipCount, filter === id && styles.chipCountActive]}><Text style={[styles.chipCountText, filter === id && styles.chipCountTextActive]}>{counts[id]}</Text></View>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </SafeAreaView>
-      </LinearGradient>
+  const statusText = (s: string) => (s === 'moving' ? 'Онлайн · Замд' : s === 'stopped' ? 'Онлайн · Зогсож байна' : s === 'offline' ? 'Офлайн' : 'Онлайн');
 
-      <View style={styles.mapWrap}>
-        <TrackingMap ref={map} employees={shown} now={now} onSelect={select} selected={selected} satellite={satellite} />
-        {loading ? <View style={styles.loading}><ActivityIndicator color="#087cff" /><Text style={styles.loadingText}>Байршил ачаалж байна…</Text></View> : null}
-        {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : null}
-        <View style={styles.mapControls}>
-          <Pressable style={[styles.mapControl, satellite && styles.mapControlOn]} onPress={() => setSatellite((v) => !v)} accessibilityRole="button" accessibilityLabel="Хиймэл дагуулын зураг">
-            <Ionicons name="layers-outline" size={22} color={satellite ? '#fff' : '#0c2444'} />
+  return (
+    <View style={[styles.root, { backgroundColor: colors.ground }]}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.ground, zIndex: 2 }}>
+        <View style={styles.subhead}>
+          <RoundButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Буцах" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.title, { color: colors.ink }]}>Байршил хяналт</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>{employees.length} ажилтан бүртгэлтэй</Text>
+          </View>
+          <View style={[styles.onlinePill, { backgroundColor: colors.okSoft || colors.brandSoft }]}>
+            <View style={[styles.onlineRing, { borderColor: colors.ok }]}><View style={[styles.onlineDot, { backgroundColor: colors.ok }]} /></View>
+            <Text style={[styles.onlineText, { color: colors.ok }]}>{counts.online} онлайн</Text>
+          </View>
+        </View>
+        <View style={styles.livetop}>
+          <View style={[styles.search, { backgroundColor: colors.card }, shadow.md]}>
+            <Ionicons name="search" size={19} color={colors.faint} />
+            <TextInput value={query} onChangeText={setQuery} placeholder="Ажилтан хайх…" placeholderTextColor={colors.faint} style={[styles.searchInput, { color: colors.ink }]} />
+          </View>
+          <FilterChips
+            style={{ marginHorizontal: -16 }}
+            value={filter}
+            onChange={(k: any) => setFilter(k)}
+            items={FILTERS.map(([key, label]) => ({
+              key,
+              label,
+              count: counts[key],
+              dot: key === 'online' ? colors.ok : key === 'offline' ? colors.faint : key === 'moving' ? colors.brand : undefined,
+            }))}
+          />
+        </View>
+      </SafeAreaView>
+
+      <View style={[styles.mapWrap, { backgroundColor: colors.mapBg }]}>
+        <TrackingMap ref={map} employees={shown} now={now} onSelect={select} selected={selected} satellite={satellite} meId={(currentUser as any)?.id} />
+        {loading ? (
+          <View style={[styles.loading, { backgroundColor: colors.bg }, shadow.md]}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={[styles.loadingText, { color: colors.muted }]}>Байршил ачаалж байна…</Text>
+          </View>
+        ) : null}
+        {error ? <View style={[styles.error, { backgroundColor: colors.badSoft }]}><Text style={[styles.errorText, { color: colors.bad }]}>{error}</Text></View> : null}
+        <View style={styles.mctl}>
+          <Pressable style={[styles.mapControl, { backgroundColor: colors.bg }]} onPress={() => setSatellite((v) => !v)} accessibilityRole="button" accessibilityLabel="Хиймэл дагуулын зураг">
+            <Ionicons name="layers-outline" size={20} color={satellite ? colors.brand : colors.ink} />
           </Pressable>
-          <Pressable style={styles.mapControl} onPress={() => map.current?.command('current')} accessibilityRole="button" accessibilityLabel="Ажилтан руу шилжих">
-            <Ionicons name="navigate" size={22} color={brand[600]} />
+          <Pressable style={[styles.mapControl, { backgroundColor: colors.bg }]} onPress={() => map.current?.command('current')} accessibilityRole="button" accessibilityLabel="Ажилтан руу шилжих">
+            <Ionicons name="navigate-outline" size={20} color={colors.ink} />
           </Pressable>
         </View>
       </View>
 
-      <View style={[styles.nearbySheet, { backgroundColor: sheet.bg }]}>
-        <View style={styles.handle} />
-        <View style={styles.sheetHeader}><Text style={[styles.sheetTitle, { color: sheet.title }]}>Ажилтнууд</Text><Text style={styles.sheetCount}>{shown.length}</Text></View>
+      <View style={[styles.lsheet, { backgroundColor: colors.card, height: big ? '78%' : '34%' }]}>
+        <Pressable onPress={() => setBig((v) => !v)} style={styles.grabbtn} accessibilityRole="button" accessibilityLabel={big ? 'Жижигрүүлэх' : 'Томруулах'}>
+          <View style={[styles.grab, { backgroundColor: colors.line }]} />
+        </Pressable>
+        <View style={styles.sheetHeader}>
+          <Text style={[styles.sheetTitle, { color: colors.ink }]}>Ажилтнууд</Text>
+          <Chip text={String(shown.length)} tone="muted" />
+        </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.employeeList}>
-          {shown.slice(0, 8).map((point, index) => {
+          {shown.map((point, index) => {
             const state = statusFor(point);
-            const color = state === 'offline' ? '#a6b3c3' : state === 'moving' ? '#ff9700' : state === 'stopped' ? '#9b5cff' : '#17c989';
-            return <Pressable key={point.employee_id} style={[styles.employeeRow, { backgroundColor: sheet.row, borderColor: sheet.border }, selected === point.employee_id && { borderColor: brand[500] }]} onPress={() => { select(point.employee_id); map.current?.command('current'); }}>
-              <View style={[styles.avatar, { borderColor: color }]}><Text style={styles.avatarText}>{String(point.name || 'А').trim().charAt(0).toUpperCase()}</Text><View style={[styles.statusDot, { backgroundColor: color }]} /></View>
-              <View style={styles.employeeCopy}><Text style={[styles.employeeName, { color: sheet.title }]} numberOfLines={1}>{point.name || `Ажилтан ${index + 1}`}</Text><Text style={[styles.employeeMeta, { color: sheet.meta }]}>{state === 'moving' ? 'Замд' : state === 'stopped' ? 'Зогсож байна' : state === 'offline' ? 'Offline' : 'Онлайн'} · {lastSeen(point.timestamp, now)}</Text></View>
-              <Text style={styles.distance}>{point.accuracy == null ? '—' : `±${Math.round(point.accuracy)} м`}</Text>
-              <View style={styles.rowAction}><Ionicons name="location" size={20} color="#087cff" /></View>
-            </Pressable>;
+            const dot = state === 'offline' ? colors.faint : state === 'moving' ? colors.brand : colors.ok;
+            const sel = selected === point.employee_id;
+            const name = point.name || `Ажилтан ${index + 1}`;
+            return (
+              <Pressable
+                key={point.employee_id}
+                style={[styles.lrow, sel && { backgroundColor: colors.field }]}
+                onPress={() => { select(point.employee_id); map.current?.command('current'); }}
+              >
+                <View>
+                  <Avatar uri={point.avatar_url} name={name} size={44} />
+                  <View style={[styles.st, { backgroundColor: dot, borderColor: colors.card }]} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.lrowName, { color: colors.ink }]} numberOfLines={1}>{name}</Text>
+                  <Text style={[styles.lrowMeta, { color: colors.muted }]} numberOfLines={1}>{statusText(state)} · {lastSeen(point.timestamp, now)}</Text>
+                </View>
+                <Text style={[styles.accu, { color: colors.faint }]}>{point.accuracy == null ? '—' : `±${Math.round(point.accuracy)} м`}</Text>
+                <View style={[styles.go, { backgroundColor: colors.brandSoft }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.brand} />
+                </View>
+              </Pressable>
+            );
           })}
-          {!loading && !shown.length ? <Text style={styles.empty}>Энэ шүүлтэд байршил алга.</Text> : null}
+          {!loading && !shown.length ? <Text style={[styles.empty, { color: colors.muted }]}>Энэ шүүлтэд байршил алга.</Text> : null}
         </ScrollView>
       </View>
 
@@ -122,26 +165,40 @@ export default function LiveTrackingScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#eef4f8' },
-  headerBg: { borderBottomLeftRadius: 26, borderBottomRightRadius: 26, overflow: 'hidden', zIndex: 2 },
-  header: { paddingBottom: 14 },
-  topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 6 },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, heading: { flex: 1 },
-  title: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.4 }, subtitle: { color: 'rgba(255,255,255,0.78)', fontSize: 13, marginTop: 2 },
-  onlineWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)' }, onlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#28d88f' }, onlineText: { color: '#eaf2f8', fontSize: 12 },
-  searchRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 16, marginTop: 14 },
-  searchBox: { flex: 1, height: 52, borderRadius: 17, backgroundColor: 'rgba(255,255,255,.11)', borderWidth: 1, borderColor: 'rgba(255,255,255,.16)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }, searchInput: { flex: 1, color: '#fff', fontSize: 14, paddingHorizontal: 10 },
-  filterButton: { width: 52, height: 52, borderRadius: 17, backgroundColor: 'rgba(255,255,255,.12)', alignItems: 'center', justifyContent: 'center' },
-  filters: { gap: 8, paddingHorizontal: 16, paddingTop: 13 },
-  chip: { height: 38, paddingHorizontal: 14, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,.11)', borderWidth: 1, borderColor: 'rgba(255,255,255,.12)' }, chipActive: { backgroundColor: '#ffffff', borderColor: '#ffffff' },
-  chipText: { color: '#edf3f8', fontSize: 12.5, fontWeight: '700' }, chipTextActive: { color: brand[700] }, chipCount: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: 'rgba(255,255,255,.14)', alignItems: 'center', justifyContent: 'center' }, chipCountActive: { backgroundColor: brand[600] }, chipCountText: { color: '#fff', fontSize: 11, fontWeight: '900' }, chipCountTextActive: { color: '#fff' },
-  mapWrap: { flex: 1, minHeight: 360, marginTop: -26 },
-  loading: { position: 'absolute', top: 42, alignSelf: 'center', flexDirection: 'row', gap: 8, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20 }, loadingText: { color: '#38516e', fontSize: 12 },
-  error: { position: 'absolute', left: 14, right: 14, top: 40, padding: 10, borderRadius: 12, backgroundColor: '#fff0ee' }, errorText: { color: '#b42318', fontSize: 12 },
-  mapControls: { position: 'absolute', right: 16, top: 42, gap: 10 }, mapControl: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16, shadowRadius: 10 },
-  mapControlOn: { backgroundColor: brand[600] },
-  nearbySheet: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 265, backgroundColor: 'rgba(250,252,255,.98)', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 16, elevation: 18 },
-  handle: { width: 42, height: 5, borderRadius: 3, backgroundColor: '#a9b4bf', alignSelf: 'center', marginTop: 9, marginBottom: 12 }, sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 8 }, sheetTitle: { color: '#0a1931', fontSize: 18, fontWeight: '900' }, sheetCount: { color: '#087cff', fontSize: 12, fontWeight: '900', backgroundColor: '#e5f2ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }, employeeList: { paddingBottom: 16, gap: 7 },
-  employeeRow: { minHeight: 68, borderRadius: 18, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', padding: 9, borderWidth: 1, borderColor: '#edf1f5' }, avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, backgroundColor: '#e9f1f7', alignItems: 'center', justifyContent: 'center' }, avatarText: { color: '#183452', fontSize: 18, fontWeight: '900' }, statusDot: { position: 'absolute', right: -2, top: -2, width: 13, height: 13, borderRadius: 7, borderWidth: 2, borderColor: '#fff' }, employeeCopy: { flex: 1, paddingHorizontal: 11 }, employeeName: { color: '#10213d', fontSize: 14, fontWeight: '900' }, employeeMeta: { color: '#61738a', fontSize: 11.5, marginTop: 3 }, distance: { color: '#324c6b', fontSize: 11, fontWeight: '700' }, rowAction: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e9f4ff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 }, empty: { color: '#61738a', textAlign: 'center', paddingVertical: 30 },
-  denied: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#f5f9fc' }, deniedTitle: { fontSize: 25, fontWeight: '900', color: '#10213d', marginTop: 14 }, deniedText: { color: '#61738a', textAlign: 'center', marginTop: 8 }, deniedButton: { backgroundColor: '#087cff', borderRadius: 20, paddingHorizontal: 28, paddingVertical: 12, marginTop: 22 }, deniedButtonText: { color: '#fff', fontWeight: '800' },
+  root: { flex: 1 },
+  subhead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12 },
+  title: { fontSize: 21, fontWeight: '700', letterSpacing: -0.4 },
+  subtitle: { fontSize: 13, marginTop: 2 },
+  onlinePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, height: 32, borderRadius: 16 },
+  onlineRing: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center', opacity: 0.9 },
+  onlineDot: { width: 7, height: 7, borderRadius: 4 },
+  onlineText: { fontSize: 13, fontWeight: '700' },
+  livetop: { paddingHorizontal: 16, paddingBottom: 12 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, paddingHorizontal: 14, borderRadius: 14, marginBottom: 10 },
+  searchInput: { flex: 1, fontSize: 15, padding: 0 },
+  mapWrap: { flex: 1, minHeight: 360 },
+  loading: { position: 'absolute', top: 16, alignSelf: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20 },
+  loadingText: { fontSize: 12 },
+  error: { position: 'absolute', left: 14, right: 70, top: 12, padding: 10, borderRadius: 12 },
+  errorText: { fontSize: 12 },
+  mctl: { position: 'absolute', right: 12, top: 12, gap: 8 },
+  mapControl: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#0F1722', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10 },
+  lsheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, elevation: 18, shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.15, shadowRadius: 20 },
+  grabbtn: { paddingTop: 10, paddingBottom: 4, alignItems: 'center' },
+  grab: { width: 40, height: 5, borderRadius: 3 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 4, marginBottom: 8 },
+  sheetTitle: { fontSize: 18, fontWeight: '700' },
+  employeeList: { paddingHorizontal: 8, paddingBottom: 30 },
+  lrow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 14 },
+  st: { position: 'absolute', right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, borderWidth: 2.5 },
+  lrowName: { fontSize: 15, fontWeight: '700' },
+  lrowMeta: { fontSize: 12.5, marginTop: 1 },
+  accu: { fontSize: 12, fontVariant: ['tabular-nums'] },
+  go: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  empty: { textAlign: 'center', paddingVertical: 30 },
+  denied: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
+  deniedTitle: { fontSize: 22, fontWeight: '700', marginTop: 14 },
+  deniedText: { textAlign: 'center', marginTop: 8 },
+  deniedButton: { borderRadius: 16, paddingHorizontal: 28, paddingVertical: 14, marginTop: 22 },
+  deniedButtonText: { fontWeight: '700' },
 });

@@ -21,7 +21,7 @@ import * as campaignApi from '../services/notificationCampaignService';
 import * as deptApi from '../services/departmentService';
 import * as authApi from '../services/authService';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 const AUDIENCE_OPTIONS = [
@@ -31,6 +31,8 @@ const AUDIENCE_OPTIONS = [
 ];
 
 export default function AttendanceNotificationComposerScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const { currentUser, fetchEmployees } = useApp();
   const profile = currentUser;
 
@@ -381,7 +383,7 @@ export default function AttendanceNotificationComposerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   card: { borderRadius: 16, padding: spacing.lg, marginBottom: spacing.sm },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, maxHeight: '92%' },

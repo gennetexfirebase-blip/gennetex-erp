@@ -62,6 +62,7 @@ function setup(options = {}) {
     'expo-application': {},
     '../lib/supabase': { supabase: { from: () => query, rpc: async () => ({}) } },
     '../tracking/services/locationService': { syncLocations: async () => {}, sendLocation: async () => {} },
+    './fieldWorkService': { notifyNearbyFullBoxes: async () => 0 },
     '../lib/runtimeEnv': { isExpoGo: false },
   };
   const exports = {};

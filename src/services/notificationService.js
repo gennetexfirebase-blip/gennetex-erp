@@ -354,6 +354,7 @@ function normalizeNotification(payload = {}) {
     data: { ...(payload.data || {}) },
     channelId: payload.channelId || DEFAULT_CHANNEL,
     sound: payload.sound || 'default',
+    ...(payload.imageUrl ? { imageUrl: String(payload.imageUrl) } : {}),
   };
 }
 

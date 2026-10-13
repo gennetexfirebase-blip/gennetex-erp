@@ -572,11 +572,11 @@ export default function ConversationScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle={colors.ground === '#0B0F14' ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <Pressable style={styles.headerBack} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="chevron-back" size={28} color="#fff" />
+            <Ionicons name="chevron-back" size={28} color={colors.ink} />
           </Pressable>
 
           <TouchableOpacity
@@ -618,7 +618,7 @@ export default function ConversationScreen() {
               }
               hitSlop={8}
             >
-              <Ionicons name="folder-outline" size={22} color="#fff" />
+              <Ionicons name="folder-outline" size={22} color={colors.ink} />
             </Pressable>
             {isGroup ? (
               <Pressable
@@ -626,7 +626,7 @@ export default function ConversationScreen() {
                 onPress={() => navigation.navigate('AddGroupMembers', { conversationId: room, title })}
                 hitSlop={8}
               >
-                <Ionicons name="person-add-outline" size={22} color="#fff" />
+                <Ionicons name="person-add-outline" size={22} color={colors.ink} />
               </Pressable>
             ) : null}
             {!isGroup ? (
@@ -637,7 +637,7 @@ export default function ConversationScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Дуут дуудлага"
               >
-                <Ionicons name="call" size={22} color="#fff" />
+                <Ionicons name="call" size={22} color={colors.ink} />
               </Pressable>
             ) : null}
             <Pressable
@@ -647,7 +647,7 @@ export default function ConversationScreen() {
               accessibilityRole="button"
               accessibilityLabel="Видео дуудлага"
             >
-              <Ionicons name="videocam" size={24} color="#fff" />
+              <Ionicons name="videocam" size={24} color={colors.ink} />
             </Pressable>
           </View>
         </View>
@@ -934,15 +934,15 @@ export default function ConversationScreen() {
 }
 
 const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1, backgroundColor: colors.background },
-  headerSafe: { backgroundColor: colors.surfaceDim },
+  headerSafe: { backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.line },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 4,
     paddingVertical: 6,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.bg,
   },
   headerBack: {
     width: 36,
@@ -970,7 +970,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   headerTextCol: { flex: 1, minWidth: 0 },
   headerTitle: { color: colors.onSurface, fontSize: 17, fontWeight: '600' },
   headerSub: { color: colors.textMuted, fontSize: 13, marginTop: 1 },
-  headerSubOnline: { color: '#B5E0A8' },
+  headerSubOnline: { color: colors.ok },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerIconBtn: {
     width: 40,

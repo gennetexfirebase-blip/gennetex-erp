@@ -19,18 +19,21 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Pressable,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { ScreenHeader, EmptyState } from '../components/ui';
-import { spacing, radius } from '../theme';
+import Svg, { Line, Rect, Text as SvgText } from 'react-native-svg';
+import { Segmented } from '../components/ds';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import { formatDuration } from '../lib/workHours';
-import PerformanceChart from '../components/PerformanceChart';
 import * as perf from '../services/teamPerformanceService';
 import * as perfFile from '../services/teamPerformanceExportService';
 
+const CHART_FONT = Platform.select({ ios: 'System', android: 'GolosText_500Medium', default: 'Golos Text, system-ui, sans-serif' });
 const one = (n) => (Math.round((Number(n) || 0) * 10) / 10).toFixed(1);
 
 export default function AdminWorkPerformanceScreen() {
@@ -42,7 +45,6 @@ export default function AdminWorkPerformanceScreen() {
   const [mode, setMode] = useState('month');
   const [anchor, setAnchor] = useState(() => perf.currentAnchor('month'));
   const [tab, setTab] = useState('teams');
-  const [metric, setMetric] = useState('work');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState('');
@@ -175,110 +177,81 @@ export default function AdminWorkPerformanceScreen() {
     { key: 'detail', label: 'Дэлгэрэнгүй' },
   ];
 
+  // Prototype «Ажилчдын гүйцэтгэл»: Өдөр/Сар → хугацаа солих → 4 KPI (эхнийх
+  // ногоон) → өдөр бүрийн stacked bar (Айл / Байгууллага) → тайлбар → Excel ·
+  // Импорт · Загвар.
+  const chartRows = mode === 'day'
+    ? (result?.teams || []).map((t) => ({ key: t.teamKey, label: String(t.teamLabel || '').slice(0, 3), ail: t.ail || 0, org: t.baiguulga || 0 }))
+    : periodRows.map((d) => ({ key: d.key, label: mode === 'year' ? String(d.key).slice(5, 7) : String(d.key).slice(8, 10), ail: d.ail || 0, org: d.baiguulga || 0 }));
+
   const header = (
     <View>
-      <View style={styles.chipRow}>
-        {perf.PERIOD_MODES.map((p) => (
-          <TouchableOpacity
-            key={p.key}
-            style={[styles.chip, mode === p.key && styles.chipActive]}
-            onPress={() => changeMode(p.key)}
-          >
-            <Text style={[styles.chipText, mode === p.key && styles.chipTextActive]}>{p.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Segmented
+        style={{ marginBottom: 12 }}
+        value={mode}
+        onChange={changeMode}
+        options={perf.PERIOD_MODES.map((p) => ({ key: p.key, label: p.label }))}
+      />
 
-      {/* Сонгосон өдөр · сар · жил дээгүүр урагш хойш алхна. */}
       <View style={styles.navRow}>
-        <TouchableOpacity style={styles.navBtn} onPress={() => setAnchor(perf.shiftAnchor(mode, anchor, -1))}>
-          <Ionicons name="chevron-back" size={18} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.navLabelBox}>
+        <Pressable style={styles.navBtn} onPress={() => setAnchor(perf.shiftAnchor(mode, anchor, -1))} accessibilityLabel="Өмнөх">
+          <Ionicons name="chevron-back" size={20} color={colors.ink} />
+        </Pressable>
+        <Pressable style={styles.navLabelBox} onPress={() => !atLatest && setAnchor(perf.currentAnchor(mode))}>
           <Text style={styles.navLabel} numberOfLines={1}>{range.label}</Text>
           {mode !== 'day' ? (
-            <Text style={styles.navSub} numberOfLines={1}>{range.from} — {range.to}</Text>
+            <Text style={styles.navSub} numberOfLines={1}>{String(range.from).slice(5).replace('-', '.')} — {String(range.to).slice(5).replace('-', '.')}</Text>
           ) : null}
-        </View>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           style={[styles.navBtn, atLatest && styles.navBtnOff]}
           disabled={atLatest}
           onPress={() => setAnchor(perf.shiftAnchor(mode, anchor, 1))}
+          accessibilityLabel="Дараах"
         >
-          <Ionicons name="chevron-forward" size={18} color={atLatest ? colors.textFaint : colors.text} />
-        </TouchableOpacity>
-        {!atLatest ? (
-          <TouchableOpacity style={styles.todayBtn} onPress={() => setAnchor(perf.currentAnchor(mode))}>
-            <Text style={styles.todayText}>Одоо</Text>
-          </TouchableOpacity>
-        ) : null}
+          <Ionicons name="chevron-forward" size={20} color={colors.ink} />
+        </Pressable>
       </View>
 
-      {s ? (
-        <View style={styles.statGrid}>
-          <Stat styles={styles} label="Нийт баг" value={s.teams} sub={`${s.days} өдөр ажилласан`} />
-          <Stat styles={styles} label="Өдөрт айл" value={one(s.ailPerDay)} sub={`нийт ${s.ail} айл`} />
-          <Stat
-            styles={styles}
-            label="1 баг өдөрт айл"
-            value={one(s.ailPerTeamDay)}
-            sub={`${s.teamDays} баг×өдөр`}
-            highlight
-          />
-          <Stat
-            styles={styles}
-            label="Нийт хугацаа"
-            value={formatDuration(s.durationMs)}
-            sub={`1 айлд ${formatDuration(s.msPerAil)}`}
-            wide
-          />
-        </View>
-      ) : null}
+      <View style={styles.kgrid}>
+        <Kpi styles={styles} hl value={s ? String(s.total) : '—'} label="Нийт ажил" sub={s ? `${s.days} өдөр ажилласан` : ''} />
+        <Kpi styles={styles} value={s ? one(s.ailPerTeamDay) : '—'} label="Өдөрт айл" sub="1 багийн дундаж" />
+        <Kpi styles={styles} value={s ? String(s.teams) : '—'} label="Нийт баг" sub={s ? `${s.teamDays} баг×өдөр` : ''} />
+        <Kpi styles={styles} value={s ? formatDuration(s.msPerAil) : '—'} label="1 айлд" sub="дундаж хугацаа" />
+      </View>
 
-      {result?.chart?.points?.length ? (
-        <PerformanceChart
-          chart={result.chart}
-          metric={metric}
-          onMetricChange={setMetric}
-          title={
-            mode === 'day'
-              ? 'Багууд — тухайн өдөр'
-              : mode === 'year'
-                ? 'Сар бүрийн үзүүлэлт'
-                : 'Өдөр бүрийн үзүүлэлт'
-          }
-        />
-      ) : null}
-
-      {s ? (
-        <Text style={styles.note}>
-          Байгууллага: {s.baiguulga} · нийт ажил {s.total}. Хугацааг ажлын байрны ирсэн/явсан
-          бүртгэлээр, байхгүй бол дуудлага үүсэхээс хаагдтал хугацаагаар тооцов.
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>
+          {mode === 'day' ? 'Багуудын гүйцэтгэл' : mode === 'year' ? 'Сар бүрийн гүйцэтгэл' : 'Өдөр бүрийн гүйцэтгэл'}
         </Text>
-      ) : null}
+        <StackedBars rows={chartRows} colors={colors} />
+        <View style={styles.legend}>
+          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.brand }]} /><Text style={styles.legendText}>Айл</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.warn }]} /><Text style={styles.legendText}>Байгууллага</Text></View>
+        </View>
+      </View>
 
-      <View style={styles.btnRow}>
-        <ActionBtn styles={styles} colors={colors} icon="bar-chart-outline" label="Excel + график" tone="success" onPress={doExport} loading={busy === 'export'} />
-        <ActionBtn styles={styles} colors={colors} icon="cloud-upload-outline" label="Excel импорт" tone="primary" onPress={doImport} loading={busy === 'import'} />
-        <ActionBtn styles={styles} colors={colors} icon="document-text-outline" label="Загвар" tone="ghost" onPress={doTemplate} loading={busy === 'template'} />
+      <Text style={styles.note}>
+        Хугацааг ажлын байрны ирсэн/явсан бүртгэлээр тооцно. Бүртгэл байхгүй бол дуудлага үүсгэснээс хаагдах хүртэлх хугацаагаар тооцно.
+      </Text>
+
+      <View style={styles.actbar}>
+        <ActionBtn styles={styles} colors={colors} icon="document-text-outline" label="Excel" primary onPress={doExport} loading={busy === 'export'} />
+        <ActionBtn styles={styles} colors={colors} icon="cloud-upload-outline" label="Импорт" onPress={doImport} loading={busy === 'import'} />
+        <ActionBtn styles={styles} colors={colors} icon="document-outline" label="Загвар" onPress={doTemplate} loading={busy === 'template'} />
       </View>
 
       {result?.importError ? (
-        <Text style={styles.warn}>
-          Импортын хүснэгт бэлэн биш: 20260821090000_team_performance.sql-ыг ажиллуулна уу.
-        </Text>
+        <Text style={styles.warn}>Импортын хүснэгт бэлэн биш: 20260821090000_team_performance.sql-ыг ажиллуулна уу.</Text>
       ) : null}
       {error ? <Text style={styles.warn}>{error}</Text> : null}
 
-      <View style={styles.tabRow}>
+      <View style={styles.tabs}>
         {tabs.map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
-            onPress={() => setTab(t.key)}
-          >
+          <Pressable key={t.key} style={styles.tabBtn} onPress={() => setTab(t.key)}>
             <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
-          </TouchableOpacity>
+            {tab === t.key ? <View style={styles.tabLine} /> : null}
+          </Pressable>
         ))}
       </View>
     </View>
@@ -362,140 +335,133 @@ export default function AdminWorkPerformanceScreen() {
   );
 }
 
-function Stat({ styles, label, value, sub, highlight, wide }) {
+function Kpi({ styles, value, label, sub, hl }) {
   return (
-    <View style={[styles.stat, wide && styles.statWide, highlight && styles.statHighlight]}>
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      {sub ? <Text style={styles.statSub} numberOfLines={1}>{sub}</Text> : null}
+    <View style={[styles.kpi, hl && styles.kpiHl]}>
+      <Text style={[styles.kpiValue, hl && styles.kpiOnHl]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={[styles.kpiLabel, hl && styles.kpiOnHl]}>{label}</Text>
+      {sub ? <Text style={[styles.kpiSub, hl && styles.kpiSubHl]} numberOfLines={1}>{sub}</Text> : null}
     </View>
   );
 }
 
-function ActionBtn({ styles, colors, icon, label, tone, onPress, loading }) {
+/** Өдөр бүрийн stacked bar — доор Байгууллага (шар), дээр Айл (ногоон), орой дээр нийт. */
+function StackedBars({ rows, colors }) {
+  const [w, setW] = useState(0);
+  const H = 150;
+  const top = 16;
+  const bottom = 22;
+  const left = 22;
+  const plotH = H - top - bottom;
+  const max = Math.max(1, ...rows.map((r) => r.ail + r.org));
+  const nice = max <= 10 ? 10 : Math.ceil(max / 5) * 5;
+  const n = Math.max(rows.length, 1);
+  const slot = w > left ? (w - left) / n : 0;
+  const bw = Math.max(4, Math.min(16, slot * 0.6));
+  const y = (v) => top + plotH - (v / nice) * plotH;
   return (
-    <TouchableOpacity
-      style={[styles.actionBtn, styles[`action_${tone}`]]}
-      onPress={onPress}
-      disabled={loading}
-      activeOpacity={0.85}
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color={tone === 'ghost' ? colors.text : '#fff'} />
-      ) : (
-        <>
-          <Ionicons name={icon} size={16} color={tone === 'ghost' ? colors.text : '#fff'} />
-          <Text style={[styles.actionText, tone === 'ghost' && { color: colors.text }]}>{label}</Text>
-        </>
-      )}
-    </TouchableOpacity>
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: H }}>
+      {w ? (
+        <Svg width={w} height={H}>
+          {[0, nice / 2, nice].map((t) => (
+            <React.Fragment key={t}>
+              <Line x1={left} x2={w} y1={y(t)} y2={y(t)} stroke={colors.line} strokeWidth={1} />
+              <SvgText x={0} y={y(t) + 4} fontSize={10} fill={colors.faint} fontFamily={CHART_FONT}>{String(t)}</SvgText>
+            </React.Fragment>
+          ))}
+          {rows.map((r, i) => {
+            const cx = left + slot * i + slot / 2;
+            const total = r.ail + r.org;
+            const hOrg = (r.org / nice) * plotH;
+            const hAil = (r.ail / nice) * plotH;
+            return (
+              <React.Fragment key={r.key}>
+                {total ? (
+                  <>
+                    <Rect x={cx - bw / 2} y={y(total)} width={bw} height={hAil} rx={3} fill={colors.brand} />
+                    {r.org ? <Rect x={cx - bw / 2} y={y(r.org)} width={bw} height={hOrg} rx={3} fill={colors.warn} /> : null}
+                    <SvgText x={cx} y={y(total) - 4} fontSize={10} fontWeight="700" fill={colors.ink} textAnchor="middle" fontFamily={CHART_FONT}>{String(total)}</SvgText>
+                  </>
+                ) : null}
+                {n <= 16 || i % Math.ceil(n / 12) === 0 ? (
+                  <SvgText x={cx} y={H - 6} fontSize={9.5} fill={colors.faint} textAnchor="middle" fontFamily={CHART_FONT}>{r.label}</SvgText>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
+        </Svg>
+      ) : null}
+    </View>
   );
 }
 
-const makeStyles = ({ colors }) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  list: { padding: spacing.md, paddingBottom: spacing.xl },
-  sep: { height: spacing.sm },
+function ActionBtn({ styles, colors, icon, label, primary, onPress, loading }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.actionBtn, primary && styles.actionPri, pressed && { opacity: 0.85 }]}
+      onPress={onPress}
+      disabled={loading}
+    >
+      {loading ? (
+        <ActivityIndicator size="small" color={primary ? colors.brandInk : colors.ink} />
+      ) : (
+        <>
+          <Ionicons name={icon} size={17} color={primary ? colors.brandInk : colors.ink} />
+          <Text style={[styles.actionText, primary && { color: colors.brandInk }]}>{label}</Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
 
-  chipRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
-  chipTextActive: { color: '#fff' },
+const makeStyles = ({ colors, shadow }) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.ground },
+  list: { paddingHorizontal: 16, paddingBottom: 40 },
+  sep: { height: 0 },
 
-  navRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  navBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  navBtnOff: { opacity: 0.4 },
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  navBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, ...shadow.md },
+  navBtnOff: { opacity: 0.35 },
   navLabelBox: { flex: 1, alignItems: 'center' },
-  navLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  navSub: { color: colors.textFaint, fontSize: 11, marginTop: 1 },
-  todayBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-  },
-  todayText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
+  navLabel: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  navSub: { color: colors.muted, fontSize: 12, marginTop: 1, fontVariant: ['tabular-nums'] },
 
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  stat: {
-    flexGrow: 1,
-    flexBasis: '47%',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-  statWide: { flexBasis: '100%' },
-  statHighlight: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  statValue: { color: colors.text, fontSize: 24, fontWeight: '900' },
-  statLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginTop: 2 },
-  statSub: { color: colors.textFaint, fontSize: 11, marginTop: 2 },
+  kgrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  kpi: { flexBasis: '47%', flexGrow: 1, backgroundColor: colors.card, borderRadius: 18, padding: 14, ...shadow.md },
+  kpiHl: { backgroundColor: colors.brand },
+  kpiValue: { color: colors.ink, fontSize: 26, fontWeight: '700', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  kpiLabel: { color: colors.ink, fontSize: 13, fontWeight: '600', marginTop: 2 },
+  kpiSub: { color: colors.muted, fontSize: 12, marginTop: 1 },
+  kpiOnHl: { color: colors.brandInk },
+  kpiSubHl: { color: colors.brandInk, opacity: 0.75 },
 
-  note: { color: colors.textFaint, fontSize: 11, lineHeight: 16, marginTop: spacing.sm },
-  warn: { color: colors.warning, fontSize: 12, marginTop: spacing.sm, fontWeight: '600' },
+  chartCard: { backgroundColor: colors.card, borderRadius: 20, paddingTop: 16, paddingHorizontal: 12, paddingBottom: 12, marginBottom: 4, ...shadow.md },
+  chartTitle: { color: colors.ink, fontSize: 15, fontWeight: '700', marginHorizontal: 4, marginBottom: 10 },
+  legend: { flexDirection: 'row', gap: 14, marginTop: 6, marginHorizontal: 4 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 3 },
+  legendText: { color: colors.muted, fontSize: 12.5 },
 
-  btnRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: radius.md,
-  },
-  action_success: { backgroundColor: colors.success },
-  action_primary: { backgroundColor: colors.primary },
-  action_ghost: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  actionText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  note: { color: colors.muted, fontSize: 12.5, lineHeight: 19, marginTop: 10, marginHorizontal: 4 },
+  warn: { color: colors.warn, fontSize: 12.5, marginTop: 8, fontWeight: '600' },
 
-  tabRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, marginBottom: spacing.md },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tabBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textMuted, fontWeight: '800', fontSize: 13 },
-  tabTextActive: { color: '#fff' },
+  actbar: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  actionBtn: { flex: 1, height: 46, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  actionPri: { backgroundColor: colors.brand, borderColor: colors.brand },
+  actionText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
 
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.line, marginTop: 18, marginBottom: 12 },
+  tabBtn: { flex: 1, height: 42, alignItems: 'center', justifyContent: 'center' },
+  tabText: { color: colors.muted, fontSize: 14, fontWeight: '600' },
+  tabTextActive: { color: colors.ink },
+  tabLine: { position: 'absolute', left: '18%', right: '18%', bottom: -1, height: 3, borderRadius: 3, backgroundColor: colors.brand },
+
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 18, padding: 14, marginBottom: 10, ...shadow.md },
   cardBody: { flex: 1 },
-  name: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  sub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  faint: { color: colors.textFaint, fontSize: 11, marginTop: 2 },
+  name: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  sub: { color: colors.muted, fontSize: 12.5, marginTop: 2 },
+  faint: { color: colors.faint, fontSize: 11.5, marginTop: 2 },
   countBox: { alignItems: 'flex-end', maxWidth: 130 },
-  countNum: { color: colors.primary, fontSize: 22, fontWeight: '900' },
-  countLabel: { color: colors.textFaint, fontSize: 11, marginTop: 2, textAlign: 'right' },
+  countNum: { color: colors.brand, fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  countLabel: { color: colors.muted, fontSize: 11.5, marginTop: 2, textAlign: 'right' },
 });

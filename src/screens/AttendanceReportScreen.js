@@ -21,7 +21,7 @@ import {
 } from '../../admin-web/attendance-report-builder.js';
 import { friendlyError } from '../lib/erpMessages';
 import { dayKey } from '../lib/workHours';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 /**
@@ -32,6 +32,8 @@ import { spacing } from '../theme';
  * хоёр зөрөхгүй.
  */
 export default function AttendanceReportScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const navigation = useNavigation();
   const route = useRoute();
   const initialDate = route.params?.date || dayKey();
@@ -195,7 +197,7 @@ function colWidth(i) {
   return { width: 90 };
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   iconBtn: {

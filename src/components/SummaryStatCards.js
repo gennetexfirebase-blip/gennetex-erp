@@ -1,60 +1,46 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 /**
- * Өдрийн ирцийн товч үзүүлэлт — НЭГ карт дотор хэсэгчилсэн байрлал.
- *
- * Өмнө нь тус бүр тусдаа карт байсныг загварын дагуу нэгтгэв: өнгөт
- * дөрвөлжин icon + тоо + шошго, хооронд нь босоо тусгаарлагч.
+ * Өдрийн ирцийн товч үзүүлэлт (prototype «Багийн ирц»):
+ * өнгөт дөрвөлжин icon + том тоо + шошго. Идэвхтэй шүүлтүүрийн icon нь
+ * дүүрэн өнгөтэй, нүд нь `field` дэвсгэртэй. Дарахад жагсаалтыг шүүнэ.
  */
-const ICONS = {
-  all: { name: 'grid', bg: 'rgba(0,153,219,0.16)', fg: '#2f9fe0' },
-  absent: { name: 'calendar-clear', bg: 'rgba(245,140,68,0.16)', fg: '#f58c44' },
-  late: { name: 'time', bg: 'rgba(255,107,96,0.16)', fg: '#ff6b60' },
-  on_time: { name: 'checkmark-circle', bg: 'rgba(63,207,142,0.16)', fg: '#3fcf8e' },
-  leave: { name: 'airplane', bg: 'rgba(143,211,242,0.16)', fg: '#8fd3f2' },
-  early_leave: { name: 'exit', bg: 'rgba(245,181,68,0.16)', fg: '#f5b544' },
+const TONE = {
+  all: ['ok', 'okSoft', 'people-outline'],
+  on_time: ['ok', 'okSoft', 'person-check'],
+  late: ['warn', 'warnSoft', 'time-alert'],
+  absent: ['bad', 'badSoft', 'person-remove'],
+  leave: ['tBlue', 'tBlueBg', 'airplane-outline'],
+  early_leave: ['warn', 'warnSoft', 'exit-outline'],
 };
 
-export default function SummaryStatCards({ items, colors, activeKey, onSelect }) {
+export default function SummaryStatCards({ items, activeKey, onSelect }) {
+  const { colors, shadow } = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-      {items.map((item, i) => {
-        const meta = ICONS[item.key] || ICONS.all;
+    <View style={[styles.card, { backgroundColor: colors.card }, shadow.md]}>
+      {items.map((item) => {
         const active = activeKey === item.key;
+        const [fg, bg, icon] = TONE[item.key] || TONE.all;
         return (
-          <React.Fragment key={item.key}>
-            {i > 0 ? (
-              <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
-            ) : null}
-            <TouchableOpacity
-              style={styles.cell}
-              activeOpacity={0.75}
-              onPress={() => onSelect?.(item.key)}
-            >
-              <View
-                style={[
-                  styles.iconBox,
-                  { backgroundColor: meta.bg },
-                  active && { borderWidth: 1.5, borderColor: meta.fg },
-                ]}
-              >
-                <Ionicons name={meta.name} size={16} color={meta.fg} />
-              </View>
-              <Text
-                style={[
-                  styles.value,
-                  { color: active ? meta.fg : colors.text },
-                ]}
-              >
-                {item.value}
-              </Text>
-              <Text style={[styles.label, { color: colors.textMuted }]} numberOfLines={1}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          </React.Fragment>
+          <Pressable
+            key={item.key}
+            style={[styles.cell, active && { backgroundColor: colors.field }]}
+            onPress={() => onSelect?.(item.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`${item.label}: ${item.value}`}
+          >
+            <View style={[styles.icon, { backgroundColor: active ? colors[fg] : colors[bg] }]}>
+              <Ionicons name={icon} size={19} color={active ? '#FFFFFF' : colors[fg]} />
+            </View>
+            <Text style={[styles.value, { color: colors.ink }]}>{item.value}</Text>
+            <Text style={[styles.label, { color: colors.muted }]} numberOfLines={1}>
+              {item.label}
+            </Text>
+          </Pressable>
         );
       })}
     </View>
@@ -62,23 +48,9 @@ export default function SummaryStatCards({ items, colors, activeKey, onSelect })
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-  },
-  cell: { flex: 1, alignItems: 'center', gap: 4 },
-  iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  value: { fontSize: 20, fontWeight: '800' },
-  label: { fontSize: 11 },
-  divider: { width: StyleSheet.hairlineWidth, height: 44 },
+  card: { flexDirection: 'row', borderRadius: 20, padding: 6 },
+  cell: { flex: 1, alignItems: 'center', gap: 2, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 2 },
+  icon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  value: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  label: { fontSize: 12, fontWeight: '500' },
 });

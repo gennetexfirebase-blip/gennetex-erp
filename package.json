@@ -1,6 +1,6 @@
 {
   "name": "gennetex-erp",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "main": "index.js",
   "scripts": {
     "start": "npm run start:go",
@@ -24,8 +24,10 @@
     "serve:local": "node scripts/serve-local.js"
   },
   "dependencies": {
+    "@bacons/apple-targets": "^5.0.0",
     "@config-plugins/react-native-callkeep": "^14.0.1",
     "@config-plugins/react-native-webrtc": "^15.0.1",
+    "@expo-google-fonts/fredoka": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@infinitered/react-native-mlkit-face-detection": "^5.0.0",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -80,6 +82,7 @@
     "js-sha1": "^0.7.0",
     "js-sha256": "^0.11.1",
     "js-sha512": "^0.9.0",
+    "lucide-react-native": "^1.55.0",
     "onnxruntime-react-native": "^1.20.1",
     "process": "^0.11.10",
     "qrcode-generator": "^2.0.4",

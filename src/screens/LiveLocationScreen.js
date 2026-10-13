@@ -90,7 +90,7 @@ function WorkerMarker({ worker, color, visit, focused, onPress }) {
       }
       avatarUri={worker.avatar_url}
       avatarName={worker.name}
-      tint={worker.isMe ? '#0099DB' : color}
+      tint={worker.isMe ? '#0B6E4F' : color}
       // Өөрийн маркер үргэлж дээр, төвд байхаар онцолно.
       focused={focused || worker.isMe}
       onPress={onPress}
@@ -167,7 +167,7 @@ export default function LiveLocationScreen() {
         longitude: me.longitude,
         last_seen: me.last_seen || new Date().toISOString(),
         role: me.role,
-        color: '#0099DB',
+        color: '#0B6E4F',
         isMe: true,
         visit: latestVisitByUser[me.id],
       });
@@ -368,7 +368,7 @@ export default function LiveLocationScreen() {
               {showTrack && track.length > 1 ? (
                 <Polyline
                   coordinates={track.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
-                  strokeColor={selected?.isMe ? '#0099DB' : '#7A5AF8'}
+                  strokeColor={selected?.isMe ? '#0B6E4F' : '#7A5AF8'}
                   strokeWidth={4}
                 />
               ) : null}

@@ -1,145 +1,185 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, PanResponder, StyleSheet, Text, View, AccessibilityInfo } from 'react-native';
+import { ActivityIndicator, Animated, Easing, PanResponder, StyleSheet, Text, View, AccessibilityInfo } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
-const KNOB = 56;
-const PAD = 4;
-// Дуусгах босго — замын 85%-д хүрвэл баталгаажна.
-const THRESHOLD = 0.85;
+const H = 62;
+const KNOB = 52;
+const PAD = 5;
+// Дизайн: 82%-иас цааш чирвэл бүртгэнэ, бусад үед буцаж ухарна.
+const THRESHOLD = 0.82;
 
 /**
- * Гулсуулж баталгаажуулах товч («Ирлээ» → баруун, «Явлаа» ← зүүн).
+ * Чирж баталгаажуулах товч (design §4 Ирц).
  *
- * Энгийн товчийг санамсаргүй дарж ирц бүртгэгдэх нь элбэг байсан тул
- * зориуд гулсуулах үйлдэл шаардана. VoiceOver/TalkBack ашиглагч гулсуулж
- * чадахгүй тул accessibility горимд энгийн «activate» үйлдлээр ажиллана.
+ *   Ирлээ: ногоон, зүүнээс баруун →, «Чирж ирц бүртгэх ›››»
+ *   Явлаа: улаан, баруун захаас зүүн ←, «‹‹‹ Чирж явлаа»
  *
- * direction: 'right' (бариул зүүнээс эхэлнэ) | 'left' (баруунаас эхэлнэ)
- * trackColor: өнгөт (gradient) дэвсгэр дээр замын өнгийг тусад нь өгнө
+ * Санамсаргүй дарж ирц бүртгэгдэхээс сэргийлнэ. VoiceOver/TalkBack-д
+ * энгийн «activate» үйлдлээр ажиллана.
+ *
+ * direction: 'right' (Ирлээ) | 'left' (Явлаа)
+ * `color`, `textColor`, `trackColor` — хуучин дуудлагад зориулж хүлээн
+ * авна; өнгө нь одоо токеноос (brand / bad).
  */
-export default function SlideToConfirm({ label, direction = 'right', color, textColor = '#fff', trackColor, disabled, loading, onConfirm }) {
+export default function SlideToConfirm({ label, hint, direction = 'right', disabled, loading, onConfirm }) {
+  const { colors } = useTheme();
   const [width, setWidth] = useState(0);
   const x = useRef(new Animated.Value(0)).current;
+  const nudge = useRef(new Animated.Value(0)).current;
   const travel = Math.max(0, width - KNOB - PAD * 2);
   const sign = direction === 'right' ? 1 : -1;
   const busyRef = useRef(false);
+  const out = direction === 'left';
+  const main = out ? colors.bad : colors.brand;
+  const soft = out ? colors.badSoft : colors.brandSoft;
+  const knobFg = out ? '#FFFFFF' : colors.brandInk;
+  const text = hint || (out ? 'Чирж явлаа' : 'Чирж ирц бүртгэх');
 
   useEffect(() => {
     if (!loading) {
       busyRef.current = false;
-      Animated.spring(x, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+      Animated.timing(x, { toValue: 0, duration: 300, easing: Easing.bezier(0.32, 0.72, 0, 1), useNativeDriver: false }).start();
     }
   }, [loading, x]);
+
+  // Сумнууд зөөлөн «түлхэнэ» — чирэх чиглэлийг заана.
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(nudge, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(nudge, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [nudge]);
+
+  const back = () =>
+    Animated.timing(x, { toValue: 0, duration: 300, easing: Easing.bezier(0.32, 0.72, 0, 1), useNativeDriver: false }).start();
 
   const responder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => !disabled && !loading,
         onMoveShouldSetPanResponder: (_, g) => !disabled && !loading && Math.abs(g.dx) > 4,
-        // Гулсуулж байх үед эцэг ScrollView хуудсыг гүйлгэхгүй.
+        // Чирж байх үед эцэг ScrollView хуудсыг гүйлгэхгүй.
         onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, g) => {
-          const d = Math.max(0, Math.min(travel, g.dx * sign));
-          x.setValue(d);
+          x.setValue(Math.max(0, Math.min(travel, g.dx * sign)));
         },
         onPanResponderRelease: (_, g) => {
           const d = Math.max(0, Math.min(travel, g.dx * sign));
           if (travel > 0 && d >= travel * THRESHOLD && !busyRef.current) {
             busyRef.current = true;
-            Animated.timing(x, { toValue: travel, duration: 120, useNativeDriver: true }).start(() => {
+            Animated.timing(x, { toValue: travel, duration: 120, useNativeDriver: false }).start(() => {
               Promise.resolve(onConfirm?.()).finally(() => {
                 busyRef.current = false;
-                Animated.spring(x, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+                back();
               });
             });
           } else {
-            Animated.spring(x, { toValue: 0, useNativeDriver: true, bounciness: 8 }).start();
+            back();
           }
         },
-        onPanResponderTerminate: () => {
-          Animated.spring(x, { toValue: 0, useNativeDriver: true }).start();
-        },
+        onPanResponderTerminate: back,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [disabled, loading, travel, sign, x, onConfirm]
   );
 
   const knobX = x.interpolate({ inputRange: [0, Math.max(1, travel)], outputRange: [0, sign * Math.max(1, travel)], extrapolate: 'clamp' });
   const labelOpacity = x.interpolate({ inputRange: [0, Math.max(1, travel * 0.6)], outputRange: [1, 0], extrapolate: 'clamp' });
-  const fillWidth = x.interpolate({ inputRange: [0, Math.max(1, travel)], outputRange: [KNOB + PAD * 2, Math.max(KNOB + PAD * 2, width)], extrapolate: 'clamp' });
+  const fillWidth = x.interpolate({ inputRange: [0, Math.max(1, travel)], outputRange: [H, Math.max(H, width)], extrapolate: 'clamp' });
+  const arrowShift = nudge.interpolate({ inputRange: [0, 1], outputRange: [0, 5 * sign] });
   const inactive = disabled || loading;
 
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={[styles.track, trackColor
-        ? { backgroundColor: trackColor, borderColor: 'rgba(255,255,255,0.22)' }
-        : { backgroundColor: color + (inactive ? '33' : '26'), borderColor: color + '55' }]}
+      style={[styles.track, { backgroundColor: soft, opacity: disabled ? 0.55 : 1 }]}
       accessible
       accessibilityRole="adjustable"
-      accessibilityLabel={`${label}. Гулсуулж баталгаажуулна`}
+      accessibilityLabel={`${label || text}. Чирж баталгаажуулна`}
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
       accessibilityActions={[{ name: 'activate' }]}
       onAccessibilityAction={(e) => {
         if (e.nativeEvent.actionName === 'activate' && !inactive) {
-          AccessibilityInfo.announceForAccessibility?.(label);
+          AccessibilityInfo.announceForAccessibility?.(label || text);
           onConfirm?.();
         }
       }}
     >
-      {/* Гулсуулсан хэсэг өнгөөр дүүрнэ */}
       <Animated.View
         pointerEvents="none"
-        style={[
-          styles.fill,
-          { backgroundColor: color, width: fillWidth, opacity: inactive ? 0.45 : 1 },
-          direction === 'right' ? { left: 0 } : { right: 0 },
-        ]}
+        style={[styles.fill, { backgroundColor: main, width: fillWidth }, out ? { right: 0 } : { left: 0 }]}
       />
-      <Animated.View pointerEvents="none" style={[styles.labelWrap, { opacity: labelOpacity }]}>
-        <Text style={[styles.label, { color }]} numberOfLines={1}>
-          {direction === 'right' ? `${label}  ›››` : `‹‹‹  ${label}`}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.labelWrap, out ? { paddingRight: 40 } : { paddingLeft: 40 }, { opacity: labelOpacity }]}
+      >
+        {out ? (
+          <Animated.Text style={[styles.arrows, { color: main, transform: [{ translateX: arrowShift }] }]}>‹‹‹</Animated.Text>
+        ) : null}
+        <Text style={[styles.label, { color: main }]} numberOfLines={1}>
+          {text}
         </Text>
+        {!out ? (
+          <Animated.Text style={[styles.arrows, { color: main, transform: [{ translateX: arrowShift }] }]}>›››</Animated.Text>
+        ) : null}
       </Animated.View>
       <Animated.View
         {...responder.panHandlers}
         style={[
           styles.knob,
-          { backgroundColor: color, transform: [{ translateX: knobX }], opacity: inactive && !loading ? 0.5 : 1 },
-          direction === 'right' ? { left: PAD } : { right: PAD },
+          { backgroundColor: main, shadowColor: main, transform: [{ translateX: knobX }] },
+          out ? { right: PAD } : { left: PAD },
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={textColor} />
+          <ActivityIndicator color={knobFg} />
         ) : (
-          <Ionicons name={direction === 'right' ? 'arrow-forward' : 'arrow-back'} size={24} color={textColor} />
+          <Ionicons name={out ? 'arrow-back' : 'arrow-forward'} size={24} color={knobFg} />
         )}
       </Animated.View>
     </View>
   );
 }
 
+/** Дууссан төлөв: ногоон «Өнөөдрийн ирц бүрэн». */
+export function SlideDone({ text = 'Өнөөдрийн ирц бүрэн' }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.track, styles.done, { backgroundColor: colors.okSoft }]}>
+      <Ionicons name="checkmark-circle" size={20} color={colors.ok} />
+      <Text style={[styles.label, { color: colors.ok }]}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   track: {
-    height: KNOB + PAD * 2,
-    borderRadius: (KNOB + PAD * 2) / 2,
-    borderWidth: 1,
+    height: H,
+    borderRadius: 20,
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  fill: { position: 'absolute', top: 0, bottom: 0, borderRadius: (KNOB + PAD * 2) / 2 },
-  labelWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: KNOB + 12 },
-  label: { fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
+  done: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  fill: { position: 'absolute', top: 0, bottom: 0, borderRadius: 20, opacity: 0.18 },
+  labelWrap: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  label: { fontSize: 16, fontWeight: '700' },
+  arrows: { fontSize: 16, fontWeight: '700', letterSpacing: -2, opacity: 0.8 },
   knob: {
     position: 'absolute',
+    top: PAD,
     width: KNOB,
     height: KNOB,
-    borderRadius: KNOB / 2,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
     elevation: 4,
   },
 });

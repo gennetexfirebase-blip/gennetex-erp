@@ -146,11 +146,11 @@ export default function ChatSharedScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle={colors.ground === '#0B0F14' ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
       <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <Pressable style={styles.headerBack} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="chevron-back" size={28} color="#fff" />
+            <Ionicons name="chevron-back" size={28} color={colors.ink} />
           </Pressable>
           <View style={styles.headerTextCol}>
             <Text style={styles.headerTitle} numberOfLines={1}>Хуваалцсан файл</Text>
@@ -210,13 +210,13 @@ export default function ChatSharedScreen() {
 
 const makeStyles = ({ colors }) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  headerSafe: { backgroundColor: colors.surfaceDim },
+  headerSafe: { backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 4,
     paddingVertical: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.bg,
   },
   headerBack: {
     width: 40,

@@ -21,8 +21,8 @@ public-web/dist/
 .aider*
 .vercel
 .env*
-android/
-ios/
+/android/
+/ios/
 eas-cli
 expo-tunnel*.log
 fix-frontend/
@@ -68,3 +68,14 @@ admin-web-react/tsconfig.tsbuildinfo
 # Firebase client config is required by Android prebuild on EAS.
 !google-services.json
 !GoogleService-Info.plist
+
+# Утасны апп-д хамааралгүй вэб/десктоп төслүүд — EAS archive-ийг 440 MB-аас багасгана.
+/act-desktop/
+/careers-web/
+/toololgo/
+/public-web/
+/admin-web-react/
+/admin-web-v1/
+/store/
+/store-assets/
+

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SvgXml } from 'react-native-svg';
 import { sanitizeAvatarUrl } from '../lib/avatarUrl';
+import PERSON_AVATARS from '../theme/personAvatars';
 
 const AVATAR_COLORS = [
   '#E17076', '#7BC862', '#E5CA77', '#65AADD',
@@ -55,6 +57,17 @@ export default function ChatAvatar({
         onError={() => setFailed(true)}
         pointerEvents="none"
       />
+    );
+  }
+
+  // Зураггүй хүн — prototype шиг зурсан хүний дүрс (нэрээр тогтмол).
+  if (PERSON_AVATARS.length) {
+    let h = 0;
+    for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return (
+      <View style={[styles.fallback, { width: size, height: size, borderRadius: radius, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E4E8ED' }, style]}>
+        <SvgXml xml={PERSON_AVATARS[h % PERSON_AVATARS.length]} width={size} height={size} />
+      </View>
     );
   }
 

@@ -2,7 +2,7 @@ export type Coordinate = { latitude: number; longitude: number };
 export type LocationPoint = Coordinate & {
   employee_id: string; timestamp: number; accuracy: number | null;
   speed: number | null; heading: number | null; battery: number | null;
-  online?: boolean; name?: string;
+  online?: boolean; name?: string; avatar_url?: string | null;
 };
 export function distanceMeters(a: Coordinate, b: Coordinate): number {
   const rad = Math.PI / 180;

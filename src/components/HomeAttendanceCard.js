@@ -99,17 +99,23 @@ export default function HomeAttendanceCard() {
     return () => loop.stop();
   }, [state, pulse]);
 
+  // Дизайн: icon хавтан (warn = бүртгээгүй, ok = бүртгэсэн), гарчиг,
+  // тайлбар, баруун талд brand товч (дууссан бол `field`).
   const meta = {
-    loading: { tone: colors.textMuted, label: 'Ачаалж байна…', sub: '' },
-    unknown: { tone: colors.textMuted, label: 'Ирц уншигдсангүй', sub: 'Дэлгэцээ нээж шалгана уу' },
-    idle: { tone: colors.warning, label: 'Ирцээ бүртгээгүй', sub: 'Ажлын байрандаа ирээд бүртгүүлнэ үү' },
+    loading: { fg: colors.muted, bg: colors.field, icon: 'ellipsis-horizontal', label: 'Ачаалж байна…', sub: '' },
+    unknown: { fg: colors.muted, bg: colors.field, icon: 'help-circle-outline', label: 'Ирц уншигдсангүй', sub: 'Дэлгэцээ нээж шалгана уу' },
+    idle: { fg: colors.warn, bg: colors.warnSoft, icon: 'alarm-outline', label: 'Ирцээ бүртгээгүй байна', sub: 'Ажлын байрандаа ирээд бүртгүүлнэ үү' },
     working: {
-      tone: colors.success,
+      fg: colors.ok,
+      bg: colors.okSoft,
+      icon: null,
       label: `${formatDuration(liveMs)} ажиллаж байна`,
-      sub: open ? `${hhmm(open.created_at)}-т ирсэн` : '',
+      sub: open ? `${hhmm(open.created_at)}-д ирсэн` : '',
     },
     done: {
-      tone: colors.primary,
+      fg: colors.ok,
+      bg: colors.okSoft,
+      icon: 'checkmark-done',
       label: `${formatDuration(work.grossMs)} ажилласан`,
       sub: work.pairs.length
         ? `${hhmm(work.pairs[0].checkIn.created_at)} – ${hhmm(work.pairs[work.pairs.length - 1].checkOut.created_at)}`
@@ -118,6 +124,7 @@ export default function HomeAttendanceCard() {
   }[state];
 
   const cta = { idle: 'Ирлээ', working: 'Явлаа', done: 'Дэлгэрэнгүй', loading: '', unknown: 'Нээх' }[state];
+  const quiet = state === 'done' || state === 'unknown';
 
   return (
     <TouchableOpacity
@@ -127,24 +134,20 @@ export default function HomeAttendanceCard() {
       accessibilityRole="button"
       accessibilityLabel={`Ирц: ${meta.label}`}
     >
-      <View style={[styles.iconWrap, { backgroundColor: meta.tone + '1F' }]}>
+      <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
         {state === 'working' ? (
           <Animated.View
             style={[
               styles.liveDot,
-              { backgroundColor: meta.tone, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.25] }) },
+              { backgroundColor: meta.fg, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.25] }) },
             ]}
           />
         ) : (
-          <Ionicons
-            name={state === 'done' ? 'checkmark-done' : state === 'idle' ? 'time-outline' : 'ellipse-outline'}
-            size={21}
-            color={meta.tone}
-          />
+          <Ionicons name={meta.icon} size={22} color={meta.fg} />
         )}
       </View>
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.label} numberOfLines={1}>
           {meta.label}
         </Text>
@@ -156,43 +159,44 @@ export default function HomeAttendanceCard() {
       </View>
 
       {cta ? (
-        <View style={[styles.cta, { backgroundColor: meta.tone }]}>
-          <Text style={styles.ctaText}>{cta}</Text>
+        <View style={[styles.cta, { backgroundColor: quiet ? colors.field : colors.brand }]}>
+          <Text style={[styles.ctaText, { color: quiet ? colors.ink : colors.brandInk }]}>{cta}</Text>
         </View>
       ) : null}
     </TouchableOpacity>
   );
 }
-
 const makeStyles = ({ colors, shadow }) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.lg,
-    ...shadow.sm,
+    gap: 14,
+    paddingVertical: 14,
+    paddingLeft: 16,
+    paddingRight: 14,
+    borderRadius: radius.card,
+    backgroundColor: colors.card,
+    marginBottom: spacing.md,
+    ...shadow.md,
   },
   iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   liveDot: { width: 13, height: 13, borderRadius: 7 },
 
-  label: { color: colors.text, fontSize: 15.5, fontWeight: '700' },
-  sub: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
+  label: { color: colors.ink, fontSize: 16, fontWeight: '700' },
+  sub: { color: colors.muted, fontSize: 13, marginTop: 2 },
 
   cta: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 9,
-    borderRadius: radius.pill,
+    height: 42,
+    paddingHorizontal: 18,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  ctaText: { color: '#fff', fontSize: 13.5, fontWeight: '800' },
+  ctaText: { fontSize: 15, fontWeight: '700' },
 });

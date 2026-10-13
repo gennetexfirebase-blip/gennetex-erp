@@ -6,7 +6,7 @@ import { ScreenHeader, LoadingState, ErrorState, EmptyState, StatusPill } from '
 import { useApp } from '../context/AppContext';
 import * as attApi from '../services/attendanceService';
 import { formatAttendanceMinutes, formatDuration } from '../lib/workHours';
-import { colors } from '../theme/attendanceLight';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 const STATUS_LABEL = {
@@ -45,6 +45,8 @@ function fmtTime(iso) {
 }
 
 export default function AttendanceHistoryScreen() {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const route = useRoute();
   const { currentUser } = useApp();
   const profile = currentUser;
@@ -131,7 +133,7 @@ export default function AttendanceHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

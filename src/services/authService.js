@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
 import { isDemoCredentials, enableDemo, disableDemo } from '../lib/demoMode';
 import { DEMO_USER } from '../lib/demoData';
+import { clearAttendanceWidget } from './attendanceWidgetService';
 import {
   ROLES,
   normalizeRole,
@@ -222,6 +223,8 @@ export async function syncProfileAfterAuth() {
 }
 
 export async function signOut() {
+  // Widget-ийн ирцийн token-ыг session байх үед нь хүчингүй болгоно.
+  await clearAttendanceWidget().catch(() => {});
   await supabase.auth.signOut();
   // ⚠️ Demo тугийг ЗААВАЛ унтраана. Үлдээвэл дараагийн хэрэглэгч
   //    нэвтрэхэд `supabase` proxy нь орлуулагч руу чиглэсээр байж,

@@ -12,16 +12,16 @@
 import React from 'react';
 import * as ReactNative from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { brand } from '../theme/tokens';
 
 const OriginalSwitch = ReactNative.Switch;
 
 function ThemedSwitch({ trackColor, thumbColor, ios_backgroundColor, ...props }) {
-  const { isDark } = useTheme();
-  const off = isDark ? '#334155' : '#cbd5e1';
+  // Дизайн (.tgl): асаалттай = ok ногоон, унтраалттай = line.
+  const { colors } = useTheme();
+  const off = colors.line;
   return React.createElement(OriginalSwitch, {
     ...props,
-    trackColor: { false: off, true: isDark ? brand[400] : brand[500] },
+    trackColor: { false: off, true: colors.ok },
     thumbColor: '#ffffff',
     ios_backgroundColor: off,
   });

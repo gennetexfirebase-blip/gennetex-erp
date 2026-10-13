@@ -7,11 +7,11 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, EmptyState, formatMNT } from '../components/ui';
-import AutoboxTables from '../components/AutoboxTables';
 import MongoliaPlate from '../components/MongoliaPlate';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
@@ -29,6 +29,7 @@ export default function VehicleSpecsScreen({ navigation }) {
   const [list, setList] = useState([]);
   const [trips, setTrips] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [showFines, setShowFines] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [autoboxData, setAutoboxData] = useState(null);
   const [autoboxLoading, setAutoboxLoading] = useState(false);
@@ -89,6 +90,7 @@ export default function VehicleSpecsScreen({ navigation }) {
 
   const closeDetail = () => {
     setSelected(null);
+    setShowFines(false);
     setAutoboxData(null);
     setAutoboxError(null);
     autoboxHashRef.current = '';
@@ -253,47 +255,24 @@ export default function VehicleSpecsScreen({ navigation }) {
     );
   }
 
-  if (selected) {
+  if (selected && showFines) {
     return (
       <View style={styles.container}>
         <ScreenHeader
-          title="Машины оношилгоо"
-          subtitle={selected.plate_number}
-          onBackPress={closeDetail}
+          title="Торгууль"
+          subtitle={`${selected.plate_number} · ${fineWithDriver.length} торгууль`}
+          onBackPress={() => setShowFines(false)}
         />
         <ScrollView
           contentContainerStyle={styles.detailPad}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
-          <Card style={styles.detailHead}>
-            <MongoliaPlate plate={selected.plate_number} size="lg" />
-            <Text style={styles.license}>Улсын дугаар: {selected.plate_number}</Text>
-            <Text style={styles.meta}>
-              {selected.code}
-              {selected.driver_name ? ` · ${selected.driver_name}` : ''}
-            </Text>
-          </Card>
-          {autoboxData ? (
-            <View style={styles.complianceGrid}>
-              <ComplianceCard
-                title="Техникийн оношилгоо"
-                state={compliance.diagnosis}
-                colors={colors}
-              />
-              <ComplianceCard
-                title="Тээврийн хэрэгслийн татвар"
-                state={compliance.tax}
-                colors={colors}
-              />
-            </View>
+          {autoboxLoading && !autoboxData ? (
+            <View style={{ paddingVertical: 32 }}><ActivityIndicator color={colors.primary} /></View>
           ) : null}
+          {autoboxError ? <Text style={styles.fineError}>{autoboxError}</Text> : null}
           {fineWithDriver.length ? (
             <Card style={styles.fineCard}>
-              <View style={styles.fineHead}>
-                <Text style={styles.fineTitle}>Торгууль</Text>
-                <Text style={styles.fineCount}>{fineWithDriver.length}</Text>
-              </View>
-
               {/* Төлөгдөөгүй дүнгийн нийлбэр — хамгийн түрүүнд харах ёстой тоо */}
               {unpaidTotal > 0 ? (
                 <View style={styles.fineTotal}>
@@ -343,15 +322,73 @@ export default function VehicleSpecsScreen({ navigation }) {
                 </View>
               ))}
             </Card>
+          ) : !autoboxLoading ? (
+            <EmptyState text="Энэ машинд торгууль алга." />
           ) : null}
-          <AutoboxTables
-            plate={selected.plate_number}
-            data={autoboxData}
-            loading={autoboxLoading}
-            error={autoboxError}
-            statusText={autoboxStatus}
-            title="Машины мэдээлэл"
-          />
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (selected) {
+    return (
+      <View style={styles.container}>
+        <ScreenHeader
+          title="Машины оношилгоо"
+          subtitle={selected.plate_number}
+          onBackPress={closeDetail}
+        />
+        <ScrollView
+          contentContainerStyle={styles.detailPad}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        >
+          <Card style={styles.detailHead}>
+            <MongoliaPlate plate={selected.plate_number} size="lg" />
+            <Text style={styles.license}>Улсын дугаар: {selected.plate_number}</Text>
+            <Text style={styles.meta}>
+              {selected.code}
+              {selected.driver_name ? ` · ${selected.driver_name}` : ''}
+            </Text>
+          </Card>
+          {autoboxData ? (
+            <View style={styles.complianceGrid}>
+              <ComplianceCard
+                title="Техникийн оношилгоо"
+                state={compliance.diagnosis}
+                colors={colors}
+              />
+              <ComplianceCard
+                title="Тээврийн хэрэгслийн татвар"
+                state={compliance.tax}
+                colors={colors}
+              />
+            </View>
+          ) : null}
+          {/* Машины мэдээллийн оронд: Торгууль — дарахад бүх торгууль гарна */}
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setShowFines(true)} accessibilityRole="button" accessibilityLabel="Торгууль харах">
+            <Card style={styles.fineCard}>
+              <View style={[styles.fineHead, { marginBottom: 0 }]}>
+                <Text style={[styles.fineTitle, { flex: 1 }]}>Торгууль</Text>
+                {autoboxLoading && !autoboxData ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  <Text style={styles.fineCount}>{fineWithDriver.length}</Text>
+                )}
+                <Text style={[styles.chev, { color: colors.textMuted }]}>›</Text>
+              </View>
+              <Text style={[styles.meta, { marginTop: 6 }]}>
+                {autoboxError
+                  ? autoboxError
+                  : unpaidTotal > 0
+                    ? `Төлөгдөөгүй: ${formatMNT(unpaidTotal)}`
+                    : fineWithDriver.length
+                      ? 'Бүгд төлөгдсөн'
+                      : autoboxData
+                        ? 'Торгууль алга'
+                        : autoboxStatus || 'Мэдээлэл уншиж байна...'}
+              </Text>
+            </Card>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -427,6 +464,7 @@ const makeStyles = ({ colors }) =>
     },
     fineTotalLabel: { color: colors.warning, fontSize: 13, fontWeight: '700' },
     fineTotalValue: { color: colors.warning, fontSize: 17, fontWeight: '900' },
+    fineError: { color: colors.danger, fontSize: 13, marginBottom: spacing.md },
     fineRow: {
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,

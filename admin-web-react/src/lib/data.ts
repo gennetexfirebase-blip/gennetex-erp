@@ -382,6 +382,43 @@ export async function fetchDepartments() {
   return data || [];
 }
 
+export type DepartmentInput = { name: string; kind: 'org' | 'household'; parent_id: string | null; note?: string | null };
+
+// Хэлтэс засах — RLS: зөвхөн sysadmin эсвэл `departments` эрхтэй хүн.
+export async function createDepartment(input: DepartmentInput) {
+  const { error } = await supabase.from('departments').insert({
+    name: input.name.trim(),
+    kind: input.kind,
+    parent_id: input.parent_id || null,
+    note: input.note?.trim() || null,
+  });
+  if (error) throw departmentError(error);
+}
+
+export async function updateDepartment(id: string, input: DepartmentInput) {
+  const { data, error } = await supabase
+    .from('departments')
+    .update({ name: input.name.trim(), kind: input.kind, parent_id: input.parent_id || null, note: input.note?.trim() || null })
+    .eq('id', id)
+    .select('id');
+  if (error) throw departmentError(error);
+  // RLS татгалзвал алдаагүйгээр 0 мөр өөрчлөгддөг.
+  if (!data?.length) throw new Error('Хэлтэс засах эрхгүй байна.');
+}
+
+// Устгахад ажилтан, бараа, дэд хэлтсийн холбоос нь `on delete set null`-ээр хоосорно.
+export async function deleteDepartment(id: string) {
+  const { data, error } = await supabase.from('departments').delete().eq('id', id).select('id');
+  if (error) throw departmentError(error);
+  if (!data?.length) throw new Error('Хэлтэс устгах эрхгүй байна.');
+}
+
+function departmentError(error: { code?: string; message?: string }) {
+  if (error.code === '23505') return new Error('Ийм нэртэй хэлтэс аль хэдийн байна.');
+  if (error.code === '42501' || /row-level security/i.test(error.message || '')) return new Error('Хэлтэс засах эрхгүй байна.');
+  return new Error(error.message || 'Хадгалж чадсангүй.');
+}
+
 /**
  * Тухайн өдрийн бүх ажилтны ирц.
  *
@@ -554,8 +591,11 @@ export async function fetchAttendanceLocations() {
 }
 
 export async function fetchShiftsForMonth(year: number, month: number) {
-  const from = new Date(year, month, 1).toISOString().slice(0, 10);
-  const to = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+  // ⚠️ toISOString() биш: Улаанбаатарын (UTC+8) шөнө дунд нь UTC-ээр өмнөх
+  //    өдөр тул сарын эхний өдөр алгасагдаж, өмнөх сарын сүүлийн өдөр орж ирдэг байв.
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const from = `${year}-${pad(month + 1)}-01`;
+  const to = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`;
   const { data, error } = await supabase
     .from('employee_shifts')
     .select('*, attendance_locations(name)')
@@ -567,6 +607,62 @@ export async function fetchShiftsForMonth(year: number, month: number) {
     throw error;
   }
   return data || [];
+}
+
+export type ShiftInput = {
+  user_id: string;
+  user_name: string;
+  start_time: string;
+  end_time: string;
+  location_id: string | null;
+  note: string | null;
+};
+
+/**
+ * Хуваарь оноох (админ — RLS `is_admin_user`). Нэг ажилтанд нэг өдөр нэг
+ * хуваарь: тухайн өдөр байгаа бол шинэчилнэ (апптай ижил — shiftService.upsertShift).
+ * Олон өдөрт нэг дор оноож болно.
+ */
+export async function saveShifts(input: ShiftInput, dates: string[], createdBy: string | null) {
+  if (!dates.length) return 0;
+  const { data: existing, error: readError } = await supabase
+    .from('employee_shifts')
+    .select('id, shift_date')
+    .eq('user_id', input.user_id)
+    .in('shift_date', dates);
+  if (readError) throw readError;
+  const byDate = new Map((existing || []).map((r: { id: string; shift_date: string }) => [r.shift_date, r.id]));
+  const base = {
+    user_id: input.user_id,
+    user_name: input.user_name,
+    start_time: input.start_time,
+    end_time: input.end_time,
+    location_id: input.location_id || null,
+    note: input.note?.trim() || null,
+    created_by: createdBy,
+  };
+  const inserts = dates.filter((d) => !byDate.has(d)).map((d) => ({ ...base, shift_date: d }));
+  if (inserts.length) {
+    const { error } = await supabase.from('employee_shifts').insert(inserts);
+    if (error) throw shiftError(error);
+  }
+  for (const d of dates.filter((x) => byDate.has(x))) {
+    const { data, error } = await supabase.from('employee_shifts').update({ ...base, shift_date: d }).eq('id', byDate.get(d)!).select('id');
+    if (error) throw shiftError(error);
+    if (!data?.length) throw new Error('Хуваарь засах эрхгүй байна.');
+  }
+  return dates.length;
+}
+
+export async function deleteShift(id: string) {
+  const { data, error } = await supabase.from('employee_shifts').delete().eq('id', id).select('id');
+  if (error) throw shiftError(error);
+  if (!data?.length) throw new Error('Хуваарь устгах эрхгүй байна.');
+}
+
+function shiftError(error: { code?: string; message?: string }) {
+  if (error.code === '42501' || /row-level security/i.test(error.message || '')) return new Error('Хуваарь засах эрх зөвхөн админд байна.');
+  return new Error(error.message || 'Хадгалж чадсангүй.');
 }
 
 export type StockMovement = {

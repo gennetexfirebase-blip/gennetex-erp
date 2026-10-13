@@ -17,6 +17,7 @@ import { useApp } from '../context/AppContext';
 import { Card, ScreenHeader, SectionTitle, Badge, StatCard, EmptyState, formatMNT } from '../components/ui';
 import FuelTankGauge from '../components/FuelTankGauge';
 import MongoliaPlate from '../components/MongoliaPlate';
+import { PillButton, Segmented } from '../components/ds';
 import { spacing, radius } from '../theme';
 import { useTheme, useStyles } from '../context/ThemeContext';
 import * as vehicleApi from '../services/vehicleService';
@@ -106,42 +107,40 @@ export default function FleetFuelScreen() {
       <ScreenHeader
         title="Бензин зарцуулалт"
         subtitle="Машин · км · савны түвшин"
-        right={
-          <TouchableOpacity
-            style={styles.reportBtn}
-            onPress={() => navigation.navigate('FuelSpendReport')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="cash-outline" size={16} color={colors.primary} />
-            <Text style={styles.reportText}>Зардал</Text>
-          </TouchableOpacity>
-        }
+        right={<PillButton title="Зардал" icon="cash-outline" soft onPress={() => navigation.navigate('FuelSpendReport')} />}
       />
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
       >
-        <TouchableOpacity style={[styles.reportBtn, { marginBottom: spacing.lg, alignSelf: 'flex-start' }]} onPress={() => navigation.navigate('Fuel')} accessibilityRole="button">
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.reportText}>Өөрийн зарцуулалт бүртгэх / нөхөх</Text>
-        </TouchableOpacity>
-        <View style={styles.statRow}>
-          <StatCard label="Машин" value={String(rows.length)} color={colors.primary} />
-          <StatCard label="Явж байна" value={String(activeCount)} color={colors.success} />
-          <StatCard label="Нийт км" value={`${totalKm.toFixed(0)}`} color={colors.accent} />
-        </View>
-
-        <View style={styles.filterRow}>
-          {[7, 30, 90].map((d) => (
-            <TouchableOpacity
-              key={d}
-              style={[styles.filterChip, days === d && styles.filterChipOn]}
-              onPress={() => setDays(d)}
-            >
-              <Text style={[styles.filterText, days === d && styles.filterTextOn]}>{d} хоног</Text>
-            </TouchableOpacity>
+        {/* Prototype «Бензин зарцуулалт»: 3 тоо → том товч → 7/30 хоног → үнэ */}
+        <View style={styles.trio}>
+          {[
+            [String(rows.length), 'Машин', colors.ink],
+            [String(activeCount), 'Замд', colors.ok],
+            [Math.round(totalKm).toLocaleString('en-US'), 'Нийт км', colors.ink],
+          ].map(([v, l, c], i) => (
+            <View key={l} style={[styles.trioCell, i > 0 && styles.trioBorder]}>
+              <Text style={[styles.trioValue, { color: c }]}>{v}</Text>
+              <Text style={styles.trioLabel}>{l}</Text>
+            </View>
           ))}
         </View>
+
+        <TouchableOpacity style={styles.bigBtn} onPress={() => navigation.navigate('Fuel')} activeOpacity={0.9} accessibilityRole="button">
+          <Ionicons name="gas-pump-outline" size={20} color={colors.brandInk} />
+          <Text style={styles.bigBtnText}>Түлш цэнэглэлт бүртгэх</Text>
+        </TouchableOpacity>
+
+        <Segmented
+          style={{ marginBottom: 12 }}
+          value={days}
+          onChange={setDays}
+          options={[
+            { key: 7, label: '7 хоног' },
+            { key: 30, label: '30 хоног' },
+          ]}
+        />
 
         {/* Түлшний үнэ — ШТС-д очиж шинэ үнэ хараад тэр дороо
             шинэчлэх боломжтой байхын тулд цэнэглэлтийн дэлгэц дээрээ. */}
@@ -261,9 +260,16 @@ export default function FleetFuelScreen() {
   );
 }
 
-const makeStyles = ({ colors }) =>
+const makeStyles = ({ colors, shadow }) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg },
+    container: { flex: 1, backgroundColor: colors.ground },
+    trio: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 20, marginBottom: 12, ...shadow.md },
+    trioCell: { flex: 1, paddingVertical: 14, paddingHorizontal: 12 },
+    trioBorder: { borderLeftWidth: 1, borderLeftColor: colors.line },
+    trioValue: { fontSize: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    trioLabel: { color: colors.muted, fontSize: 12 },
+    bigBtn: { height: 56, borderRadius: 16, backgroundColor: colors.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
+    bigBtnText: { color: colors.brandInk, fontSize: 17, fontWeight: '600' },
     reportBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -210,6 +210,7 @@ export const ACT_AUDIT_LABELS: Record<string, string> = {
   materials_updated: 'материалын мэдээлэл өөрчилсөн',
   checklist_updated: 'шалгах хуудас өөрчилсөн',
   ready: 'актыг бэлэн болгосон',
+  returned: 'засуулахаар буцаасан',
   approved: 'актыг баталгаажуулсан',
   delivered: 'актыг хүлээлгэн өгсөн',
   cancelled: 'актыг цуцалсан',
@@ -573,6 +574,7 @@ export function emptyActDraft(template?: ActTemplate): ActDraft {
 export function actError(error: unknown) {
   const message = String((error as { message?: string })?.message || error || 'Алдаа гарлаа.');
   if (/approved_act_locked/i.test(message)) return 'Баталгаажсан актыг өөрчлөх гэж байна. Админ эрхээр баталгаажуулж үргэлжлүүлнэ үү.';
+  if (/director_only/i.test(message)) return 'Актыг зөвхөн Захирал баталгаажуулна.';
   if (/permission_denied/i.test(message)) return 'Энэ үйлдлийг хийх эрх хүрэхгүй байна.';
   if (/checklist_reason_required/i.test(message)) return '“Үгүй” гэж сонгосон шаардлагын шалтгааныг оруулна уу.';
   if (/receiver_name_required/i.test(message)) return 'Хүлээлцэх хүний нэрийг оруулна уу.';

@@ -47,7 +47,7 @@ export function buildMapHtml({ region, scrollEnabled = true, zoomEnabled = true,
   .gx-label {
     display: inline-block; white-space: nowrap;
     padding: 5px 10px; border-radius: 999px;
-    background: #0099DB; color: #fff;
+    background: #0B6E4F; color: #fff;
     font-size: 12px; font-weight: 700; line-height: 1;
     box-shadow: 0 2px 6px rgba(0,0,0,.28);
     transform: translate(-50%, -50%);
@@ -57,7 +57,7 @@ export function buildMapHtml({ region, scrollEnabled = true, zoomEnabled = true,
   /* Аватар тэмдэг */
   .gx-avatar {
     width: 44px; height: 44px; border-radius: 50%;
-    border: 3px solid #fff; background: #0099DB;
+    border: 3px solid #fff; background: #0B6E4F;
     color: #fff; font-size: 16px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.35);
@@ -69,7 +69,7 @@ export function buildMapHtml({ region, scrollEnabled = true, zoomEnabled = true,
   /* Сонгодог дусал хэлбэрийн pin */
   .gx-pin {
     width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
-    background: #0099DB; border: 2.5px solid #fff;
+    background: #0B6E4F; border: 2.5px solid #fff;
     transform: translate(-50%, -100%) rotate(-45deg);
     box-shadow: 0 2px 5px rgba(0,0,0,.3);
   }
@@ -142,9 +142,9 @@ ${ESCAPE_FN}
         html: '<div class="gx-label' + (m.dim ? ' dim' : '') + '">' + esc(m.label) + '</div>',
       });
     }
-    var color = m.pinColor === 'green' ? '#3FCF8E'
-      : m.pinColor === 'red' ? '#EF5B5B'
-      : m.pinColor ? m.pinColor : '#0099DB';
+    var color = m.pinColor === 'green' ? '#15924A'
+      : m.pinColor === 'red' ? '#D23A2F'
+      : m.pinColor ? m.pinColor : '#0B6E4F';
     return L.divIcon({
       className: '',
       iconSize: null,
@@ -172,7 +172,7 @@ ${ESCAPE_FN}
 
       if (pts.length >= 2) {
         L.polyline(pts, {
-          color: p.color || '#0099DB',
+          color: p.color || '#0B6E4F',
           weight: p.weight || 4,
           opacity: 0.85,
           interactive: false,
@@ -185,7 +185,7 @@ ${ESCAPE_FN}
         var isStart = idx === 0;
         L.circleMarker(pt, {
           radius: isStart || isEnd ? 5 : 3,
-          color: isEnd ? '#EF5B5B' : isStart ? '#3FCF8E' : (p.color || '#0099DB'),
+          color: isEnd ? '#D23A2F' : isStart ? '#15924A' : (p.color || '#0B6E4F'),
           weight: 2,
           fillColor: '#fff',
           fillOpacity: 1,

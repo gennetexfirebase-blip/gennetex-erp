@@ -5,10 +5,12 @@ import { ScreenHeader, EmptyState, LoadingState, HeaderButton } from '../compone
 import { useApp } from '../context/AppContext';
 import * as attApi from '../services/attendanceService';
 import { friendlyError } from '../lib/erpMessages';
-import { colors } from '../theme/attendanceDark';
+import { useTheme, useStyles } from '../context/ThemeContext';
 import { spacing } from '../theme';
 
 export default function AttendanceLocationsScreen({ navigation }) {
+  const { colors: colors } = useTheme();
+  const styles = useStyles(makeStyles);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,7 +84,7 @@ export default function AttendanceLocationsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors: colors }) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',

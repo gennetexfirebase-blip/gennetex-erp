@@ -27,7 +27,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import AmbientBackground from '../components/AmbientBackground';
+import { Avatar, Wordmark } from '../components/ds';
 import { useStyles, useTheme } from '../context/ThemeContext';
 import { spacing } from '../theme';
 import {
@@ -263,26 +263,18 @@ export default function LocalAccessScreen({ userId, name, avatarUrl, onUnlocked,
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.bg}>
-        <AmbientBackground />
-      </SafeAreaView>
+      <SafeAreaView style={styles.bg} />
     );
   }
 
   return (
     <SafeAreaView style={styles.bg}>
-      <AmbientBackground />
-
       <View style={styles.top}>
-        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+        <Wordmark size={19} logoSize={26} />
 
         <View style={styles.user}>
           <View style={styles.avatar}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-            ) : (
-              <Text style={styles.avatarLetter}>{letter}</Text>
-            )}
+            <Avatar uri={avatarUrl} name={displayName || letter} size={76} />
           </View>
           {displayName ? <Text style={styles.name}>{displayName}</Text> : null}
         </View>
@@ -330,7 +322,7 @@ export default function LocalAccessScreen({ userId, name, avatarUrl, onUnlocked,
             accessibilityRole="button"
             accessibilityLabel="Биометрээр нээх"
           >
-            <Ionicons name="finger-print-outline" size={28} color={colors.primary} />
+            <Ionicons name="finger-print-outline" size={30} color={colors.brand} />
           </Pressable>
         ) : mode === MODE.UNLOCK ? (
           <Pressable
@@ -358,7 +350,7 @@ export default function LocalAccessScreen({ userId, name, avatarUrl, onUnlocked,
           <Ionicons
             name="backspace-outline"
             size={26}
-            color={pin.length ? colors.text : colors.textFaint}
+            color={pin.length ? colors.ink : colors.faint}
           />
         </Pressable>
       </View>
@@ -396,35 +388,34 @@ function Key({ label, onPress, styles }) {
       accessibilityLabel={label}
     >
       <Text style={styles.keyText}>{label}</Text>
+      <Text style={styles.keySub}>{KEY_LETTERS[label] || ' '}</Text>
     </Pressable>
   );
 }
 
-const KEY_SIZE = 76;
-const KEY_GAP = 18;
+const KEY_LETTERS = { 2: 'ABC', 3: 'DEF', 4: 'GHI', 5: 'JKL', 6: 'MNO', 7: 'PQRS', 8: 'TUV', 9: 'WXYZ' };
+const KEY_SIZE = 78;
+const KEY_GAP = 16;
 
 const makeStyles = ({ colors }) => StyleSheet.create({
   bg: { flex: 1, backgroundColor: colors.bg, justifyContent: 'space-between' },
   // Дээд блок үлдсэн зайг эзэлж, төвдөө байрлана — ингэснээр цэг ба
   // гарын хооронд хэт том хоосон зай үлдэхгүй.
   top: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.lg },
-  logo: { width: 120, height: 34, marginBottom: spacing.lg },
-  user: { alignItems: 'center', gap: spacing.sm },
+  user: { alignItems: 'center', gap: 10, marginTop: 22 },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 42,
+    borderWidth: 4,
+    borderColor: colors.bg,
+    shadowColor: colors.line,
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
   },
   avatarImg: { width: '100%', height: '100%' },
   avatarLetter: { color: colors.primary, fontSize: 22, fontWeight: '800' },
-  name: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  title: { color: colors.text, fontSize: 17, fontWeight: '600', marginTop: spacing.xl },
+  name: { color: colors.ink, fontSize: 22, fontWeight: '700', marginTop: 6 },
+  title: { color: colors.muted, fontSize: 15, fontWeight: '400', marginTop: spacing.sm },
   subtitle: {
     color: colors.textMuted,
     fontSize: 13,
@@ -434,16 +425,16 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     lineHeight: 19,
   },
 
-  dots: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xl },
+  dots: { flexDirection: 'row', gap: 18, marginTop: 26 },
   dot: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.borderHi,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.faint,
   },
-  dotFilled: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dotFilled: { backgroundColor: colors.ink, borderColor: colors.ink },
   dotError: { borderColor: colors.danger, backgroundColor: colors.danger },
 
   error: { color: colors.danger, fontSize: 13, marginTop: spacing.lg, textAlign: 'center', paddingHorizontal: spacing.xl },
@@ -467,12 +458,13 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     width: KEY_SIZE,
     height: KEY_SIZE,
     borderRadius: KEY_SIZE / 2,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.field,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  keyPressed: { backgroundColor: colors.primary + '33', transform: [{ scale: 0.96 }] },
-  keyText: { color: colors.primary, fontSize: 28, fontWeight: '500' },
+  keyPressed: { backgroundColor: colors.line, transform: [{ scale: 0.96 }] },
+  keyText: { color: colors.ink, fontSize: 30, fontWeight: '500', lineHeight: 34, fontVariant: ['tabular-nums'] },
+  keySub: { color: colors.muted, fontSize: 10, fontWeight: '600', letterSpacing: 1.4, marginTop: 1 },
   keyGhost: {
     width: KEY_SIZE,
     height: KEY_SIZE,
@@ -487,7 +479,6 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
-    textDecorationLine: 'underline',
     padding: spacing.sm,
   },
 });

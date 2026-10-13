@@ -53,15 +53,11 @@ import {
 } from '../lib/breakSchedule';
 import { distanceMeters } from '../lib/geo';
 import { spacing, radius } from '../theme';
-import { brand } from '../theme/tokens';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors as employeeColors, adminLightColors } from '../theme/attendanceLight';
-import { colors as adminDarkColors } from '../theme/attendanceDark';
 import { useTheme } from '../context/ThemeContext';
-import SlideToConfirm from '../components/SlideToConfirm';
 import EmployeeAttendanceSummary from '../components/EmployeeAttendanceSummary';
+import AttendanceClockCard from '../components/AttendanceClockCard';
 import ChatAvatar from '../components/ChatAvatar';
-import WorkHoursRing from '../components/WorkHoursRing';
+import { Avatar, Box, Chip, ModuleTile, RoundButton, SectionHeader, Badge } from '../components/ds';
 import SummaryStatCards from '../components/SummaryStatCards';
 import DateRangeFilterBar from '../components/DateRangeFilterBar';
 import AttendanceFilterSheet from '../components/AttendanceFilterSheet';
@@ -133,24 +129,24 @@ function AdminSectionCard({
   style,
 }) {
   return (
-    <View style={[dashStyles.sectionCard, { backgroundColor: colors.surfaceContainer }, style]}>
+    <View style={[dashStyles.sectionCard, { backgroundColor: colors.card }, style]}>
       <View style={dashStyles.sectionHead}>
         <View style={[dashStyles.sectionIcon, { backgroundColor: iconBg }]}>
           <Ionicons name={icon} size={19} color={iconFg} />
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{title}</Text>
+          <Text style={{ color: colors.ink, fontSize: 16, fontWeight: '700' }}>{title}</Text>
           {subtitle ? (
             <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>
           ) : null}
         </View>
         {actionLabel ? (
           <TouchableOpacity
-            style={[dashStyles.outlineBtn, { borderColor: colors.primary }]}
+            style={[dashStyles.outlineBtn, { backgroundColor: colors.brandSoft, borderColor: colors.brandSoft }]}
             onPress={onAction}
             activeOpacity={0.75}
           >
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>{actionLabel}</Text>
+            <Text style={{ color: colors.brand, fontSize: 13, fontWeight: '700' }}>{actionLabel}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -204,12 +200,14 @@ export default function AttendanceScreen() {
   //     Өмнө нь үргэлж бараан байсан тул гэрэл горимд бусад дэлгэцээс
   //     огцом ялгардаг байв. Доорх `styles` болон modal-ууд ч мөн энэ
   //     палитрыг авдаг тул самбартайгаа нийцтэй хэвээр.
-  const { isDark } = useTheme();
+  // Шинэ дизайн: ажилтан, админ хоёул аппын Систем/Цагаан/Харанхуй
+  // сонголтыг дагана (тусдаа тогтмол палитр байхгүй).
+  const { colors: themeColors } = useTheme();
   // Админы самбар FlatList-ээр зурагддаг тул SafeAreaView-гүй — iPhone дээр
   // толгой (аватар, мэдэгдэл, тохиргоо) цаг/батерейны мөрний доор орж
   // дарагдахгүй байв. Дээд зайг шууд тооцно.
   const insets = useSafeAreaInsets();
-  const adminColors = isDark ? adminDarkColors : adminLightColors;
+  const adminColors = themeColors;
   const colors = adminColors;
   const styles = useMemo(() => makeStyles({ colors: adminColors }), [adminColors]);
   // Notch / Dynamic Island-тай зөрчилдөхгүй байхын тулд.
@@ -1278,15 +1276,6 @@ export default function AttendanceScreen() {
   };
 
   // ---- Admin: хүсэлт зөвшөөрөх/татгалзах ----
-  const decide = async (id, status) => {
-    try {
-      await attApi.setAttendanceStatus(id, status);
-      await loadRecords();
-    } catch (e) {
-      Alert.alert('Алдаа', friendlyError(e));
-    }
-  };
-
   // ---- Admin: одоогийн байршлыг бүртгэлийн цэг болгох ----
   const saveLocation = async () => {
     if (!locForm.name.trim()) {
@@ -1448,15 +1437,29 @@ ${dates[0]} – ${dates[dates.length - 1]}`
         : 'Хуваарьгүй';
     const weekdayLabels = ['Ням', 'Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям'];
     const dateLabel = `${dayKey()}(${weekdayLabels[new Date().getDay()]})`;
+    // Ажилтны одоогийн байршил хамгийн ойрын бүртгэлийн цэгтэй харьцуулна.
+    const near = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
+    const empLocation =
+      liveLocation?.latitude == null || !locations.length
+        ? { note: locations.length ? 'Байршил тодорхойгүй байна' : null }
+        : { name: near.location?.name, distance: near.distance, within: near.within };
+    const empTarget = (() => {
+      if (!myShift?.start_time || !myShift?.end_time) return 480;
+      const [sh, sm] = String(myShift.start_time).split(':').map(Number);
+      const [eh, em] = String(myShift.end_time).split(':').map(Number);
+      return Math.max(60, eh * 60 + em - (sh * 60 + sm));
+    })();
 
     return (
-      <View style={{ flex: 1, backgroundColor: employeeColors.background }}>
+      <View style={{ flex: 1, backgroundColor: themeColors.ground }}>
         <EmployeeAttendanceSummary
           profile={profile}
           shiftStatus={shiftStatus}
           busy={busy}
           scheduleLabel={scheduleLabel}
           dateLabel={dateLabel}
+          targetMinutes={empTarget}
+          location={empLocation}
           onCheckIn={() => quickAttendance('check_in')}
           onCheckOut={() => quickAttendance('check_out')}
           onRefresh={async () => { await loadMyDay(); await refreshShiftStatus(); }}
@@ -1495,10 +1498,12 @@ ${dates[0]} – ${dates[dates.length - 1]}`
 
         <Modal visible={remoteModal} transparent animationType="fade">
           <View style={styles.warnOverlay}>
-            <View style={[styles.warnModal, { backgroundColor: employeeColors.surface }]}>
-              <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 8 }}>⚠️</Text>
-              <Text style={[styles.warnTitle, { color: employeeColors.text }]}>Анхааруулга</Text>
-              <Text style={[styles.warnMessage, { color: employeeColors.textMuted }]}>
+            <View style={[styles.warnModal, { backgroundColor: themeColors.bg }]}>
+              <View style={[styles.warnIcon, { backgroundColor: themeColors.warnSoft }]}>
+                <Ionicons name="location-outline" size={30} color={themeColors.warn} />
+              </View>
+              <Text style={[styles.warnTitle, { color: themeColors.ink }]}>Бүсээс гадна байна</Text>
+              <Text style={[styles.warnMessage, { color: themeColors.muted }]}>
                 Та цаг бүртгэх байршилд ороогүй байна
                 {pendingDistance != null ? ` (~${pendingDistance}м зайд)` : ''}.{'\n'}
                 Шалтгаанаа бичээд хүсэлт илгээнэ үү.
@@ -1537,206 +1542,82 @@ ${dates[0]} – ${dates[dates.length - 1]}`
     return Math.max(0, Math.round((end - new Date(shiftStatus.checkInAt)) / 60000));
   })();
 
-  // Hero gradient дээрх өнгө (хоёр горимд ижил — дэвсгэр нь үргэлж брэнд цэнхэр).
-  const hc = {
-    text: '#ffffff',
-    textMuted: 'rgba(255,255,255,0.78)',
-    textFaint: 'rgba(255,255,255,0.66)',
-    primary: '#ffffff',
-    onPrimary: brand[700],
-    surfaceContainerHigh: 'rgba(255,255,255,0.18)',
-    outlineVariant: 'rgba(255,255,255,0.22)',
-    danger: '#ff7a70',
-  };
-
-  const myStatus = shiftStatus.checkedOut
-    ? { label: 'Ажил дууссан', icon: 'checkmark-circle', bg: adminColors.success + '24', fg: adminColors.success, onBrand: '#86efac' }
-    : shiftStatus.checkedIn
-      ? { label: 'Ажил дээр', icon: 'ellipse', bg: 'rgba(0,153,219,0.16)', fg: adminColors.primary, onBrand: '#7dd3fc' }
-      : { label: 'Бүртгүүлээгүй', icon: 'alert-circle-outline', bg: adminColors.warning + '24', fg: adminColors.warning, onBrand: '#fde68a' };
-
   // Админы ӨӨРИЙНХ нь одоогийн байршил — бусад ажилтны байршлыг энд ХАРУУЛАХГҮЙ.
   const adminNearest = attApi.nearestAttendanceLocation(liveLocation || {}, locations);
-  const adminLocationLabel =
+  const adminLoc =
     liveLocation?.latitude == null
-      ? 'Байршил тодорхойгүй байна'
+      ? { note: 'Байршил тодорхойгүй байна' }
       : locations.length === 0
-        ? 'Байршил тохируулаагүй байна'
-        : adminNearest.within
-          ? `Таны байршил: ${adminNearest.name} цэгийн ойролцоо`
-          : `Таны байршил: ${adminNearest.name || 'бүртгэлтэй цэг'}-ээс ~${adminNearest.distance}м зайд`;
+        ? { note: 'Байршил тохируулаагүй байна' }
+        : { name: adminNearest.location?.name, distance: adminNearest.distance, within: adminNearest.within };
 
-  // ---- Admin dark dashboard header (dashboard-only, dashFilters/dayRows-той) ----
+  // ---- Админы Ирц толгой (design §4 Ирц — админ) ----
   const adminHeader = (
     <View>
       <View style={dashStyles.topRow}>
-        <ChatAvatar name={profile?.name} uri={profile?.avatar_url} size={48} />
-        <View style={{ flex: 1, marginLeft: spacing.md }}>
-          <Text style={{ color: adminColors.text, fontSize: 19, fontWeight: '800' }} numberOfLines={1}>
+        <Pressable onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel="Профайл">
+          <Avatar uri={profile?.avatar_url} name={profile?.name} size={46} />
+        </Pressable>
+        <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+          <Text style={{ color: adminColors.ink, fontSize: 18, fontWeight: '700' }} numberOfLines={1}>
             {profile?.name}
           </Text>
-          <Text style={{ color: adminColors.textMuted, fontSize: 12, marginTop: 1 }}>ЖЕННЕТЕКС ХХК</Text>
+          <Text style={{ color: adminColors.muted, fontSize: 13 }} numberOfLines={1}>
+            Женнетекс ХХК{adminLoc.name ? ` · ${adminLoc.name}` : ''}
+          </Text>
         </View>
-        <TouchableOpacity
-          style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer, marginRight: 8 }]}
-          onPress={() => navigation.navigate('Notifications')}
-          accessibilityLabel="Мэдэгдэл"
-        >
-          <Ionicons name="notifications-outline" size={19} color={adminColors.text} />
-          {pending.length > 0 ? (
-            <View style={dashStyles.badgeDot}>
-              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{pending.length}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[dashStyles.bellBtn, { backgroundColor: adminColors.surfaceContainer }]}
-          onPress={() => navigation.navigate('AttendanceSettings')}
-          accessibilityLabel="Ирцийн тохиргоо"
-        >
-          <Ionicons name="settings-outline" size={19} color={adminColors.text} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <RoundButton
+            icon="notifications-outline"
+            badge={unreadCount > 0 ? unreadCount : null}
+            onPress={() => navigation.navigate('Notifications')}
+            accessibilityLabel="Мэдэгдэл"
+          />
+          <RoundButton
+            icon="settings-outline"
+            onPress={() => navigation.navigate('AttendanceSettings')}
+            accessibilityLabel="Ирцийн тохиргоо"
+          />
+        </View>
       </View>
 
       {/* ── МИНИЙ ИРЦ ─────────────────────────────────────────────────
           Админ ч ажилтан адил ирцээ бүртгүүлнэ. Ажилтны талтай ИЖИЛ
-          `quickAttendance` урсгалыг ашиглана — царай таниулахгүй, шууд
-          бүртгэнэ (байршил + төхөөрөмжийн шалгалт хэвээр). */}
-      {/* Брэндийн gradient hero — өдрийн ирцийн гол карт. Дотор нь бүх
-          өнгө `hc` (gradient дээр уншигдах цагаан палитр). */}
-      <LinearGradient
-        colors={[brand[500], brand[700], brand[950]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[dashStyles.heroCard, dashStyles.heroGlow]}
-      >
-        <View pointerEvents="none" style={dashStyles.heroOrbA} />
-        <View pointerEvents="none" style={dashStyles.heroOrbB} />
-        <View style={dashStyles.heroTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: hc.textMuted, fontSize: 12 }}>Өнөөдрийн ирц</Text>
-            <Text style={{ color: hc.text, fontSize: 30, fontWeight: '800', marginTop: 2 }}>
-              {shiftStatus.checkedOut
-                ? fmtHM(shiftStatus.checkOutAt)
-                : shiftStatus.checkedIn
-                  ? fmtHM(shiftStatus.checkInAt)
-                  : '--:--'}
-            </Text>
-            <View style={[dashStyles.statusChip, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
-              <Ionicons name={myStatus.icon} size={14} color={myStatus.onBrand} />
-              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                {myStatus.label}
-              </Text>
-            </View>
-          </View>
-          <WorkHoursRing
-            workedMinutes={myWorkedMinutes}
-            targetMinutes={myShift ? shiftMinutes(myShift) : 480}
-            colors={hc}
-          />
-        </View>
+          `quickAttendance` урсгалыг ашиглана. */}
+      <AttendanceClockCard
+        shiftStatus={shiftStatus}
+        busy={busy}
+        onCheckIn={() => quickAttendance('check_in')}
+        onCheckOut={() => quickAttendance('check_out')}
+        targetMinutes={myShift ? shiftMinutes(myShift) : 480}
+        locationName={adminLoc.name}
+        locationDistance={adminLoc.distance}
+        locationWithin={adminLoc.within}
+        locationNote={adminLoc.note}
+        workHoursText={`${companyApi.workStartLabel(companySettings)} · ${companyApi.lateFromLabel(companySettings)}-ээс хоцорсон`}
+      />
 
-        {/* Ирсэн / Явсан хоёр багана */}
-        <View style={dashStyles.inOutRow}>
-          <View style={dashStyles.inOutCell}>
-            <View style={[dashStyles.inOutIcon, { borderColor: hc.primary }]}>
-              <Ionicons name="arrow-forward" size={15} color={hc.primary} />
-            </View>
-            <View>
-              <Text style={{ color: hc.textMuted, fontSize: 12 }}>Ирсэн</Text>
-              <Text style={{ color: hc.text, fontSize: 17, fontWeight: '800' }}>
-                {fmtHM(shiftStatus.checkInAt)}
-              </Text>
-            </View>
-          </View>
-          <View style={[dashStyles.inOutDivider, { backgroundColor: hc.outlineVariant }]} />
-          <View style={dashStyles.inOutCell}>
-            <View style={[dashStyles.inOutIcon, { borderColor: hc.primary }]}>
-              <Ionicons name="arrow-forward" size={15} color={hc.primary} />
-            </View>
-            <View>
-              <Text style={{ color: hc.textMuted, fontSize: 12 }}>Явсан</Text>
-              <Text style={{ color: hc.text, fontSize: 17, fontWeight: '800' }}>
-                {fmtHM(shiftStatus.checkOutAt)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
-          <Ionicons name="location-outline" size={14} color={hc.textFaint} />
-          <Text style={{ color: hc.textFaint, fontSize: 12, flex: 1 }} numberOfLines={1}>
-            {adminLocationLabel}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 7,
-            marginTop: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 9,
-            borderRadius: 12,
-            backgroundColor: hc.primary + '18',
-          }}
-        >
-          <Ionicons name="time-outline" size={16} color={hc.primary} />
-          <Text style={{ color: hc.primary, fontSize: 12, fontWeight: '700', flex: 1 }}>
-            Ирэх цаг {companyApi.workStartLabel(companySettings)} · {companyApi.lateFromLabel(companySettings)}-ээс хоцорсон
-          </Text>
-        </View>
-
-        {/* Ирлээ / Явлаа */}
-        {!shiftStatus.checkedOut ? (
-          <View style={dashStyles.heroBtnRow}>
-            {/* Гулсуулж бүртгэнэ: Ирлээ → баруун, Явлаа ← зүүн. Санамсаргүй
-                дарж ирц бүртгэгдэхээс сэргийлнэ. */}
-            {!shiftStatus.checkedIn ? (
-              <View style={{ flex: 1 }}>
-                <SlideToConfirm label="Ирлээ" direction="right" color="#ffffff" textColor={brand[700]} trackColor="rgba(255,255,255,0.14)" loading={busy} onConfirm={() => quickAttendance('check_in')} />
-              </View>
-            ) : (
-              <View style={{ flex: 1 }}>
-                <SlideToConfirm label="Явлаа" direction="left" color="#ff7a70" trackColor="rgba(255,255,255,0.14)" loading={busy} onConfirm={() => quickAttendance('check_out')} />
-              </View>
-            )}
-          </View>
-        ) : null}
-      </LinearGradient>
-
-      {/* Хурдан холбоос — доод хөвөгч цэсийг орлоно */}
+      {/* Хүсэлт / Ажилтан / Тайлан */}
       <View style={dashStyles.quickRow}>
         {[
-          { icon: 'paper-plane-outline', label: 'Хүсэлт', to: 'AttendanceRequests', badge: pending.length },
-          { icon: 'people-outline', label: 'Ажилтан', to: 'Employees' },
-          {
-            icon: 'document-text-outline',
-            label: 'Тайлан',
-            to: 'AttendanceReport',
-            params: { date: dashboardDate },
-          },
+          { ph: 'paper-plane-tilt', tone: 'purple', label: 'Хүсэлт', to: 'AttendanceRequests', badge: pending.length, params: pending.length ? { tab: 'remote' } : undefined },
+          { ph: 'users-three', tone: 'blue', label: 'Ажилтан', to: 'Employees' },
+          { ph: 'chart-bar', tone: 'teal', label: 'Тайлан', to: 'AttendanceReport', params: { date: dashboardDate } },
         ].map((q) => (
-          <TouchableOpacity
+          <Pressable
             key={q.to}
-            style={[dashStyles.quickBtn, { backgroundColor: adminColors.surfaceContainer }]}
+            style={({ pressed }) => [dashStyles.quickBtn, { backgroundColor: adminColors.card }, pressed && { opacity: 0.8 }]}
             onPress={() => navigation.navigate(q.to, q.params)}
-            activeOpacity={0.8}
+            accessibilityRole="button"
           >
-            <Ionicons name={q.icon} size={19} color={adminColors.primary} />
-            <Text style={{ color: adminColors.text, fontSize: 12, fontWeight: '600', marginTop: 5 }}>
-              {q.label}
-            </Text>
-            {q.badge > 0 ? (
-              <View style={dashStyles.quickBadge}>
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{q.badge}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
+            <ModuleTile icon={q.ph} tone={q.tone} size={46} radius={15} iconSize={24} />
+            <Text style={{ color: adminColors.ink, fontSize: 13, fontWeight: '600', marginTop: 8 }}>{q.label}</Text>
+            {q.badge > 0 ? <Badge value={q.badge} style={dashStyles.quickBadge} /> : null}
+          </Pressable>
         ))}
       </View>
 
+      <SectionHeader title="Ажилтны ирц" right={<Chip text={`${dayRows.length} ажилтан`} tone="muted" />} />
       <View style={{ marginTop: spacing.lg }}>
         <SummaryStatCards
           items={dayStatCards}
@@ -1766,42 +1647,7 @@ ${dates[0]} – ${dates[dates.length - 1]}`
         <Text style={styles.note}> Supabase холбогдоогүй тул ирц зөвхөн энэ утсанд хадгалагдана.</Text>
       ) : null}
 
-      {/* Зайнаас бүртгүүлэх хүсэлтүүд */}
-      {pending.length > 0 ? (
-        <View>
-          <SectionTitle style={{ marginTop: spacing.md, color: adminColors.text }}>
-             Зайнаас бүртгүүлэх хүсэлт ({pending.length})
-          </SectionTitle>
-          {pending.map((item) => (
-            <Card key={item.id} style={[styles.pendCard, { backgroundColor: adminColors.surfaceContainer }]}>
-              <View style={styles.recordRow}>
-                {item.photo_url ? (
-                  <Image source={{ uri: item.photo_url }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarEmpty]}>
-                    <Text style={{ fontSize: 22 }}></Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.recordName, { color: adminColors.text }]}>{item.staff_name}</Text>
-                  <Text style={[styles.recordDate, { color: adminColors.textMuted }]}>
-                    {item.type === 'check_in' ? 'Ирсэн' : 'Явсан'} ·{' '}
-                    {new Date(item.created_at).toLocaleString('mn-MN')}
-                  </Text>
-                  {item.distance_m != null ? (
-                    <Text style={[styles.recordDate, { color: adminColors.textMuted }]}> Цэгээс ~{item.distance_m}м зайд</Text>
-                  ) : null}
-                  {item.note ? <Text style={styles.noteText}>{item.note}</Text> : null}
-                </View>
-              </View>
-              <View style={styles.btnRow}>
-                <Button title="Зөвшөөрөх" variant="success" size="sm" style={{ flex: 1 }} onPress={() => decide(item.id, 'approved')} />
-                <Button title="Татгалзах" variant="danger" size="sm" style={{ flex: 1 }} onPress={() => decide(item.id, 'rejected')} />
-              </View>
-            </Card>
-          ))}
-        </View>
-      ) : null}
+      {/* Зайнаас бүртгүүлэх хүсэлтүүд → «Хүсэлт» дэлгэцийн «Зайнаас» таб руу шилжсэн. */}
 
       {/* ⚠️ Админ ӨӨРӨӨ ч ажилтан. Өмнө нь хүсэлтийн зам зөвхөн
           ажилтны дэлгэцэд байсан тул админ ирцээ нөхөж бүртгүүлэх,
@@ -1809,8 +1655,8 @@ ${dates[0]} – ${dates[dates.length - 1]}`
       <AdminSectionCard
         colors={adminColors}
         icon="document-text"
-        iconBg="rgba(255,176,32,0.16)"
-        iconFg="#ffb020"
+        iconBg={adminColors.warnSoft}
+        iconFg={adminColors.warn}
         title="Миний ирцийн хүсэлт"
         subtitle="Ирцээ нөхөж бүртгүүлэх, зайнаас бүртгүүлэх"
         actionLabel="Хүсэлт илгээх"
@@ -1822,8 +1668,8 @@ ${dates[0]} – ${dates[dates.length - 1]}`
       <AdminSectionCard
         colors={adminColors}
         icon="calendar"
-        iconBg="rgba(0,153,219,0.16)"
-        iconFg="#2f9fe0"
+        iconBg={adminColors.brandSoft}
+        iconFg={adminColors.brand}
         title="Ажилтны хуваарь"
         subtitle={todayShifts.length === 0 ? 'Өнөөдрийн хуваарь алга.' : `${todayShifts.length} ажилтанд хуваарьтай`}
         actionLabel="Хуваарь оноох"
@@ -1846,8 +1692,8 @@ ${dates[0]} – ${dates[dates.length - 1]}`
       <AdminSectionCard
         colors={adminColors}
         icon="bed"
-        iconBg="rgba(155,109,255,0.16)"
-        iconFg="#9b6dff"
+        iconBg={adminColors.aiSoft}
+        iconFg={adminColors.ai}
         title="Амралтын өдөр"
         subtitle={
           Object.keys(breakSchedulesByUser).length === 0
@@ -1859,7 +1705,7 @@ ${dates[0]} – ${dates[dates.length - 1]}`
       >
         {Object.values(breakSchedulesByUser).map((item) => (
           <View key={item.user_id} style={dashStyles.itemRow}>
-            <View style={[dashStyles.itemDot, { backgroundColor: '#9b6dff' }]} />
+            <View style={[dashStyles.itemDot, { backgroundColor: adminColors.ai }]} />
             <Text style={[dashStyles.itemName, { color: adminColors.text }]} numberOfLines={1}>
               {item.user_name}
             </Text>
@@ -1873,8 +1719,8 @@ ${dates[0]} – ${dates[dates.length - 1]}`
       <AdminSectionCard
         colors={adminColors}
         icon="location"
-        iconBg="rgba(0,153,219,0.16)"
-        iconFg="#2f9fe0"
+        iconBg={adminColors.okSoft}
+        iconFg={adminColors.ok}
         title="Бүртгэлийн байршил"
         subtitle={locations.length === 0 ? 'Байршил тохируулаагүй бол хаанаас ч бүртгэнэ.' : null}
         actionLabel="Байршил нэмэх"
@@ -1889,21 +1735,21 @@ ${dates[0]} – ${dates[dates.length - 1]}`
             </Text>
             <Text style={{ color: adminColors.textMuted, fontSize: 13, marginRight: 12 }}>{l.radius_m}м</Text>
             <TouchableOpacity onPress={() => removeLocation(l.id, l.name)} hitSlop={10}>
-              <Ionicons name="trash-outline" size={17} color="#ff6b60" />
+              <Ionicons name="trash-outline" size={17} color={adminColors.bad} />
             </TouchableOpacity>
           </View>
         ))}
       </AdminSectionCard>
 
       {dayRowsError ? (
-        <View style={[dashStyles.errorBox, { backgroundColor: 'rgba(255,107,96,0.12)' }]}>
-          <Text style={{ color: '#ff6b60', fontSize: 12, lineHeight: 17 }}>{dayRowsError}</Text>
+        <View style={[dashStyles.errorBox, { backgroundColor: adminColors.badSoft }]}>
+          <Text style={{ color: adminColors.bad, fontSize: 12, lineHeight: 17 }}>{dayRowsError}</Text>
         </View>
       ) : null}
 
       <View style={dashStyles.listHeadRow}>
-        <Text style={{ color: adminColors.text, fontSize: 15, fontWeight: '800' }}>
-          Өнөөдөр   {dashboardDate}
+        <Text style={{ color: adminColors.ink, fontSize: 16, fontWeight: '700' }}>
+          Ажилтнууд · {dashboardDate}
         </Text>
         <Text style={{ color: adminColors.textMuted, fontSize: 12 }}>
           {dayRowsLoading ? 'ачаалж байна…' : `${filteredDayRows.length} ажилтан`}
@@ -1938,7 +1784,7 @@ ${dates[0]} – ${dates[dates.length - 1]}`
         ListEmptyComponent={!dayRowsLoading ? <EmptyState text="Ирцийн бүртгэл олдсонгүй" /> : null}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[dashStyles.tableRow, { backgroundColor: adminColors.surfaceContainer }]}
+            style={[dashStyles.tableRow, { backgroundColor: adminColors.card }]}
             activeOpacity={0.7}
             onPress={() =>
               navigation.navigate('AttendanceDetail', {
@@ -1958,15 +1804,15 @@ ${dates[0]} – ${dates[dates.length - 1]}`
                   // Зөвшөөрөл хүлээж буй нь бусад төлөвөөс ДЭЭГҮҮР —
                   // админ юуг шийдэх ёстойгоо эхэнд харах ёстой.
                   backgroundColor: item.is_pending
-                    ? '#f5b544'
+                    ? adminColors.warn
                     : item.status === 'late'
-                      ? '#ff6b60'
+                      ? adminColors.bad
                       : item.status === 'absent'
-                        ? '#5c5c64'
+                        ? adminColors.faint
                         : item.status === 'leave' || item.status === 'rest'
-                          ? '#8fd3f2'
+                          ? adminColors.tBlue
                           : item.check_in_at
-                            ? '#3fcf8e'
+                            ? adminColors.ok
                             : 'transparent',
                 },
               ]}
@@ -1981,8 +1827,8 @@ ${dates[0]} – ${dates[dates.length - 1]}`
                     эхэнд, шар өнгөөр. */}
                 {item.is_pending ? (
                   <View style={dashStyles.pendingChip}>
-                    <Ionicons name="time-outline" size={10} color="#f5b544" />
-                    <Text style={{ color: '#f5b544', fontSize: 10, fontWeight: '700' }}>
+                    <Ionicons name="time-outline" size={10} color={adminColors.warn} />
+                    <Text style={{ color: adminColors.warn, fontSize: 10, fontWeight: '700' }}>
                       Хүлээгдэж байна
                     </Text>
                   </View>
@@ -2000,7 +1846,7 @@ ${dates[0]} – ${dates[dates.length - 1]}`
             <Text
               style={{
                 flex: 1,
-                color: item.late_minutes > 0 ? '#ff6b60' : adminColors.textMuted,
+                color: item.late_minutes > 0 ? adminColors.bad : adminColors.textMuted,
                 fontSize: 13,
                 fontWeight: item.late_minutes > 0 ? '700' : '400',
               }}
@@ -2431,14 +2277,15 @@ const dashStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   inOutDivider: { width: StyleSheet.hairlineWidth, height: 34, marginHorizontal: spacing.sm },
-  sectionCard: { borderRadius: 18, padding: spacing.lg, marginTop: spacing.sm },
+  sectionCard: { borderRadius: 20, padding: spacing.lg, marginTop: spacing.md, shadowColor: '#0F1722', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 2 },
   sectionHead: { flexDirection: 'row', alignItems: 'center' },
-  sectionIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  sectionIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   outlineBtn: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    height: 36,
+    justifyContent: 'center',
   },
   itemRow: {
     flexDirection: 'row',
@@ -2448,26 +2295,21 @@ const dashStyles = StyleSheet.create({
   },
   itemDot: { width: 7, height: 7, borderRadius: 4 },
   itemName: { flex: 1, fontSize: 14, fontWeight: '600' },
-  quickRow: { flexDirection: 'row', gap: 10, marginTop: spacing.sm },
+  quickRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   quickBtn: {
     flex: 1,
-    borderRadius: 16,
-    paddingVertical: spacing.md,
+    borderRadius: 18,
+    paddingTop: 14,
+    paddingBottom: 12,
+    shadowColor: '#0F1722',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 14,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#ff6b60',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
+  quickBadge: { position: 'absolute', top: 8, right: 12 },
   errorBox: { borderRadius: 12, padding: spacing.md, marginTop: spacing.md },
   listHeadRow: {
     flexDirection: 'row',
@@ -2482,10 +2324,10 @@ const dashStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingLeft: 12,
-    paddingRight: 8,
-    borderRadius: 14,
-    marginBottom: 6,
+    paddingLeft: 14,
+    paddingRight: 10,
+    borderRadius: 16,
+    marginBottom: 8,
     overflow: 'hidden',
   },
   pendingChip: {
@@ -2550,7 +2392,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#ff3b30',
+    backgroundColor: colors.bad,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
@@ -2607,13 +2449,14 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   },
   warnOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(23,23,23,0.48)',
+    backgroundColor: 'rgba(10,14,20,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
   },
-  warnModal: { width: '100%', borderRadius: 22, padding: spacing.xl },
-  warnTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
+  warnModal: { width: '100%', borderRadius: 26, padding: spacing.xl },
+  warnIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 12 },
+  warnTitle: { fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
   warnMessage: { fontSize: 14, textAlign: 'center', marginBottom: spacing.lg, lineHeight: 20 },
 
   heroCard: { marginTop: spacing.lg },
@@ -2667,7 +2510,7 @@ const makeStyles = ({ colors }) => StyleSheet.create({
   pendCard: { marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.accent + '55'},
   noteText: { color: colors.text, fontSize: 13, marginTop: 2 },
   tagRow: { flexDirection: 'row', gap: spacing.xs, marginTop: 4 },
-  overlay: { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end'},
+  overlay: { flex: 1, backgroundColor: 'rgba(10,14,20,0.45)', justifyContent: 'flex-end'},
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
