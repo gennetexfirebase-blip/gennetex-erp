@@ -31,6 +31,7 @@ import {
   type TrModel,
 } from '../lib/timeReport';
 import brandMark from '../assets/logo-mark.png';
+import ExportPreview from './TimeReportPreview';
 import './time-report.css';
 
 Chart.register(...registerables);
@@ -136,7 +137,7 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
   const [mode, setMode] = useState<'status' | 'time'>('status');
   const [current, setCurrent] = useState<{ id: string; date?: string } | null>(null);
   const [colors, setColors] = useState<Colors>({});
-  const [busyExport, setBusyExport] = useState('');
+  const [preview, setPreview] = useState<{ kind: 'xlsx' | 'pdf'; employee?: TrEmployee } | null>(null);
   const tip = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async (r: Range) => {
@@ -248,18 +249,9 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
   const pick = (kind: Exclude<RangeKind, 'custom'>) => setRange(rangeFor(kind));
   const canNext = range.kind === 'custom' || stepRange(range, 1).from <= todayUB();
 
-  const doExport = async (kind: 'xlsx' | 'pdf') => {
-    if (!model) return;
-    setBusyExport(kind);
-    try {
-      const ex = await import('../lib/timeReportExport');
-      if (kind === 'xlsx') await ex.downloadExcel(model, scoped);
-      else ex.downloadPdf(model, scoped);
-    } catch (e: any) {
-      setError(`Татаж чадсангүй: ${e?.message || e}`);
-    } finally {
-      setBusyExport('');
-    }
+  /** Татахаас өмнө вэб дээр урьдчилан харуулна (цонх доторх товчоор татна). */
+  const doExport = (kind: 'xlsx' | 'pdf', employee?: TrEmployee) => {
+    if (model) setPreview({ kind, employee });
   };
 
   const showTip = (target: HTMLElement) => {
@@ -335,13 +327,13 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
               Харах
             </button>
           </div>
-          <button className="btn no-print" onClick={() => doExport('xlsx')} disabled={!model || !!busyExport}>
+          <button className="btn no-print" onClick={() => doExport('xlsx')} disabled={!model} title="Урьдчилан харах, татах">
             <Svg d={ICONS.down} />
-            {busyExport === 'xlsx' ? 'Бэлтгэж байна…' : 'Excel'}
+            Excel
           </button>
-          <button className="btn no-print" onClick={() => doExport('pdf')} disabled={!model || !!busyExport}>
+          <button className="btn no-print" onClick={() => doExport('pdf')} disabled={!model} title="Урьдчилан харах, татах">
             <Svg d={ICONS.down} />
-            {busyExport === 'pdf' ? 'Бэлтгэж байна…' : 'PDF'}
+            PDF
           </button>
           {headerRight}
         </div>
@@ -458,7 +450,11 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
         accessKey={accessKey}
         onClose={closeEmp}
         onStep={stepEmp}
+        onPreview={(kind, e) => doExport(kind, e)}
       />
+      {preview && model ? (
+        <ExportPreview m={model} emps={scoped} kind={preview.kind} employee={preview.employee} onKind={(kind) => setPreview((p) => p && { ...p, kind })} onClose={() => setPreview(null)} />
+      ) : null}
     </div>
   );
 }
@@ -961,7 +957,9 @@ function Drawer({
   accessKey,
   onClose,
   onStep,
+  onPreview,
 }: {
+  onPreview: (kind: 'pdf' | 'xlsx', e: TrEmployee) => void;
   m: TrModel | null;
   emp: TrEmployee | null;
   focusDate?: string;
@@ -1112,11 +1110,8 @@ function Drawer({
     }
   };
 
-  const exportOne = async (kind: 'pdf' | 'xlsx') => {
-    if (!m || !emp) return;
-    const ex = await import('../lib/timeReportExport');
-    if (kind === 'pdf') ex.downloadEmployeePdf(m, emp);
-    else await ex.downloadExcel(m, [emp]);
+  const exportOne = (kind: 'pdf' | 'xlsx') => {
+    if (emp) onPreview(kind, emp);
   };
 
   if (!m) return null;

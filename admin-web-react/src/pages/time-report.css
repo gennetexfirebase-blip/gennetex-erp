@@ -203,6 +203,36 @@
 .tr .att-send .res.err { background: var(--absent-soft); color: var(--absent); }
 .tr .att-send .res ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); }
 
+/* Урьдчилан харах цонх (PDF / Excel) */
+.tr-modal { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.tr-modal-bg { position: absolute; inset: 0; background: rgba(27, 36, 32, .5); }
+.tr-modal-box { position: relative; width: min(1180px, 100%); height: min(92vh, 1000px); display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-lg); overflow: hidden; box-shadow: 0 30px 80px -30px rgba(27, 36, 32, .5); }
+.tr-modal-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--rule); }
+.tr-modal-h .tt { flex: 1; min-width: 160px; }
+.tr-modal-h .tt b { display: block; font-size: 14.5px; font-weight: 600; }
+.tr-modal-h .tt span { display: block; font-size: 12px; color: var(--ink-3); }
+.tr-modal-h .acts { display: flex; gap: 8px; align-items: center; }
+.tr-modal-h a.btn { text-decoration: none; color: var(--ink); }
+.tr-modal-b { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 14px 16px 16px; gap: 10px; }
+.tr .tr-pdf { flex: 1; width: 100%; min-height: 0; border: 1px solid var(--rule); border-radius: var(--r-md); background: #fff; }
+.tr .tr-pdf-hint { margin: 0; font-size: 12px; color: var(--ink-3); }
+.tr .sheets { align-self: flex-start; flex-wrap: wrap; border-radius: var(--r-md); }
+.tr .sheets small { color: inherit; opacity: .65; margin-left: 4px; }
+.tr .xl-wrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--rule); border-radius: var(--r-md); background: #fff; }
+.tr table.xl { border-collapse: collapse; font-size: 12.5px; min-width: 100%; color: #222; }
+.tr .xl th, .tr .xl td { border: 1px solid #e3e3e3; padding: 5px 9px; white-space: nowrap; text-align: left; }
+.tr .xl thead th { position: sticky; top: 0; z-index: 1; background: #eef3ef; font-weight: 600; color: #1d5243; }
+.tr .xl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tr .xl .rn { position: sticky; left: 0; background: #f6f6f4; color: #8a8a8a; text-align: center; width: 38px; font-size: 11px; }
+.tr .xl thead .rn { z-index: 2; background: #eef3ef; }
+.tr .xl tbody tr:hover td { background: #f7faf8; }
+@media (max-width: 640px) {
+  .tr-modal { padding: 0; }
+  .tr-modal-box { height: 100%; border-radius: 0; border: 0; }
+  .tr-modal-h .acts { width: 100%; }
+  .tr-modal-h .acts .btn.solid { flex: 1; justify-content: center; }
+}
+
 /* Lower charts */
 .tr .duo { display: grid; grid-template-columns: 1.7fr 1fr; gap: 22px; margin-top: 22px; }
 .tr .chart { position: relative; height: 240px; padding: 12px 18px 18px; }

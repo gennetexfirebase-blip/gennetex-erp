@@ -17,7 +17,7 @@ import {
 
 (pdfMake as unknown as { addVirtualFileSystem: (fonts: unknown) => void }).addVirtualFileSystem(pdfFonts);
 
-const COLOR: Record<Status, string> = { ok: '#109580', late: '#E39A2D', leave: '#7A68D6', absent: '#DB4B41', off: '#E4E8EE', future: '#FFFFFF', na: '#FFFFFF' };
+const COLOR: Record<Status, string> = { ok: '#2F7D5B', late: '#D99A2B', leave: '#6A5A8E', absent: '#B8473C', off: '#E3DED2', future: '#FFFFFF', na: '#FFFFFF' };
 
 function save(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -40,8 +40,13 @@ async function loadXlsx() {
   return (globalThis as unknown as { XlsxChart: XlsxChartApi }).XlsxChart;
 }
 
-export async function downloadExcel(m: TrModel, emps: TrEmployee[] = m.emps) {
-  const X = await loadXlsx();
+export type Sheet = { name: string; rows: (string | number)[][] };
+
+export const excelFilename = (m: TrModel, emps: TrEmployee[]) =>
+  `tsagiin_tailan${emps.length === 1 ? `_${emps[0].name.replace(/[^\p{L}\p{N}]+/gu, '')}` : ''}_${fileTag(m)}.xlsx`;
+
+/** Excel-ийн хуудсууд — урьдчилан харах ба татах хоёр яг энэ мөрүүдийг ашиглана. */
+export function excelSheets(m: TrModel, emps: TrEmployee[] = m.emps): Sheet[] {
   const summary: (string | number)[][] = [
     ['Ажилтан', 'Албан тушаал', 'Хэлтэс', 'Ажлын өдөр', 'Ирсэн', 'Цагтаа', 'Хоцорсон', 'Хоцорсон мин', 'Чөлөөтэй', 'Тасалсан', 'Ажилласан цаг', 'Илүү цаг', 'Дундаж ирэх цаг', 'Ирц %'],
   ];
@@ -70,25 +75,32 @@ export async function downloadExcel(m: TrModel, emps: TrEmployee[] = m.emps) {
   const att = attentionList(m).filter((a) => emps.includes(a.emp));
   const attention: (string | number)[][] = [['Ажилтан', 'Хэлтэс', 'Ирц %', 'Хоцорсон', 'Хоцорсон мин', 'Тасалсан', 'Анхаарах шалтгаан']];
   att.forEach((a) => attention.push([a.emp.name, a.emp.department, a.s.rate, a.s.late, a.s.lateMin, a.s.absent, a.reasons.join('; ')]));
-  const sheets = [
+  return [
     { name: 'Нэгтгэл', rows: summary },
     { name: 'Өдөр бүрээр', rows: daily },
     ...(att.length ? [{ name: 'Анхаарах', rows: attention }] : []),
   ];
+}
+
+export async function downloadSheets(sheets: Sheet[], filename: string) {
+  const X = await loadXlsx();
   const bytes = X.build({ sheets });
-  const who = emps.length === 1 ? `_${emps[0].name.replace(/[^\p{L}\p{N}]+/gu, '')}` : '';
-  save(new Blob([new Uint8Array(bytes).buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `tsagiin_tailan${who}_${fileTag(m)}.xlsx`);
+  save(new Blob([new Uint8Array(bytes).buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
+}
+
+export async function downloadExcel(m: TrModel, emps: TrEmployee[] = m.emps) {
+  await downloadSheets(excelSheets(m, emps), excelFilename(m, emps));
 }
 
 /* ───────── PDF ───────── */
-const th = (t: string) => ({ text: t, bold: true, fillColor: '#EDF0F4', color: '#55627A' });
+const th = (t: string) => ({ text: t, bold: true, fillColor: '#F3F0E8', color: '#5E5A52' });
 
 function header(title: string, m: TrModel): Content[] {
   return [
     {
       columns: [
-        { stack: [{ text: 'ЖЕННЕТЕКС ХХК', bold: true, color: '#2A45C9', fontSize: 9 }, { text: title, fontSize: 16, bold: true, margin: [0, 2, 0, 0] }] },
-        { text: `${fmtDateY(m.from)} – ${fmtDateY(m.to)}\nҮүсгэсэн: ${new Date().toLocaleString('mn-MN')}`, alignment: 'right', fontSize: 8.5, color: '#55627A' },
+        { stack: [{ text: 'ЖЕННЕТЕКС ХХК', bold: true, color: '#24614F', fontSize: 9 }, { text: title, fontSize: 16, bold: true, margin: [0, 2, 0, 0] }] },
+        { text: `${fmtDateY(m.from)} – ${fmtDateY(m.to)}\nҮүсгэсэн: ${new Date().toLocaleString('mn-MN')}`, alignment: 'right', fontSize: 8.5, color: '#5E5A52' },
       ],
       margin: [0, 0, 0, 12],
     },
@@ -99,16 +111,16 @@ function statsRow(items: [string, string][]): Content {
   return {
     table: {
       widths: items.map(() => '*'),
-      body: [items.map(([k, v]) => ({ stack: [{ text: k, fontSize: 8, color: '#55627A' }, { text: v, fontSize: 15, bold: true, margin: [0, 3, 0, 0] }], margin: [6, 6, 6, 6] }))],
+      body: [items.map(([k, v]) => ({ stack: [{ text: k, fontSize: 8, color: '#5E5A52' }, { text: v, fontSize: 15, bold: true, margin: [0, 3, 0, 0] }], margin: [6, 6, 6, 6] }))],
     },
-    layout: { hLineColor: () => '#DCE2EA', vLineColor: () => '#DCE2EA' },
+    layout: { hLineColor: () => '#E0DACD', vLineColor: () => '#E0DACD' },
     margin: [0, 0, 0, 14],
   };
 }
 
 const tableLayout = {
-  hLineColor: () => '#DCE2EA',
-  vLineColor: () => '#DCE2EA',
+  hLineColor: () => '#E0DACD',
+  vLineColor: () => '#E0DACD',
   hLineWidth: (i: number) => (i <= 1 ? 1 : 0.5),
   vLineWidth: () => 0,
   paddingTop: () => 3,
@@ -116,7 +128,7 @@ const tableLayout = {
 };
 
 /** Бүх ажилтны тайлан: нэгтгэл, анхаарах ажилтнууд, ажилтан бүрийн нэгтгэл, (≤31 хоног бол) өдрийн зураглал. */
-export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
+function reportDoc(m: TrModel, emps: TrEmployee[]): TDocumentDefinitions {
   const S = emps.map((e) => m.sum.get(e.id)!);
   const tot = (k: 'present' | 'work' | 'leave' | 'late' | 'absent' | 'hours' | 'over' | 'lateMin') => S.reduce((a, s) => a + s[k], 0);
   const base = tot('work') - tot('leave');
@@ -134,7 +146,7 @@ export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
     ]),
   ];
 
-  content.push({ text: `Анхаарах ажилтнууд (${att.length})`, bold: true, fontSize: 11, color: '#DB4B41', margin: [0, 0, 0, 6] });
+  content.push({ text: `Анхаарах ажилтнууд (${att.length})`, bold: true, fontSize: 11, color: '#B8473C', margin: [0, 0, 0, 6] });
   if (att.length) {
     content.push({
       table: {
@@ -145,11 +157,11 @@ export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
           ...att.map((a) => [
             { text: a.emp.name, bold: true },
             a.emp.department,
-            { text: `${a.s.rate}%`, color: a.s.rate >= 90 ? '#109580' : a.s.rate >= 75 ? '#E39A2D' : '#DB4B41', bold: true },
+            { text: `${a.s.rate}%`, color: a.s.rate >= 90 ? '#2F7D5B' : a.s.rate >= 75 ? '#D99A2B' : '#B8473C', bold: true },
             `${a.s.late} (${a.s.lateMin}м)`,
             String(a.s.absent),
             h1(a.s.hours),
-            { text: a.reasons.join('; '), color: '#DB4B41' },
+            { text: a.reasons.join('; '), color: '#B8473C' },
           ]),
         ],
       },
@@ -158,7 +170,7 @@ export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
       margin: [0, 0, 0, 16],
     });
   } else {
-    content.push({ text: 'Энэ хугацаанд анхаарах ажилтан алга.', color: '#55627A', fontSize: 9, margin: [0, 0, 0, 16] });
+    content.push({ text: 'Энэ хугацаанд анхаарах ажилтан алга.', color: '#5E5A52', fontSize: 9, margin: [0, 0, 0, 16] });
   }
 
   content.push({ text: 'Ажилтан бүрийн нэгтгэл', bold: true, fontSize: 11, margin: [0, 0, 0, 6] });
@@ -177,11 +189,11 @@ export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
             String(s.ok),
             s.late ? `${s.late} (${s.lateMin}м)` : '—',
             String(s.leave),
-            s.absent ? { text: String(s.absent), color: '#DB4B41', bold: true } : '0',
+            s.absent ? { text: String(s.absent), color: '#B8473C', bold: true } : '0',
             h1(s.hours),
             h1(s.over),
             s.avgIn != null ? hm(s.avgIn) : '—',
-            { text: `${s.rate}%`, bold: true, color: s.rate >= 90 ? '#109580' : s.rate >= 75 ? '#E39A2D' : '#DB4B41' },
+            { text: `${s.rate}%`, bold: true, color: s.rate >= 90 ? '#2F7D5B' : s.rate >= 75 ? '#D99A2B' : '#B8473C' },
           ];
         }),
       ],
@@ -198,7 +210,7 @@ export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
         headerRows: 1,
         widths: [110, ...m.list.map(() => dayW)],
         body: [
-          [th('Ажилтан'), ...m.list.map((d) => ({ text: `${parse(d).getDate()}\n${WDAY[parse(d).getDay()]}`, alignment: 'center' as const, fontSize: 6, color: '#55627A', fillColor: '#EDF0F4' }))],
+          [th('Ажилтан'), ...m.list.map((d) => ({ text: `${parse(d).getDate()}\n${WDAY[parse(d).getDay()]}`, alignment: 'center' as const, fontSize: 6, color: '#5E5A52', fillColor: '#F3F0E8' }))],
           ...emps.map((e) => [
             { text: e.name, fontSize: 7.5 },
             ...m.sum.get(e.id)!.days.map((x) => ({
@@ -218,35 +230,34 @@ export function downloadPdf(m: TrModel, emps: TrEmployee[] = m.emps) {
       columns: (['ok', 'late', 'leave', 'absent', 'off'] as Status[]).map((k) => ({
         text: [{ text: '■ ', color: COLOR[k] }, STATUS_LABEL[k]],
         fontSize: 8,
-        color: '#55627A',
+        color: '#5E5A52',
       })),
       margin: [0, 8, 0, 0],
     });
   }
 
-  const doc: TDocumentDefinitions = {
+  return {
     pageSize: 'A4',
     pageOrientation: 'landscape',
     pageMargins: [28, 26, 28, 30],
-    defaultStyle: { fontSize: 9, color: '#13203A' },
-    footer: (page, count) => ({ text: `Gennetex ERP · Цагийн тайлан · ${page}/${count}`, alignment: 'center', fontSize: 7.5, color: '#8A96AB', margin: [0, 8, 0, 0] }),
+    defaultStyle: { fontSize: 9, color: '#2A2925' },
+    footer: (page, count) => ({ text: `Gennetex ERP · Цагийн тайлан · ${page}/${count}`, alignment: 'center', fontSize: 7.5, color: '#857F73', margin: [0, 8, 0, 0] }),
     content,
   };
-  pdfMake.createPdf(doc).download(`tsagiin_tailan_${fileTag(m)}.pdf`);
 }
 
 /** Нэг ажилтны дэлгэрэнгүй — өдөр бүрийн бүртгэлтэй. */
-export function downloadEmployeePdf(m: TrModel, e: TrEmployee) {
+function employeeDoc(m: TrModel, e: TrEmployee): TDocumentDefinitions {
   const s = m.sum.get(e.id)!;
   const rows = s.days.filter((x) => !['future', 'na'].includes(x.status) && (x.status !== 'off' || x.checkIn));
-  const doc: TDocumentDefinitions = {
+  return {
     pageSize: 'A4',
     pageMargins: [32, 28, 32, 32],
-    defaultStyle: { fontSize: 9, color: '#13203A' },
-    footer: (page, count) => ({ text: `Gennetex ERP · ${e.name} · ${page}/${count}`, alignment: 'center', fontSize: 7.5, color: '#8A96AB', margin: [0, 8, 0, 0] }),
+    defaultStyle: { fontSize: 9, color: '#2A2925' },
+    footer: (page, count) => ({ text: `Gennetex ERP · ${e.name} · ${page}/${count}`, alignment: 'center', fontSize: 7.5, color: '#857F73', margin: [0, 8, 0, 0] }),
     content: [
       ...header(`${e.name} — ирцийн тайлан`, m),
-      { text: [e.position, e.department].filter(Boolean).join(', '), color: '#55627A', margin: [0, -6, 0, 12] },
+      { text: [e.position, e.department].filter(Boolean).join(', '), color: '#5E5A52', margin: [0, -6, 0, 12] },
       statsRow([
         ['Ирц', `${s.rate}%`],
         ['Ирсэн өдөр', `${s.present}/${s.work}`],
@@ -268,7 +279,7 @@ export function downloadEmployeePdf(m: TrModel, e: TrEmployee) {
               x.hours ? h1(x.hours) : '—',
               {
                 text: STATUS_LABEL[x.status] + (x.status === 'late' ? ` ${x.lateMin} мин` : '') + (x.remote ? ' · зайнаас' : ''),
-                color: x.status === 'off' ? '#8A96AB' : COLOR[x.status],
+                color: x.status === 'off' ? '#857F73' : COLOR[x.status],
                 bold: true,
               },
             ]),
@@ -278,5 +289,16 @@ export function downloadEmployeePdf(m: TrModel, e: TrEmployee) {
       },
     ],
   };
-  pdfMake.createPdf(doc).download(`irts_${e.name.replace(/[^\p{L}\p{N}]+/gu, '')}_${fileTag(m)}.pdf`);
 }
+
+/**
+ * PDF — `employee` өгвөл нэг ажилтны дэлгэрэнгүй, үгүй бол бүх (шүүсэн) ажилтны тайлан.
+ * Урьдчилан харах (blob) ба татах хоёр яг ижил баримтаас гарна.
+ */
+export function buildPdf(m: TrModel, emps: TrEmployee[], employee?: TrEmployee) {
+  return employee
+    ? { doc: employeeDoc(m, employee), filename: `irts_${employee.name.replace(/[^\p{L}\p{N}]+/gu, '')}_${fileTag(m)}.pdf` }
+    : { doc: reportDoc(m, emps), filename: `tsagiin_tailan_${fileTag(m)}.pdf` };
+}
+
+export const pdfBlob = (doc: TDocumentDefinitions): Promise<Blob> => pdfMake.createPdf(doc).getBlob();
