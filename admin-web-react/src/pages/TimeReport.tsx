@@ -30,6 +30,7 @@ import {
   type TrEmployee,
   type TrModel,
 } from '../lib/timeReport';
+import brandMark from '../assets/logo-mark.png';
 import './time-report.css';
 
 Chart.register(...registerables);
@@ -300,10 +301,7 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
           {variant === 'standalone' ? (
             <div className="brand">
               <div className="mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="8.5" />
-                  <path d="M12 7.5V12l3 2" />
-                </svg>
+                <img src={brandMark} alt="" width="36" height="36" />
               </div>
               <div>
                 <h1>{title}</h1>
