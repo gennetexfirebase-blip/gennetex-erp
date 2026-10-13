@@ -46,8 +46,10 @@ const FIELD_LABELS: [keyof ContractFields, string, string?][] = [
 const emptyInput = (): ContractInput => ({ employee_id: null, employee_email: '', family_name: '', given_name: '', fields: defaultFields() });
 
 /** Хөдөлмөрийн (ажил гүйцэтгэх) гэрээ — бөглөх, ажилтанд илгээх. */
-export default function ContractsPage() {
-  const { profile } = useOutletContext<{ profile: Profile }>();
+export default function ContractsPage({ profile: given }: { profile?: Profile } = {}) {
+  // Admin Layout дотор Outlet-оос, geree.gennetex.com дээр props-оор ирнэ.
+  const outlet = useOutletContext<{ profile: Profile } | null>();
+  const profile = given || outlet?.profile;
   const canEdit = ['admin', 'superadmin'].includes(String(profile?.role || ''));
 
   const { data: contracts, loading, error, reload } = useAsync<Contract[]>(fetchContracts, [], []);

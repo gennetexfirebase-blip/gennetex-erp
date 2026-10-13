@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, FileSignature, LogOut, RotateCcw, Send, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, Loading, Textarea } from '../components/ui';
 import ContractPdfView from '../components/ContractPdfView';
+import ContractsPage from './Contracts';
 import SignaturePad, { type SignaturePadHandle } from '../components/SignaturePad';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
@@ -27,7 +28,7 @@ import type { ContractImages } from '../lib/contractPdf';
  */
 export default function ContractSignPage() {
   const { slug } = useParams();
-  const [session, setSession] = useState<{ email: string } | null | undefined>(undefined);
+  const [session, setSession] = useState<{ email: string; id: string; name: string | null; role: string | null } | null | undefined>(undefined);
   const [contract, setContract] = useState<Contract | null | undefined>(undefined);
   const [mine, setMine] = useState<Contract[]>([]);
   const [images, setImages] = useState<ContractImages>({});
@@ -35,15 +36,22 @@ export default function ContractSignPage() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) return setSession(null);
-    const read = () =>
-      supabase.auth.getUser().then(({ data }) => setSession(data?.user ? { email: String(data.user.email || '').toLowerCase() } : null));
+    const read = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data?.user) return setSession(null);
+      const { data: p } = await supabase.from('profiles').select('name, role').eq('id', data.user.id).maybeSingle();
+      setSession({ email: String(data.user.email || '').toLowerCase(), id: data.user.id, name: p?.name ?? null, role: p?.role ?? null });
+    };
     read();
     const { data: sub } = supabase.auth.onAuthStateChange(() => read());
     return () => sub?.subscription?.unsubscribe();
   }, []);
 
+  const isAdmin = ['admin', 'superadmin'].includes(String(session?.role || ''));
+
   const load = useCallback(async () => {
     if (!session) return;
+    if (!slug && ['admin', 'superadmin'].includes(String(session.role || ''))) return;
     setError('');
     try {
       if (!slug) {
@@ -93,16 +101,19 @@ export default function ContractSignPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[980px] px-3 py-5 sm:px-4">
+      <main className={`mx-auto px-3 py-5 sm:px-4 ${isAdmin && !slug ? 'max-w-[1280px]' : 'max-w-[980px]'}`}>
         {session === undefined ? (
           <Loading text="Түр хүлээнэ үү…" />
         ) : session === null ? (
           <Card title="Нэвтрэх" icon={<FileSignature size={17} />}>
-            <p className="mb-4 text-[14px] text-ink">Гэрээтэйгээ танилцахын тулд гэрээ ирсэн имэйл хаягтай Google дансаараа нэвтэрнэ үү.</p>
+            <p className="mb-4 text-[14px] text-ink">Гэрээтэйгээ танилцахын тулд гэрээ ирсэн имэйл хаягтай Google дансаараа нэвтэрнэ үү. Админ бол админ дансаараа нэвтэрч гэрээ үүсгэж илгээнэ.</p>
             <Button onClick={signIn}>Google-ээр нэвтрэх</Button>
           </Card>
         ) : error ? (
           <Card title="Алдаа"><p className="text-[13px] text-danger">{error}</p></Card>
+        ) : !slug && isAdmin ? (
+          // Админ: гэрээ үүсгэх, ажилтанд илгээх, бүх гэрээний жагсаалт.
+          <ContractsPage profile={{ id: session.id, name: session.name, role: session.role }} />
         ) : !slug ? (
           <MyContracts list={mine} />
         ) : contract === undefined ? (
