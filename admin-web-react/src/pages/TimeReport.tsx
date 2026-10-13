@@ -33,23 +33,11 @@ import {
 import './time-report.css';
 
 Chart.register(...registerables);
-Chart.defaults.font.family = 'Onest, system-ui, sans-serif';
+Chart.defaults.font.family = '"IBM Plex Sans", "Segoe UI", Arial, sans-serif';
 Chart.defaults.font.size = 12;
 
-/** Загварын Google фонтуудыг нэг удаа ачаална. */
-function useFonts() {
-  useEffect(() => {
-    if (document.getElementById('tr-fonts')) return;
-    const l = document.createElement('link');
-    l.id = 'tr-fonts';
-    l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap';
-    document.head.appendChild(l);
-  }, []);
-}
-
 /* ───────── Туслах ───────── */
-const PAL = ['#2A45C9', '#7A3FC2', '#C23F86', '#D0622B', '#0F86A6', '#109580', '#B88A12', '#4B5BD6', '#0D8F7E', '#C7364A', '#5A6B8C', '#8F5BD9'];
+const PAL = ['#24614F', '#3B6A87', '#6A5A8E', '#A6453B', '#94660F', '#2F7D5B', '#5E5A52', '#1D5243', '#7A4E8C', '#B5652B', '#3D7A4C', '#45607A'];
 function avaColor(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
@@ -135,7 +123,6 @@ export type TimeReportProps = {
 };
 
 export default function TimeReport({ variant, accessKey = null, canSend = true, onPlanDay, headerRight, title = 'Цагийн тайлан', initialRange }: TimeReportProps) {
-  useFonts();
   const root = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState<Range>(initialRange || rangeFor('month'));
   const [custom, setCustom] = useState({ from: range.from, to: range.to });
@@ -304,11 +291,10 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
     el.style.top = (r.top > 110 ? r.top - el.offsetHeight - 10 : r.bottom + 10) + 'px';
   };
 
-  const theme = variant === 'embedded' ? 'dark' : undefined;
   const cur = current && model ? model.emps.find((e) => e.id === current.id) : null;
 
   return (
-    <div ref={root} className={`tr ${variant}${loading ? ' loading' : ''}`} data-theme={theme}>
+    <div ref={root} className={`tr ${variant}${loading ? ' loading' : ''}`}>
       <header className="top">
         <div className="top-in">
           {variant === 'standalone' ? (
