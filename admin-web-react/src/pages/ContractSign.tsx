@@ -4,6 +4,7 @@ import { CheckCircle2, FileSignature, LogOut, RotateCcw, Send, ShieldCheck } fro
 import { Badge, Button, Card, Loading, Textarea } from '../components/ui';
 import ContractPdfView from '../components/ContractPdfView';
 import ContractsPage from './Contracts';
+import brandMark from '../assets/logo-mark.png';
 import SignaturePad, { type SignaturePadHandle } from '../components/SignaturePad';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
@@ -88,7 +89,9 @@ export default function ContractSignPage() {
     <div className="min-h-screen bg-app">
       <header className="border-b border-line bg-card">
         <div className="mx-auto flex max-w-[980px] items-center gap-3 px-4 py-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-[13px] font-black text-white">G</span>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white p-[3px]">
+            <img src={brandMark} alt="Gennetex" width="40" height="40" className="h-full w-full object-contain" />
+          </span>
           <div className="min-w-0 flex-1">
             <div className="text-[14px] font-bold text-ink">ЖЕННЕТЕКС ХХК</div>
             <div className="text-[12px] text-muted">Хөдөлмөрийн гэрээ</div>
