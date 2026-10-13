@@ -276,6 +276,11 @@
   .tr .duo, .tr .db { grid-template-columns: 1fr; }
   .tr .side { position: static; }
 }
+/* Утас, таблетад цэс олон мөр болдог тул наалттай (sticky) байлгавал
+   scroll хийхэд контентыг дарж харагдана — хуудастай хамт гүйлгэнэ. */
+@media (max-width: 900px) {
+  .tr .top { position: static; backdrop-filter: none; background: var(--paper); }
+}
 @media (max-width: 640px) {
   .tr .now { grid-template-columns: repeat(2, 1fr); }
   .tr .now > div:nth-child(3) { border-left: 0; }
