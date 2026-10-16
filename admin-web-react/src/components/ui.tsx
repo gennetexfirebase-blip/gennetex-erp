@@ -302,3 +302,50 @@ export function Meter({ pct, color = 'var(--brand)' }: { pct: number; color?: st
     </div>
   );
 }
+
+/** Төвд гарах цонх — Esc эсвэл гадна дарахад хаагдана. */
+export function Modal({
+  title,
+  onClose,
+  children,
+  wide = false,
+}: {
+  title: ReactNode;
+  onClose: () => void;
+  children?: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={`max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} overflow-y-auto rounded-[var(--radius)] border border-line bg-card shadow-panel`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-card px-5 py-3">
+          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+          <button onClick={onClose} className="focus-ring rounded p-1.5 text-muted hover:text-ink" aria-label="Хаах">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Шошготой талбар. */
+export function Field({ label, children, hint }: { label: ReactNode; children: ReactNode; hint?: ReactNode }) {
+  return (
+    <label className="block space-y-1 text-[13px] text-ink">
+      <span>{label}</span>
+      {children}
+      {hint ? <span className="block text-[12px] text-muted">{hint}</span> : null}
+    </label>
+  );
+}

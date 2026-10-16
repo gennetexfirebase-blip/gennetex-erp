@@ -5,6 +5,7 @@ import {
   Clock,
   Users,
   Wallet,
+  UtensilsCrossed,
   Building2,
   MapPin,
   MapPinned,
@@ -61,18 +62,23 @@ export type NavItem = {
  * view нь хуучин панелийн data-view утга; /legacy/<view> route нь
  * /gennetex/admin-v1/?embed=1#<view> рүү хөрвөнө.
  */
-export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon; site?: SiteKey; superOnly?: boolean }[] = [
-  { view: 'applications', label: 'Ажлын байрны анкет', icon: ClipboardList, site: 'hr' },
-  { view: 'devices', label: 'Төхөөрөмж зөвшөөрөл', icon: Smartphone, superOnly: true },
-  { view: 'vehicles', label: 'Машины мэдээлэл солих', icon: QrCode },
-  { view: 'fuelconsumption', label: 'Бензин зарцуулалт', icon: Fuel, site: 'sanhuu' },
-  { view: 'fuelrefill', label: 'Бензин нөхөж цэнэглэх', icon: Fuel, site: 'sanhuu' },
-  { view: 'companions', label: 'Хамт яваа багууд', icon: UsersRound },
-  { view: 'servicecalls', label: 'Дуудлага', icon: PhoneCall },
-  { view: 'inventory', label: 'Агуулах', icon: Boxes, site: 'aguulah' },
-  { view: 'usage', label: 'Барааны хэрэглээ', icon: PackageOpen, site: 'aguulah' },
-  { view: 'meetings', label: 'Хурал', icon: Video, site: 'meet' },
-];
+export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon; site?: SiteKey; superOnly?: boolean }[] = [];
+
+/** Хуучин /legacy/<view> хаяг → шинэ React хуудас (хуучин холбоос эвдрэхгүй). */
+export const LEGACY_REDIRECTS: Record<string, string> = {
+  activitylogs: '/archive/logs',
+  excelarchive: '/archive/excel',
+  fuelconsumption: '/finance/fuel',
+  fuelrefill: '/finance/fuel',
+  vehicles: '/vehicles',
+  companions: '/companions',
+  servicecalls: '/service-calls',
+  inventory: '/stock',
+  usage: '/stock/usage',
+  applications: '/hr/applications',
+  devices: '/devices',
+  meetings: '/meetings',
+};
 
 /**
  * Sidebar-ийн бүрэн мод — бүх subdomain-ийнх. Sidebar нь одоогийн сайтынхыг
@@ -92,8 +98,18 @@ export const NAV: NavItem[] = [
   { label: 'Цагийн хүсэлт', to: '/request', icon: Clock, badgeKey: 'requests', badgeTone: 'brand', site: 'irts' },
   { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning', site: 'hr' },
   { label: 'Алба, хэлтэс', to: '/department', icon: Building2, site: 'hr' },
+  { label: 'Ажлын байрны анкет', to: '/hr/applications', icon: ClipboardList, site: 'hr' },
+  { label: 'Агуулах', to: '/stock', icon: Boxes, site: 'aguulah' },
+  { label: 'Барааны хэрэглээ', to: '/stock/usage', icon: PackageOpen, site: 'aguulah' },
+  { label: 'Хурал', to: '/meetings', icon: Video, site: 'meet' },
+  { label: 'Төхөөрөмж зөвшөөрөл', to: '/devices', icon: Smartphone, superOnly: true },
   { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, site: 'surgalt' },
   { label: 'Цалин', to: '/finance/payroll', icon: Wallet, site: 'sanhuu' },
+  { label: 'Хоолны мөнгө', to: '/finance/meal', icon: UtensilsCrossed, site: 'sanhuu' },
+  { label: 'Бензин зарцуулалт', to: '/finance/fuel', icon: Fuel, site: 'sanhuu' },
+  { label: 'Машины мэдээлэл солих', to: '/vehicles', icon: QrCode },
+  { label: 'Хамт яваа багууд', to: '/companions', icon: UsersRound },
+  { label: 'Дуудлага', to: '/service-calls', icon: PhoneCall },
   { label: 'Нийт лог', to: '/archive/logs', icon: History, site: 'arhiv' },
   { label: 'Excel архив', to: '/archive/excel', icon: Table2, site: 'arhiv' },
   { label: 'Ажилчдын байршил', to: '/location/staff', icon: MapPin, site: 'bairshil', openToAll: true },
@@ -121,6 +137,8 @@ export const NAV: NavItem[] = [
 
 /** Хаяг аль сайтад харьяалагдахыг цэснээс олно (хамгийн урт таарсан угтвар). */
 export function siteOfPath(path: string): { site: SiteKey; superOnly: boolean; openToAll: boolean } | null {
+  const legacy = path.match(/^\/legacy\/([^/]+)/)?.[1];
+  if (legacy && LEGACY_REDIRECTS[legacy]) path = LEGACY_REDIRECTS[legacy];
   let best: { len: number; site: SiteKey; superOnly: boolean; openToAll: boolean } | null = null;
   for (const item of NAV) {
     const tos = [item.to, ...(item.children || []).map((c) => c.to)].filter(Boolean) as string[];

@@ -43,3 +43,7 @@ declare module '*/admin-web/xlsx-chart.js' {
 declare module '*/public-web/src/lib/siteContentDefaults.js' {
   export const DEFAULT_SITE_CONTENT: Record<string, unknown>;
 }
+
+// Ажлын байрны анкетын цаасан загвар — UMD, globalThis-д
+// buildJobApplicationPaperHtml / printJobApplicationPaper тавина.
+declare module '*/admin-web/job-application-paper.js';

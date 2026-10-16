@@ -9,6 +9,14 @@ import DepartmentsPage from './pages/Departments';
 import LocationsPage from './pages/Locations';
 import StaffLocationsPage from './pages/StaffLocations';
 import PayrollPage from './pages/Payroll';
+import MealMoneyPage from './pages/MealMoney';
+import FuelPage from './pages/Fuel';
+import VehiclesPage from './pages/Vehicles';
+import CompanionsPage from './pages/Companions';
+import ServiceCallsPage from './pages/ServiceCalls';
+import { InventoryPage, UsagePage } from './pages/Inventory';
+import { ApplicationsPage, DevicesPage } from './pages/Applications';
+import MeetingsPage from './pages/Meetings';
 import { ActivityLogsPage, ExcelArchivePage } from './pages/Archive';
 import Placeholder from './pages/Placeholder';
 import LegacyPage from './pages/Legacy';
@@ -30,7 +38,7 @@ import ContractSignPage from './pages/ContractSign';
 import { CONTRACT_HOST } from './lib/contracts';
 import TimeReportSite, { AttendanceWarningPage } from './pages/TimeReportSite';
 import { TIME_REPORT_HOST } from './lib/timeReport';
-import { LEGACY_MODULES } from './lib/nav';
+import { LEGACY_MODULES, LEGACY_REDIRECTS } from './lib/nav';
 import { DATA_HOST, currentSite, isTestHost } from './lib/sites';
 import DataSite from './pages/DataSite';
 
@@ -96,10 +104,22 @@ export default function App() {
           <Route path="/location" element={<LocationsPage />} />
           <Route path="/location/staff" element={<StaffLocationsPage />} />
           <Route path="/finance/payroll" element={<PayrollPage />} />
+          <Route path="/finance/meal" element={<MealMoneyPage />} />
+          <Route path="/finance/fuel" element={<FuelPage />} />
+          <Route path="/vehicles" element={<VehiclesPage />} />
+          <Route path="/companions" element={<CompanionsPage />} />
+          <Route path="/service-calls" element={<ServiceCallsPage />} />
+          <Route path="/stock" element={<InventoryPage />} />
+          <Route path="/stock/usage" element={<UsagePage />} />
+          <Route path="/hr/applications" element={<ApplicationsPage />} />
+          <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
+          {/* Хуучин iframe хаягууд → шинэ хуудас */}
+          {Object.entries(LEGACY_REDIRECTS).map(([view, to]) => (
+            <Route key={view} path={`/legacy/${view}`} element={<Navigate to={to} replace />} />
+          ))}
           <Route path="/archive/logs" element={<ActivityLogsPage />} />
           <Route path="/archive/excel" element={<ExcelArchivePage />} />
-          <Route path="/legacy/activitylogs" element={<Navigate to="/archive/logs" replace />} />
-          <Route path="/legacy/excelarchive" element={<Navigate to="/archive/excel" replace />} />
 
           <Route path="/internal/notify" element={<NotificationsPage />} />
           <Route path="/internal/poll" element={<Placeholder title="Санал хураалт" />} />
