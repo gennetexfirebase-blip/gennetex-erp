@@ -42,6 +42,7 @@ import { LEGACY_MODULES, LEGACY_REDIRECTS } from './lib/nav';
 import { DATA_HOSTS, currentSite, isTestHost, siteTabTitle } from './lib/sites';
 import DataSite from './pages/DataSite';
 import LinkSite from './pages/LinkSite';
+import ShareSite from './pages/ShareSite';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -55,8 +56,10 @@ export default function App() {
     : DATA_HOSTS.has(host) || (isTestHost() && window.location.pathname.startsWith('/data')) ? 'Gennetex Data'
     : siteTabTitle();
 
-  // link.gennetex.com — бүх домэйны жагсаалт (нэвтрэлтгүй).
+  // link.gennetex.com — бүх домэйны жагсаалт (зөвхөн админ).
   if (linkHost) return <LinkSite />;
+  // share.gennetex.com — ажилтнууд текст, файл хуваалцах (бүх ажилтан).
+  if (host === 'share.gennetex.com' || (isTestHost() && window.location.pathname.startsWith('/sharing'))) return <ShareSite />;
 
   // geree.gennetex.com — зөвхөн гэрээтэй танилцаж гарын үсэг зурах хуудас.
   if (window.location.hostname === CONTRACT_HOST) {

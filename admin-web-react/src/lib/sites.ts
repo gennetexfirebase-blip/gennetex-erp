@@ -20,7 +20,8 @@ export type SiteKey =
   | 'meet'
   | 'arhiv'
   | 'notif'
-  | 'sanhuu';
+  | 'sanhuu'
+  | 'share';
 
 export type Site = { key: SiteKey; host: string; title: string; landing: string };
 
@@ -37,6 +38,7 @@ export const SITES: Record<SiteKey, Site> = {
   arhiv: { key: 'arhiv', host: 'arhiv.gennetex.com', title: 'Архив', landing: '/archive/logs' },
   notif: { key: 'notif', host: 'noft.gennetex.com', title: 'Мэдэгдэл', landing: '/internal/notify' },
   sanhuu: { key: 'sanhuu', host: 'sanhuu.gennetex.com', title: 'Санхүү', landing: '/finance/payroll' },
+  share: { key: 'share', host: 'share.gennetex.com', title: 'Хуваалцах', landing: '/' },
 };
 
 const BY_HOST = new Map(Object.values(SITES).map((s) => [s.host, s.key]));
@@ -86,6 +88,7 @@ export const SITE_COPY: Record<SiteKey, { headline: string; blurb: string; flow:
   meet: { headline: 'Бүх ажилтантайгаа нэг дор хурал хийнэ.', blurb: 'Вэбээс хурал эхлүүлж, дэлгэцээ хуваалцана — ажилтан апп-аасаа орно.', flow: ['Эхлүүлэх', 'Урих', 'Хуваалцах'] },
   arhiv: { headline: 'Системийн бүх лог, Excel файлыг хадгална.', blurb: 'Апп-аас ирсэн үйлдэл бүрийн бүртгэл ба татсан бүх Excel.', flow: ['Лог', 'Excel', 'Архив'] },
   notif: { headline: 'Ажилтнууддаа мэдэгдэл илгээнэ.', blurb: 'Бүх ажилтан, хэлтэс эсвэл хүн бүрт апп-аар push мэдэгдэл.', flow: ['Бичих', 'Сонгох', 'Илгээх'] },
+  share: { headline: 'Текст, файлаа хамт олонтойгоо хуваалцана.', blurb: 'Бүх ажилтанд эсвэл сонгосон хүмүүст текст бичиж, файл байршуулж илгээнэ. Хүлээн авагчид апп-аар мэдэгдэл очно.', flow: ['Бичих', 'Хавсаргах', 'Хуваалцах'] },
   sanhuu: { headline: 'Цалин, хоолны мөнгө, бензиний зардлыг ирцээс тооцно.', blurb: 'Ирцийн цэг дээр «Ирлээ» дармагц цалин тоологдож эхэлнэ.', flow: ['Ирц', 'Цалин', 'Хоол', 'Бензин'] },
 };
 
