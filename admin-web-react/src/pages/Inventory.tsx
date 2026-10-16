@@ -54,6 +54,7 @@ export function InventoryPage() {
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<Item | 'new' | null>(null);
   const [receipt, setReceipt] = useState(false);
+  const [zoom, setZoom] = useState<Item | null>(null);
   const list = data.filter((it) => normCat(it.category) === cat && `${it.name} ${it.barcode || ''} ${it.model || ''}`.toLowerCase().includes(q.trim().toLowerCase()));
   const totalQty = list.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
   const totalValue = list.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
@@ -107,7 +108,7 @@ export function InventoryPage() {
                   <tbody className="divide-y divide-line">
                     {list.map((it) => (
                       <tr key={it.id}>
-                        <td className="px-3 py-2">{it.image_url ? <img src={it.image_url} alt="" className="h-10 w-10 rounded object-cover" loading="lazy" /> : <span className="flex h-10 w-10 items-center justify-center rounded bg-card2 text-subtle"><Boxes size={16} /></span>}</td>
+                        <td className="px-3 py-2">{it.image_url ? <button type="button" onClick={() => setZoom(it)} aria-label={`${it.name} зургийг томруулах`}><img src={it.image_url} alt="" className="h-16 w-16 cursor-zoom-in rounded-[var(--radius-sm)] border border-line object-cover" loading="lazy" /></button> : <span className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-sm)] bg-card2 text-subtle"><Boxes size={20} /></span>}</td>
                         <td className="px-3 py-2"><b className="text-ink">{it.name}</b>{it.model || it.brand ? <span className="block text-[12px] text-muted">{[it.brand, it.model].filter(Boolean).join(' · ')}</span> : null}</td>
                         <td className="px-3 py-2 text-muted">{it.unit || ''}</td>
                         <td className="whitespace-nowrap px-3 py-2">
@@ -134,6 +135,12 @@ export function InventoryPage() {
         </>
       )}
       {edit ? <ItemDialog item={edit === 'new' ? null : edit} defaultCat={cat} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} /> : null}
+      {zoom ? (
+        <Modal title={zoom.name} onClose={() => setZoom(null)} wide>
+          <img src={zoom.image_url!} alt={zoom.name} className="mx-auto max-h-[75vh] w-auto rounded-[var(--radius-sm)] object-contain" />
+          <p className="mt-3 text-center text-[13px] text-muted">{[zoom.brand, zoom.model, zoom.barcode].filter(Boolean).join(' · ')}</p>
+        </Modal>
+      ) : null}
       {receipt ? <ReceiptDialog items={data.filter((it) => normCat(it.category) === cat)} cat={cat} onClose={() => setReceipt(false)} onSaved={() => { setReceipt(false); reload(); }} /> : null}
     </>
   );
@@ -145,6 +152,8 @@ function ItemDialog({ item, defaultCat, onClose, onSaved }: { item: Item | null;
     brand: item?.brand || '', company: item?.company || '', unit: item?.unit || 'ширхэг', quantity: String(item?.quantity ?? 0), price: String(item?.price ?? 0), barcode: item?.barcode || '',
   });
   const [file, setFile] = useState<File | null>(null);
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : item?.image_url || ''), [file, item?.image_url]);
+  useEffect(() => () => { if (file) URL.revokeObjectURL(preview); }, [file, preview]);
   const [scan, setScan] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -180,7 +189,11 @@ function ItemDialog({ item, defaultCat, onClose, onSaved }: { item: Item | null;
     <Modal title={item ? 'Бараа засах' : `${catName(f.category)} нэмэх`} onClose={onClose}>
       <div className="space-y-3">
         <Field label="Ангилал"><Select className="w-full" value={f.category} onChange={set('category')}>{CATS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></Field>
-        {item?.image_url && !file ? <img src={item.image_url} alt="" className="h-24 rounded object-cover" /> : null}
+        {preview ? (
+          <a href={preview} target="_blank" rel="noreferrer" className="block" title="Шинэ цонхонд бүтэн хэмжээгээр">
+            <img src={preview} alt="Барааны зураг" className="mx-auto max-h-80 w-full rounded-[var(--radius-sm)] border border-line bg-card2 object-contain" />
+          </a>
+        ) : null}
         <Field label="Нэр"><Input value={f.name} onChange={set('name')} placeholder="Router (чиглүүлэгч)" autoFocus /></Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Модель"><Input value={f.model} onChange={set('model')} /></Field>
@@ -382,7 +395,7 @@ export function UsagePage() {
                     <tbody className="divide-y divide-line">
                       {rows.map((m) => (
                         <tr key={m.id}>
-                          <td className="px-3 py-2">{m.photo_url ? <button type="button" onClick={() => setPhoto(m)}><img src={m.photo_url} alt="Баталгаа" className="h-10 w-10 cursor-zoom-in rounded object-cover" loading="lazy" /></button> : <span className="text-muted">—</span>}</td>
+                          <td className="px-3 py-2">{m.photo_url ? <button type="button" onClick={() => setPhoto(m)}><img src={m.photo_url} alt="Баталгаа" className="h-16 w-16 cursor-zoom-in rounded-[var(--radius-sm)] border border-line object-cover" loading="lazy" /></button> : <span className="text-muted">—</span>}</td>
                           <td className="px-3 py-2 font-medium text-ink">{m.user_name || '—'}</td>
                           <td className="px-3 py-2 text-ink">{m.item_name || '—'}</td>
                           <td className="px-3 py-2"><span className="rounded-full bg-success-soft px-2 py-0.5 text-[12px] text-success">+{m.quantity} {m.unit || 'ш'}</span></td>
@@ -398,8 +411,10 @@ export function UsagePage() {
         })
       )}
       {photo ? (
-        <Modal title={`Зураг — ${photo.user_name || 'Ажилтан'}`} onClose={() => setPhoto(null)}>
-          <img src={photo.photo_url!} alt="Авсан баталгаа" className="mx-auto max-h-[60vh] rounded object-contain" />
+        <Modal title={`Зураг — ${photo.user_name || 'Ажилтан'}`} onClose={() => setPhoto(null)} wide>
+          <a href={photo.photo_url!} target="_blank" rel="noreferrer" title="Шинэ цонхонд бүтэн хэмжээгээр">
+            <img src={photo.photo_url!} alt="Авсан баталгаа" className="mx-auto max-h-[75vh] w-auto rounded-[var(--radius-sm)] object-contain" />
+          </a>
           <p className="mt-3 text-[13px] text-ink"><b>{photo.item_name}</b> · +{photo.quantity} {photo.unit || 'ш'}</p>
           <p className="text-[12px] text-muted">{new Date(photo.created_at).toLocaleString('mn-MN')}</p>
         </Modal>
