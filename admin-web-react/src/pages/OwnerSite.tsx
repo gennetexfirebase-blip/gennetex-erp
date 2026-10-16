@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
-import { readGateToken } from '../components/AdminGate';
 import { downloadSheets } from '../lib/attendanceExport';
 import './owner.css';
 
@@ -17,6 +16,9 @@ import './owner.css';
 export const OWNER_HOST = 'adiyasuren.gennetex.com';
 export const OWNER_PATH = '/system/admin';
 const OWNER_EMAIL = 'adiyasuren1003@gmail.com';
+const FRESH = 'gx_owner_fresh_login';
+// Модуль ачаалагдах үед (Supabase хаягийг цэвэрлэхээс өмнө) Google-ээс токентой буцсан эсэхийг барина.
+const ARRIVED_WITH_TOKEN = /access_token|[?&]code=/.test(window.location.hash + window.location.search);
 const FONTS = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap';
 
 function useHead() {
@@ -80,6 +82,49 @@ function Vapor404() {
       </div>
     </main>
   );
+}
+
+/* ═══════════════════ Matrix бороо (canvas) ═══════════════════ */
+function MatrixRain() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current;
+    const ctx = c?.getContext('2d');
+    if (!c || !ctx) return;
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789АБВГДЕЖЗИЙКЛМНӨҮХЦЧШЭЮЯ$#@%&*+=<>';
+    const size = 16;
+    let cols = 0;
+    let drops: number[] = [];
+    const resize = () => {
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+      cols = Math.ceil(c.width / size);
+      drops = Array.from({ length: cols }, () => Math.floor((Math.random() * c.height) / size));
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const draw = () => {
+      ctx.fillStyle = 'rgba(10, 10, 10, 0.08)';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.font = `${size}px 'JetBrains Mono', monospace`;
+      for (let i = 0; i < cols; i++) {
+        const ch = chars[Math.floor(Math.random() * chars.length)];
+        const y = drops[i] * size;
+        ctx.fillStyle = Math.random() > 0.975 ? '#d8ffcc' : '#33ff00';
+        ctx.fillText(ch, i * size, y);
+        if (y > c.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    };
+    const id = reduce ? 0 : window.setInterval(draw, 50);
+    if (reduce) draw();
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+  return <canvas ref={ref} aria-hidden="true" style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', opacity: 0.35, pointerEvents: 'none' }} />;
 }
 
 /* ═══════════════════ Terminal CLI бүрхүүл ═══════════════════ */
@@ -259,19 +304,33 @@ function OwnerAdmin() {
   const [email, setEmail] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     document.title = 'Gennetex';
+    let live = true;
+    let sub: { subscription?: { unsubscribe: () => void } } | null = null;
     const read = () => supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email?.toLowerCase() || null));
+    // Хуудас ачаалагдах бүрт заавал дахин нэвтэрнэ: зөвхөн Google-ээс дөнгөж буцсан үед (FRESH тэмдэг)
+    // сессийг хүлээн авна; refresh эсвэл дахин ороход сессийг цэвэрлээд нэвтрэх дэлгэц гаргана.
     (async () => {
-      // Админ хэсэгт (утас → Google → код) нэвтэрсэн бол .gennetex.com cookie-оор Google-гүйгээр нэвтэрнэ.
-      const { data } = await supabase.auth.getUser();
-      const token = readGateToken();
-      if (!data?.user && token) {
-        const { data: r } = await supabase.functions.invoke('admin-gate', { body: { action: 'resume', token } }).catch(() => ({ data: null }));
-        if (r?.ok && r.tokenHash) await supabase.auth.verifyOtp({ token_hash: r.tokenHash, type: 'magiclink' }).catch(() => null);
+      let fresh = false;
+      try {
+        fresh = sessionStorage.getItem(FRESH) === '1' && ARRIVED_WITH_TOKEN;
+        sessionStorage.removeItem(FRESH);
+      } catch {
+        /* sessionStorage хаалттай — үргэлж дахин нэвтэрнэ */
       }
-      read();
+      if (!fresh) await supabase.auth.signOut({ scope: 'local' }).catch(() => null);
+      else {
+        // Токен хаягаас уншигдтал богино хүлээнэ (detectSessionInUrl).
+        await supabase.auth.getSession();
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+      await read();
+      if (!live) return;
+      sub = supabase.auth.onAuthStateChange(() => read()).data;
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => read());
-    return () => sub?.subscription?.unsubscribe();
+    return () => {
+      live = false;
+      sub?.subscription?.unsubscribe();
+    };
   }, []);
 
   if (email === undefined) {
@@ -282,12 +341,18 @@ function OwnerAdmin() {
   if (email === null) {
     const signIn = async () => {
       const to = `${window.location.origin}${OWNER_PATH}/`;
+      try {
+        sessionStorage.setItem(FRESH, '1');
+      } catch {
+        /* ignore */
+      }
       rememberAuthReturn(to);
       await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: to, queryParams: { prompt: 'select_account' } } });
     };
     return (
-      <main className="term">
-        <div className="t-wrap" style={{ maxWidth: 640, paddingTop: '12vh' }}>
+      <main className="term" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <MatrixRain />
+        <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 640 }}>
           <pre className="t-dim" aria-hidden="true" style={{ fontSize: 11, lineHeight: 1.15, margin: 0, overflow: 'hidden' }}>{`┌──────────────────────────────────────────┐
 │  ADIYASUREN // SYSTEM ADMIN              │
 │  secure shell v1.0                       │
