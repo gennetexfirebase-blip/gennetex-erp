@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Clock,
   Users,
+  Wallet,
   Building2,
   MapPin,
   MapPinned,
@@ -71,8 +72,6 @@ export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon; si
   { view: 'inventory', label: 'Агуулах', icon: Boxes, site: 'aguulah' },
   { view: 'usage', label: 'Барааны хэрэглээ', icon: PackageOpen, site: 'aguulah' },
   { view: 'meetings', label: 'Хурал', icon: Video, site: 'meet' },
-  { view: 'activitylogs', label: 'Нийт лог', icon: History, site: 'arhiv' },
-  { view: 'excelarchive', label: 'Excel архив', icon: Table2, site: 'arhiv' },
 ];
 
 /**
@@ -94,6 +93,9 @@ export const NAV: NavItem[] = [
   { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning', site: 'hr' },
   { label: 'Алба, хэлтэс', to: '/department', icon: Building2, site: 'hr' },
   { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, site: 'surgalt' },
+  { label: 'Цалин', to: '/finance/payroll', icon: Wallet, site: 'sanhuu' },
+  { label: 'Нийт лог', to: '/archive/logs', icon: History, site: 'arhiv' },
+  { label: 'Excel архив', to: '/archive/excel', icon: Table2, site: 'arhiv' },
   { label: 'Ажилчдын байршил', to: '/location/staff', icon: MapPin, site: 'bairshil', openToAll: true },
   { label: 'Ирц бүртгэх цэг', to: '/location', icon: MapPinned, site: 'bairshil' },
   {

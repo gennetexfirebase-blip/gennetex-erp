@@ -34,16 +34,18 @@ export const SITES: Record<SiteKey, Site> = {
   bairshil: { key: 'bairshil', host: 'bairshil.gennetex.com', title: 'Байршил', landing: '/location/staff' },
   aguulah: { key: 'aguulah', host: 'aguulah.gennetex.com', title: 'Агуулах', landing: '/legacy/inventory' },
   meet: { key: 'meet', host: 'meet.gennetex.com', title: 'Хурал', landing: '/legacy/meetings' },
-  arhiv: { key: 'arhiv', host: 'arhiv.gennetex.com', title: 'Архив', landing: '/legacy/activitylogs' },
+  arhiv: { key: 'arhiv', host: 'arhiv.gennetex.com', title: 'Архив', landing: '/archive/logs' },
   notif: { key: 'notif', host: 'noft.gennetex.com', title: 'Мэдэгдэл', landing: '/internal/notify' },
-  sanhuu: { key: 'sanhuu', host: 'sanhuu.gennetex.com', title: 'Санхүү', landing: '/legacy/fuelconsumption' },
+  sanhuu: { key: 'sanhuu', host: 'sanhuu.gennetex.com', title: 'Санхүү', landing: '/finance/payroll' },
 };
 
 const BY_HOST = new Map(Object.values(SITES).map((s) => [s.host, s.key]));
 const OVERRIDE_KEY = 'gx_site';
 
 /** Туршилтын хост (домэйн холбогдохоос өмнө) — `?site=` зөвшөөрнө. */
-function isTestHost(host: string) {
+export const DATA_HOST = 'data.gennetex.com';
+
+export function isTestHost(host = window.location.hostname) {
   return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app');
 }
 

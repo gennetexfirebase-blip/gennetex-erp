@@ -54,6 +54,23 @@ export async function downloadDailyExcel(date: string, rows: AttendanceRow[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Дурын sheet-үүдийг .xlsx болгож татна. */
+export async function downloadSheets(filename: string, sheets: Sheet[]) {
+  const XlsxChart = await loadXlsxChart();
+  const bytes = XlsxChart.build({ sheets });
+  const blob = new Blob([new Uint8Array(bytes).buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** Багаж/бараа олголтын тайланг .xlsx болгож татна. */
 export async function downloadStockExcel(from: string, to: string, rows: unknown[]) {
   const XlsxChart = await loadXlsxChart();

@@ -8,6 +8,8 @@ import EmployeesPage from './pages/Employees';
 import DepartmentsPage from './pages/Departments';
 import LocationsPage from './pages/Locations';
 import StaffLocationsPage from './pages/StaffLocations';
+import PayrollPage from './pages/Payroll';
+import { ActivityLogsPage, ExcelArchivePage } from './pages/Archive';
 import Placeholder from './pages/Placeholder';
 import LegacyPage from './pages/Legacy';
 import StockIssuesPage from './pages/StockIssues';
@@ -29,7 +31,8 @@ import { CONTRACT_HOST } from './lib/contracts';
 import TimeReportSite, { AttendanceWarningPage } from './pages/TimeReportSite';
 import { TIME_REPORT_HOST } from './lib/timeReport';
 import { LEGACY_MODULES } from './lib/nav';
-import { currentSite } from './lib/sites';
+import { DATA_HOST, currentSite, isTestHost } from './lib/sites';
+import DataSite from './pages/DataSite';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -53,6 +56,17 @@ export default function App() {
           <Route path="/" element={<TimeReportSite />} />
           <Route path="/w/:token" element={<AttendanceWarningPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+  // data.gennetex.com/data/ — 4 шаттай нэвтрэлттэй өгөгдлийн сан (зөвхөн superadmin).
+  if (window.location.hostname === DATA_HOST || (isTestHost() && window.location.pathname.startsWith('/data'))) {
+    return (
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <Routes>
+          <Route path="/data/*" element={<DataSite />} />
+          <Route path="*" element={<Navigate to="/data/" replace />} />
         </Routes>
       </BrowserRouter>
     );
@@ -81,6 +95,11 @@ export default function App() {
           <Route path="/department" element={<DepartmentsPage />} />
           <Route path="/location" element={<LocationsPage />} />
           <Route path="/location/staff" element={<StaffLocationsPage />} />
+          <Route path="/finance/payroll" element={<PayrollPage />} />
+          <Route path="/archive/logs" element={<ActivityLogsPage />} />
+          <Route path="/archive/excel" element={<ExcelArchivePage />} />
+          <Route path="/legacy/activitylogs" element={<Navigate to="/archive/logs" replace />} />
+          <Route path="/legacy/excelarchive" element={<Navigate to="/archive/excel" replace />} />
 
           <Route path="/internal/notify" element={<NotificationsPage />} />
           <Route path="/internal/poll" element={<Placeholder title="Санал хураалт" />} />
