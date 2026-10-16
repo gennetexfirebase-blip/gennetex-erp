@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
+import { readGateToken } from '../components/AdminGate';
 import { downloadSheets } from '../lib/attendanceExport';
 import './owner.css';
 
@@ -250,7 +251,16 @@ function OwnerAdmin() {
   useEffect(() => {
     document.title = 'Gennetex';
     const read = () => supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email?.toLowerCase() || null));
-    read();
+    (async () => {
+      // Админ хэсэгт (утас → Google → код) нэвтэрсэн бол .gennetex.com cookie-оор Google-гүйгээр нэвтэрнэ.
+      const { data } = await supabase.auth.getUser();
+      const token = readGateToken();
+      if (!data?.user && token) {
+        const { data: r } = await supabase.functions.invoke('admin-gate', { body: { action: 'resume', token } }).catch(() => ({ data: null }));
+        if (r?.ok && r.tokenHash) await supabase.auth.verifyOtp({ token_hash: r.tokenHash, type: 'magiclink' }).catch(() => null);
+      }
+      read();
+    })();
     const { data: sub } = supabase.auth.onAuthStateChange(() => read());
     return () => sub?.subscription?.unsubscribe();
   }, []);
