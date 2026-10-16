@@ -2,8 +2,7 @@
  * data.gennetex.com/data/ — 4 шаттай нэвтрэлт ба өгөгдөл унших.
  *
  *   start      {phone}                 → verify.mn сесс (ажилтан өөрийн утаснаас код илгээнэ)
- *   phone      {gate}                  → verify.mn баталгаажсан бол Gmail руу 6 оронтой код
- *   email      {gate, code}            → код зөв бол Google-ээр нэвтрэх шат
+ *   phone      {gate}                  → verify.mn баталгаажсан бол Google-ээр нэвтрэх шат
  *   google     {gate}  + Bearer JWT    → JWT-ийн хэрэглэгч 1-р шатныхтай ижил superadmin эсэх
  *   password   {gate, password} + JWT  → нууц үг (анх удаа тохируулна) → data session token
  *   tables / rows / buckets / files / sign / logout  {token} + JWT
@@ -40,7 +39,6 @@ const enc = new TextEncoder();
 const hex = (b: ArrayBuffer | Uint8Array) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 const sha256 = async (s: string) => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
 const randomHex = (n: number) => hex(crypto.getRandomValues(new Uint8Array(n)));
-const sixDigits = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
 
 async function pbkdf2(password: string, saltHex: string, iterations: number) {
   const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -106,7 +104,6 @@ async function requireSession(req: Request, body: Record<string, unknown>) {
   return user;
 }
 
-const maskEmail = (e: string) => e.replace(/^(.)(.*)(.@.*)$/, (_m, a, b, c) => a + "*".repeat(Math.max(1, b.length)) + c);
 
 async function handle(req: Request, body: Record<string, unknown>) {
   switch (body.action) {
@@ -138,39 +135,9 @@ async function handle(req: Request, body: Record<string, unknown>) {
       if (v.sessionStatus === "EXPIRED") return { verified: false, expired: true };
       if (v.sessionStatus !== "VERIFIED") return { verified: false };
 
-      const { data: p } = await db.from("profiles").select("email").eq("id", gate.user_id).single();
-      const email = String(p?.email || "");
-      if (!email) throw new GateError("Таны профайлд Gmail хаяг алга.", 400);
-      const code = sixDigits();
-      const apiKey = Deno.env.get("RESEND_API_KEY") || "";
-      const from = Deno.env.get("EMAIL_FROM") || "Gennetex ERP <onboarding@resend.dev>";
-      const sent = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from,
-          to: [email],
-          subject: `data.gennetex.com нэвтрэх код: ${code}`,
-          text: `Таны data.gennetex.com-д нэвтрэх код: ${code}\n\n15 минутын дотор хүчинтэй. Та өөрөө нэвтрээгүй бол энэ имэйлийг үл тоомсорлож, sysadmin-д мэдэгдэнэ үү.`,
-        }),
-      });
-      if (!sent.ok) throw new GateError("Gmail руу код илгээж чадсангүй.", 502);
-      await db.from("data_gate_attempts").update({ stage: "email", email_code_hash: await sha256(code + gate.id), tries: 0 }).eq("id", gate.id);
+      await db.from("data_gate_attempts").update({ stage: "google" }).eq("id", gate.id);
       await audit(gate.user_id, "phone_ok");
-      return { verified: true, email: maskEmail(email) };
-    }
-
-    case "email": {
-      const gate = await loadGate(body.gate, "email");
-      if (gate.tries >= MAX_TRIES) throw new GateError("Хэт олон буруу оролдлого. Эхнээс нь эхэлнэ үү.", 429);
-      const ok = safeEqual(await sha256(String(body.code || "").trim() + gate.id), gate.email_code_hash || "");
-      if (!ok) {
-        await db.from("data_gate_attempts").update({ tries: gate.tries + 1 }).eq("id", gate.id);
-        throw new GateError("Код буруу байна.");
-      }
-      await db.from("data_gate_attempts").update({ stage: "google", email_code_hash: null }).eq("id", gate.id);
-      await audit(gate.user_id, "email_ok");
-      return { ok: true };
+      return { verified: true };
     }
 
     case "google": {

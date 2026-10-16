@@ -11,9 +11,8 @@ import brandMark from '../assets/report-logo.png';
  *
  * superadmin (бүрэн) ба «зөвхөн харах» эрхтэй хүн. Нэвтрэх 4 шат (сервер `data-gate` шалгана):
  *   1. Утас — verify.mn: өөрийн утаснаас 144773 руу код илгээнэ
- *   2. Gmail-д ирсэн код
- *   3. Google-ээр нэвтрэх
- *   4. Өөрийн нууц үг
+ *   2. Google-ээр нэвтрэх
+ *   3. Өөрийн нууц үг
  */
 
 const GATE_KEY = 'gx_data_gate';
@@ -105,8 +104,8 @@ export default function DataSite() {
         const r = await gate<{ verified: boolean; expired?: boolean; email?: string }>({ action: 'phone', gate: gateId });
         if (stop) return;
         if (r.verified) {
-          setEmail(r.email || '');
-          setStep('email');
+          store.set(GATE_KEY, gateId);
+          setStep('google');
           return;
         }
         if (r.expired || (sms && new Date(sms.expiresAt) < new Date())) {
@@ -180,12 +179,12 @@ export default function DataSite() {
   if (!isSupabaseConfigured) return <Shell><p className="text-[13px] text-danger">Supabase тохируулаагүй.</p></Shell>;
   if (step === 'app') return <DataApp onLogout={logout} onExpired={() => { store.set(TOKEN_KEY, null); restart(); }} />;
 
-  const steps: [Step[], string][] = [[['phone', 'sms'], 'Утас'], [['email'], 'Gmail код'], [['google'], 'Google'], [['password'], 'Нууц үг']];
+  const steps: [Step[], string][] = [[['phone', 'sms'], 'Утас'], [['google'], 'Google'], [['password'], 'Нууц үг']];
   const at = steps.findIndex(([s]) => s.includes(step));
 
   return (
     <Shell>
-      <ol className="mb-5 grid grid-cols-4 gap-1.5" aria-label="Нэвтрэх шат">
+      <ol className="mb-5 grid grid-cols-3 gap-1.5" aria-label="Нэвтрэх шат">
         {steps.map(([, l], i) => (
           <li key={l} className={`rounded-full px-2 py-1 text-center text-[11px] font-semibold ${i < at ? 'bg-success text-white' : i === at ? 'bg-brand text-white' : 'bg-card2 text-subtle'}`} aria-current={i === at ? 'step' : undefined}>
             {i + 1}. {l}

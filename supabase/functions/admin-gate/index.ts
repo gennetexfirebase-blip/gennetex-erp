@@ -1,20 +1,20 @@
 /**
- * Админ хэсгүүдийн (admin, hr, irts, sanhuu, aguulah, link, tailan …) 4 шаттай нэвтрэлт.
+ * Админ хэсгүүдийн нэвтрэлт: утас руу SMS код → Google → өөрийн байнгын код.
+ * Бусад subdomain дээр `resume` нь magic-link token_hash буцааж (клиент
+ * `verifyOtp`), Google-ийг дахин шаардахгүй.
  *
- *   start    {phone}                    → verify.mn сесс (өөрийн утаснаас код илгээнэ)
- *   phone    {gate}                     → VERIFIED бол Google шат
- *   google   {gate}            + JWT    → утастай ижил хүн эсэх → байнгын кодын шат
- *   password {gate, password}  + JWT    → байнгын код (анх удаа тохируулна) → Gmail руу код
- *   email    {gate, code}      + JWT    → код зөв бол 12 цагийн админ сесс
- *   check    {token}           + JWT    → сесс хүчинтэй эсэх
+ *   start    {phone}                  → утсанд 6 оронтой SMS код (sendsms.mn)
+ *   sms      {gate, code}             → код зөв бол Google шат
+ *   google   {gate}           + JWT   → утастай ижил хүн эсэх → байнгын кодын шат
+ *   password {gate, password} + JWT   → байнгын код (анх удаа тохируулна) → 12 цагийн сесс
+ *   resume   {token}           → өөр subdomain дээр: хүчинтэй сесс бол шинэ token_hash
+ *   check    {token} + JWT     → сесс хүчинтэй эсэх
  *   logout   {token}
  *
- * Эрх: admin, superadmin эсвэл байршил харах эрхтэй (location_view_grants).
- * Байнгын код нь data-gate-тэй нэг (data_passwords). Сесс `scope = 'admin'`.
+ * Эрх: admin, superadmin эсвэл байршил харах эрхтэй. Байнгын код data-тай нэг (data_passwords).
  */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createAdminClient } from "../_shared/push.ts";
-import { createSession, getSession, normalizePhone as vmPhone, VerifyMnError } from "../_shared/verifyMn.ts";
 
 const cors = (req: Request) => {
   const origin = req.headers.get("origin") || "";
@@ -31,6 +31,7 @@ const SCOPE = "admin";
 const SESSION_HOURS = 12;
 const PBKDF2_ITER = 210_000;
 const MAX_TRIES = 5;
+const RESEND_SECONDS = 60;
 
 class GateError extends Error {
   constructor(message: string, public status = 400) {
@@ -61,7 +62,6 @@ function phone8(input: unknown) {
   if (!/^\d{8}$/.test(d)) throw new GateError("Утасны дугаар 8 оронтой байх ёстой.");
   return d;
 }
-const maskEmail = (e: string) => e.replace(/^(.)(.*)(.@.*)$/, (_m, a, b, c) => a + "*".repeat(Math.max(1, b.length)) + c);
 
 const db = createAdminClient();
 const audit = (userId: string | null, action: string, detail: Record<string, unknown> = {}) =>
@@ -74,11 +74,36 @@ async function allowed(userId: string) {
   return !!g;
 }
 
+async function sendSms(phone: string, message: string) {
+  const apiKey = Deno.env.get("SMS_API_KEY") || "";
+  const apiToken = Deno.env.get("SMS_API_TOKEN") || "";
+  if (!apiKey || !apiToken || Deno.env.get("SMS_ENABLED") !== "true") throw new GateError("SMS үйлчилгээ тохируулаагүй байна.", 500);
+  const r = await fetch(Deno.env.get("SMS_API_URL") || "https://api.sendsms.mn/api/user/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ apiKey, apiToken, phone, message }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data?.success === false || data?.status === false || String(data?.status || "").toLowerCase() === "error") {
+    throw new GateError("SMS илгээж чадсангүй. Дахин оролдоно уу.", 502);
+  }
+}
+
 async function loadGate(id: unknown, stage: string) {
   const { data } = await db.from("data_gate_attempts").select("*").eq("id", String(id || "")).eq("scope", SCOPE).maybeSingle();
   if (!data || new Date(data.expires_at) < new Date()) throw new GateError("Хугацаа дууссан. Эхнээс нь дахин оролдоно уу.", 410);
   if (data.stage !== stage) throw new GateError("Алхам буруу байна. Эхнээс нь дахин оролдоно уу.", 409);
-  return data as { id: string; user_id: string; phone_session: string | null; email_code_hash: string | null; tries: number };
+  return data as { id: string; user_id: string; email_code_hash: string | null; tries: number; created_at: string };
+}
+
+/** Supabase сесс олгох magic-link token_hash (имэйл илгээхгүй). */
+async function signInHash(userId: string) {
+  const { data: u } = await db.auth.admin.getUserById(userId);
+  const email = u?.user?.email;
+  if (!email) throw new GateError("Таны бүртгэлд имэйл алга. Sysadmin-д хандана уу.", 400);
+  const { data, error } = await db.auth.admin.generateLink({ type: "magiclink", email });
+  if (error || !data?.properties?.hashed_token) throw new GateError("Нэвтрэх сесс үүсгэж чадсангүй.", 500);
+  return data.properties.hashed_token;
 }
 
 async function jwtUserId(req: Request) {
@@ -88,24 +113,10 @@ async function jwtUserId(req: Request) {
   return data.user.id;
 }
 
-async function sendEmailCode(gateId: string, userId: string) {
-  const { data: p } = await db.from("profiles").select("email").eq("id", userId).single();
-  const email = String(p?.email || "");
-  if (!email) throw new GateError("Таны профайлд Gmail хаяг алга.", 400);
-  const code = sixDigits();
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY") || ""}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: Deno.env.get("EMAIL_FROM") || "Gennetex ERP <onboarding@resend.dev>",
-      to: [email],
-      subject: `Gennetex админ нэвтрэх код: ${code}`,
-      text: `Gennetex-ийн админ хэсэгт нэвтрэх код: ${code}\n\n15 минутын дотор хүчинтэй. Та өөрөө нэвтрээгүй бол энэ имэйлийг үл тоомсорлож, sysadmin-д мэдэгдэнэ үү.`,
-    }),
-  });
-  if (!r.ok) throw new GateError("Gmail руу код илгээж чадсангүй.", 502);
-  await db.from("data_gate_attempts").update({ stage: "email", email_code_hash: await sha256(code + gateId), tries: 0 }).eq("id", gateId);
-  return maskEmail(email);
+async function sessionOf(token: unknown) {
+  const { data } = await db.from("data_sessions").select("user_id, expires_at").eq("token_hash", await sha256(String(token || ""))).eq("scope", SCOPE).maybeSingle();
+  if (!data || new Date(data.expires_at) < new Date() || !(await allowed(data.user_id))) return null;
+  return data as { user_id: string; expires_at: string };
 }
 
 async function handle(req: Request, body: Record<string, unknown>) {
@@ -124,21 +135,29 @@ async function handle(req: Request, body: Record<string, unknown>) {
         }
       });
       await audit(me?.id || null, "start", { phone: phone.slice(0, 2) + "****" + phone.slice(-2), ok: !!me });
-      if (!me) throw new GateError("Энэ дугаар админ хэсэгт нэвтрэх эрхгүй. Профайлдаа утасны дугаараа бүртгүүлнэ үү.", 403);
-      const v = await createSession(vmPhone(phone));
+      if (!me) throw new GateError("Энэ дугаар админ хэсэгт нэвтрэх эрхгүй.", 403);
+      const { data: prev } = await db.from("data_gate_attempts").select("created_at").eq("user_id", me.id).eq("scope", SCOPE).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (prev && Date.now() - new Date(prev.created_at).getTime() < RESEND_SECONDS * 1000) {
+        throw new GateError(`Код саяхан илгээсэн. ${RESEND_SECONDS} секундын дараа дахин оролдоно уу.`, 429);
+      }
       await db.from("data_gate_attempts").delete().eq("user_id", me.id).eq("scope", SCOPE);
-      const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", phone_session: v.sessionId, scope: SCOPE }).select("id").single();
-      return { gate: gate!.id, instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
+      const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", scope: SCOPE }).select("id").single();
+      const code = sixDigits();
+      await db.from("data_gate_attempts").update({ email_code_hash: await sha256(code + gate!.id) }).eq("id", gate!.id);
+      await sendSms(phone, `Gennetex admin nevtrekh kod: ${code}. 15 minut huchintei. Busdad bu helne uu.`);
+      return { gate: gate!.id, phone: phone.slice(0, 2) + "****" + phone.slice(-2) };
     }
 
-    case "phone": {
+    case "sms": {
       const gate = await loadGate(body.gate, "phone");
-      const v = await getSession(gate.phone_session || "");
-      if (v.sessionStatus === "EXPIRED") return { verified: false, expired: true };
-      if (v.sessionStatus !== "VERIFIED") return { verified: false };
-      await db.from("data_gate_attempts").update({ stage: "google" }).eq("id", gate.id);
-      await audit(gate.user_id, "phone_ok");
-      return { verified: true };
+      if (gate.tries >= MAX_TRIES) throw new GateError("Хэт олон буруу оролдлого. Эхнээс нь эхэлнэ үү.", 429);
+      if (!safeEqual(await sha256(String(body.code || "").trim() + gate.id), gate.email_code_hash || "")) {
+        await db.from("data_gate_attempts").update({ tries: gate.tries + 1 }).eq("id", gate.id);
+        throw new GateError("Код буруу байна.");
+      }
+      await db.from("data_gate_attempts").update({ stage: "google", email_code_hash: null, tries: 0 }).eq("id", gate.id);
+      await audit(gate.user_id, "sms_ok");
+      return { ok: true };
     }
 
     case "google": {
@@ -175,39 +194,26 @@ async function handle(req: Request, body: Record<string, unknown>) {
         }
         await db.from("data_passwords").update({ fails: 0, locked_until: null }).eq("user_id", uid);
       }
-      const email = await sendEmailCode(gate.id, uid);
-      return { ok: true, email };
-    }
-
-    case "resend": {
-      const gate = await loadGate(body.gate, "email");
-      const uid = await jwtUserId(req);
-      if (uid !== gate.user_id) throw new GateError("Буруу хэрэглэгч.", 403);
-      return { email: await sendEmailCode(gate.id, uid) };
-    }
-
-    case "email": {
-      const gate = await loadGate(body.gate, "email");
-      const uid = await jwtUserId(req);
-      if (uid !== gate.user_id) throw new GateError("Буруу хэрэглэгч.", 403);
-      if (gate.tries >= MAX_TRIES) throw new GateError("Хэт олон буруу оролдлого. Эхнээс нь эхэлнэ үү.", 429);
-      if (!safeEqual(await sha256(String(body.code || "").trim() + gate.id), gate.email_code_hash || "")) {
-        await db.from("data_gate_attempts").update({ tries: gate.tries + 1 }).eq("id", gate.id);
-        throw new GateError("Код буруу байна.");
-      }
       const token = randomHex(32);
-      const expires = new Date(Date.now() + SESSION_HOURS * 3600000).toISOString();
-      await db.from("data_sessions").insert({ user_id: uid, token_hash: await sha256(token), expires_at: expires, scope: SCOPE });
+      const expiresAt = new Date(Date.now() + SESSION_HOURS * 3600000).toISOString();
+      await db.from("data_sessions").insert({ user_id: uid, token_hash: await sha256(token), expires_at: expiresAt, scope: SCOPE });
       await db.from("data_gate_attempts").delete().eq("id", gate.id);
       await audit(uid, "login");
-      return { token, expiresAt: expires };
+      return { token, expiresAt };
+    }
+
+    case "resume": {
+      const s = await sessionOf(body.token);
+      if (!s) return { ok: false };
+      return { ok: true, expiresAt: s.expires_at, tokenHash: await signInHash(s.user_id) };
     }
 
     case "check": {
-      const uid = await jwtUserId(req);
-      const { data } = await db.from("data_sessions").select("user_id, expires_at").eq("token_hash", await sha256(String(body.token || ""))).eq("scope", SCOPE).maybeSingle();
-      const ok = !!data && data.user_id === uid && new Date(data.expires_at) > new Date() && (await allowed(uid));
-      return { ok, expiresAt: ok ? data!.expires_at : null };
+      const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+      const { data: u } = await db.auth.getUser(token);
+      const s = await sessionOf(body.token);
+      const ok = !!s && !!u?.user && s.user_id === u.user.id;
+      return { ok, expiresAt: ok ? s!.expires_at : null };
     }
 
     case "logout": {
@@ -225,7 +231,6 @@ Deno.serve(async (req) => {
   try {
     return reply(await handle(req, await req.json().catch(() => ({}))));
   } catch (e) {
-    const status = e instanceof GateError || e instanceof VerifyMnError ? e.status : 500;
-    return reply({ error: e instanceof Error ? e.message : String(e) }, status);
+    return reply({ error: e instanceof Error ? e.message : String(e) }, e instanceof GateError ? e.status : 500);
   }
 });
