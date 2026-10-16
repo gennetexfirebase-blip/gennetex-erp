@@ -1,10 +1,10 @@
 /**
- * Админ хэсгүүдийн нэвтрэлт: утас руу SMS код → Google → өөрийн байнгын код.
+ * Админ хэсгүүдийн нэвтрэлт: утас (verify.mn) → Google → өөрийн байнгын код.
  * Бусад subdomain дээр `resume` нь magic-link token_hash буцааж (клиент
  * `verifyOtp`), Google-ийг дахин шаардахгүй.
  *
- *   start    {phone}                  → утсанд 6 оронтой SMS код (sendsms.mn)
- *   sms      {gate, code}             → код зөв бол Google шат
+ *   start    {phone}                  → verify.mn сесс (өөрийн утаснаас 144773 руу код илгээнэ)
+ *   phone    {gate}                   → VERIFIED бол Google шат (клиент 3 сек тутам)
  *   google   {gate}           + JWT   → утастай ижил хүн эсэх → байнгын кодын шат
  *   password {gate, password} + JWT   → байнгын код (анх удаа тохируулна) → 12 цагийн сесс
  *   resume   {token}           → өөр subdomain дээр: хүчинтэй сесс бол шинэ token_hash
@@ -15,6 +15,7 @@
  */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createAdminClient } from "../_shared/push.ts";
+import { createSession, getSession, normalizePhone as vmPhone, VerifyMnError } from "../_shared/verifyMn.ts";
 
 const cors = (req: Request) => {
   const origin = req.headers.get("origin") || "";
@@ -31,7 +32,6 @@ const SCOPE = "admin";
 const SESSION_HOURS = 12;
 const PBKDF2_ITER = 210_000;
 const MAX_TRIES = 5;
-const RESEND_SECONDS = 60;
 
 class GateError extends Error {
   constructor(message: string, public status = 400) {
@@ -43,7 +43,6 @@ const enc = new TextEncoder();
 const hex = (b: ArrayBuffer | Uint8Array) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 const sha256 = async (s: string) => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
 const randomHex = (n: number) => hex(crypto.getRandomValues(new Uint8Array(n)));
-const sixDigits = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
 async function pbkdf2(password: string, saltHex: string, iterations: number) {
   const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
   const salt = new Uint8Array(saltHex.match(/../g)!.map((h) => parseInt(h, 16)));
@@ -74,26 +73,11 @@ async function allowed(userId: string) {
   return !!g;
 }
 
-async function sendSms(phone: string, message: string) {
-  const apiKey = Deno.env.get("SMS_API_KEY") || "";
-  const apiToken = Deno.env.get("SMS_API_TOKEN") || "";
-  if (!apiKey || !apiToken || Deno.env.get("SMS_ENABLED") !== "true") throw new GateError("SMS үйлчилгээ тохируулаагүй байна.", 500);
-  const r = await fetch(Deno.env.get("SMS_API_URL") || "https://api.sendsms.mn/api/user/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ apiKey, apiToken, phone, message }),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok || data?.success === false || data?.status === false || String(data?.status || "").toLowerCase() === "error") {
-    throw new GateError("SMS илгээж чадсангүй. Дахин оролдоно уу.", 502);
-  }
-}
-
 async function loadGate(id: unknown, stage: string) {
   const { data } = await db.from("data_gate_attempts").select("*").eq("id", String(id || "")).eq("scope", SCOPE).maybeSingle();
   if (!data || new Date(data.expires_at) < new Date()) throw new GateError("Хугацаа дууссан. Эхнээс нь дахин оролдоно уу.", 410);
   if (data.stage !== stage) throw new GateError("Алхам буруу байна. Эхнээс нь дахин оролдоно уу.", 409);
-  return data as { id: string; user_id: string; email_code_hash: string | null; tries: number; created_at: string };
+  return data as { id: string; user_id: string; phone_session: string | null };
 }
 
 /** Supabase сесс олгох magic-link token_hash (имэйл илгээхгүй). */
@@ -136,28 +120,21 @@ async function handle(req: Request, body: Record<string, unknown>) {
       });
       await audit(me?.id || null, "start", { phone: phone.slice(0, 2) + "****" + phone.slice(-2), ok: !!me });
       if (!me) throw new GateError("Энэ дугаар админ хэсэгт нэвтрэх эрхгүй.", 403);
-      const { data: prev } = await db.from("data_gate_attempts").select("created_at").eq("user_id", me.id).eq("scope", SCOPE).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (prev && Date.now() - new Date(prev.created_at).getTime() < RESEND_SECONDS * 1000) {
-        throw new GateError(`Код саяхан илгээсэн. ${RESEND_SECONDS} секундын дараа дахин оролдоно уу.`, 429);
-      }
+      // Сесс бүрт шинэ 6 оронтой код (хуучин код хүчингүй).
+      const v = await createSession(vmPhone(phone));
       await db.from("data_gate_attempts").delete().eq("user_id", me.id).eq("scope", SCOPE);
-      const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", scope: SCOPE }).select("id").single();
-      const code = sixDigits();
-      await db.from("data_gate_attempts").update({ email_code_hash: await sha256(code + gate!.id) }).eq("id", gate!.id);
-      await sendSms(phone, `Gennetex admin nevtrekh kod: ${code}. 15 minut huchintei. Busdad bu helne uu.`);
-      return { gate: gate!.id, phone: phone.slice(0, 2) + "****" + phone.slice(-2) };
+      const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", phone_session: v.sessionId, scope: SCOPE }).select("id").single();
+      return { gate: gate!.id, instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
     }
 
-    case "sms": {
+    case "phone": {
       const gate = await loadGate(body.gate, "phone");
-      if (gate.tries >= MAX_TRIES) throw new GateError("Хэт олон буруу оролдлого. Эхнээс нь эхэлнэ үү.", 429);
-      if (!safeEqual(await sha256(String(body.code || "").trim() + gate.id), gate.email_code_hash || "")) {
-        await db.from("data_gate_attempts").update({ tries: gate.tries + 1 }).eq("id", gate.id);
-        throw new GateError("Код буруу байна.");
-      }
-      await db.from("data_gate_attempts").update({ stage: "google", email_code_hash: null, tries: 0 }).eq("id", gate.id);
-      await audit(gate.user_id, "sms_ok");
-      return { ok: true };
+      const v = await getSession(gate.phone_session || "");
+      if (v.sessionStatus === "EXPIRED") return { verified: false, expired: true };
+      if (v.sessionStatus !== "VERIFIED") return { verified: false };
+      await db.from("data_gate_attempts").update({ stage: "google" }).eq("id", gate.id);
+      await audit(gate.user_id, "phone_ok");
+      return { verified: true };
     }
 
     case "google": {
@@ -231,6 +208,6 @@ Deno.serve(async (req) => {
   try {
     return reply(await handle(req, await req.json().catch(() => ({}))));
   } catch (e) {
-    return reply({ error: e instanceof Error ? e.message : String(e) }, e instanceof GateError ? e.status : 500);
+    return reply({ error: e instanceof Error ? e.message : String(e) }, e instanceof GateError || e instanceof VerifyMnError ? e.status : 500);
   }
 });

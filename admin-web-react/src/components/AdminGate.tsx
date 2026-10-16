@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyRound, LogIn, MessageSquare, Smartphone } from 'lucide-react';
+import { KeyRound, LogIn, RefreshCw, Smartphone } from 'lucide-react';
 import { Button, Input, Loading } from './ui';
 import { supabase } from '../lib/supabase';
 import { currentSite } from '../lib/sites';
@@ -8,7 +8,7 @@ import brandMark from '../assets/report-logo.png';
 
 /**
  * Админ хэсгүүдийн нэвтрэлт (edge function `admin-gate`):
- *   1. Утас руу ирсэн SMS код   2. Google   3. Өөрийн байнгын код
+ *   1. Утас — verify.mn (өөрийн утаснаас 144773 руу код илгээнэ)   2. Google   3. Өөрийн байнгын код
  *
  * 12 цагийн токен `.gennetex.com` cookie-д — бусад subdomain дээр `resume`
  * magic-link token_hash буцааж (`verifyOtp`), Google-ийг дахин шаардахгүй.
@@ -84,6 +84,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
   const [gateId, setGateId] = useState<string | null>(saved?.gate || null);
   const [phone, setPhone] = useState('');
   const [masked, setMasked] = useState(saved?.phone || '');
+  const [sms, setSms] = useState<{ instruction: string; smsUri: string; code: string; expiresAt: string; expired?: boolean } | null>(null);
   const setStep = (s: Step, g = gateId, m = masked) => {
     setStepRaw(s);
     progress.set(s === 'phone' || !g ? null : { gate: g, step: s, phone: m });
@@ -139,17 +140,34 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
 
   const start = () =>
     run(async () => {
-      const r = await gate<{ gate: string; phone: string }>({ action: 'start', phone });
+      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'start', phone });
       setGateId(r.gate);
-      setMasked(r.phone);
-      setCode('');
-      setStep('sms', r.gate, r.phone);
+      setSms({ instruction: r.instruction, smsUri: r.smsUri, code: r.code, expiresAt: r.expiresAt });
+      setStep('sms', r.gate, masked);
     });
-  const sendSms = () =>
-    run(async () => {
-      await gate({ action: 'sms', gate: gateId, code });
-      setStep('google');
-    });
+
+  // verify.mn — 3 секунд тутам; VERIFIED бол шууд зогсоно (нэг SMS 150₮).
+  useEffect(() => {
+    if (step !== 'sms' || !gateId || !sms || sms.expired) return;
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      try {
+        const r = await gate<{ verified: boolean; expired?: boolean }>({ action: 'phone', gate: gateId });
+        if (stop) return;
+        if (r.verified) return setStep('google');
+        if (r.expired || new Date(sms.expiresAt) < new Date()) return setSms((x) => x && { ...x, expired: true });
+      } catch (e) {
+        if (!stop) setErr((e as Error).message);
+      }
+      if (!stop) timer = setTimeout(tick, 3000);
+    };
+    timer = setTimeout(tick, 3000);
+    return () => {
+      stop = true;
+      clearTimeout(timer);
+    };
+  }, [step, gateId, sms]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Google — нэвтэрсэн бол шууд шалгана.
   const checkGoogle = useCallback(async () => {
@@ -215,23 +233,34 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
               <span className="flex items-center gap-1.5"><Smartphone size={14} /> Утасны дугаар</span>
               <Input inputMode="numeric" autoComplete="tel" placeholder="99112233" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus />
             </label>
-            <Button type="submit" className="w-full" disabled={busy || phone.replace(/\D/g, '').length < 8}>{busy ? 'Код илгээж байна…' : 'Код авах'}</Button>
-            <p className="text-[12px] text-muted">Ажилтан бол акт руу <a className="text-brand underline" href="https://akt.gennetex.com">akt.gennetex.com</a>-оор нэвтэрнэ.</p>
+            <Button type="submit" className="w-full" disabled={busy || phone.replace(/\D/g, '').length < 8}>{busy ? 'Түр хүлээнэ үү…' : 'Үргэлжлүүлэх'}</Button>
           </form>
         ) : null}
 
         {step === 'sms' ? (
-          <form onSubmit={(e) => { e.preventDefault(); sendSms(); }} className="space-y-3">
-            <label className="block space-y-1 text-[13px] text-ink">
-              <span className="flex items-center gap-1.5"><MessageSquare size={14} /> {masked} дугаарт ирсэн 6 оронтой код</span>
-              <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} autoFocus />
-            </label>
-            <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>Үргэлжлүүлэх</Button>
-            <div className="flex justify-between text-[12px]">
-              <button type="button" className="text-muted underline" onClick={() => { setStep('phone', null); setGateId(null); }}>Өөр дугаар</button>
-              <button type="button" className="text-muted underline" disabled={busy} onClick={start}>Код дахин авах</button>
-            </div>
-          </form>
+          <div className="space-y-3">
+            {!sms ? (
+              <>
+                <p className="text-[13px] text-muted">Утасны баталгаажуулалт тасарсан. Дахин эхлүүлнэ үү.</p>
+                <Button className="w-full" onClick={() => { setStep('phone', null); setGateId(null); }}>Эхнээс нь</Button>
+              </>
+            ) : sms.expired ? (
+              <>
+                <p className="rounded-[var(--radius-sm)] bg-warning-soft p-3 text-[13px] text-warning">Хугацаа дууссан. Өмнөх код ({sms.code}) хүчингүй боллоо — шинэ код аваад дахин илгээнэ үү.</p>
+                <Button className="w-full" disabled={busy} onClick={start}>Шинэ код авах</Button>
+              </>
+            ) : (
+              <>
+                {/* displayInstruction-ийг үгчлэн — аль дугаараас илгээхийг заадаг. */}
+                <p className="whitespace-pre-line rounded-[var(--radius-sm)] border border-line bg-card2 p-3 text-[14px] leading-6 text-ink">{sms.instruction}</p>
+                <a href={sms.smsUri} className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-brand text-[14px] font-semibold text-white">
+                  <Smartphone size={16} /> SMS илгээх (144773)
+                </a>
+                <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна… Нэг SMS 150₮.</p>
+              </>
+            )}
+            <button type="button" className="w-full text-[12px] text-muted underline" onClick={() => { setStep('phone', null); setGateId(null); setSms(null); }}>Өөр дугаар оруулах</button>
+          </div>
         ) : null}
 
         {step === 'google' ? (
