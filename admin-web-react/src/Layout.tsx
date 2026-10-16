@@ -173,7 +173,7 @@ export default function Layout() {
         <div className="mx-auto w-full max-w-[1760px]"><Outlet context={{ profile }} /></div>
         </main>
         <footer className="px-6 py-6 text-center text-[11px] text-subtle">
-          © {new Date().getFullYear()} GENNETEX ХХК · ERP баримт бичгийн систем
+          © {new Date().getFullYear()} GENNETEX ХХК · {site.title}
         </footer>
       </div>
     </div>

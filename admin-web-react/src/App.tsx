@@ -39,11 +39,19 @@ import { CONTRACT_HOST } from './lib/contracts';
 import TimeReportSite, { AttendanceWarningPage } from './pages/TimeReportSite';
 import { TIME_REPORT_HOST } from './lib/timeReport';
 import { LEGACY_MODULES, LEGACY_REDIRECTS } from './lib/nav';
-import { DATA_HOST, currentSite, isTestHost } from './lib/sites';
+import { DATA_HOST, currentSite, isTestHost, siteTabTitle } from './lib/sites';
 import DataSite from './pages/DataSite';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
+  // Хөтчийн табын гарчиг — subdomain бүр өөрийн нэртэй.
+  const host = window.location.hostname;
+  document.title =
+    host === CONTRACT_HOST ? 'Хөдөлмөрийн гэрээ — Gennetex'
+    : host === TIME_REPORT_HOST ? 'Цагийн тайлан — Gennetex'
+    : host === DATA_HOST || (isTestHost() && window.location.pathname.startsWith('/data')) ? 'Gennetex Data'
+    : siteTabTitle();
+
   // geree.gennetex.com — зөвхөн гэрээтэй танилцаж гарын үсэг зурах хуудас.
   if (window.location.hostname === CONTRACT_HOST) {
     return (
