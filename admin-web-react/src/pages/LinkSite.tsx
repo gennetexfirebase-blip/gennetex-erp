@@ -11,13 +11,14 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
  * Шинэ subdomain нэмбэл энд нэг мөр нэмнэ. Зөвхөн админ (admin, superadmin) харна.
  */
 
-type Access = 'public' | 'staff' | 'admin' | 'super';
+type Access = 'public' | 'staff' | 'granted' | 'admin' | 'super';
 type Link = { host: string; name: string; desc: string; access: Access };
 type Group = { title: string; links: Link[] };
 
 const ACCESS: Record<Access, { label: string; cls: string }> = {
   public: { label: 'Нийтэд нээлттэй', cls: 'bg-success-soft text-success' },
   staff: { label: 'Ажилтан', cls: 'bg-brand-soft text-brand' },
+  granted: { label: 'Зөвшөөрөл өгсний дараа', cls: 'bg-brand-soft text-brand' },
   admin: { label: 'Админ', cls: 'bg-warning-soft text-warning' },
   super: { label: 'Sysadmin', cls: 'bg-danger-soft text-danger' },
 };
@@ -35,7 +36,7 @@ const GROUPS: Group[] = [
     title: 'Удирдлага',
     links: [
       { host: 'admin.gennetex.com', name: 'ERP удирдлага', desc: 'Хянах самбар, анхааруулгын төв, хөдөлмөрийн гэрээ, машин, дуудлага, SMS, тохиргоо.', access: 'admin' },
-      { host: 'akt.gennetex.com', name: 'Ажил гүйцэтгэлийн акт', desc: 'Төсөл, материал, шалгах хуудас, зурагтай актыг үүсгэж баталгаажуулна. Захирал батална.', access: 'staff' },
+      { host: 'akt.gennetex.com', name: 'Ажил гүйцэтгэлийн акт', desc: 'Төсөл, материал, шалгах хуудас, зурагтай актыг үүсгэж баталгаажуулна. Захирал батална.', access: 'granted' },
       { host: 'geree.gennetex.com', name: 'Хөдөлмөрийн гэрээ', desc: 'Ажилтан гэрээтэйгээ танилцаж гарын үсэг зурна; админ гэрээ удирдана.', access: 'staff' },
       { host: 'noft.gennetex.com', name: 'Мэдэгдэл', desc: 'Бүх ажилтан, хэлтэс эсвэл хүн бүрт апп-аар push мэдэгдэл илгээнэ.', access: 'admin' },
     ],
