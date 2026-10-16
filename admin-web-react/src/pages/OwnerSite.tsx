@@ -46,8 +46,14 @@ export default function OwnerSite() {
 }
 
 /* ═══════════════════ / — Vaporwave 404 ═══════════════════ */
-function Vapor404() {
+function Vapor404({ intruder }: { intruder?: string }) {
   const root = useRef<HTMLElement>(null);
+  const [locked, setLocked] = useState(false);
+  useEffect(() => {
+    const on = () => setLocked(document.pointerLockElement === root.current);
+    document.addEventListener('pointerlockchange', on);
+    return () => document.removeEventListener('pointerlockchange', on);
+  }, []);
   useEffect(() => {
     document.title = 'Энэ хуудас байхгүй';
   }, []);
@@ -75,7 +81,14 @@ function Vapor404() {
             <p className="v-code" aria-hidden="true">404</p>
             <h1 className="v-title">Энэ хуудас байхгүй</h1>
             <p className="v-sub">brony jems</p>
-            <p className="v-p">&gt; Хаяг буруу эсвэл хуудас устсан байна_</p>
+            {intruder ? (
+              <>
+                <p className="v-p" style={{ color: '#FF00FF' }}>&gt; ACCESS DENIED: {intruder}</p>
+                <p className="v-p">&gt; {locked ? 'хулгана түгжигдлээ 🔒 — Esc дараад табаа хаа_' : 'нэвтрэх оролдлого бүртгэгдлээ. Хаана ч дарж болно_'}</p>
+              </>
+            ) : (
+              <p className="v-p">&gt; Хаяг буруу эсвэл хуудас устсан байна_</p>
+            )}
             <span className="v-btn" role="presentation"><span>Нүүр хуудас</span></span>
           </div>
         </div>
@@ -374,7 +387,7 @@ function OwnerAdmin() {
       </main>
     );
   }
-  if (email !== OWNER_EMAIL) return <NotFound />;
+  if (email !== OWNER_EMAIL) return <Vapor404 intruder={email} />;
   return <Dashboard />;
 }
 
