@@ -73,6 +73,18 @@ async function allowed(userId: string) {
   return !!g;
 }
 
+/** verify.mn сесс бүрийг бүртгэнэ (орлогын тайлан — adiyasuren.gennetex.com/system/admin/). */
+async function logVerify(v: { sessionId: string; phone: string; displayInstruction: string; smsUri?: string; expiresAt: string }, userId: string, subject: string) {
+  await db.from("phone_verification_sessions").insert({
+    provider_session_id: v.sessionId, created_by: userId, phone: v.phone, display_instruction: v.displayInstruction,
+    sms_uri: v.smsUri || null, subject_type: subject, subject_id: userId, expires_at: v.expiresAt,
+  });
+}
+async function markVerify(sessionId: string, status: "VERIFIED" | "EXPIRED") {
+  await db.from("phone_verification_sessions").update({ session_status: status, verified_at: status === "VERIFIED" ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+    .eq("provider_session_id", sessionId).neq("session_status", "VERIFIED");
+}
+
 async function loadGate(id: unknown, stage: string) {
   const { data } = await db.from("data_gate_attempts").select("*").eq("id", String(id || "")).eq("scope", SCOPE).maybeSingle();
   if (!data || new Date(data.expires_at) < new Date()) throw new GateError("Хугацаа дууссан. Эхнээс нь дахин оролдоно уу.", 410);
@@ -122,6 +134,7 @@ async function handle(req: Request, body: Record<string, unknown>) {
       if (!me) throw new GateError("Энэ дугаар админ хэсэгт нэвтрэх эрхгүй.", 403);
       // Сесс бүрт шинэ 6 оронтой код (хуучин код хүчингүй).
       const v = await createSession(vmPhone(phone));
+      await logVerify(v, me.id, "admin_gate").catch(() => null);
       await db.from("data_gate_attempts").delete().eq("user_id", me.id).eq("scope", SCOPE);
       const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", phone_session: v.sessionId, scope: SCOPE }).select("id").single();
       return { gate: gate!.id, instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
@@ -130,8 +143,12 @@ async function handle(req: Request, body: Record<string, unknown>) {
     case "phone": {
       const gate = await loadGate(body.gate, "phone");
       const v = await getSession(gate.phone_session || "");
-      if (v.sessionStatus === "EXPIRED") return { verified: false, expired: true };
+      if (v.sessionStatus === "EXPIRED") {
+        await markVerify(gate.phone_session || "", "EXPIRED").catch(() => null);
+        return { verified: false, expired: true };
+      }
       if (v.sessionStatus !== "VERIFIED") return { verified: false };
+      await markVerify(gate.phone_session || "", "VERIFIED").catch(() => null);
       await db.from("data_gate_attempts").update({ stage: "google" }).eq("id", gate.id);
       await audit(gate.user_id, "phone_ok");
       return { verified: true };

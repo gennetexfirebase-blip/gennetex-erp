@@ -43,6 +43,7 @@ import { DATA_HOSTS, currentSite, isTestHost, siteTabTitle } from './lib/sites';
 import DataSite from './pages/DataSite';
 import LinkSite from './pages/LinkSite';
 import ShareSite from './pages/ShareSite';
+import OwnerSite, { OWNER_HOST } from './pages/OwnerSite';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -55,6 +56,9 @@ export default function App() {
     : host === TIME_REPORT_HOST ? 'Цагийн тайлан — Gennetex'
     : DATA_HOSTS.has(host) || (isTestHost() && window.location.pathname.startsWith('/data')) ? 'Gennetex Data'
     : siteTabTitle();
+
+  // Хувийн хаяг — хаана ч холбоосгүй, зөвхөн эзэмшигч (OwnerSite дотор шалгана).
+  if (host === OWNER_HOST) return <OwnerSite />;
 
   // link.gennetex.com — бүх домэйны жагсаалт (зөвхөн админ).
   if (linkHost) return <LinkSite />;
