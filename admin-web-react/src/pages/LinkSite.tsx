@@ -37,7 +37,7 @@ const GROUPS: Group[] = [
     links: [
       { host: 'admin.gennetex.com', name: 'ERP удирдлага', desc: 'Хянах самбар, анхааруулгын төв, хөдөлмөрийн гэрээ, машин, дуудлага, SMS, тохиргоо.', access: 'admin' },
       { host: 'akt.gennetex.com', name: 'Ажил гүйцэтгэлийн акт', desc: 'Төсөл, материал, шалгах хуудас, зурагтай актыг үүсгэж баталгаажуулна. Захирал батална.', access: 'granted' },
-      { host: 'geree.gennetex.com', name: 'Хөдөлмөрийн гэрээ', desc: 'Ажилтан гэрээтэйгээ танилцаж гарын үсэг зурна; админ гэрээ удирдана.', access: 'staff' },
+      { host: 'geree.gennetex.com', name: 'Хөдөлмөрийн гэрээ', desc: 'Ажилтан гэрээтэйгээ танилцаж гарын үсэг зурна; админ гэрээ удирдана.', access: 'granted' },
       { host: 'noft.gennetex.com', name: 'Мэдэгдэл', desc: 'Бүх ажилтан, хэлтэс эсвэл хүн бүрт апп-аар push мэдэгдэл илгээнэ.', access: 'admin' },
     ],
   },
