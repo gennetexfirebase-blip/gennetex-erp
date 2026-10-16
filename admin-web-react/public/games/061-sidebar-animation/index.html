@@ -1,0 +1,50 @@
+<html lang="mn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Хажуугийн цэсний хөдөлгөөн</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+      integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="sidebar" id="sidebar">
+      <ul>
+        <li><a href="">Нүүр</a></li>
+        <li><a href="">Тухай</a></li>
+        <li><a href="">Бүтээлүүд</a></li>
+        <li><a href="">Төслүүд</a></li>
+        <li><a href="">Бидэнтэй холбогдох</a></li>
+      </ul>
+
+      <button class="menu" id="menu">
+        <i class="fas fa-times"></i>
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+
+    <div class="content" id="content">
+      <div class="container">
+        <h1>Бидэнтэй бүртгүүлэх</h1>
+        <form>
+          <label>Нэр<span class="special">*</span></label>
+          <input type="text" />
+          <label>Имэйл<span class="special">*</span></label>
+          <input type="email" />
+          <label>Нууц үг<span class="special">*</span></label>
+          <input type="password" />
+          <label>Нууц үг давтах<span class="special">*</span></label>
+          <input type="password" />
+        </form>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

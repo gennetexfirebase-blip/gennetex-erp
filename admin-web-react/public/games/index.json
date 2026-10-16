@@ -1,0 +1,1111 @@
+[
+ {
+  "n": 1,
+  "slug": "001-bg-video",
+  "en": "bg-video",
+  "mn": "Арын видео",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 2,
+  "slug": "002-creative-loading-animation",
+  "en": "Creative Loading Animation",
+  "mn": "Бүтээлч ачааллын хөдөлгөөн",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 3,
+  "slug": "003-custom-scrollbar",
+  "en": "Custom Scrollbar",
+  "mn": "Өөрийн гүйлгэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 4,
+  "slug": "004-creative-image-hover-effect",
+  "en": "Creative Image Hover Effect",
+  "mn": "Зураг дээрх эффект",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 5,
+  "slug": "005-top-5-creative-buttons",
+  "en": "Top 5 Creative Buttons",
+  "mn": "Шилдэг 5 товч",
+  "game": false,
+  "entry": "btn1/index.html",
+  "pages": [
+   "btn1/index.html",
+   "btn2/index.html",
+   "btn3/index.html",
+   "btn4/index.html",
+   "btn5/index.html"
+  ]
+ },
+ {
+  "n": 6,
+  "slug": "006-creative-menus",
+  "en": "Creative Menus",
+  "mn": "Бүтээлч цэсүүд",
+  "game": false,
+  "entry": "01. Menu/index.html",
+  "pages": [
+   "01. Menu/index.html",
+   "02. Menu/index.html",
+   "03. Menu/index.html"
+  ]
+ },
+ {
+  "n": 7,
+  "slug": "007-creative-image-effect",
+  "en": "Creative Image Effect",
+  "mn": "Зургийн эффект",
+  "game": false,
+  "entry": "01. Effect 1/index.html",
+  "pages": [
+   "01. Effect 1/index.html",
+   "02. Effect 2/index.html",
+   "03. Effect 3/index.html"
+  ]
+ },
+ {
+  "n": 8,
+  "slug": "008-creative-cards",
+  "en": "Creative Cards",
+  "mn": "Бүтээлч картууд",
+  "game": false,
+  "entry": "01. Card 1/index.html",
+  "pages": [
+   "01. Card 1/index.html",
+   "02. Card 2/index.html"
+  ]
+ },
+ {
+  "n": 9,
+  "slug": "009-tooltip",
+  "en": "Tooltip",
+  "mn": "Зөвлөмж (tooltip)",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 10,
+  "slug": "010-accordion",
+  "en": "Accordion",
+  "mn": "Аккордеон",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 11,
+  "slug": "011-scrollbar",
+  "en": "Scrollbar",
+  "mn": "Гүйлгэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 12,
+  "slug": "012-image-bg-text",
+  "en": "Image Bg Text",
+  "mn": "Зурган дэвсгэртэй текст",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 13,
+  "slug": "013-page-scroll-indicator",
+  "en": "Page Scroll Indicator",
+  "mn": "Гүйлгэлтийн заагч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 14,
+  "slug": "014-heart",
+  "en": "Heart",
+  "mn": "Зүрх",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 15,
+  "slug": "015-background-color-changer",
+  "en": "Background Color Changer",
+  "mn": "Арын өнгө солигч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 16,
+  "slug": "016-auto-text",
+  "en": "Auto Text",
+  "mn": "Автомат текст",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 17,
+  "slug": "017-cursor",
+  "en": "Cursor",
+  "mn": "Курсор",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 18,
+  "slug": "018-video-trailer-popup",
+  "en": "Video Trailer Popup",
+  "mn": "Видео трейлер",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 19,
+  "slug": "019-color-toggler",
+  "en": "Color Toggler",
+  "mn": "Өнгө солих",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 20,
+  "slug": "020-animated-navigation",
+  "en": "Animated Navigation",
+  "mn": "Хөдөлгөөнт цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 21,
+  "slug": "021-random-emojies",
+  "en": "Random Emojies",
+  "mn": "Санамсаргүй эможи",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 22,
+  "slug": "022-fade-out",
+  "en": "Fade Out",
+  "mn": "Бүдгэрэх",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 23,
+  "slug": "023-simple-calculator",
+  "en": "Simple Calculator",
+  "mn": "Энгийн тооны машин",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 24,
+  "slug": "024-copy-and-move",
+  "en": "Copy and Move",
+  "mn": "Хуулах ба зөөх",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 25,
+  "slug": "025-progress-steps",
+  "en": "Progress Steps",
+  "mn": "Явцын алхам",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 26,
+  "slug": "026-popup-form",
+  "en": "Popup Form",
+  "mn": "Гарч ирэх маягт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 27,
+  "slug": "027-lazy-loading",
+  "en": "Lazy Loading",
+  "mn": "Залхуу ачаалал",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 28,
+  "slug": "028-show-hide-password",
+  "en": "Show Hide Password",
+  "mn": "Нууц үг харуулах/нуух",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 29,
+  "slug": "029-select-menu",
+  "en": "Select Menu",
+  "mn": "Сонголтын цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 30,
+  "slug": "030-form-wave",
+  "en": "Form Wave",
+  "mn": "Долгионт маягт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 31,
+  "slug": "031-full-screen-navigation",
+  "en": "Full Screen Navigation",
+  "mn": "Бүтэн дэлгэцийн цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 32,
+  "slug": "032-3d-nav",
+  "en": "3D Nav",
+  "mn": "3D цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 33,
+  "slug": "033-counter",
+  "en": "Counter",
+  "mn": "Тоолуур",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 34,
+  "slug": "034-text-formatter",
+  "en": "Text Formatter",
+  "mn": "Текст засагч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 35,
+  "slug": "035-image-gallery",
+  "en": "Image Gallery",
+  "mn": "Зургийн цомог",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 36,
+  "slug": "036-read-more-and-read-less",
+  "en": "Read More and Read Less",
+  "mn": "Цааш унших / Хураах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 37,
+  "slug": "037-expanding-cards",
+  "en": "Expanding Cards",
+  "mn": "Тэлэгддэг картууд",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 38,
+  "slug": "038-keycode",
+  "en": "keyCode",
+  "mn": "Товчны код (keyCode)",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 39,
+  "slug": "039-tabs",
+  "en": "Tabs",
+  "mn": "Табууд",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 40,
+  "slug": "040-accordions",
+  "en": "Accordions",
+  "mn": "Аккордеонууд",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 41,
+  "slug": "041-random-images-feed",
+  "en": "Random Images Feed",
+  "mn": "Санамсаргүй зургууд",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 42,
+  "slug": "042-random-quote",
+  "en": "Random Quote",
+  "mn": "Санамсаргүй ишлэл",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 43,
+  "slug": "043-email-validation",
+  "en": "Email Validation",
+  "mn": "Имэйл шалгах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 44,
+  "slug": "044-interchangeable-background-color",
+  "en": "Interchangeable Background Color",
+  "mn": "Солигддог арын өнгө",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 45,
+  "slug": "045-digital-clock",
+  "en": "Digital Clock",
+  "mn": "Цифрэн цаг",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 46,
+  "slug": "046-browse-file-upload",
+  "en": "Browse File Upload",
+  "mn": "Файл байршуулах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 47,
+  "slug": "047-sticky-navbar",
+  "en": "Sticky Navbar",
+  "mn": "Наалддаг цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 48,
+  "slug": "048-search-and-highlight",
+  "en": "Search and Highlight",
+  "mn": "Хайж тодруулах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 49,
+  "slug": "049-custom-range-slider",
+  "en": "Custom Range Slider",
+  "mn": "Өөрийн гулсуур",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 50,
+  "slug": "050-feedback",
+  "en": "Feedback",
+  "mn": "Санал хүсэлт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 51,
+  "slug": "051-eye-follow",
+  "en": "Eye Follow",
+  "mn": "Хулганыг дагах нүд",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 52,
+  "slug": "052-rounded-navbar",
+  "en": "Rounded Navbar",
+  "mn": "Дугуй цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 53,
+  "slug": "053-css-clip-path-animation",
+  "en": "CSS Clip Path Animation",
+  "mn": "CSS Clip Path хөдөлгөөн",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 54,
+  "slug": "054-mini-calendar",
+  "en": "Mini Calendar",
+  "mn": "Жижиг хуанли",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 55,
+  "slug": "055-two-sides-scroll",
+  "en": "Two Sides Scroll",
+  "mn": "Хоёр талт гүйлгэлт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 56,
+  "slug": "056-followers",
+  "en": "Followers",
+  "mn": "Дагагчид",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 57,
+  "slug": "057-custom-cusror",
+  "en": "Custom Cusror",
+  "mn": "Өөрийн курсор",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 58,
+  "slug": "058-rotating-text",
+  "en": "Rotating Text",
+  "mn": "Эргэлддэг текст",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 59,
+  "slug": "059-background-image-carousel",
+  "en": "Background Image Carousel",
+  "mn": "Арын зургийн слайд",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 60,
+  "slug": "060-modern-calculator",
+  "en": "Modern Calculator",
+  "mn": "Орчин үеийн тооны машин",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 61,
+  "slug": "061-sidebar-animation",
+  "en": "Sidebar Animation",
+  "mn": "Хажуугийн цэсний хөдөлгөөн",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 62,
+  "slug": "062-rotating-image-gallery",
+  "en": "Rotating Image Gallery",
+  "mn": "Эргэлддэг цомог",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 63,
+  "slug": "063-password-strength-bg",
+  "en": "Password Strength Bg",
+  "mn": "Нууц үгийн хүч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 64,
+  "slug": "064-gradient-generator",
+  "en": "Gradient Generator",
+  "mn": "Градиент үүсгэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 65,
+  "slug": "065-two-sided-form",
+  "en": "Two Sided Form",
+  "mn": "Хоёр талт маягт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 66,
+  "slug": "066-animated-search-bar",
+  "en": "Animated Search Bar",
+  "mn": "Хөдөлгөөнт хайлтын мөр",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 67,
+  "slug": "067-password-generator",
+  "en": "Password Generator",
+  "mn": "Нууц үг үүсгэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 68,
+  "slug": "068-box-shadow-generator",
+  "en": "Box Shadow Generator",
+  "mn": "Сүүдэр үүсгэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 69,
+  "slug": "069-deciaml-to-binary-converter",
+  "en": "Deciaml To Binary Converter",
+  "mn": "Аравтаас хоёртын хөрвүүлэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 70,
+  "slug": "070-captcha-project",
+  "en": "Captcha Project",
+  "mn": "Captcha шалгалт",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 71,
+  "slug": "071-drag-n-drop",
+  "en": "Drag n Drop",
+  "mn": "Чирж буулгах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 72,
+  "slug": "072-update-css-variables-using-javascript",
+  "en": "Update CSS Variables Using JavaScript",
+  "mn": "CSS хувьсагч шинэчлэх",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 73,
+  "slug": "073-light",
+  "en": "Light",
+  "mn": "Гэрэл",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 74,
+  "slug": "074-tabed-navigation",
+  "en": "Tabed Navigation",
+  "mn": "Табтай цэс",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 75,
+  "slug": "075-todo-list",
+  "en": "Todo List",
+  "mn": "Хийх ажлын жагсаалт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 76,
+  "slug": "076-chuck-norris",
+  "en": "Chuck Norris",
+  "mn": "Чак Норрис онигоо",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 77,
+  "slug": "077-random-cat-images",
+  "en": "Random Cat Images",
+  "mn": "Санамсаргүй муурын зураг",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 78,
+  "slug": "078-dad-jokes",
+  "en": "Dad Jokes",
+  "mn": "Аавын онигоо",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 79,
+  "slug": "079-testimonal-box-switcher",
+  "en": "Testimonal Box Switcher",
+  "mn": "Сэтгэгдэл солигч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 80,
+  "slug": "080-live-user-filter",
+  "en": "Live User Filter",
+  "mn": "Хэрэглэгч шүүх",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 81,
+  "slug": "081-animated-images-website",
+  "en": "Animated Images Website",
+  "mn": "Хөдөлгөөнт зурагтай сайт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 82,
+  "slug": "082-emoji-catcher-game",
+  "en": "Emoji Catcher Game",
+  "mn": "Эможи барих тоглоом",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 83,
+  "slug": "083-twitter-follow-component",
+  "en": "Twitter Follow Component",
+  "mn": "Twitter дагах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 84,
+  "slug": "084-booklist-project",
+  "en": "BookList Project",
+  "mn": "Номын жагсаалт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 85,
+  "slug": "085-timer",
+  "en": "Timer",
+  "mn": "Цаг хэмжигч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 86,
+  "slug": "086-typing-game",
+  "en": "Typing Game",
+  "mn": "Бичих тоглоом",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 87,
+  "slug": "087-shape-clicker-game",
+  "en": "Shape Clicker Game",
+  "mn": "Дүрс дарах тоглоом",
+  "game": true,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 88,
+  "slug": "088-world-counter",
+  "en": "World Counter",
+  "mn": "Үг тоологч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 89,
+  "slug": "089-random-user",
+  "en": "Random User",
+  "mn": "Санамсаргүй хэрэглэгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 90,
+  "slug": "090-construction-landing-page",
+  "en": "Construction Landing Page",
+  "mn": "Барилгын сайт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 91,
+  "slug": "091-foody-landing-page",
+  "en": "Foody Landing Page",
+  "mn": "Хоолны сайт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 92,
+  "slug": "092-coffee",
+  "en": "Coffee",
+  "mn": "Кофе",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 93,
+  "slug": "093-the-art",
+  "en": "The Art",
+  "mn": "Урлаг",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 94,
+  "slug": "094-hoodie",
+  "en": "Hoodie",
+  "mn": "Цамц",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 95,
+  "slug": "095-chairs",
+  "en": "Chairs",
+  "mn": "Сандал",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 96,
+  "slug": "096-the-art",
+  "en": "The Art",
+  "mn": "Урлаг 2",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 97,
+  "slug": "097-form-validation",
+  "en": "Form Validation",
+  "mn": "Маягт шалгах",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 98,
+  "slug": "098-meal-finder",
+  "en": "Meal Finder",
+  "mn": "Хоол хайгч",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 99,
+  "slug": "099-github-profile-clone",
+  "en": "Github Profile Clone",
+  "mn": "Github профайл",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ },
+ {
+  "n": 100,
+  "slug": "100-wikipedia-clone",
+  "en": "Wikipedia Clone",
+  "mn": "Википедиа хайлт",
+  "game": false,
+  "entry": "index.html",
+  "pages": [
+   "index.html"
+  ]
+ }
+]

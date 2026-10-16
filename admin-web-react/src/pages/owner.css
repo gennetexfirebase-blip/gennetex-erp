@@ -1,0 +1,134 @@
+/* adiyasuren.gennetex.com — хоёр тусдаа загвар, классаар хүрээлэгдсэн.
+   .term  — Terminal CLI (/games, /system/admin)
+   .vapor — Vaporwave / Outrun (/, 404)                                       */
+
+/* ═══════════════════ Terminal CLI ═══════════════════ */
+.term {
+  --t-bg: #0a0a0a;
+  --t-fg: #33ff00;
+  --t-amber: #ffb000;
+  --t-muted: #1f521f;
+  --t-dim: #6fbf5a;
+  --t-err: #ff3333;
+  min-height: 100vh;
+  background: var(--t-bg);
+  color: var(--t-fg);
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  text-shadow: 0 0 5px rgba(51, 255, 0, 0.45);
+  position: relative;
+  overflow-x: hidden;
+}
+.term::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px);
+  z-index: 50;
+}
+.term *, .term *::before, .term *::after { border-radius: 0 !important; }
+.term a { color: inherit; }
+.term h1, .term h2, .term h3 { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+.term .t-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+.term .t-pane { border: 1px solid var(--t-muted); background: rgba(10, 10, 10, 0.9); }
+.term .t-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--t-fg); color: #000; text-shadow: none; font-weight: 700; text-transform: uppercase; font-size: 12px; }
+.term .t-bar .t-right { margin-left: auto; font-weight: 400; }
+.term .t-body { padding: 14px 16px; }
+.term .t-dim { color: var(--t-dim); text-shadow: none; }
+.term .t-amber { color: var(--t-amber); text-shadow: 0 0 5px rgba(255, 176, 0, 0.45); }
+.term .t-err { color: var(--t-err); text-shadow: none; }
+.term .t-sep { color: var(--t-muted); white-space: nowrap; overflow: hidden; user-select: none; text-shadow: none; }
+.term .t-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px;
+  background: transparent; color: var(--t-fg); border: 1px solid var(--t-fg); font: inherit; text-transform: uppercase; cursor: pointer;
+}
+.term .t-btn:hover, .term .t-btn:focus-visible { background: var(--t-fg); color: #000; text-shadow: none; outline: none; }
+.term .t-btn:active { transform: translateY(1px); }
+.term .t-btn[aria-pressed='true'] { background: var(--t-fg); color: #000; text-shadow: none; }
+.term .t-prompt { display: flex; align-items: center; gap: 8px; }
+.term .t-prompt input {
+  flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--t-fg); font: inherit; caret-color: var(--t-fg);
+  text-shadow: inherit;
+}
+.term .t-prompt input::placeholder { color: var(--t-muted); }
+.term .t-cursor { display: inline-block; width: 0.6em; height: 1.1em; background: var(--t-fg); vertical-align: text-bottom; animation: t-blink 1s steps(1) infinite; box-shadow: 0 0 6px rgba(51, 255, 0, 0.6); }
+@keyframes t-blink { 50% { opacity: 0; } }
+.term .t-typed { display: inline-block; overflow: hidden; white-space: nowrap; border-right: 0; animation: t-type 1.6s steps(40, end) both; max-width: 100%; }
+@keyframes t-type { from { max-width: 0; } to { max-width: 100%; } }
+.term .t-list a { display: grid; grid-template-columns: 4ch 1fr auto; gap: 10px; padding: 5px 8px; text-decoration: none; border-bottom: 1px dashed var(--t-muted); }
+.term .t-list a:hover, .term .t-list a:focus-visible { background: var(--t-fg); color: #000; text-shadow: none; outline: none; }
+.term .t-list a:hover .t-dim, .term .t-list a:focus-visible .t-dim { color: #000; }
+.term .t-glitch:hover { animation: t-glitch 0.25s steps(2) 1; }
+@keyframes t-glitch { 0% { transform: translate(0); } 33% { transform: translate(-1px, 1px); } 66% { transform: translate(1px, -1px); } }
+.term table { width: 100%; border-collapse: collapse; }
+.term th { text-align: left; font-weight: 700; text-transform: uppercase; font-size: 12px; color: var(--t-amber); border-bottom: 1px solid var(--t-muted); padding: 6px 8px; text-shadow: none; }
+.term td { padding: 5px 8px; border-bottom: 1px dashed var(--t-muted); vertical-align: top; }
+.term .t-frame { width: 100%; height: calc(100vh - 170px); min-height: 420px; border: 1px solid var(--t-fg); background: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .term .t-cursor, .term .t-typed, .term .t-glitch:hover { animation: none; }
+}
+
+/* ═══════════════════ Vaporwave / Outrun ═══════════════════ */
+.vapor {
+  --v-void: #090014;
+  --v-fg: #e0e0e0;
+  --v-mag: #ff00ff;
+  --v-cyan: #00ffff;
+  --v-sun: #ff9900;
+  --v-line: #2d1b4e;
+  min-height: 100vh;
+  background: var(--v-void);
+  color: var(--v-fg);
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+}
+.vapor .v-sun {
+  position: absolute; left: 50%; top: 8%; width: min(600px, 90vw); height: min(600px, 90vw); transform: translateX(-50%);
+  border-radius: 50%; background: linear-gradient(to bottom, var(--v-sun), var(--v-mag)); filter: blur(100px); opacity: 0.22; pointer-events: none;
+}
+.vapor .v-grid {
+  position: absolute; left: -50%; right: -50%; bottom: -10%; height: 60%;
+  background-image: linear-gradient(transparent 95%, var(--v-mag) 95%), linear-gradient(90deg, transparent 95%, var(--v-mag) 95%);
+  background-size: 40px 40px;
+  transform: perspective(500px) rotateX(60deg);
+  transform-origin: bottom center;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 70%);
+  mask-image: linear-gradient(to bottom, transparent, black 70%);
+  opacity: 0.55;
+  animation: v-drive 1.6s linear infinite;
+  pointer-events: none;
+}
+@keyframes v-drive { to { background-position: 0 40px, 0 0; } }
+.vapor::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  background: linear-gradient(rgba(18, 16, 20, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 100% 100%;
+}
+.vapor .v-content { position: relative; z-index: 10; max-width: 900px; }
+.vapor .v-win { border: 2px solid var(--v-cyan); background: rgba(0, 0, 0, 0.6); box-shadow: 0 0 20px rgba(0, 255, 255, 0.2); text-align: left; }
+.vapor .v-win-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(0, 255, 255, 0.1); border-bottom: 1px solid var(--v-cyan); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--v-cyan); }
+.vapor .v-dot { width: 12px; height: 12px; border-radius: 50%; }
+.vapor .v-win-body { padding: 28px 24px 30px; text-align: center; }
+.vapor .v-code { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(64px, 18vw, 160px); line-height: 1; letter-spacing: -0.02em;
+  background: linear-gradient(to right, var(--v-sun), var(--v-mag), var(--v-cyan)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 30px rgba(255, 0, 255, 0.6)); }
+.vapor .v-title { font-family: 'Orbitron', sans-serif; font-weight: 700; text-transform: uppercase; font-size: clamp(22px, 5vw, 44px); margin-top: 14px; color: #fff; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5)); }
+.vapor .v-sub { margin-top: 12px; font-size: 18px; color: var(--v-cyan); text-transform: uppercase; letter-spacing: 0.3em; filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.8)); }
+.vapor .v-p { margin-top: 10px; font-size: 16px; color: rgba(224, 224, 224, 0.7); }
+.vapor .v-btn {
+  display: inline-block; margin-top: 26px; padding: 12px 26px; border: 2px solid var(--v-cyan); color: var(--v-cyan); text-transform: uppercase; letter-spacing: 0.15em;
+  transform: skewX(-12deg); transition: all 0.2s linear; text-decoration: none;
+}
+.vapor .v-btn > span { display: inline-block; transform: skewX(12deg); }
+.vapor .v-btn:hover, .vapor .v-btn:focus-visible { transform: skewX(0); background: var(--v-cyan); color: #000; box-shadow: 0 0 20px var(--v-cyan); outline: none; }
+.vapor .v-btn:hover > span, .vapor .v-btn:focus-visible > span { transform: none; }
+@media (prefers-reduced-motion: reduce) { .vapor .v-grid { animation: none; } }

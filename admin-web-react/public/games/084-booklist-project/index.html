@@ -1,0 +1,40 @@
+<html lang="mn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Номын жагсаалт</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <section class="container">
+      <form id="book-form">
+        <div>
+          <label for="title">Номын нэр</label>
+          <input type="text" id="title" />
+        </div>
+        <div>
+          <label for="author">Номын зохиогч</label>
+          <input type="text" id="author" />
+        </div>
+        <div>
+          <label for="year">Хэвлэсэн он</label>
+          <input type="number" id="year" />
+        </div>
+        <button type="submit" class="btn">Ном нэмэх</button>
+      </form>
+
+      <section class="table">
+        <section class="table-section">
+          <div>Гарчиг</div>
+          <div>Зохиогч</div>
+          <div>Он</div>
+        </section>
+
+        <section id="book-list"></section>
+      </section>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>

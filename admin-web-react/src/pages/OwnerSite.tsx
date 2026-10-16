@@ -1,60 +1,265 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Download, LogIn, LogOut, RefreshCw, Search, Wallet } from 'lucide-react';
-import { Button, Input, Loading } from '../components/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
 import { downloadSheets } from '../lib/attendanceExport';
+import './owner.css';
 
 /**
- * adiyasuren.gennetex.com/system/admin/ — хувийн, хаана ч холбоосгүй.
- * Зөвхөн adiyasuren1003@gmail.com-ээр нэвтэрсэн үед (сервер `owner_verify_income` ч шалгана).
- * Өөр хэн ч «Хуудас олдсонгүй» л харна.
+ * adiyasuren.gennetex.com — хувийн хаяг, хаана ч холбоосгүй.
+ *
+ *   /               → Vaporwave «Энэ хуудас байхгүй»
+ *   /games          → 100 жижиг төсөл (монгол), Terminal CLI
+ *   /system/admin/  → verify.mn орлого, Terminal CLI — зөвхөн adiyasuren1003@gmail.com
+ *                     (сервер `owner_verify_income` ч шалгана; бусдад 404)
  */
 
 export const OWNER_HOST = 'adiyasuren.gennetex.com';
 export const OWNER_PATH = '/system/admin';
 const OWNER_EMAIL = 'adiyasuren1003@gmail.com';
+const FONTS = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap';
 
-type Row = { phone: string; at: string; source: string | null; name: string | null };
-type Income = { per_verify: number; earlier: number; verified: Row[]; pending: number; expired: number };
-
-const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
-const SOURCE: Record<string, string> = { admin_gate: 'Админ нэвтрэлт', data_gate: 'Data нэвтрэлт' };
-
-function NotFound() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-app p-6 text-center">
-      <div>
-        <p className="text-[40px] font-semibold text-subtle">404</p>
-        <p className="text-[14px] text-muted">Хуудас олдсонгүй.</p>
-      </div>
-    </div>
-  );
+function useHead() {
+  useEffect(() => {
+    const robots = document.createElement('meta');
+    robots.name = 'robots';
+    robots.content = 'noindex, nofollow';
+    const font = document.createElement('link');
+    font.rel = 'stylesheet';
+    font.href = FONTS;
+    document.head.append(robots, font);
+    return () => {
+      robots.remove();
+      font.remove();
+    };
+  }, []);
 }
 
 export default function OwnerSite() {
-  const onPath = window.location.pathname.replace(/\/+$/, '') === OWNER_PATH;
-  const [email, setEmail] = useState<string | null | undefined>(undefined);
+  useHead();
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (path === OWNER_PATH) return <OwnerAdmin />;
+  if (path === '/games') return <Games />;
+  return <Vapor404 />;
+}
+
+/* ═══════════════════ / — Vaporwave 404 ═══════════════════ */
+function Vapor404() {
+  useEffect(() => {
+    document.title = 'Энэ хуудас байхгүй';
+  }, []);
+  return (
+    <main className="vapor">
+      <div className="v-sun" aria-hidden="true" />
+      <div className="v-grid" aria-hidden="true" />
+      <div className="v-content">
+        <div className="v-win">
+          <div className="v-win-bar">
+            <span className="v-dot" style={{ background: '#FF00FF' }} />
+            <span className="v-dot" style={{ background: '#00FFFF' }} />
+            <span className="v-dot" style={{ background: '#FF9900' }} />
+            <span style={{ marginLeft: 8 }}>&gt; error.exe</span>
+          </div>
+          <div className="v-win-body">
+            <p className="v-code" aria-hidden="true">404</p>
+            <h1 className="v-title">Энэ хуудас байхгүй</h1>
+            <p className="v-sub">brony jems</p>
+            <p className="v-p">&gt; Хаяг буруу эсвэл хуудас устсан байна_</p>
+            <a className="v-btn" href="https://gennetex.com"><span>Нүүр хуудас</span></a>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+/* ═══════════════════ Terminal CLI бүрхүүл ═══════════════════ */
+function Typed({ text }: { text: string }) {
+  return (
+    <span className="t-typed" style={{ animationTimingFunction: `steps(${text.length}, end)` }}>
+      {text}
+    </span>
+  );
+}
+const SEP = '='.repeat(160);
+
+/* ═══════════════════ /games ═══════════════════ */
+type Game = { n: number; slug: string; en: string; mn: string; game: boolean; entry: string; pages: string[] };
+const pagePath = (g: Game, page: string) => `/games/${g.slug}/${page.split('/').map(encodeURIComponent).join('/')}`;
+
+function Games() {
+  const [list, setList] = useState<Game[] | null>(null);
+  const [err, setErr] = useState('');
+  const [q, setQ] = useState('');
+  const [onlyGames, setOnlyGames] = useState(false);
+  const [open, setOpen] = useState<{ g: Game; page: string } | null>(null);
+  const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Хайлтын системд бүү индексл.
-    const m = document.createElement('meta');
-    m.name = 'robots';
-    m.content = 'noindex, nofollow';
-    document.head.appendChild(m);
+    document.title = 'games — adiyasuren';
+    fetch('/games/index.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: Game[]) => {
+        setList(d);
+        const p = new URLSearchParams(window.location.search).get('p');
+        const g = p && d.find((x) => x.slug === p);
+        if (g) setOpen({ g, page: g.entry });
+      })
+      .catch((e) => setErr(String(e.message || e)));
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) close();
+      if (e.key === '/' && !open && document.activeElement !== input.current) {
+        e.preventDefault();
+        input.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const show = (g: Game) => {
+    setOpen({ g, page: g.entry });
+    window.history.pushState(null, '', `/games?p=${g.slug}`);
+    window.scrollTo(0, 0);
+  };
+  const close = () => {
+    setOpen(null);
+    window.history.pushState(null, '', '/games');
+  };
+  useEffect(() => {
+    const onPop = () => {
+      const p = new URLSearchParams(window.location.search).get('p');
+      const g = p && list?.find((x) => x.slug === p);
+      setOpen(g ? { g, page: g.entry } : null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [list]);
+
+  const needle = q.trim().toLowerCase();
+  const shown = (list || []).filter((g) => (!onlyGames || g.game) && (!needle || `${g.n} ${g.mn} ${g.en}`.toLowerCase().includes(needle)));
+  const pct = list ? Math.round((shown.length / list.length) * 20) : 0;
+
+  return (
+    <main className="term">
+      <div className="t-wrap">
+        <pre className="t-dim" aria-hidden="true" style={{ fontSize: 11, lineHeight: 1.15, margin: '0 0 12px', overflow: 'hidden' }}>{` ██████╗  █████╗ ███╗   ███╗███████╗███████╗
+██╔════╝ ██╔══██╗████╗ ████║██╔════╝██╔════╝
+██║  ███╗███████║██╔████╔██║█████╗  ███████╗
+██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  ╚════██║
+╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗███████║
+ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝`}</pre>
+        <h1 style={{ fontSize: 18, margin: 0 }}>
+          <Typed text="> 100 ТӨСӨЛ // HTML · CSS · JAVASCRIPT" />
+          <span className="t-cursor" aria-hidden="true" />
+        </h1>
+        <p className="t-dim" style={{ margin: '4px 0 0' }}>
+          [OK] {list ? list.length : '…'} төсөл ачааллаа · бүгд монгол хэлээр · <kbd>/</kbd> хайх · <kbd>ESC</kbd> буцах
+        </p>
+        <div className="t-sep" aria-hidden="true">{SEP}</div>
+
+        {err ? <p className="t-err">[ERR] жагсаалт ачаалж чадсангүй: {err}</p> : null}
+
+        {open ? (
+          <section className="t-pane" aria-label={open.g.mn}>
+            <div className="t-bar">
+              <span>+--- #{String(open.g.n).padStart(3, '0')} {open.g.mn} ---+</span>
+              <span className="t-right">{open.g.en}</span>
+            </div>
+            <div className="t-body" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <button className="t-btn" onClick={close}>[ ESC ] Буцах</button>
+              {open.g.pages.length > 1
+                ? open.g.pages.map((p) => (
+                    <button key={p} className="t-btn" aria-pressed={open.page === p} onClick={() => setOpen({ g: open.g, page: p })}>
+                      {p.replace(/\/?index\.html$/, '') || 'үндсэн'}
+                    </button>
+                  ))
+                : null}
+              <a className="t-btn" href={pagePath(open.g, open.page)} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto' }}>[ ↗ ] Шинэ цонх</a>
+            </div>
+            <iframe key={open.page} title={open.g.mn} className="t-frame" src={pagePath(open.g, open.page)} />
+          </section>
+        ) : (
+          <section className="t-pane">
+            <div className="t-bar">
+              <span>+--- ЖАГСААЛТ ---+</span>
+              <span className="t-right">
+                [{'|'.repeat(pct)}{'.'.repeat(20 - pct)}] {shown.length}/{list?.length || 0}
+              </span>
+            </div>
+            <div className="t-body">
+              <label className="t-prompt">
+                <span className="t-amber">adiyasuren@games:~$</span>
+                <span className="t-dim">grep</span>
+                <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="хайх үг…" aria-label="Төсөл хайх" />
+              </label>
+              <div style={{ display: 'flex', gap: 8, margin: '10px 0 12px', flexWrap: 'wrap' }}>
+                <button className="t-btn" aria-pressed={!onlyGames} onClick={() => setOnlyGames(false)}>[ БҮГД ]</button>
+                <button className="t-btn" aria-pressed={onlyGames} onClick={() => setOnlyGames(true)}>[ ТОГЛООМ ]</button>
+              </div>
+              {!list ? (
+                <p>Ачаалж байна<span className="t-cursor" aria-hidden="true" /></p>
+              ) : !shown.length ? (
+                <p className="t-err">[ERR] «{q}» олдсонгүй</p>
+              ) : (
+                <nav className="t-list" aria-label="Төслүүд">
+                  {shown.map((g) => (
+                    <a
+                      key={g.slug}
+                      href={`/games?p=${g.slug}`}
+                      className="t-glitch"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        show(g);
+                      }}
+                    >
+                      <span className="t-dim">{String(g.n).padStart(3, '0')}</span>
+                      <span>
+                        {g.game ? <span className="t-amber">[GAME] </span> : null}
+                        {g.mn}
+                      </span>
+                      <span className="t-dim" style={{ fontSize: 12 }}>{g.en}</span>
+                    </a>
+                  ))}
+                </nav>
+              )}
+            </div>
+          </section>
+        )}
+        <p className="t-dim" style={{ fontSize: 11, marginTop: 14 }}>
+          // эх: HuXn WebDev — «HTML, CSS & JavaScript 100+ Projects» (github.com/HuXn-WebDev). Монгол орчуулга.
+        </p>
+      </div>
+    </main>
+  );
+}
+
+/* ═══════════════════ /system/admin — орлого ═══════════════════ */
+type Row = { phone: string; at: string; source: string | null; name: string | null };
+type Income = { per_verify: number; earlier: number; verified: Row[]; pending: number; expired: number };
+const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
+const SOURCE: Record<string, string> = { admin_gate: 'admin', data_gate: 'data' };
+
+function NotFound() {
+  return <Vapor404 />;
+}
+
+function OwnerAdmin() {
+  const [email, setEmail] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
     document.title = 'Gennetex';
-    if (!onPath) return;
     const read = () => supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email?.toLowerCase() || null));
     read();
     const { data: sub } = supabase.auth.onAuthStateChange(() => read());
-    return () => {
-      sub?.subscription?.unsubscribe();
-      m.remove();
-    };
-  }, [onPath]);
+    return () => sub?.subscription?.unsubscribe();
+  }, []);
 
-  if (!onPath) return <NotFound />;
-  if (email === undefined) return <div className="flex min-h-screen items-center justify-center bg-app"><Loading /></div>;
+  if (email === undefined) {
+    return (
+      <main className="term"><div className="t-wrap"><p>&gt; шалгаж байна<span className="t-cursor" aria-hidden="true" /></p></div></main>
+    );
+  }
   if (email === null) {
     const signIn = async () => {
       const to = `${window.location.origin}${OWNER_PATH}/`;
@@ -62,13 +267,21 @@ export default function OwnerSite() {
       await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: to, queryParams: { prompt: 'select_account' } } });
     };
     return (
-      <div className="flex min-h-screen items-center justify-center bg-app p-6">
-        <Button icon={<LogIn size={16} />} onClick={signIn}>Google-ээр нэвтрэх</Button>
-      </div>
+      <main className="term">
+        <div className="t-wrap">
+          <p>&gt; login required<span className="t-cursor" aria-hidden="true" /></p>
+          <button className="t-btn" onClick={signIn}>[ GOOGLE-ЭЭР НЭВТРЭХ ]</button>
+        </div>
+      </main>
     );
   }
   if (email !== OWNER_EMAIL) return <NotFound />;
   return <Dashboard />;
+}
+
+function Bar({ value, max, width = 24 }: { value: number; max: number; width?: number }) {
+  const n = max ? Math.round((value / max) * width) : 0;
+  return <span aria-hidden="true">[{'|'.repeat(n)}{'.'.repeat(width - n)}]</span>;
 }
 
 function Dashboard() {
@@ -90,14 +303,14 @@ function Dashboard() {
     return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [data]);
 
-  if (err) return <div className="p-6 text-[13px] text-danger">{err}</div>;
-  if (!data) return <div className="flex min-h-screen items-center justify-center bg-app"><Loading /></div>;
+  if (err) return <main className="term"><div className="t-wrap"><p className="t-err">[ERR] {err}</p></div></main>;
+  if (!data) return <main className="term"><div className="t-wrap"><p>&gt; ачаалж байна<span className="t-cursor" aria-hidden="true" /></p></div></main>;
 
   const per = data.per_verify;
   const total = data.verified.length + data.earlier;
-  const uniquePhones = new Set(data.verified.map((r) => r.phone)).size;
+  const unique = new Set(data.verified.map((r) => r.phone)).size;
   const list = data.verified.filter((r) => !q.trim() || `${r.phone} ${r.name || ''}`.includes(q.trim()));
-
+  const maxMonth = Math.max(1, ...months.map(([, n]) => n));
   const exportExcel = () => {
     const rows: (string | number)[][] = [['Огноо', 'Утас', 'Хэн', 'Хаанаас', 'Орлого (₮)']];
     data.verified.forEach((r) => rows.push([r.at ? new Date(r.at).toLocaleString('mn-MN') : '', r.phone, r.name || '', SOURCE[r.source || ''] || r.source || '', per]));
@@ -105,72 +318,79 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-app">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
-          <Wallet size={20} className="text-brand" />
-          <h1 className="flex-1 text-[16px] font-semibold text-ink">Орлого — verify.mn</h1>
-          <Button variant="ghost" icon={<RefreshCw size={15} />} onClick={load}>Шинэчлэх</Button>
-          <Button variant="ghost" icon={<LogOut size={15} />} onClick={() => supabase.auth.signOut().then(() => window.location.reload())}>Гарах</Button>
+    <main className="term">
+      <div className="t-wrap">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <h1 style={{ fontSize: 18, margin: 0, flex: 1 }}>
+            <Typed text="$ orlogo --source verify.mn" />
+            <span className="t-cursor" aria-hidden="true" />
+          </h1>
+          <button className="t-btn" onClick={load}>[ ШИНЭЧЛЭХ ]</button>
+          <button className="t-btn" onClick={exportExcel} disabled={!data.verified.length}>[ EXCEL ]</button>
+          <button className="t-btn" onClick={() => supabase.auth.signOut().then(() => window.location.reload())}>[ ГАРАХ ]</button>
         </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-4 py-6">
-        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {([
-            ['Нийт орлого', money(total * per)],
-            ['Амжилттай баталгаажсан', `${total}`],
-            ['Ялгаатай дугаар', `${uniquePhones}`],
-            ['Хүлээгдэж / хугацаа дууссан', `${data.pending} / ${data.expired}`],
-          ] as const).map(([k, v]) => (
-            <div key={k} className="surface p-4"><p className="text-[12px] text-muted">{k}</p><p className="mt-1 text-[20px] font-semibold text-ink">{v}</p></div>
-          ))}
-        </div>
-        <p className="mb-5 text-[12px] text-muted">
-          Баталгаажсан дугаар бүрт {per}₮ (хэрэглэгч оператортоо 150₮ төлнө). Орлого verify.mn dashboard дээр хуримтлагдана.
-          {data.earlier ? ` Үүнд бүртгэл эхлэхээс өмнөх ${data.earlier} баталгаажуулалт (дугаар нь хадгалагдаагүй) орсон.` : ''}
-        </p>
+        <div className="t-sep" aria-hidden="true">{SEP}</div>
+
+        <section className="t-pane" style={{ marginBottom: 16 }}>
+          <div className="t-bar"><span>+--- SYSTEM STATUS ---+</span></div>
+          <div className="t-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div><div className="t-dim">НИЙТ ОРЛОГО</div><div className="t-amber" style={{ fontSize: 26, fontWeight: 700 }}>{money(total * per)}</div></div>
+            <div><div className="t-dim">АМЖИЛТТАЙ</div><div style={{ fontSize: 26, fontWeight: 700 }}>{total}</div></div>
+            <div><div className="t-dim">ЯЛГААТАЙ ДУГААР</div><div style={{ fontSize: 26, fontWeight: 700 }}>{unique}</div></div>
+            <div><div className="t-dim">ХҮЛЭЭГДЭЖ / ДУУССАН</div><div style={{ fontSize: 26, fontWeight: 700 }}>{data.pending} / {data.expired}</div></div>
+          </div>
+          <div className="t-body t-dim" style={{ paddingTop: 0, fontSize: 12 }}>
+            // баталгаажсан дугаар бүрт {per}₮ (хэрэглэгч 150₮ төлнө) · орлого verify.mn dashboard-д хуримтлагдана
+            {data.earlier ? ` · бүртгэлээс өмнөх ${data.earlier} (дугааргүй) орсон` : ''}
+          </div>
+        </section>
 
         {months.length ? (
-          <section className="surface mb-5 p-4">
-            <h2 className="mb-2 text-[13px] font-semibold text-ink">Сараар</h2>
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <section className="t-pane" style={{ marginBottom: 16 }}>
+            <div className="t-bar"><span>+--- САРААР ---+</span></div>
+            <div className="t-body">
               {months.map(([m, n]) => (
-                <li key={m} className="rounded-[var(--radius-sm)] border border-line bg-card2 p-2 text-[13px]">
-                  <span className="block text-muted">{m}</span>
-                  <b className="text-ink">{n} · {money(n * per)}</b>
-                </li>
+                <div key={m} style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <span className="t-dim">{m}</span>
+                  <Bar value={n} max={maxMonth} />
+                  <span>{n} · <span className="t-amber">{money(n * per)}</span></span>
+                </div>
               ))}
-            </ul>
+            </div>
           </section>
         ) : null}
 
-        <section className="surface">
-          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
-            <h2 className="flex-1 text-[14px] font-semibold text-ink">Амжилттай баталгаажсан дугаарууд ({data.verified.length})</h2>
-            <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle" />
-              <Input placeholder="Дугаар, нэр" value={q} onChange={(e) => setQ(e.target.value)} className="w-40 pl-8" />
-            </div>
-            <Button variant="outline" icon={<Download size={14} />} disabled={!data.verified.length} onClick={exportExcel}>Excel</Button>
+        <section className="t-pane">
+          <div className="t-bar"><span>+--- АМЖИЛТТАЙ БАТАЛГААЖСАН ДУГААР ---+</span><span className="t-right">{data.verified.length}</span></div>
+          <div className="t-body">
+            <label className="t-prompt" style={{ marginBottom: 10 }}>
+              <span className="t-amber">root@verify:~$</span>
+              <span className="t-dim">grep</span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="дугаар, нэр…" aria-label="Хайх" />
+            </label>
+            {!list.length ? (
+              <p className="t-dim">[--] бүртгэл алга</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table>
+                  <thead><tr><th>Огноо</th><th>Утас</th><th>Хэн</th><th>Хаанаас</th><th style={{ textAlign: 'right' }}>₮</th></tr></thead>
+                  <tbody>
+                    {list.map((r, i) => (
+                      <tr key={i}>
+                        <td className="t-dim">{r.at ? new Date(r.at).toLocaleString('mn-MN') : '—'}</td>
+                        <td>{r.phone}</td>
+                        <td>{r.name || '—'}</td>
+                        <td className="t-dim">{SOURCE[r.source || ''] || r.source || 'verify'}</td>
+                        <td style={{ textAlign: 'right' }} className="t-amber">{per}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-          {!list.length ? <p className="p-6 text-center text-[13px] text-muted">Бүртгэл алга.</p> : (
-            <table className="w-full text-[13px]">
-              <thead className="bg-card2 text-left text-[12px] text-muted"><tr><th className="px-4 py-2 font-medium">Огноо</th><th className="px-4 py-2 font-medium">Утас</th><th className="px-4 py-2 font-medium">Хэн</th><th className="px-4 py-2 font-medium">Хаанаас</th><th className="px-4 py-2 text-right font-medium">Орлого</th></tr></thead>
-              <tbody className="divide-y divide-line">
-                {list.map((r, i) => (
-                  <tr key={i}>
-                    <td className="px-4 py-2 text-muted">{r.at ? new Date(r.at).toLocaleString('mn-MN') : '—'}</td>
-                    <td className="px-4 py-2 font-mono text-ink">{r.phone}</td>
-                    <td className="px-4 py-2 text-ink">{r.name || '—'}</td>
-                    <td className="px-4 py-2 text-muted">{SOURCE[r.source || ''] || r.source || 'Утас баталгаажуулах'}</td>
-                    <td className="px-4 py-2 text-right text-ink">{money(per)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </section>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
