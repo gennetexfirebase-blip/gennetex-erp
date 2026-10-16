@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { createEphemeralClient, supabase } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
 import { downloadSheets } from '../lib/attendanceExport';
 import './owner.css';
@@ -16,9 +16,9 @@ import './owner.css';
 export const OWNER_HOST = 'adiyasuren.gennetex.com';
 export const OWNER_PATH = '/system/admin';
 const OWNER_EMAIL = 'adiyasuren1003@gmail.com';
-const FRESH = 'gx_owner_fresh_login';
-// Модуль ачаалагдах үед (Supabase хаягийг цэвэрлэхээс өмнө) Google-ээс токентой буцсан эсэхийг барина.
-const ARRIVED_WITH_TOKEN = /access_token|[?&]code=/.test(window.location.hash + window.location.search);
+const SESSION_MS = 60 * 60 * 1000; // 1 цагийн дараа автоматаар гарна
+// /system/admin — сесс хадгалдаггүй клиент: refresh эсвэл дахин ороход заавал нэвтэрнэ.
+const owner = window.location.hostname === OWNER_HOST && window.location.pathname.startsWith(OWNER_PATH) ? createEphemeralClient() : supabase;
 const FONTS = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap';
 
 function useHead() {
@@ -313,54 +313,54 @@ function NotFound() {
   return <Vapor404 />;
 }
 
+type Me = { email: string; name: string; since: number };
+
 function OwnerAdmin() {
-  const [email, setEmail] = useState<string | null | undefined>(undefined);
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
   useEffect(() => {
     document.title = 'Gennetex';
+    // Ердийн (хадгалдаг) клиентийн хуучин сессийг цэвэрлэнэ — энд ашиглахгүй.
+    void supabase.auth.signOut({ scope: 'local' }).catch(() => null);
     let live = true;
-    let sub: { subscription?: { unsubscribe: () => void } } | null = null;
-    const read = () => supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email?.toLowerCase() || null));
-    // Хуудас ачаалагдах бүрт заавал дахин нэвтэрнэ: зөвхөн Google-ээс дөнгөж буцсан үед (FRESH тэмдэг)
-    // сессийг хүлээн авна; refresh эсвэл дахин ороход сессийг цэвэрлээд нэвтрэх дэлгэц гаргана.
-    (async () => {
-      let fresh = false;
-      try {
-        fresh = sessionStorage.getItem(FRESH) === '1' && ARRIVED_WITH_TOKEN;
-        sessionStorage.removeItem(FRESH);
-      } catch {
-        /* sessionStorage хаалттай — үргэлж дахин нэвтэрнэ */
-      }
-      if (!fresh) await supabase.auth.signOut({ scope: 'local' }).catch(() => null);
-      else {
-        // Токен хаягаас уншигдтал богино хүлээнэ (detectSessionInUrl).
-        await supabase.auth.getSession();
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-      await read();
+    const read = async () => {
+      const { data } = await owner.auth.getSession();
+      const u = data.session?.user;
       if (!live) return;
-      sub = supabase.auth.onAuthStateChange(() => read()).data;
-    })();
+      if (!u?.email) return setMe(null);
+      window.history.replaceState(null, '', window.location.pathname);
+      setMe((prev) => ({
+        email: u.email!.toLowerCase(),
+        name: String(u.user_metadata?.full_name || u.user_metadata?.name || u.email!.split('@')[0]),
+        since: prev?.since || Date.now(),
+      }));
+    };
+    void read();
+    const { data: sub } = owner.auth.onAuthStateChange(() => void read());
     return () => {
       live = false;
       sub?.subscription?.unsubscribe();
     };
   }, []);
 
-  if (email === undefined) {
+  const logout = () => owner.auth.signOut().finally(() => setMe(null));
+
+  // 1 цагийн дараа автоматаар гарна.
+  useEffect(() => {
+    if (!me) return;
+    const t = window.setTimeout(logout, Math.max(0, me.since + SESSION_MS - Date.now()));
+    return () => window.clearTimeout(t);
+  }, [me]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (me === undefined) {
     return (
       <main className="term"><div className="t-wrap"><p>&gt; шалгаж байна<span className="t-cursor" aria-hidden="true" /></p></div></main>
     );
   }
-  if (email === null) {
+  if (me === null) {
     const signIn = async () => {
       const to = `${window.location.origin}${OWNER_PATH}/`;
-      try {
-        sessionStorage.setItem(FRESH, '1');
-      } catch {
-        /* ignore */
-      }
       rememberAuthReturn(to);
-      await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: to, queryParams: { prompt: 'select_account' } } });
+      await owner.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: to, queryParams: { prompt: 'select_account' } } });
     };
     return (
       <main className="term" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -373,9 +373,9 @@ function OwnerAdmin() {
           <section className="t-pane" style={{ marginTop: 16 }}>
             <div className="t-bar"><span>+--- LOGIN ---+</span><span className="t-right">tty1</span></div>
             <div className="t-body">
-              <p style={{ margin: '0 0 4px' }}><span className="t-amber">adiyasuren@gennetex:~$</span> ssh system/admin</p>
+              <p style={{ margin: '0 0 4px' }}><span className="t-amber">guest@gennetex:~$</span> ssh system/admin</p>
               <p className="t-dim" style={{ margin: '0 0 4px' }}>[..] сесс олдсонгүй</p>
-              <p className="t-dim" style={{ margin: '0 0 14px' }}>[..] нэвтрэх аргаа сонгоно уу</p>
+              <p className="t-dim" style={{ margin: '0 0 14px' }}>[..] нэвтрэх аргаа сонгоно уу · сесс 1 цаг</p>
               <button className="t-btn" onClick={signIn} autoFocus>[ login --google ]</button>
               <p style={{ margin: '14px 0 0' }}>
                 <span className="t-amber">$</span> <span className="t-cursor" aria-hidden="true" />
@@ -387,8 +387,20 @@ function OwnerAdmin() {
       </main>
     );
   }
-  if (email !== OWNER_EMAIL) return <Vapor404 intruder={email} />;
-  return <Dashboard />;
+  if (me.email !== OWNER_EMAIL) return <Vapor404 intruder={me.email} />;
+  return <Dashboard me={me} onLogout={logout} />;
+}
+
+function Countdown({ until }: { until: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const left = Math.max(0, until - now);
+  const m = Math.floor(left / 60000);
+  const s2 = Math.floor((left % 60000) / 1000);
+  return <span className={left < 5 * 60000 ? 't-err' : 't-amber'}>{String(m).padStart(2, '0')}:{String(s2).padStart(2, '0')}</span>;
 }
 
 function Bar({ value, max, width = 24 }: { value: number; max: number; width?: number }) {
@@ -396,13 +408,13 @@ function Bar({ value, max, width = 24 }: { value: number; max: number; width?: n
   return <span aria-hidden="true">[{'|'.repeat(n)}{'.'.repeat(width - n)}]</span>;
 }
 
-function Dashboard() {
+function Dashboard({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [data, setData] = useState<Income | null>(null);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const load = () => {
     setErr('');
-    supabase.rpc('owner_verify_income').then(({ data, error }) => (error ? setErr(error.message) : setData(data as Income)));
+    owner.rpc('owner_verify_income').then(({ data, error }) => (error ? setErr(error.message) : setData(data as Income)));
   };
   useEffect(load, []);
 
@@ -434,13 +446,19 @@ function Dashboard() {
       <div className="t-wrap">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
           <h1 style={{ fontSize: 18, margin: 0, flex: 1 }}>
-            <Typed text="$ orlogo --source verify.mn" />
+            <Typed text={`${me.email.split('@')[0]}@gennetex:~$ orlogo --source verify.mn`} />
             <span className="t-cursor" aria-hidden="true" />
           </h1>
           <button className="t-btn" onClick={load}>[ ШИНЭЧЛЭХ ]</button>
           <button className="t-btn" onClick={exportExcel} disabled={!data.verified.length}>[ EXCEL ]</button>
-          <button className="t-btn" onClick={() => supabase.auth.signOut().then(() => window.location.reload())}>[ ГАРАХ ]</button>
+          <button className="t-btn" onClick={onLogout}>[ ГАРАХ ]</button>
         </div>
+        <p style={{ margin: '8px 0 0' }}>
+          <span className="t-amber">{me.email.split('@')[0]}@gennetex:~$</span> whoami
+          <br />
+          <span>{me.name}</span> <span className="t-dim">&lt;{me.email}&gt;</span>
+          <span className="t-dim"> · сесс дуусах: </span><Countdown until={me.since + SESSION_MS} />
+        </p>
         <div className="t-sep" aria-hidden="true">{SEP}</div>
 
         <section className="t-pane" style={{ marginBottom: 16 }}>

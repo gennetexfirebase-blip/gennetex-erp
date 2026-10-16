@@ -27,5 +27,23 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
 export const supabase: SupabaseClient = createClient(
   url || 'https://placeholder.supabase.co',
   anonKey || 'placeholder',
-  { auth: { persistSession: true, autoRefreshToken: true } }
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      // adiyasuren.gennetex.com/system/admin нь өөрийн сесс хадгалдаггүй клиенттэй —
+      // Google-ээс буцсан токеныг ердийн клиент булаан авахгүй.
+      detectSessionInUrl: !(window.location.hostname === 'adiyasuren.gennetex.com' && window.location.pathname.startsWith('/system/admin')),
+    },
+  }
 );
+
+/**
+ * Сесс хадгалдаггүй клиент — хуудас ачаалагдах бүрт дахин нэвтрэх шаардлагатай
+ * хэсэгт (adiyasuren.gennetex.com/system/admin). Google-ээс буцахад хаяг дахь
+ * токеныг зөвхөн санах ойд уншина; refresh хийхэд сесс алга болно.
+ */
+export const createEphemeralClient = (): SupabaseClient =>
+  createClient(url || 'https://placeholder.supabase.co', anonKey || 'placeholder', {
+    auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'gx-ephemeral' },
+  });
