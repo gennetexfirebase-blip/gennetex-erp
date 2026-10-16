@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Search } from 'lucide-react';
 import brandMark from '../assets/report-logo.png';
 import LoginPage from './Login';
+import AdminGate, { adminGateLogout } from '../components/AdminGate';
 import { Loading } from '../components/ui';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -81,6 +82,8 @@ const GROUPS: Group[] = [
 export default function LinkSite() {
   const [state, setState] = useState<'loading' | 'out' | 'denied' | 'ok'>('loading');
   const [email, setEmail] = useState('');
+  const [gateOk, setGateOk] = useState(false);
+  const pass = useCallback(() => setGateOk(true), []);
   useEffect(() => {
     if (!isSupabaseConfigured) return setState('out');
     const read = async () => {
@@ -95,9 +98,10 @@ export default function LinkSite() {
     return () => sub?.subscription?.unsubscribe();
   }, []);
   if (state === 'loading') return <div className="flex min-h-screen items-center justify-center bg-app"><Loading text="Эрх шалгаж байна…" /></div>;
-  if (state === 'out') return <LoginPage />;
+  if (state === 'out') return <AdminGate signedIn={false} onPass={pass} title="Бүх хаяг" />;
   if (state === 'denied') return <LoginPage error={`${email || 'Энэ хаяг'} нь админ эрхгүй байна. Бүх хаягийн жагсаалтыг зөвхөн админ харна.`} />;
-  return <Links onSignOut={() => supabase.auth.signOut().then(() => window.location.reload())} />;
+  if (!gateOk) return <AdminGate signedIn onPass={pass} title="Бүх хаяг" />;
+  return <Links onSignOut={() => adminGateLogout().then(() => supabase.auth.signOut()).then(() => window.location.reload())} />;
 }
 
 function Links({ onSignOut }: { onSignOut: () => void }) {

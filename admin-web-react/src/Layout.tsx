@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import LoginPage from './pages/Login';
+import AdminGate, { adminGateLogout } from './components/AdminGate';
 import { Loading } from './components/ui';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { fetchAttendanceRequests, fetchEmployees } from './lib/data';
@@ -30,6 +31,10 @@ export default function Layout() {
   const [authState, setAuthState] = useState<'loading' | 'out' | 'denied' | 'ok'>('loading');
   const [counts, setCounts] = useState({ requests: 0, employees: 0 });
   const [employeeCount, setEmployeeCount] = useState({ used: 0, total: 20 });
+  // Админ хэсгүүдийн 4 шаттай нэвтрэлт (akt.gennetex.com-оос бусад).
+  const [gateOk, setGateOk] = useState(false);
+  const passGate = useCallback(() => setGateOk(true), []);
+  const gateSite = currentSite().key !== 'akt';
 
   // ── Нэвтрэлт ────────────────────────────────────────────────────
   // ⚠️ Нэвтрээгүй үед бүх RPC нь `is_admin_user()` дээр унаж, өгөгдөл
@@ -107,7 +112,7 @@ export default function Layout() {
     );
   }
 
-  if (authState === 'out') return <LoginPage />;
+  if (authState === 'out') return gateSite ? <AdminGate signedIn={false} onPass={passGate} /> : <LoginPage />;
 
   if (authState === 'denied') {
     return (
@@ -128,6 +133,7 @@ export default function Layout() {
     return <LoginPage error={`${profile?.email || 'Энэ хаяг'}-аар ${site.host}-д нэвтрэх эрхгүй. Зөвхөн админ.`} />;
   }
   const actOnly = actsHost || (!fullAdmin && !openSite);
+  if (gateSite && !actOnly && !gateOk) return <AdminGate signedIn onPass={passGate} />;
   const canTemplates = fullAdmin || Boolean(profile?.permissions?.['acts.templates']);
   const canCreateAct = fullAdmin || ['menejer', 'manager'].includes(String(profile?.role || '')) || Boolean(profile?.permissions?.['acts.create']);
   const isActPath = location.pathname.startsWith('/admin/documents/acts')
@@ -164,7 +170,7 @@ export default function Layout() {
           onOpenMobile={() => setMobileOpen(true)}
           profile={profile}
           unread={counts.requests}
-          onSignOut={() => supabase.auth.signOut().then(() => window.location.reload())}
+          onSignOut={() => adminGateLogout().then(() => supabase.auth.signOut()).then(() => window.location.reload())}
           actOnly={actOnly}
           canCreateAct={canCreateAct}
           canTemplates={canTemplates}

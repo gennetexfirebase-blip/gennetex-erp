@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import AdminGate, { adminGateLogout } from '../components/AdminGate';
 import { useParams } from 'react-router-dom';
 import TimeReport from './TimeReport';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -26,6 +27,8 @@ import './time-report.css';
 export default function TimeReportSite() {
   const key = useMemo(() => readAccessKey(), []);
   const [user, setUser] = useState<{ email: string; admin: boolean } | null | undefined>(key ? null : undefined);
+  const [gateOk, setGateOk] = useState(false);
+  const pass = useCallback(() => setGateOk(true), []);
 
   useEffect(() => {
     if (key || !isSupabaseConfigured) return setUser(null);
@@ -45,22 +48,19 @@ export default function TimeReportSite() {
     rememberAuthReturn(returnTo);
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: returnTo, queryParams: { prompt: 'select_account' } } });
   };
-  const signOut = () => supabase.auth.signOut().then(() => window.location.reload());
+  const signOut = () => adminGateLogout().then(() => supabase.auth.signOut()).then(() => window.location.reload());
 
   if (key) return <TimeReport variant="standalone" accessKey={key} />;
   if (user === undefined) return <Gate title="Түр хүлээнэ үү…" />;
-  if (user === null)
-    return (
-      <Gate title="Цагийн тайлан" text="Тайланг харахын тулд админ эрхтэй Google дансаараа нэвтэрнэ үү.">
-        <button className="btn solid" onClick={signIn}>Google-ээр нэвтрэх</button>
-      </Gate>
-    );
+  // Админ нэвтрэлт — 4 шат (утас → Google → код → Gmail код). Апп-ын түлхүүрээр (?k=) орвол алгасна.
+  if (user === null) return <AdminGate signedIn={false} onPass={pass} title="Цагийн тайлан" />;
   if (!user.admin)
     return (
       <Gate title="Эрх алга" text={`${user.email} дансаар цагийн тайлан харах эрхгүй байна. Зөвхөн админ харна.`}>
         <button className="btn" onClick={signOut}>Өөр дансаар нэвтрэх</button>
       </Gate>
     );
+  if (!gateOk) return <AdminGate signedIn onPass={pass} title="Цагийн тайлан" />;
   return (
     <TimeReport
       variant="standalone"

@@ -69,7 +69,7 @@ async function audit(userId: string | null, action: string, detail: Record<strin
 }
 
 async function loadGate(id: unknown, stage: string) {
-  const { data } = await db.from("data_gate_attempts").select("*").eq("id", String(id || "")).maybeSingle();
+  const { data } = await db.from("data_gate_attempts").select("*").eq("id", String(id || "")).eq("scope", "data").maybeSingle();
   if (!data || new Date(data.expires_at) < new Date()) throw new GateError("Хугацаа дууссан. Эхнээс нь дахин оролдоно уу.", 410);
   if (data.stage !== stage) throw new GateError("Алхам буруу байна. Эхнээс нь дахин оролдоно уу.", 409);
   return data as { id: string; user_id: string; stage: string; phone_session: string | null; email_code_hash: string | null; tries: number };
@@ -101,7 +101,7 @@ async function requireSuper(req: Request, body: Record<string, unknown>) {
 async function requireSession(req: Request, body: Record<string, unknown>) {
   const user = await jwtUser(req);
   const hash = await sha256(String(body.token || ""));
-  const { data } = await db.from("data_sessions").select("user_id, expires_at").eq("token_hash", hash).maybeSingle();
+  const { data } = await db.from("data_sessions").select("user_id, expires_at").eq("token_hash", hash).eq("scope", "data").maybeSingle();
   if (!data || data.user_id !== user.id || new Date(data.expires_at) < new Date()) throw new GateError("Сесс дууссан. Дахин нэвтэрнэ үү.", 401);
   return user;
 }
@@ -127,7 +127,7 @@ async function handle(req: Request, body: Record<string, unknown>) {
       if (!me) throw new GateError("Энэ дугаар data-д хандах эрхгүй.", 403);
       // Сесс бүрт шинэ 6 оронтой код (хуучин код хүчингүй болно).
       const v = await createSession(vmPhone(phone));
-      await db.from("data_gate_attempts").delete().eq("user_id", me.id);
+      await db.from("data_gate_attempts").delete().eq("user_id", me.id).eq("scope", "data");
       const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", phone_session: v.sessionId }).select("id").single();
       return { gate: gate!.id, instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
     }
