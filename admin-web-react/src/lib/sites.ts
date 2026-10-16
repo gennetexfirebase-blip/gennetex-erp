@@ -44,6 +44,8 @@ const OVERRIDE_KEY = 'gx_site';
 
 /** Туршилтын хост (домэйн холбогдохоос өмнө) — `?site=` зөвшөөрнө. */
 export const DATA_HOST = 'data.gennetex.com';
+/** Data сайтын хаягууд — bayasgalan нь зөвхөн харах эрхтэй хүнд. */
+export const DATA_HOSTS = new Set([DATA_HOST, 'bayasgalan.gennetex.com']);
 
 export function isTestHost(host = window.location.hostname) {
   return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app');

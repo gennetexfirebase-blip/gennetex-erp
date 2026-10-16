@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Database, Download, File, Folder, KeyRound, LogOut, Mail, RefreshCw, Smartphone } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Database, Download, Eye, File, Folder, KeyRound, LogOut, Mail, RefreshCw, Smartphone, UserCheck } from 'lucide-react';
 import { Button, Input, Loading, EmptyState } from '../components/ui';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
@@ -9,7 +9,7 @@ import brandMark from '../assets/report-logo.png';
 /**
  * data.gennetex.com/data/ — компанийн бүх өгөгдөл (хүснэгт + файлын сав).
  *
- * Зөвхөн superadmin. Нэвтрэх 4 шат (сервер `data-gate` шалгана):
+ * superadmin (бүрэн) ба «зөвхөн харах» эрхтэй хүн. Нэвтрэх 4 шат (сервер `data-gate` шалгана):
  *   1. Утас — verify.mn: өөрийн утаснаас 144773 руу код илгээнэ
  *   2. Gmail-д ирсэн код
  *   3. Google-ээр нэвтрэх
@@ -272,7 +272,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <img src={brandMark} alt="" width="36" height="36" className="h-9 w-9 rounded-md object-contain" />
           <div>
             <h1 className="text-[16px] font-semibold text-ink">Gennetex Data</h1>
-            <p className="text-[12px] text-muted">Зөвхөн sysadmin</p>
+            <p className="text-[12px] text-muted">Зөвхөн эрх бүхий хүн</p>
           </div>
         </div>
         {children}
@@ -288,7 +288,8 @@ type FileObj = { name: string; id: string | null; created_at?: string; metadata?
 
 function DataApp({ onLogout, onExpired }: { onLogout: () => void; onExpired: () => void }) {
   const token = store.get(TOKEN_KEY) || '';
-  const [tab, setTab] = useState<'tables' | 'files'>('tables');
+  const [tab, setTab] = useState<'tables' | 'files' | 'viewers'>('tables');
+  const [admin, setAdmin] = useState(false);
   const call = useCallback(
     async <T,>(body: Record<string, unknown>) => {
       try {
@@ -301,19 +302,24 @@ function DataApp({ onLogout, onExpired }: { onLogout: () => void; onExpired: () 
     [token, onExpired]
   );
 
+  useEffect(() => {
+    call<{ admin: boolean }>({ action: 'me' }).then((r) => setAdmin(!!r.admin)).catch(() => null);
+  }, [call]);
+
   return (
     <div className="min-h-screen bg-app">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-card px-4 py-3">
         <img src={brandMark} alt="" width="28" height="28" className="h-7 w-7 rounded object-contain" />
         <h1 className="text-[15px] font-semibold text-ink">Gennetex Data</h1>
         <div className="ml-4 inline-flex rounded-full border border-line bg-card2 p-1" role="tablist">
-          {([['tables', 'Хүснэгт'], ['files', 'Файлын сав']] as const).map(([k, l]) => (
+          {([['tables', 'Хүснэгт'], ['files', 'Файлын сав'], ...(admin ? [['viewers', 'Харах эрх']] : [])] as ['tables' | 'files' | 'viewers', string][]).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-full px-3 py-1 text-[13px] font-semibold ${tab === k ? 'bg-brand text-white' : 'text-muted'}`}>{l}</button>
           ))}
         </div>
-        <Button variant="ghost" className="ml-auto" icon={<LogOut size={15} />} onClick={onLogout}>Гарах</Button>
+        {!admin ? <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-card2 px-2.5 py-1 text-[12px] text-muted"><Eye size={13} /> Зөвхөн харах</span> : null}
+        <Button variant="ghost" className={admin ? 'ml-auto' : ''} icon={<LogOut size={15} />} onClick={onLogout}>Гарах</Button>
       </header>
-      <main className="p-4">{tab === 'tables' ? <Tables call={call} /> : <Files call={call} />}</main>
+      <main className="p-4">{tab === 'tables' ? <Tables call={call} /> : tab === 'files' ? <Files call={call} /> : <Viewers call={call} />}</main>
     </div>
   );
 }
@@ -474,5 +480,68 @@ function Files({ call }: { call: Call }) {
         )}
       </section>
     </div>
+  );
+}
+
+/** Superadmin — «зөвхөн харах» эрх олгох (bayasgalan.gennetex.com г.м.). */
+function Viewers({ call }: { call: Call }) {
+  type Person = { id: string; name: string | null; last_name: string | null; email: string | null; phone: string | null; role: string | null };
+  const [people, setPeople] = useState<Person[] | null>(null);
+  const [on, setOn] = useState<Set<string>>(new Set());
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    call<{ viewers: { user_id: string }[]; people: Person[] }>({ action: 'viewers' })
+      .then((r) => {
+        setPeople(r.people);
+        setOn(new Set(r.viewers.map((v) => v.user_id)));
+      })
+      .catch((e) => setErr(e.message));
+  }, [call]);
+  const toggle = async (p: Person, v: boolean) => {
+    setBusy(p.id);
+    setErr('');
+    try {
+      await call({ action: 'viewer_set', user_id: p.id, on: v });
+      setOn((s) => {
+        const n = new Set(s);
+        if (v) n.add(p.id);
+        else n.delete(p.id);
+        return n;
+      });
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const name = (p: Person) => [p.last_name, p.name].filter(Boolean).join(' ') || p.email || 'Ажилтан';
+  const list = (people || []).filter((p) => `${name(p)} ${p.email || ''}`.toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => Number(on.has(b.id)) - Number(on.has(a.id)));
+  return (
+    <section className="surface mx-auto max-w-3xl p-4">
+      <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink"><UserCheck size={17} /> Зөвхөн харах эрх</h2>
+      <p className="mb-3 mt-1 text-[13px] text-muted">
+        Сонгосон хүн data.gennetex.com эсвэл bayasgalan.gennetex.com-оор мөн 4 шатаар (утас → Gmail код → Google → нууц үг) нэвтэрч, бүх хүснэгт, файлыг зөвхөн харна. Профайлд нь утасны дугаар, Gmail байх ёстой.
+      </p>
+      <Input placeholder="Хүн хайх" value={q} onChange={(e) => setQ(e.target.value)} className="mb-3" />
+      {err ? <p className="mb-2 text-[13px] text-danger" role="alert">{err}</p> : null}
+      {!people ? <Loading /> : (
+        <ul className="divide-y divide-line">
+          {list.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium text-ink">{name(p)}</span>
+                <span className="block truncate text-[12px] text-muted">{p.email || 'Gmail алга'} · {p.phone || 'утас алга'}</span>
+              </span>
+              <label className="flex items-center gap-1.5 text-[12px] text-ink">
+                <input type="checkbox" checked={on.has(p.id)} disabled={busy === p.id} onChange={(e) => toggle(p, e.target.checked)} />
+                Харах эрх
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

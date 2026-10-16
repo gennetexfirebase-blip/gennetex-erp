@@ -39,7 +39,7 @@ import { CONTRACT_HOST } from './lib/contracts';
 import TimeReportSite, { AttendanceWarningPage } from './pages/TimeReportSite';
 import { TIME_REPORT_HOST } from './lib/timeReport';
 import { LEGACY_MODULES, LEGACY_REDIRECTS } from './lib/nav';
-import { DATA_HOST, currentSite, isTestHost, siteTabTitle } from './lib/sites';
+import { DATA_HOSTS, currentSite, isTestHost, siteTabTitle } from './lib/sites';
 import DataSite from './pages/DataSite';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
@@ -49,7 +49,7 @@ export default function App() {
   document.title =
     host === CONTRACT_HOST ? 'Хөдөлмөрийн гэрээ — Gennetex'
     : host === TIME_REPORT_HOST ? 'Цагийн тайлан — Gennetex'
-    : host === DATA_HOST || (isTestHost() && window.location.pathname.startsWith('/data')) ? 'Gennetex Data'
+    : DATA_HOSTS.has(host) || (isTestHost() && window.location.pathname.startsWith('/data')) ? 'Gennetex Data'
     : siteTabTitle();
 
   // geree.gennetex.com — зөвхөн гэрээтэй танилцаж гарын үсэг зурах хуудас.
@@ -77,7 +77,7 @@ export default function App() {
     );
   }
   // data.gennetex.com/data/ — 4 шаттай нэвтрэлттэй өгөгдлийн сан (зөвхөн superadmin).
-  if (window.location.hostname === DATA_HOST || (isTestHost() && window.location.pathname.startsWith('/data'))) {
+  if (DATA_HOSTS.has(window.location.hostname) || (isTestHost() && window.location.pathname.startsWith('/data'))) {
     return (
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>

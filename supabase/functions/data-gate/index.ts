@@ -8,14 +8,14 @@
  *   password   {gate, password} + JWT  → нууц үг (анх удаа тохируулна) → data session token
  *   tables / rows / buckets / files / sign / logout  {token} + JWT
  *
- * Зөвхөн superadmin. Бүх хүснэгт service role-оор — клиент шууд хандахгүй.
+ * superadmin (бүрэн) ба data_viewers (зөвхөн харах, superadmin олгоно). Бүх хүснэгт service role-оор — клиент шууд хандахгүй.
  * Шаардлагатай secret: VERIFY_MN_API_KEY, RESEND_API_KEY (EMAIL_FROM).
  */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createAdminClient } from "../_shared/push.ts";
 import { createSession, getSession, normalizePhone as vmPhone, VerifyMnError } from "../_shared/verifyMn.ts";
 
-const ALLOWED_ORIGINS = new Set(["https://data.gennetex.com", "http://localhost:5173"]);
+const ALLOWED_ORIGINS = new Set(["https://data.gennetex.com", "https://bayasgalan.gennetex.com", "http://localhost:5173"]);
 const corsFor = (req: Request) => {
   const origin = req.headers.get("origin") || "";
   return {
@@ -75,14 +75,26 @@ async function loadGate(id: unknown, stage: string) {
   return data as { id: string; user_id: string; stage: string; phone_session: string | null; email_code_hash: string | null; tries: number };
 }
 
-/** Bearer JWT → superadmin хэрэглэгч. */
+async function isViewer(userId: string) {
+  const { data } = await db.from("data_viewers").select("user_id").eq("user_id", userId).maybeSingle();
+  return !!data;
+}
+
+/** Bearer JWT → superadmin эсвэл харах эрхтэй хэрэглэгч. */
 async function jwtUser(req: Request) {
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   const { data, error } = await db.auth.getUser(token);
   if (error || !data?.user) throw new GateError("Google-ээр нэвтэрнэ үү.", 401);
   const { data: p } = await db.from("profiles").select("id, role, email").eq("id", data.user.id).maybeSingle();
-  if (p?.role !== "superadmin") throw new GateError("Зөвхөн superadmin хандана.", 403);
-  return p as { id: string; role: string; email: string | null };
+  const admin = p?.role === "superadmin";
+  if (!p || (!admin && !(await isViewer(p.id)))) throw new GateError("Data-д хандах эрхгүй.", 403);
+  return { ...(p as { id: string; role: string; email: string | null }), admin };
+}
+
+async function requireSuper(req: Request, body: Record<string, unknown>) {
+  const user = await requireSession(req, body);
+  if (!user.admin) throw new GateError("Зөвхөн superadmin.", 403);
+  return user;
 }
 
 /** Data session token + JWT хоёулаа хүчинтэй байх ёстой. */
@@ -100,7 +112,10 @@ async function handle(req: Request, body: Record<string, unknown>) {
   switch (body.action) {
     case "start": {
       const phone = normalizePhone(body.phone);
-      const { data: people } = await db.from("profiles").select("id, phone, role").eq("role", "superadmin");
+      const { data: viewers } = await db.from("data_viewers").select("user_id");
+      const viewerIds = (viewers || []).map((v) => v.user_id);
+      const { data: people } = await db.from("profiles").select("id, phone, role")
+        .or(viewerIds.length ? `role.eq.superadmin,id.in.(${viewerIds.join(",")})` : "role.eq.superadmin");
       const me = (people || []).find((p) => {
         try {
           return normalizePhone(p.phone) === phone;
@@ -250,6 +265,31 @@ async function handle(req: Request, body: Record<string, unknown>) {
       if (error) throw new GateError(error.message, 500);
       await audit(user.id, "file", { bucket: body.bucket, path: body.path });
       return { url: data.signedUrl };
+    }
+
+    case "me": {
+      const user = await requireSession(req, body);
+      return { admin: user.admin };
+    }
+
+    case "viewers": {
+      await requireSuper(req, body);
+      const { data: rows } = await db.from("data_viewers").select("user_id, granted_at");
+      const { data: people } = await db.from("profiles").select("id, name, last_name, email, phone, role").neq("role", "superadmin").order("name");
+      return { viewers: rows || [], people: people || [] };
+    }
+
+    case "viewer_set": {
+      const user = await requireSuper(req, body);
+      const target = String(body.user_id || "");
+      if (!target) throw new GateError("Хэрэглэгч сонгоно уу.");
+      if (body.on) await db.from("data_viewers").upsert({ user_id: target, granted_by: user.id });
+      else {
+        await db.from("data_viewers").delete().eq("user_id", target);
+        await db.from("data_sessions").delete().eq("user_id", target);
+      }
+      await audit(user.id, body.on ? "viewer_add" : "viewer_remove", { target });
+      return { ok: true };
     }
 
     case "logout": {
