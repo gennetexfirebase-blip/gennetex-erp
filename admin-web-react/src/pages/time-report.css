@@ -343,3 +343,13 @@
   .tr .mx-wrap { overflow: visible; }
 }
 @media (prefers-reduced-motion: reduce) { .tr *, .tr-tip, .tr-scrim { transition: none !important; animation: none !important; } }
+
+/* 7 хоногийн хуваарь (ажилтны цонх) */
+.tr .wk { padding: 0 22px 20px; display: flex; flex-direction: column; gap: 10px; }
+.tr .wk-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.tr .wk-days button { min-height: 40px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); border-radius: var(--r-md); font-weight: 600; font-size: 13px; cursor: pointer; }
+.tr .wk-days button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+.tr .wk-days button:disabled { cursor: default; }
+.tr .wk .hint { font-size: 12px; color: var(--ink-3); }
+.tr .wk .res { font-size: 12.5px; border-radius: var(--r-md); padding: 10px 12px; background: var(--ok-soft); color: var(--ok); }
+.tr .wk .res.err { background: var(--absent-soft); color: var(--absent); }

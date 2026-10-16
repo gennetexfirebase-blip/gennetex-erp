@@ -2,34 +2,23 @@ import {
   Home,
   LayoutDashboard,
   ClipboardCheck,
-  FileText,
   Clock,
   Users,
   Building2,
-  CalendarDays,
   MapPin,
-  MessageSquare,
+  MapPinned,
   ClipboardList,
-  Globe,
   FileSignature,
   Smartphone,
-  MonitorSmartphone,
-  Sparkles,
-  HomeIcon,
   QrCode,
   Fuel,
-  Route,
   UsersRound,
   PhoneCall,
-  HardHat,
   Boxes,
   PackageOpen,
-  Newspaper,
   Video,
-  Radio,
   History,
   Table2,
-  BadgeCheck,
   Send,
   Settings2,
   BellRing,
@@ -38,6 +27,7 @@ import {
   FileCheck2,
   type LucideIcon,
 } from 'lucide-react';
+import type { SiteKey } from './sites';
 
 export type NavChild = { label: string; to: string; adminOnly?: boolean };
 
@@ -53,6 +43,12 @@ export type NavItem = {
   children?: NavChild[];
   /** Non-admin ERP users only see act-scoped navigation. */
   actsOnly?: boolean;
+  /** Аль subdomain дээр харагдах (lib/sites.ts). Байхгүй бол admin.gennetex.com. */
+  site?: SiteKey;
+  /** Зөвхөн superadmin (sysadmin) харна. */
+  superOnly?: boolean;
+  /** Админ биш хүн ч (сервер эрх шалгана) — жишээ нь байршил харах эрх олгогдсон хүн. */
+  openToAll?: boolean;
 };
 
 /**
@@ -64,68 +60,47 @@ export type NavItem = {
  * view нь хуучин панелийн data-view утга; /legacy/<view> route нь
  * /gennetex/admin-v1/?embed=1#<view> рүү хөрвөнө.
  */
-export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon }[] = [
-  { view: 'feedback', label: 'Санал гомдол', icon: MessageSquare },
-  { view: 'applications', label: 'Ажлын байрны анкет', icon: ClipboardList },
-  { view: 'publicsite', label: 'Вэб сайт', icon: Globe },
-  { view: 'devices', label: 'Төхөөрөмж зөвшөөрөл', icon: Smartphone },
-  { view: 'aiappusage', label: 'AI апп хэрэглээ', icon: MonitorSmartphone },
-  { view: 'aiperformance', label: 'AI гүйцэтгэл', icon: Sparkles },
-  { view: 'visits', label: 'Очсон лог', icon: HomeIcon },
+export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon; site?: SiteKey; superOnly?: boolean }[] = [
+  { view: 'applications', label: 'Ажлын байрны анкет', icon: ClipboardList, site: 'hr' },
+  { view: 'devices', label: 'Төхөөрөмж зөвшөөрөл', icon: Smartphone, superOnly: true },
   { view: 'vehicles', label: 'Машины мэдээлэл солих', icon: QrCode },
-  { view: 'fuelconsumption', label: 'Бензин зарцуулалт', icon: Fuel },
-  { view: 'fuelrefill', label: 'Бензин нөхөж цэнэглэх', icon: Fuel },
-  { view: 'trips', label: 'Аялал', icon: Route },
+  { view: 'fuelconsumption', label: 'Бензин зарцуулалт', icon: Fuel, site: 'sanhuu' },
+  { view: 'fuelrefill', label: 'Бензин нөхөж цэнэглэх', icon: Fuel, site: 'sanhuu' },
   { view: 'companions', label: 'Хамт яваа багууд', icon: UsersRound },
   { view: 'servicecalls', label: 'Дуудлага', icon: PhoneCall },
-  { view: 'sitework', label: 'Ажлын байр', icon: HardHat },
-  { view: 'inventory', label: 'Агуулах', icon: Boxes },
-  { view: 'usage', label: 'Барааны хэрэглээ', icon: PackageOpen },
-  { view: 'feedposts', label: 'Gennetex Post', icon: Newspaper },
-  { view: 'meetings', label: 'Хурал', icon: Video },
-  { view: 'livestreams', label: 'Live stream хянах', icon: Radio },
-  { view: 'activitylogs', label: 'Нийт лог', icon: History },
-  { view: 'excelarchive', label: 'Excel архив', icon: Table2 },
+  { view: 'inventory', label: 'Агуулах', icon: Boxes, site: 'aguulah' },
+  { view: 'usage', label: 'Барааны хэрэглээ', icon: PackageOpen, site: 'aguulah' },
+  { view: 'meetings', label: 'Хурал', icon: Video, site: 'meet' },
+  { view: 'activitylogs', label: 'Нийт лог', icon: History, site: 'arhiv' },
+  { view: 'excelarchive', label: 'Excel архив', icon: Table2, site: 'arhiv' },
 ];
 
 /**
- * Sidebar-ийн бүрэн мод.
- *
- * Хуучин панелийн Хяналт / Ажилчид / Ирц / Байршил / Тайлан нь энд аль
- * хэдийн React хуудсаар байгаа тул давхардуулж нэмээгүй — доорх эхний
- * хэсэг нь яг тэдгээр.
+ * Sidebar-ийн бүрэн мод — бүх subdomain-ийнх. Sidebar нь одоогийн сайтынхыг
+ * л шүүж харуулна (`site`).
  */
 export const NAV: NavItem[] = [
   { label: 'Нүүр', to: '/home', icon: Home },
   { label: 'Хянах самбар', to: '/dashboard', icon: LayoutDashboard, isNew: true },
   { label: 'Анхааруулгын төв', to: '/alerts', icon: BellRing, isNew: true },
-  { label: 'Мэдэгдэл илгээх', to: '/internal/notify', icon: Send, isNew: true },
-  { label: 'Өндөрт ажиллах ХАБЭА', to: '/internal/safety', icon: ShieldCheck, isNew: true },
-  { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardCheck },
-  {
-    label: 'Тайлан',
-    icon: FileText,
-    children: [
-      { label: 'Цагийн тайлан', to: '/report/time' },
-      { label: 'Өдрөөр', to: '/report/daily' },
-      { label: 'Ажилтнаар', to: '/report/employee' },
-      { label: 'Ерөнхий', to: '/report/general' },
-    ],
-  },
-  { label: 'Цагийн хүсэлт', to: '/request', icon: Clock, badgeKey: 'requests', badgeTone: 'brand' },
-  { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning' },
-  { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, isNew: true },
-  { label: 'Хэлтэс', to: '/department', icon: Building2 },
-  { label: 'Хуваарь', to: '/schedule', icon: CalendarDays },
   { label: 'Хөдөлмөрийн гэрээ', to: '/admin/documents/contracts', icon: FileSignature, isNew: true },
-  { label: 'Байршил', to: '/location', icon: MapPin },
-  { label: 'Утас баталгаажуулах', to: '/phone-verification', icon: BadgeCheck, isNew: true },
   { label: 'SMS илгээх', to: '/outbound-sms', icon: Send, isNew: true },
   { label: 'Тохиргооны төв', to: '/more/settings', icon: Settings2, isNew: true },
+
+  { label: 'Мэдэгдэл илгээх', to: '/internal/notify', icon: Send, site: 'notif' },
+  { label: 'Өндөрт ажиллах ХАБЭА', to: '/internal/safety', icon: ShieldCheck, site: 'habea' },
+  { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardCheck, site: 'irts' },
+  { label: 'Цагийн хүсэлт', to: '/request', icon: Clock, badgeKey: 'requests', badgeTone: 'brand', site: 'irts' },
+  { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning', site: 'hr' },
+  { label: 'Алба, хэлтэс', to: '/department', icon: Building2, site: 'hr' },
+  { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, site: 'surgalt' },
+  { label: 'Ажилчдын байршил', to: '/location/staff', icon: MapPin, site: 'bairshil', openToAll: true },
+  { label: 'Ирц бүртгэх цэг', to: '/location', icon: MapPinned, site: 'bairshil' },
   {
     label: 'Баримт бичиг',
     icon: FileCheck2,
     actsOnly: true,
+    site: 'akt',
     children: [
       { label: 'Ажил гүйцэтгэлийн акт', to: '/admin/documents/acts' },
       { label: 'Актын загварууд', to: '/admin/settings/act-templates', adminOnly: true },
@@ -137,6 +112,21 @@ export const NAV: NavItem[] = [
     label: m.label,
     to: `/legacy/${m.view}`,
     icon: m.icon,
+    site: m.site,
+    superOnly: m.superOnly,
   })),
-
 ];
+
+/** Хаяг аль сайтад харьяалагдахыг цэснээс олно (хамгийн урт таарсан угтвар). */
+export function siteOfPath(path: string): { site: SiteKey; superOnly: boolean; openToAll: boolean } | null {
+  let best: { len: number; site: SiteKey; superOnly: boolean; openToAll: boolean } | null = null;
+  for (const item of NAV) {
+    const tos = [item.to, ...(item.children || []).map((c) => c.to)].filter(Boolean) as string[];
+    for (const to of tos) {
+      if ((path === to || path.startsWith(to + '/')) && (!best || to.length > best.len)) {
+        best = { len: to.length, site: item.site || 'admin', superOnly: !!item.superOnly, openToAll: !!item.openToAll };
+      }
+    }
+  }
+  return best && { site: best.site, superOnly: best.superOnly, openToAll: best.openToAll };
+}

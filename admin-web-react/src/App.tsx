@@ -6,14 +6,12 @@ import AttendancePage from './pages/Attendance';
 import RequestsPage from './pages/Requests';
 import EmployeesPage from './pages/Employees';
 import DepartmentsPage from './pages/Departments';
-import SchedulePage from './pages/Schedule';
 import LocationsPage from './pages/Locations';
+import StaffLocationsPage from './pages/StaffLocations';
 import Placeholder from './pages/Placeholder';
 import LegacyPage from './pages/Legacy';
 import StockIssuesPage from './pages/StockIssues';
-import PhoneVerificationPage from './pages/PhoneVerification';
 import OutboundSmsPage from './pages/OutboundSms';
-import SiteContentPage from './pages/SiteContent';
 import LegacyModule from './pages/LegacyModule';
 import BusinessSettingsPage from './pages/BusinessSettings';
 import OperationalAlertsPage from './pages/OperationalAlerts';
@@ -29,9 +27,9 @@ import ContractsPage from './pages/Contracts';
 import ContractSignPage from './pages/ContractSign';
 import { CONTRACT_HOST } from './lib/contracts';
 import TimeReportSite, { AttendanceWarningPage } from './pages/TimeReportSite';
-import TimeReportAdminPage from './pages/TimeReportAdmin';
 import { TIME_REPORT_HOST } from './lib/timeReport';
 import { LEGACY_MODULES } from './lib/nav';
+import { currentSite } from './lib/sites';
 
 /** Бүх route — timely_clone_prompt.md §7-ийн навигацийн модтой 1:1 таарна. */
 export default function App() {
@@ -59,9 +57,7 @@ export default function App() {
       </BrowserRouter>
     );
   }
-  const landingPath = window.location.hostname === 'akt.gennetex.com'
-    ? '/admin/documents/acts'
-    : '/home';
+  const landingPath = currentSite().landing;
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
@@ -78,24 +74,17 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
 
           <Route path="/attendance" element={<AttendancePage />} />
-          <Route path="/report/daily" element={<AttendancePage />} />
-          <Route path="/report/employee" element={<LegacyModule view="reports" title="Тайлан — Ажилтнаар" />} />
-          <Route path="/report/general" element={<AttendancePage />} />
-          <Route path="/report/time" element={<TimeReportAdminPage />} />
 
           <Route path="/request" element={<RequestsPage />} />
           <Route path="/employee" element={<EmployeesPage />} />
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/department" element={<DepartmentsPage />} />
-          <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/location" element={<LocationsPage />} />
+          <Route path="/location/staff" element={<StaffLocationsPage />} />
 
           <Route path="/internal/notify" element={<NotificationsPage />} />
-          <Route path="/internal/news" element={<LegacyModule view="feedposts" title="Мэдээ — Gennetex Post" />} />
           <Route path="/internal/poll" element={<Placeholder title="Санал хураалт" />} />
           <Route path="/internal/work-report" element={<Placeholder title="Ажлын тайлан" />} />
-          <Route path="/internal/sent-locations" element={<LegacyModule view="visits" title="Илгээсэн байршил / Очсон лог" />} />
-          <Route path="/internal/feedback" element={<LegacyModule view="feedback" title="Санал хүсэлт / гомдол" />} />
           <Route path="/internal/safety" element={<WorkHeightSafetyPage />} />
 
           <Route path="/aux/survey" element={<Placeholder title="Дотоод судалгаа" />} />
@@ -104,13 +93,11 @@ export default function App() {
           <Route path="/payroll/auto" element={<Placeholder title="Автомат тооцоолол" />} />
           <Route path="/payroll/payslip" element={<Placeholder title="Задаргаа илгээх" />} />
 
-          <Route path="/site-content" element={<SiteContentPage />} />
           <Route path="/more/settings" element={<BusinessSettingsPage />} />
           <Route path="/alerts" element={<OperationalAlertsPage />} />
           <Route path="/more/billing" element={<Placeholder title="Төлбөр" />} />
           <Route path="/more/market" element={<Placeholder title="Маркет" />} />
           <Route path="/stock-issues" element={<StockIssuesPage />} />
-          <Route path="/phone-verification" element={<PhoneVerificationPage />} />
           <Route path="/outbound-sms" element={<OutboundSmsPage />} />
           <Route path="/admin/documents/acts" element={<ActsPage />} />
           <Route path="/admin/documents/acts/new" element={<ActEditorPage />} />

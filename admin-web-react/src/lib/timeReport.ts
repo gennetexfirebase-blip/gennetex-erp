@@ -78,7 +78,11 @@ export type TrModel = {
   emps: TrEmployee[];
   sum: Map<string, Summary>;
   weekendOf: (empId: string, d: string) => boolean;
+  /** Админы оноосон 7 хоногийн хуваарь (ажлын гариг 1=Да … 7=Ня). */
+  week: Map<string, WeekSchedule>;
 };
+
+export type WeekSchedule = { days: number[]; by: string | null; at: string };
 
 type RawData = {
   settings?: { work_start?: string; grace?: number } | null;
@@ -87,6 +91,7 @@ type RawData = {
   shifts?: { e: string; d: string; start: string; end: string }[];
   leaves: { e: string; from: string; to: string; kind: string | null }[];
   rest_days: { e: string; dow: number }[];
+  week?: { e: string; days: number[]; by: string | null; at: string }[];
 };
 
 /* ───────── Огноо ───────── */
@@ -217,8 +222,11 @@ export function buildModel(raw: RawData, from: string, to: string): TrModel {
 
   const rest = new Map<string, Set<number>>();
   raw.rest_days.forEach((r) => (rest.get(r.e) || rest.set(r.e, new Set()).get(r.e)!).add(Number(r.dow) % 7));
+  const week = new Map<string, WeekSchedule>((raw.week || []).map((w) => [w.e, { days: (w.days || []).map(Number), by: w.by, at: w.at }]));
   const weekendOf = (empId: string, d: string) => {
     const dow = parse(d).getDay();
+    const assigned = week.get(empId);
+    if (assigned) return !assigned.days.includes(dow || 7);
     const own = rest.get(empId);
     return own && own.size ? own.has(dow) : dow === 0 || dow === 6;
   };
@@ -304,7 +312,7 @@ export function buildModel(raw: RawData, from: string, to: string): TrModel {
     sum.set(e.id, s);
   });
 
-  return { from, to, today, list, settings, emps, sum, weekendOf };
+  return { from, to, today, list, settings, emps, sum, weekendOf, week };
 }
 
 export function shortName(last: string | null, name: string | null, email?: string | null) {
@@ -354,6 +362,14 @@ export async function sendWarnings(
   const { data: res, error: fnError } = await supabase.functions.invoke('attendance-warning-notify', { body: { ids, key } });
   if (fnError) throw new Error('Сануулга хадгалагдсан ч хүргэж чадсангүй: ' + fnError.message);
   return (res?.results || []) as { id: string; name: string; push?: string; email?: string }[];
+}
+
+/* ───────── 7 хоногийн хуваарь ───────── */
+/** Ажилтны ажлын гаригийг оноох — зөвхөн админ (эсвэл тайлангийн түлхүүр). */
+export async function saveWeekSchedule(userId: string, workDays: number[], key: string | null): Promise<WeekSchedule> {
+  const { data, error } = await supabase.rpc('set_employee_week_schedule', { p_user: userId, p_work_days: workDays, p_key: key });
+  if (error) throw new Error(/forbidden/.test(error.message) ? 'Хуваарь оноох эрхгүй байна. Зөвхөн админ өөрчилнө.' : error.message);
+  return { days: (data?.days || []).map(Number), by: data?.by || null, at: data?.at };
 }
 
 /* ───────── Сануулгын хуудас ───────── */

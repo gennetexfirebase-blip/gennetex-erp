@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { CalendarDays, HardDrive, Users2, ChevronRight, X } from 'lucide-react';
 import { NAV, type NavItem } from '../lib/nav';
+import { currentSite } from '../lib/sites';
 import { CountDot, Meter } from './ui';
 import brandMark from '../assets/report-logo.png';
 
@@ -14,6 +15,8 @@ export default function Sidebar({
   onCloseMobile,
   actOnly = false,
   canTemplates = false,
+  isSuper = false,
+  isAdmin = true,
 }: {
   collapsed: boolean;
   counts: { requests: number; employees: number };
@@ -22,6 +25,8 @@ export default function Sidebar({
   onCloseMobile: () => void;
   actOnly?: boolean;
   canTemplates?: boolean;
+  isSuper?: boolean;
+  isAdmin?: boolean;
 }) {
   const [flyout, setFlyout] = useState<string | null>(null);
   const location = useLocation();
@@ -30,6 +35,12 @@ export default function Sidebar({
     item.to
       ? location.pathname.startsWith(item.to)
       : (item.children || []).some((c) => location.pathname.startsWith(c.to));
+
+  const site = currentSite();
+  // Одоогийн subdomain-ийн мөрүүд л — бусад сайт руу шилжсэн хэсэг энд харагдахгүй.
+  const items = NAV.filter((item) =>
+    actOnly ? item.actsOnly : (item.site || 'admin') === site.key && (!item.superOnly || isSuper) && (isAdmin || item.openToAll)
+  );
 
   const width = collapsed ? 'w-[84px]' : 'w-[264px]';
 
@@ -59,7 +70,7 @@ export default function Sidebar({
             {!collapsed && (
               <div className="min-w-0">
                 <p className="truncate text-[14px] font-bold tracking-[0.025em] text-white">GENNETEX</p>
-                <p className="truncate text-[11px] text-slate-400">{actOnly ? 'Актын удирдлага' : 'ERP удирдлага'}</p>
+                <p className="truncate text-[11px] text-slate-400">{actOnly ? 'Актын удирдлага' : site.title}</p>
               </div>
             )}
           </div>
@@ -68,7 +79,7 @@ export default function Sidebar({
 
         {/* ── Навигаци ─────────────────────────────────── */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {NAV.filter((item) => !actOnly || item.actsOnly).map((item) => {
+          {items.map((item) => {
             const active = isActive(item);
             const Icon = item.icon;
             const badge = item.badgeKey ? counts[item.badgeKey] : 0;

@@ -15,6 +15,7 @@ import {
   parse,
   rangeFor,
   rangeLabel,
+  saveWeekSchedule,
   sendWarnings,
   stepRange,
   toMin,
@@ -116,15 +117,14 @@ export type TimeReportProps = {
   variant: 'standalone' | 'embedded';
   accessKey?: string | null;
   canSend?: boolean;
-  /** Ирээдүйн өдөр дээр дарахад (Хуваарь руу шилжүүлэх). */
-  onPlanDay?: (date: string) => void;
+  /** Ажилтны 7 хоногийн хуваарийг оноох (зөвхөн админ — сервер ч шалгана). */
+  canEditWeek?: boolean;
   headerRight?: ReactNode;
   title?: string;
-  /** Сонгосон хугацааг гаднаас (Хуваарийн сартай) уях. */
   initialRange?: Range;
 };
 
-export default function TimeReport({ variant, accessKey = null, canSend = true, onPlanDay, headerRight, title = 'Цагийн тайлан', initialRange }: TimeReportProps) {
+export default function TimeReport({ variant, accessKey = null, canSend = true, canEditWeek = true, headerRight, title = 'Цагийн тайлан', initialRange }: TimeReportProps) {
   const root = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState<Range>(initialRange || rangeFor('month'));
   const [custom, setCustom] = useState({ from: range.from, to: range.to });
@@ -365,7 +365,7 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
                   <h2>Ирцийн зураглал</h2>
                   <p>
                     Мөр бүр нэг ажилтан. Нэр эсвэл {model.list.length > LONG_DAYS ? 'сар' : 'өдөр'} дээр дарж дэлгэрэнгүйг харна.
-                    {onPlanDay ? ' Ирээдүйн өдөр дээр дарж хуваарь ононо.' : ''}
+                    {canEditWeek ? ' Ажилтны нэр дээр дарж 7 хоногийн хуваарийг ононо.' : ''}
                   </p>
                 </div>
                 <div className="tools">
@@ -409,7 +409,6 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
                   rows={visible}
                   mode={mode}
                   onOpen={openEmp}
-                  onPlanDay={onPlanDay}
                 />
               </div>
             </section>
@@ -447,6 +446,8 @@ export default function TimeReport({ variant, accessKey = null, canSend = true, 
         focusDate={current?.date}
         c={colors}
         canSend={canSend}
+        canEditWeek={canEditWeek}
+        onWeekSaved={() => load(range)}
         accessKey={accessKey}
         onClose={closeEmp}
         onStep={stepEmp}
@@ -653,7 +654,7 @@ function Insights({ m, emps, onOpen }: { m: TrModel; emps: TrEmployee[]; onOpen:
 }
 
 /* ───────── Матриц ───────── */
-function Matrix({ m, rows, mode, onOpen, onPlanDay }: { m: TrModel; rows: TrEmployee[]; mode: 'status' | 'time'; onOpen: (id: string, d?: string) => void; onPlanDay?: (d: string) => void }) {
+function Matrix({ m, rows, mode, onOpen }: { m: TrModel; rows: TrEmployee[]; mode: 'status' | 'time'; onOpen: (id: string, d?: string) => void }) {
   const long = m.list.length > LONG_DAYS;
   const months = long ? monthsOf(m.list) : [];
   const cols = long ? months.length : m.list.length;
@@ -690,7 +691,7 @@ function Matrix({ m, rows, mode, onOpen, onPlanDay }: { m: TrModel; rows: TrEmpl
     const c = t.closest<HTMLElement>('[data-e]');
     if (!c) return;
     if (c.dataset.month) return onOpen(c.dataset.e!);
-    if (/s-future/.test(c.className)) return onPlanDay?.(c.dataset.d!);
+    if (/s-future/.test(c.className)) return onOpen(c.dataset.e!);
     if (!/s-(off|na)/.test(c.className)) onOpen(c.dataset.e!, c.dataset.d);
   };
   return (
@@ -954,6 +955,8 @@ function Drawer({
   focusDate,
   c,
   canSend,
+  canEditWeek,
+  onWeekSaved,
   accessKey,
   onClose,
   onStep,
@@ -965,6 +968,8 @@ function Drawer({
   focusDate?: string;
   c: Colors;
   canSend: boolean;
+  canEditWeek: boolean;
+  onWeekSaved: () => void;
   accessKey: string | null;
   onClose: () => void;
   onStep: (d: number) => void;
@@ -1179,6 +1184,7 @@ function Drawer({
               </table>
             </section>
             <div className="side">
+              <WeekPanel m={m} emp={emp} canEdit={canEditWeek} accessKey={accessKey} onSaved={onWeekSaved} />
               <section className="panel">
                 <div className="panel-h" style={{ paddingBottom: 14 }}>
                   <div><h2>Нэгтгэл</h2><p>{fmtDate(m.from)} – {fmtDate(m.to)}, {s.work} ажлын өдөр</p></div>
@@ -1232,5 +1238,86 @@ function Drawer({
         </>
       ) : null}
     </aside>
+  );
+}
+
+/* ───────── 7 хоногийн хуваарь ───────── */
+const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7];
+const byNum = (a: number, b: number) => a - b;
+const sameDays = (a: number[], b: number[]) => a.length === b.length && a.every((d) => b.includes(d));
+
+/**
+ * Админ ажилтны ажлын гаригуудыг онооно. Оноосон хуваарь админ дахин солих
+ * хүртэл хэвээр; ажилтан өөрөө өөрчлөх боломжгүй (сервер зөвхөн админд бичүүлнэ).
+ */
+function WeekPanel({ m, emp, canEdit, accessKey, onSaved }: { m: TrModel; emp: TrEmployee; canEdit: boolean; accessKey: string | null; onSaved: () => void }) {
+  const assigned = m.week.get(emp.id);
+  // Оноогоогүй бол тайланд одоо тооцож буй гаригуудаас эхэлнэ (2024-01-01 бол Даваа).
+  const current = useMemo(
+    () => (assigned ? [...assigned.days].sort(byNum) : WEEK_DAYS.filter((d) => !m.weekendOf(emp.id, `2024-01-0${d}`))),
+    [assigned, m, emp.id]
+  );
+  const [draft, setDraft] = useState(current);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    setDraft(current);
+  }, [current]);
+  useEffect(() => setMsg(null), [emp.id]);
+
+  const changed = !sameDays(draft, current);
+  const toggle = (d: number) => setDraft((x) => (x.includes(d) ? x.filter((y) => y !== d) : [...x, d].sort(byNum)));
+  const save = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await saveWeekSchedule(emp.id, draft, accessKey);
+      setMsg({ ok: true, text: 'Хуваарь оноогдлоо. Админ дахин солих хүртэл хэвээр байна.' });
+      onSaved();
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.message || 'Хадгалж чадсангүй.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const rest = WEEK_DAYS.filter((d) => !draft.includes(d));
+
+  return (
+    <section className="panel">
+      <div className="panel-h" style={{ paddingBottom: 12 }}>
+        <div>
+          <h2>7 хоногийн хуваарь</h2>
+          <p>
+            {assigned
+              ? `Оноосон${assigned.by ? `: ${assigned.by}` : ''}${assigned.at ? `, ${fmtDate(assigned.at.slice(0, 10))}` : ''}`
+              : 'Оноогоогүй — одоогоор Бямба, Ням амралтаар тооцож байна.'}
+          </p>
+        </div>
+      </div>
+      <div className="wk">
+        <div className="wk-days" role="group" aria-label="Ажлын гаригууд">
+          {WEEK_DAYS.map((d) => (
+            <button key={d} type="button" aria-pressed={draft.includes(d)} disabled={!canEdit || busy} onClick={() => toggle(d)} title={WDAY_LONG[d % 7]}>
+              {WDAY[d % 7]}
+            </button>
+          ))}
+        </div>
+        <div className="hint">
+          Ажлын {draft.length} өдөр{rest.length ? `, амралт: ${rest.map((d) => WDAY_LONG[d % 7]).join(', ')}` : ', амралтгүй'}.
+          {canEdit ? ' Ажилтан өөрөө өөрчилж чадахгүй — зөвхөн админ солино.' : ' Зөвхөн админ өөрчилнө.'}
+        </div>
+        {canEdit ? (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn solid" disabled={busy || (!changed && !!assigned)} onClick={save}>
+              {busy ? 'Хадгалж байна…' : assigned ? 'Хуваарь солих' : 'Хуваарь оноох'}
+            </button>
+            {changed ? (
+              <button className="btn" disabled={busy} onClick={() => setDraft(current)}>Болих</button>
+            ) : null}
+          </div>
+        ) : null}
+        {msg ? <div className={`res${msg.ok ? '' : ' err'}`} role="status">{msg.text}</div> : null}
+      </div>
+    </section>
   );
 }

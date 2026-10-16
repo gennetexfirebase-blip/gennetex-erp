@@ -6,6 +6,8 @@ import LoginPage from './pages/Login';
 import { Loading } from './components/ui';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { fetchAttendanceRequests, fetchEmployees } from './lib/data';
+import { siteOfPath } from './lib/nav';
+import { SITES, currentSite, siteUrl } from './lib/sites';
 
 type Profile = {
   id: string;
@@ -116,13 +118,30 @@ export default function Layout() {
   }
 
   const fullAdmin = ADMIN_ROLES.has(String(profile?.role || ''));
-  const actsHost = window.location.hostname === 'akt.gennetex.com';
-  const actOnly = actsHost || !fullAdmin;
+  const isSuper = String(profile?.role || '') === 'superadmin';
+  const site = currentSite();
+  const actsHost = site.key === 'akt';
+  // Тусдаа subdomain-ууд (hr, irts, …) зөвхөн админд. Байршил — эрх олгогдсон
+  // хүн ч орно (харах хүрээг сервер `location_scope` шийднэ).
+  const openSite = site.key === 'bairshil';
+  if (!actsHost && site.key !== 'admin' && !fullAdmin && !openSite) {
+    return <LoginPage error={`${profile?.email || 'Энэ хаяг'}-аар ${site.host}-д нэвтрэх эрхгүй. Зөвхөн админ.`} />;
+  }
+  const actOnly = actsHost || (!fullAdmin && !openSite);
   const canTemplates = fullAdmin || Boolean(profile?.permissions?.['acts.templates']);
   const canCreateAct = fullAdmin || ['menejer', 'manager'].includes(String(profile?.role || '')) || Boolean(profile?.permissions?.['acts.create']);
   const isActPath = location.pathname.startsWith('/admin/documents/acts')
     || (canTemplates && location.pathname.startsWith('/admin/settings/act-templates'));
   if (actOnly && !isActPath) return <Navigate to="/admin/documents/acts" replace />;
+
+  // Хаяг өөр subdomain-д харьяалагдвал тийш нь заана; энэ сайтынх биш бол нүүр рүү.
+  const owner = actOnly ? null : siteOfPath(location.pathname);
+  if (!actOnly && owner && owner.site !== site.key) {
+    return <MovedNotice to={siteUrl(owner.site, location.pathname)} host={SITES[owner.site].host} title={SITES[owner.site].title} />;
+  }
+  if (!actOnly && ((!owner && site.key !== 'admin') || (owner?.superOnly && !isSuper) || (!fullAdmin && !owner?.openToAll))) {
+    return <Navigate to={site.landing} replace />;
+  }
 
   return (
     <div className="app-shell flex min-h-screen">
@@ -135,6 +154,8 @@ export default function Layout() {
         onCloseMobile={() => setMobileOpen(false)}
         actOnly={actOnly}
         canTemplates={canTemplates}
+        isSuper={isSuper}
+        isAdmin={fullAdmin}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
@@ -154,6 +175,24 @@ export default function Layout() {
         <footer className="px-6 py-6 text-center text-[11px] text-subtle">
           © {new Date().getFullYear()} GENNETEX ХХК · ERP баримт бичгийн систем
         </footer>
+      </div>
+    </div>
+  );
+}
+
+/** admin.gennetex.com-оос тусдаа subdomain руу шилжсэн хэсэг. */
+function MovedNotice({ to, host, title }: { to: string; host: string; title: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-app p-4">
+      <div className="w-full max-w-md rounded-[var(--radius)] border border-line bg-card p-6 text-center shadow-panel">
+        <p className="text-[15px] font-semibold text-ink">{title} тусдаа хаяг руу шилжсэн</p>
+        <p className="mt-2 text-[13px] text-muted">Энэ хэсэг одоо {host} дээр ажиллана.</p>
+        <a href={to} className="focus-ring mt-4 inline-flex h-10 items-center rounded-[var(--radius-sm)] bg-brand px-4 text-[13px] font-semibold text-white">
+          {host} руу очих
+        </a>
+        <p className="mt-3">
+          <a href="/home" className="text-[12px] text-muted underline">Нүүр хуудас</a>
+        </p>
       </div>
     </div>
   );
