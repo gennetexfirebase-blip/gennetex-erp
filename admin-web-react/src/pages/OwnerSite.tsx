@@ -45,11 +45,20 @@ export default function OwnerSite() {
 
 /* ═══════════════════ / — Vaporwave 404 ═══════════════════ */
 function Vapor404() {
+  const root = useRef<HTMLElement>(null);
   useEffect(() => {
     document.title = 'Энэ хуудас байхгүй';
   }, []);
+  // Хошигнол: курсор алга, товшвол хулганыг таб дотор түгжинэ (Esc-ээр гарна — хөтчийн дүрэм).
+  const lock = () => root.current?.requestPointerLock?.();
   return (
-    <main className="vapor">
+    <main
+      ref={root}
+      className="vapor"
+      style={{ cursor: 'none', userSelect: 'none' }}
+      onClick={lock}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="v-sun" aria-hidden="true" />
       <div className="v-grid" aria-hidden="true" />
       <div className="v-content">
@@ -65,7 +74,7 @@ function Vapor404() {
             <h1 className="v-title">Энэ хуудас байхгүй</h1>
             <p className="v-sub">brony jems</p>
             <p className="v-p">&gt; Хаяг буруу эсвэл хуудас устсан байна_</p>
-            <a className="v-btn" href="https://gennetex.com"><span>Нүүр хуудас</span></a>
+            <span className="v-btn" role="presentation"><span>Нүүр хуудас</span></span>
           </div>
         </div>
       </div>
@@ -278,9 +287,24 @@ function OwnerAdmin() {
     };
     return (
       <main className="term">
-        <div className="t-wrap">
-          <p>&gt; login required<span className="t-cursor" aria-hidden="true" /></p>
-          <button className="t-btn" onClick={signIn}>[ GOOGLE-ЭЭР НЭВТРЭХ ]</button>
+        <div className="t-wrap" style={{ maxWidth: 640, paddingTop: '12vh' }}>
+          <pre className="t-dim" aria-hidden="true" style={{ fontSize: 11, lineHeight: 1.15, margin: 0, overflow: 'hidden' }}>{`┌──────────────────────────────────────────┐
+│  ADIYASUREN // SYSTEM ADMIN              │
+│  secure shell v1.0                       │
+└──────────────────────────────────────────┘`}</pre>
+          <section className="t-pane" style={{ marginTop: 16 }}>
+            <div className="t-bar"><span>+--- LOGIN ---+</span><span className="t-right">tty1</span></div>
+            <div className="t-body">
+              <p style={{ margin: '0 0 4px' }}><span className="t-amber">adiyasuren@gennetex:~$</span> ssh system/admin</p>
+              <p className="t-dim" style={{ margin: '0 0 4px' }}>[..] сесс олдсонгүй</p>
+              <p className="t-dim" style={{ margin: '0 0 14px' }}>[..] нэвтрэх аргаа сонгоно уу</p>
+              <button className="t-btn" onClick={signIn} autoFocus>[ login --google ]</button>
+              <p style={{ margin: '14px 0 0' }}>
+                <span className="t-amber">$</span> <span className="t-cursor" aria-hidden="true" />
+              </p>
+            </div>
+          </section>
+          <p className="t-dim" style={{ fontSize: 11, marginTop: 10 }}>// зөвхөн эрх бүхий хэрэглэгч. Бусад бүх оролдлого бүртгэгдэнэ.</p>
         </div>
       </main>
     );
