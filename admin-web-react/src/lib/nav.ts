@@ -11,6 +11,7 @@ import {
   ForkKnife,
   GasPump,
   GraduationCap,
+  PenNib,
   House,
   ListChecks,
   MapPin,
@@ -98,6 +99,7 @@ export const NAV: NavItem[] = [
 
   { label: 'Мэдэгдэл илгээх', to: '/internal/notify', icon: Megaphone, site: 'notif' },
   { label: 'Өндөрт ажиллах ХАБЭА', to: '/internal/safety', icon: ShieldCheck, site: 'habea' },
+  { label: 'ХААБ гарын үсэг', to: '/haab', icon: PenNib, site: 'haab' },
   { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardText, site: 'irts' },
   { label: 'Цагийн хүсэлт', to: '/request', icon: Clock, badgeKey: 'requests', badgeTone: 'brand', site: 'irts' },
   { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning', site: 'hr' },

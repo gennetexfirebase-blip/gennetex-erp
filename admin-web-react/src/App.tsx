@@ -10,6 +10,7 @@ import LocationsPage from './pages/Locations';
 import StaffLocationsPage from './pages/StaffLocations';
 import PayrollPage from './pages/Payroll';
 import MealMoneyPage from './pages/MealMoney';
+import HaabPage from './pages/Haab';
 import FuelPage from './pages/Fuel';
 import VehiclesPage from './pages/Vehicles';
 import CompanionsPage from './pages/Companions';
@@ -126,6 +127,7 @@ export default function App() {
           <Route path="/location/staff" element={<StaffLocationsPage />} />
           <Route path="/finance/payroll" element={<PayrollPage />} />
           <Route path="/finance/meal" element={<MealMoneyPage />} />
+          <Route path="/haab" element={<HaabPage />} />
           <Route path="/finance/fuel" element={<FuelPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/companions" element={<CompanionsPage />} />

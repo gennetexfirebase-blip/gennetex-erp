@@ -51,6 +51,7 @@ const GROUPS: Group[] = [
       { host: 'hr.gennetex.com', name: 'Хүний нөөц', desc: 'Ажилтан, алба хэлтэс, ажлын байрны анкет (цаасан загвар, PDF, батлах).', access: 'admin' },
       { host: 'surgalt.gennetex.com', name: 'Сургалт', desc: 'Ажилтны авсан ба заавал авах сургалт, гэрчилгээ.', access: 'admin' },
       { host: 'habea.gennetex.com', name: 'Өндөрт ажиллах ХАБЭА', desc: 'Өндөрт ажиллах ажилтны аюулгүй ажиллагааны бүртгэл, зөвшөөрөл.', access: 'admin' },
+      { host: 'haab.gennetex.com', name: 'ХААБ гарын үсэг', desc: 'Апп-аас ХААБ зааврыг уншаад зурсан өдөр бүрийн гарын үсэг — зурсан, зураагүй ажилтан.', access: 'admin' },
       { host: 'guitsetgel.gennetex.com', name: 'Ажилчдын гүйцэтгэл', desc: 'Баг бүр өдөрт хэдэн айл, хэр хугацаанд ажилласан тухай гүйцэтгэлийн тайлан.', access: 'admin' },
     ],
   },
