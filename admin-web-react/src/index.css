@@ -586,25 +586,25 @@ kbd.kbd {
   position: absolute;
   top: 0;
   left: -100000px;
-  width: 190mm;
+  width: 210mm;
   visibility: hidden;
   pointer-events: none;
 }
 .print-portal .print-sheet {
   max-width: none;
-  padding: 0;
+  padding: 9mm 10mm 0;
   border: 0;
+}
+.print-gap {
+  display: none;
 }
 @media print {
   /* Нэрлэсэн хуудас — act-document.css-ийн глобал «@page A4 portrait»-той мөргөлдөхгүй. */
+  /* margin: 0 — хөтөч өөрийн толгой/хөлийг (гарчиг, URL, огноо) хэвлэхгүй.
+     Хуудас бүрийн дээд/доод зай — хүснэгтийн давтагддаг .print-gap мөрүүд (HaabSheet). */
   @page haab {
     size: A4 portrait;
-    margin: 8mm 10mm 12mm;
-    @bottom-center {
-      content: counter(page) ' / ' counter(pages);
-      font: 9px 'IBM Plex Sans', Arial, sans-serif;
-      color: #5f6d67;
-    }
+    margin: 0;
   }
   /* Хэвлэхэд үргэлж цагаан цаас — шөнийн горимын token-уудыг дарна. */
   html.has-print-sheet[data-theme] {
@@ -639,7 +639,7 @@ kbd.kbd {
     page: haab;
     max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 9mm 10mm 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
     animation: none !important;
@@ -656,6 +656,12 @@ kbd.kbd {
   }
   .print-portal thead {
     display: table-header-group;
+  }
+  .print-portal tfoot {
+    display: table-footer-group;
+  }
+  .print-portal .print-gap {
+    display: table-row !important;
   }
 }
 

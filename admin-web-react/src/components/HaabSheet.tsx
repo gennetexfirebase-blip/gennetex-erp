@@ -16,8 +16,10 @@ export function SigImg({ ack, className = '' }: { ack: HaabAck | Pick<HaabAck, '
   return src ? <img src={src} alt="" className={`sig-img object-contain ${className}`} /> : null;
 }
 
-/** A4 босоо, зах 8мм/12мм (index.css @page haab) — хэвлэх талбайн өндөр (px, 96dpi). Өргөн 190мм. */
-const PAGE_H = (297 - 8 - 12) * (96 / 25.4);
+/** A4 босоо, @page margin 0 (зай нь хуудас дотор) — хуудасны өндөр (px, 96dpi). Өргөн 210мм. */
+const PAGE_H = 297 * (96 / 25.4);
+/** Хуудас бүрт давтагдах .print-gap мөрүүд (7мм + 10мм) — дэлгэцэн дээр хэмжигдэхгүй. */
+const GAP = 17 * (96 / 25.4);
 
 /**
  * ХААБ гарын үсгийн хуудас — дэлгэц, хэвлэх (A4 босоо), нийтийн холбоосонд ижил.
@@ -38,7 +40,7 @@ export default function HaabSheet({ sheet, onZoom, onPages }: { sheet: Sheet; on
   useLayoutEffect(() => {
     const el = printRef.current;
     if (!onPages || !el) return;
-    const measure = () => onPages(Math.max(1, Math.ceil(el.offsetHeight / PAGE_H)));
+    const measure = () => onPages(Math.max(1, Math.ceil(el.offsetHeight / (PAGE_H - GAP))));
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -88,6 +90,8 @@ function SheetBody({ sheet, onZoom, innerRef }: { sheet: Sheet; onZoom?: (a: Haa
 
       <table className="mt-3 w-full border-collapse text-[11px]">
         <thead>
+          {/* Хэвлэхэд 2 дахь хуудаснаас дээд зай (margin 0 тул) — дэлгэцэнд харагдахгүй. */}
+          <tr className="print-gap" aria-hidden="true"><td colSpan={5} className="h-[7mm] border-0 p-0" /></tr>
           <tr className="bg-card2 text-center text-[9.5px] font-bold uppercase tracking-[0.02em] text-ink">
             <th className={`${cell} w-7`}>№</th>
             <th className={`${cell} w-[25%]`}>Овог, нэр</th>
@@ -144,6 +148,10 @@ function SheetBody({ sheet, onZoom, innerRef }: { sheet: Sheet; onZoom?: (a: Haa
             ))
           )}
         </tbody>
+        <tfoot>
+          {/* Хуудас бүрийн доод зай. */}
+          <tr className="print-gap" aria-hidden="true"><td colSpan={5} className="h-[10mm] border-0 p-0" /></tr>
+        </tfoot>
       </table>
 
       {/* Хариуцсан хүмүүсийн гарын үсгийн мөр */}

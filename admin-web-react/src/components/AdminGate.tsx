@@ -363,7 +363,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
               <a href={sms.smsUri} className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius)] bg-brand text-[14px] font-semibold text-white hover:bg-brand-600">
                 <Smartphone size={16} /> SMS илгээх (144773)
               </a>
-              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна… Нэг SMS 150₮.</p>
+              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна…</p>
             </>
           )}
           <button type="button" className="w-full text-[12px] text-muted underline" onClick={() => { setStep('password'); setSms(null); }}>Буцах — кодоо санаж байна</button>
@@ -389,7 +389,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
               <a href={sms.smsUri} className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius)] bg-brand text-[14px] font-semibold text-white hover:bg-brand-600">
                 <Smartphone size={16} /> SMS илгээх (144773)
               </a>
-              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна… Нэг SMS 150₮.</p>
+              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна…</p>
             </>
           )}
           <button type="button" className="w-full text-[12px] text-muted underline" onClick={restart}>Өөр дугаар оруулах</button>
