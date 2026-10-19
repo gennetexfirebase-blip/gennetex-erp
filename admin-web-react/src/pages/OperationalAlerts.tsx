@@ -30,9 +30,9 @@ export default function OperationalAlertsPage() {
         actions={<Button variant="outline" icon={<RotateCw size={15} />} onClick={reload}>Шинэчлэх</Button>}
       />
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatCard label="Нийт" value={totalValue} note="Анхаарах бүх зүйл" />
-        <StatCard label="Яаралтай" value={dangerValue} note="Хэтэрсэн эсвэл өнөөдөр дуусах" />
-        <StatCard label="Урьдчилан сануулах" value={warningValue} note="Тохируулсан хугацаанд багтсан" />
+        <StatCard label="Нийт" value={totalValue} note="Анхаарах бүх зүйл" icon={<BellRing size={16} />} tone="blue" />
+        <StatCard label="Яаралтай" value={dangerValue} note="Хэтэрсэн эсвэл өнөөдөр дуусах" icon={<AlertTriangle size={16} />} tone="rose" />
+        <StatCard label="Урьдчилан сануулах" value={warningValue} note="Тохируулсан хугацаанд багтсан" icon={<RotateCw size={16} />} tone="amber" />
       </div>
       <Card
         title="Нэгдсэн жагсаалт"

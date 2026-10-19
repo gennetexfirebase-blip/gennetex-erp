@@ -14,7 +14,7 @@ import { createAdminClient } from "../_shared/push.ts";
 
 const cors = (req: Request) => {
   const origin = req.headers.get("origin") || "";
-  const ok = /^https:\/\/[a-z0-9-]+\.gennetex\.com$/.test(origin) || origin.endsWith(".vercel.app") || origin === "http://localhost:5173";
+  const ok = /^https:\/\/[a-z0-9-]+\.gennetex\.com$/.test(origin) || origin.endsWith(".vercel.app") || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
   return {
     "Access-Control-Allow-Origin": ok ? origin : "https://admin.gennetex.com",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

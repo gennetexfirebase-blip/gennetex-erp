@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { LogIn } from 'lucide-react';
-import { Button, Loading } from './ui';
+import { Button, GoogleIcon, Loading } from './ui';
+import AuthShell, { GoogleButton } from './AuthShell';
 import { supabase } from '../lib/supabase';
-import { currentSite } from '../lib/sites';
 import { rememberAuthReturn } from '../lib/authReturn';
-import brandMark from '../assets/report-logo.png';
 
 /**
  * Админ хэсгүүдийн нэвтрэлт (edge function `admin-gate`) — зөвхөн Google.
@@ -42,6 +41,7 @@ async function gate<T = any>(body: Record<string, unknown>): Promise<T> {
     } catch {
       /* ignore */
     }
+    if (/Failed to send|fetch/i.test(msg)) msg = 'Сервертэй холбогдож чадсангүй. Интернэтээ шалгаад дахин оролдоно уу.';
     throw new Error(msg);
   }
   if (data?.error) throw new Error(data.error);
@@ -56,7 +56,6 @@ async function signInWith(tokenHash: string) {
 }
 
 export default function AdminGate({ signedIn, onPass, title }: { signedIn: boolean; onPass: () => void; title?: string }) {
-  const site = currentSite();
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -126,30 +125,27 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app p-4">
-      <div className="w-full max-w-sm rounded-[var(--radius)] border border-line bg-card p-6 shadow-panel">
-        <div className="mb-5 flex items-center gap-3">
-          <img src={brandMark} alt="" width="36" height="36" className="h-9 w-9 rounded-md object-contain" />
-          <div>
-            <h1 className="text-[16px] font-semibold text-ink">{title || site.title}</h1>
-            <p className="text-[12px] text-muted">Gennetex · админ нэвтрэлт</p>
+    <AuthShell title={title ? `${title} — нэвтрэх` : undefined} subtitle={signedIn ? 'Эрхийг тань шалгаж байна. Шаардлагатай бол өөр данс сонгоно уу.' : undefined}>
+      {signedIn && email ? (
+        <div className="mb-4 flex items-center gap-3 rounded-[var(--radius)] bg-card2 px-3.5 py-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-[13px] font-bold uppercase text-brand">{email[0]}</span>
+          <div className="min-w-0">
+            <p className="text-[11px] text-subtle">Нэвтэрсэн данс</p>
+            <p className="truncate text-[13px] font-semibold text-ink">{email}</p>
           </div>
         </div>
-
-        <div className="space-y-3">
-          {signedIn && email ? <p className="text-[13px] text-muted">Нэвтэрсэн: <span className="font-semibold text-ink">{email}</span></p> : null}
-          <Button className="w-full" icon={<LogIn size={16} />} disabled={busy} onClick={signedIn ? login : google}>
-            {busy ? 'Шалгаж байна…' : signedIn ? 'Үргэлжлүүлэх' : 'Google-ээр нэвтрэх'}
+      ) : null}
+      {signedIn ? (
+        <div className="space-y-2">
+          <Button className="h-12 w-full" icon={<LogIn size={16} />} disabled={busy} onClick={login}>
+            {busy ? 'Шалгаж байна…' : 'Үргэлжлүүлэх'}
           </Button>
-          {signedIn ? (
-            <button type="button" className="w-full text-[12px] text-muted underline" onClick={() => supabase.auth.signOut().then(google)}>
-              Өөр Google дансаар
-            </button>
-          ) : null}
+          <GoogleButton onClick={() => void supabase.auth.signOut().then(google)} icon={<GoogleIcon />} label="Өөр Google дансаар" />
         </div>
-
-        {err ? <p className="mt-3 text-[13px] text-danger" role="alert">{err}</p> : null}
-      </div>
-    </div>
+      ) : (
+        <GoogleButton onClick={google} busy={busy} icon={<GoogleIcon />} />
+      )}
+      {err ? <p className="mt-3 rounded-[var(--radius)] bg-danger-soft px-3 py-2.5 text-[13px] text-danger" role="alert">{err}</p> : null}
+    </AuthShell>
   );
 }

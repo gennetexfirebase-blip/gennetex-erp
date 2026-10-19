@@ -135,6 +135,20 @@ export const NAV: NavItem[] = [
   })),
 ];
 
+/** Хаягт тохирох цэсний icon — хуудасны толгойд (хамгийн урт таарсан угтвар). */
+export function iconOfPath(path: string): LucideIcon | null {
+  let best: { len: number; icon: LucideIcon } | null = null;
+  for (const item of NAV) {
+    const tos = [item.to, ...(item.children || []).map((c) => c.to)].filter(Boolean) as string[];
+    for (const to of tos) {
+      if ((path === to || path.startsWith(to + '/')) && (!best || to.length > best.len)) {
+        best = { len: to.length, icon: item.icon };
+      }
+    }
+  }
+  return best?.icon || null;
+}
+
 /** Хаяг аль сайтад харьяалагдахыг цэснээс олно (хамгийн урт таарсан угтвар). */
 export function siteOfPath(path: string): { site: SiteKey; superOnly: boolean; openToAll: boolean } | null {
   const legacy = path.match(/^\/legacy\/([^/]+)/)?.[1];

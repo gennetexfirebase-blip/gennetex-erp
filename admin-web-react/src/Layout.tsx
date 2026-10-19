@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import CommandPalette from './components/CommandPalette';
 import LoginPage from './pages/Login';
 import AdminGate, { adminGateLogout } from './components/AdminGate';
 import { Loading } from './components/ui';
@@ -25,16 +26,51 @@ const ADMIN_ROLES = new Set(['admin', 'superadmin']);
 
 export default function Layout() {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('gx_sidebar_collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authState, setAuthState] = useState<'loading' | 'out' | 'denied' | 'ok'>('loading');
   const [counts, setCounts] = useState({ requests: 0, employees: 0 });
   const [employeeCount, setEmployeeCount] = useState({ used: 0, total: 20 });
   // Админ хэсгүүдийн 4 шаттай нэвтрэлт (akt.gennetex.com-оос бусад).
-  const [gateOk, setGateOk] = useState(false);
+  // Local dev `?design=1` — нэвтрэлтийн шатыг алгасна (production-д үйлчлэхгүй).
+  const [gateOk, setGateOk] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('design'));
   const passGate = useCallback(() => setGateOk(true), []);
   const gateSite = currentSite().key !== 'akt';
+
+  // Хумисан цэсийг санана.
+  useEffect(() => {
+    try {
+      localStorage.setItem('gx_sidebar_collapsed', collapsed ? '1' : '0');
+    } catch {
+      /* хувийн цонх */
+    }
+  }, [collapsed]);
+
+  // Ctrl+K / ⌘K — хайлт; «/» — бичих талбарт биш үед.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      } else if (e.key === '/' && !typing) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => setMobileOpen(false), [location.pathname]);
 
   // ── Нэвтрэлт ────────────────────────────────────────────────────
   // ⚠️ Нэвтрээгүй үед бүх RPC нь `is_admin_user()` дээр унаж, өгөгдөл
@@ -158,6 +194,7 @@ export default function Layout() {
         employeeCount={employeeCount}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        onOpenSearch={() => setSearchOpen(true)}
         actOnly={actOnly}
         canTemplates={canTemplates}
         isSuper={isSuper}
@@ -168,6 +205,8 @@ export default function Layout() {
           collapsed={collapsed}
           onToggleSidebar={() => setCollapsed((v) => !v)}
           onOpenMobile={() => setMobileOpen(true)}
+          onOpenSearch={() => setSearchOpen(true)}
+          isAdmin={fullAdmin}
           profile={profile}
           unread={counts.requests}
           onSignOut={() => adminGateLogout().then(() => supabase.auth.signOut()).then(() => window.location.reload())}
@@ -175,9 +214,10 @@ export default function Layout() {
           canCreateAct={canCreateAct}
           canTemplates={canTemplates}
         />
-        <main id="main-content" tabIndex={-1} className="flex-1 px-3 pb-10 pt-5 outline-none sm:px-5 lg:px-6 xl:px-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 px-3 pb-10 pt-6 outline-none sm:px-5 lg:px-8">
         <div className="mx-auto w-full max-w-[1760px]"><Outlet context={{ profile }} /></div>
         </main>
+        {!actOnly ? <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin={fullAdmin} isSuper={isSuper} /> : null}
         <footer className="px-6 py-6 text-center text-[11px] text-subtle">
           © {new Date().getFullYear()} GENNETEX ХХК · {site.title}
         </footer>

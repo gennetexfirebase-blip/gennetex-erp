@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Clock, Users, Bell, CalendarDays, MapPin } from 'lucide-react';
-import { PageHeader, Card, Avatar, EmptyState, Loading, Badge } from '../components/ui';
+import { Card, Avatar, EmptyState, Loading, Badge, ToneIcon } from '../components/ui';
 import { fetchAttendanceToday, fetchAttendanceRequests, useAsync, type AttendanceRow } from '../lib/data';
 
 const SLICE_COLORS: Record<string, string> = {
@@ -22,7 +23,16 @@ const SLICE_LABEL: Record<string, string> = {
   not_scheduled: 'Хуваарьгүй',
 };
 
+function greeting(h: number) {
+  if (h < 5) return 'Оройн мэнд';
+  if (h < 12) return 'Өглөөний мэнд';
+  if (h < 18) return 'Өдрийн мэнд';
+  return 'Оройн мэнд';
+}
+
 export default function HomePage() {
+  const { profile } = useOutletContext<{ profile: { name?: string | null; email?: string | null } | null }>() || { profile: null };
+  const firstName = (profile?.name || profile?.email?.split('@')[0] || '').split(/\s+/).slice(-1)[0];
   const today = new Date().toISOString().slice(0, 10);
   const { data: rows, loading } = useAsync<AttendanceRow[]>(
     () => fetchAttendanceToday(today),
@@ -55,7 +65,33 @@ export default function HomePage() {
 
   return (
     <>
-      <PageHeader title="Өнөөдрийн тойм" crumb="Нүүр" description="Ирц, хүсэлт болон өдөр тутмын ажлын мэдээлэл." />
+      <section className="surface mb-6 flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-medium text-subtle">
+            {`${new Date().getMonth() + 1}-р сарын ${new Date().getDate()}, ${['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'][new Date().getDay()]} гараг`}
+          </p>
+          <h1 className="mt-1 text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink sm:text-[30px]">
+            {greeting(new Date().getHours())}{firstName ? `, ${firstName}` : ''}
+          </h1>
+          <p className="mt-1.5 text-[14px] text-muted">Өнөөдрийн ирц, хүсэлт болон ажлын мэдээллийн тойм.</p>
+        </div>
+        <div className="flex gap-3">
+          <div className="flex items-center gap-3 rounded-[var(--radius)] bg-card2 px-4 py-3">
+            <ToneIcon tone="green" size={40}><Users size={18} /></ToneIcon>
+            <div>
+              <p className="text-[22px] font-bold leading-none tabular-nums text-ink">{loading ? '…' : rows.filter((r) => r.check_in_at).length}</p>
+              <p className="mt-1 text-[12px] text-muted">ирсэн</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-[var(--radius)] bg-card2 px-4 py-3">
+            <ToneIcon tone="amber" size={40}><Bell size={18} /></ToneIcon>
+            <div>
+              <p className="text-[22px] font-bold leading-none tabular-nums text-ink">{requestsError ? '—' : requests.length}</p>
+              <p className="mt-1 text-[12px] text-muted">хүсэлт</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {/* Ирц — донат */}
