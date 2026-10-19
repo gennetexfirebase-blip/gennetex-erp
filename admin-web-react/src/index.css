@@ -583,8 +583,24 @@ kbd.kbd {
 @media print {
   /* Нэрлэсэн хуудас — act-document.css-ийн глобал «@page A4 portrait»-той мөргөлдөхгүй. */
   @page haab {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 10mm;
+  }
+  /* Хэвлэхэд үргэлж цагаан цаас — шөнийн горимын token-уудыг дарна. */
+  html.has-print-sheet[data-theme] {
+    color-scheme: light;
+    --bg-card: #fff;
+    --bg-card-2: #f2f5f3;
+    --bg-hover: #f2f5f3;
+    --border: #d9e1dd;
+    --text: #16201c;
+    --text-muted: #45534d;
+    --text-subtle: #5f6d67;
+    --heading: #16201c;
+    --brand: #0c8a62;
+  }
+  html.has-print-sheet .sig-img {
+    filter: none !important;
   }
   /* Зөвхөн гарын үсгийн хуудас дэлгэцэнд байгаа үед (HaabSheet <html>-д класс тавина). */
   html.has-print-sheet,
@@ -604,6 +620,7 @@ kbd.kbd {
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
+    max-width: none !important;
     border: 0 !important;
     border-radius: 0 !important;
     animation: none !important;
@@ -611,4 +628,9 @@ kbd.kbd {
   .print-sheet tr {
     break-inside: avoid;
   }
+}
+
+/* Шөнийн горимд гарын үсэг (хар зураас) бараан дэвсгэр дээр цагаанаар харагдана; хэвлэхэд буцаана. */
+:root[data-theme='dark'] .sig-img {
+  filter: invert(1) brightness(1.1);
 }

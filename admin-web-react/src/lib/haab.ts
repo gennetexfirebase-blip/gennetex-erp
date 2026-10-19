@@ -97,42 +97,36 @@ export async function downloadPdf(sheet: HaabSheet) {
   const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([import('pdfmake/build/pdfmake'), import('pdfmake/build/vfs_fonts')]);
   (pdfMake as unknown as { addVirtualFileSystem: (f: unknown) => void }).addVirtualFileSystem(pdfFonts);
   const svgs = await Promise.all(sheet.acks.map((a) => svgText(a.signature_url)));
-  const points = keyPoints(sheet.instruction.body);
-  const head = ['№', 'Ажилтан', 'Хэлтэс', 'Цаг', 'Заавар', 'Гарын үсэг'].map((t) => ({ text: t, bold: true, fillColor: '#eef3f0', fontSize: 9 }));
-  const body = sheet.acks.map((a, i) => [
-    { text: String(i + 1), alignment: 'center' },
-    { text: a.name, bold: true },
-    a.department || '—',
-    timeOf(a.signed_at),
-    versionLabel(a, sheet.instruction),
-    svgs[i] ? { svg: svgs[i], fit: [120, 34], alignment: 'center' } : { text: 'Зураг алга', color: '#888888' },
-  ]);
+  const points = keyPoints(sheet.instruction.body, 12);
+  const n = sheet.acks.length;
+  const head = ['№', 'Ажилтан', 'Цаг', `Заавар — ${sheet.instruction.title}`, 'Гарын үсэг'].map((t) => ({ text: t, bold: true, fillColor: '#eef3f0', fontSize: 8 }));
+  const pointsCell = { rowSpan: Math.max(1, n), ol: points.length ? points : ['Зааврын текст хоосон.'], fontSize: 8, lineHeight: 1.2 };
+  const body = n
+    ? sheet.acks.map((a, i) => [
+        { text: String(i + 1), alignment: 'center', color: '#5f6d67' },
+        { stack: [{ text: a.name, bold: true }, ...(a.department ? [{ text: a.department, fontSize: 7, color: '#5f6d67' }] : [])] },
+        timeOf(a.signed_at),
+        i === 0 ? pointsCell : {},
+        svgs[i] ? { svg: svgs[i], fit: [100, 28], alignment: 'center' } : { text: '—', alignment: 'center', color: '#888888' },
+      ])
+    : [[{ text: 'Энэ өдөр гарын үсэг зурсан ажилтан алга.', colSpan: 5, alignment: 'center', color: '#888888' }, {}, {}, {}, {}]];
   const doc = {
     pageSize: 'A4',
-    pageOrientation: 'landscape',
-    pageMargins: [28, 28, 28, 32],
+    pageOrientation: 'portrait',
+    pageMargins: [28, 28, 28, 30],
     defaultStyle: { font: 'Roboto', fontSize: 9, color: '#111111' },
-    footer: (page: number, count: number) => ({ text: `GENNETEX ХХК · ХААБ гарын үсэг · ${sheet.date} · ${page}/${count}`, alignment: 'center', fontSize: 8, color: '#777777', margin: [0, 8, 0, 0] }),
+    footer: (page: number, count: number) => ({ text: `GENNETEX ХХК · ${sheet.date} · ${page}/${count}`, alignment: 'center', fontSize: 7, color: '#777777', margin: [0, 8, 0, 0] }),
     content: [
-      { text: 'ХААБ зааврын танилцуулгын гарын үсгийн хуудас', fontSize: 15, bold: true },
-      { text: `${sheet.instruction.title} · Огноо: ${sheet.date} · Гарын үсэг зурсан: ${sheet.acks.length} / ${sheet.total}`, color: '#555555', margin: [0, 3, 0, 12] },
       {
         columns: [
-          {
-            width: '*',
-            table: { headerRows: 1, widths: [18, '*', 90, 34, 70, 130], body: [head, ...body] },
-            layout: { hLineColor: () => '#d9e1dd', vLineColor: () => '#d9e1dd', paddingTop: () => 4, paddingBottom: () => 4 },
-          },
-          {
-            width: 210,
-            stack: [
-              { text: 'Зааврын гол заалтууд', bold: true, fontSize: 11, margin: [0, 0, 0, 6] },
-              points.length ? { ol: points, fontSize: 9, lineHeight: 1.2 } : { text: 'Зааврын текст хоосон.', color: '#888888' },
-              { text: sheet.instruction.updated_at ? `Зааврын хувилбар: ${dayOf(sheet.instruction.updated_at)}` : '', fontSize: 8, color: '#777777', margin: [0, 8, 0, 0] },
-            ],
-          },
+          { text: 'ХААБ зааврын танилцуулгын гарын үсэг', fontSize: 13, bold: true },
+          { text: `Огноо: ${sheet.date}   Зурсан: ${n} / ${sheet.total}`, alignment: 'right', fontSize: 9, color: '#45534d', margin: [0, 3, 0, 0] },
         ],
-        columnGap: 14,
+        margin: [0, 0, 0, 10],
+      },
+      {
+        table: { headerRows: 1, dontBreakRows: true, widths: [16, '*', 30, '38%', 108], body: [head, ...body] },
+        layout: { hLineColor: () => '#d9e1dd', vLineColor: () => '#d9e1dd', paddingTop: () => 3, paddingBottom: () => 3 },
       },
     ],
   };
