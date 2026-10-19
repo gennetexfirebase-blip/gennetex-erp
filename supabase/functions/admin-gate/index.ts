@@ -6,7 +6,8 @@
  * token_hash буцааж (клиент `verifyOtp`), утасны дараа `phone` нь Google шатыг
  * алгасна (JWT нь утастай ижил хүн бол).
  *
- *   start    {phone}                  → verify.mn сесс (өөрийн утаснаас 144773 руу код илгээнэ)
+ *   start    {phone | self:true}      → verify.mn сесс (self — Google-ээр нэвтэрсэн хүний бүртгэлтэй утас)
+ *   my_phone + JWT                    → бүртгэлтэй утасны далдалсан дугаар (дугаар бичихгүйгээр код илгээх)
  *   phone    {gate}                   → VERIFIED бол Google шат (клиент 3 сек тутам)
  *   google   {gate}           + JWT   → утастай ижил хүн эсэх → байнгын кодын шат
  *   password {gate, password} + JWT   → байнгын код (анх удаа тохируулна) → 12 цагийн сесс
@@ -159,8 +160,29 @@ async function sessionOf(token: unknown) {
 
 async function handle(req: Request, body: Record<string, unknown>) {
   switch (body.action) {
+    case "my_phone": {
+      const uid = await jwtUserId(req);
+      const { data: prof } = await db.from("profiles").select("phone").eq("id", uid).maybeSingle();
+      try {
+        const p = phone8(prof?.phone);
+        return { phone: `${p.slice(0, 2)}••••${p.slice(-2)}` };
+      } catch {
+        return { phone: null };
+      }
+    }
+
     case "start": {
-      const phone = phone8(body.phone);
+      let phone: string;
+      if (body.self) {
+        // Дугаар бичихгүйгээр — Google-ээр нэвтэрсэн хүний бүртгэлтэй утас руу.
+        const uid = await jwtUserId(req);
+        const { data: prof } = await db.from("profiles").select("phone").eq("id", uid).maybeSingle();
+        try {
+          phone = phone8(prof?.phone);
+        } catch {
+          throw new GateError("Таны бүртгэлд утасны дугаар алга. Дугаараа гараар оруулна уу.");
+        }
+      } else phone = phone8(body.phone);
       const { data: grants } = await db.from("location_view_grants").select("user_id");
       const ids = (grants || []).map((g) => g.user_id);
       const { data: people } = await db.from("profiles").select("id, phone")

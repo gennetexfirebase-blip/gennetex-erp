@@ -21,6 +21,9 @@ import { rememberAuthReturn } from '../lib/authReturn';
 const GLOBAL = 'gx_admin_gate';
 const SITE = 'gx_admin_site';
 const PROGRESS = 'gx_admin_gate_step';
+/** Өмнө код илгээсэн дугаар — бүх subdomain-д (дугаар дахин бичихгүй). */
+const PHONE = 'gx_admin_phone';
+const mask = (p: string) => `${p.slice(0, 2)}••••${p.slice(-2)}`;
 type Step = 'phone' | 'sms' | 'google' | 'password' | 'reset';
 
 const progress = {
@@ -46,6 +49,9 @@ const sharedDomain = () => {
   return h.endsWith('.gennetex.com') || h === 'gennetex.com' ? '; domain=.gennetex.com' : '';
 };
 const readCookie = (name: string) => document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))?.[1] || '';
+function rememberPhone(p: string) {
+  document.cookie = `${PHONE}=${p}; path=/; max-age=${180 * 86400}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}${sharedDomain()}`;
+}
 function writeCookie(name: string, token: string, expiresAt: string | undefined, shared: boolean) {
   const maxAge = token && expiresAt ? Math.max(60, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : 0;
   document.cookie = `${name}=${token}; path=/; max-age=${maxAge}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}${shared ? sharedDomain() : ''}`;
@@ -90,6 +96,10 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
   const [step, setStepRaw] = useState<Step>(saved?.step || 'phone');
   const [gateId, setGateId] = useState<string | null>(saved?.gate || null);
   const [phone, setPhone] = useState('');
+  // Өмнө илгээсэн дугаар (cookie) эсвэл Google-ээр нэвтэрсэн бол бүртгэлтэй утас (далдалсан).
+  const [savedPhone] = useState(() => (/^\d{8}$/.test(readCookie(PHONE)) ? readCookie(PHONE) : ''));
+  const [myPhone, setMyPhone] = useState('');
+  const [manual, setManual] = useState(false);
   const [sms, setSms] = useState<{ instruction: string; smsUri: string; code: string; expiresAt: string; expired?: boolean } | null>(null);
   const [setup, setSetup] = useState(false);
   const [pw, setPw] = useState('');
@@ -163,9 +173,19 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
     if (signedIn) void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email || ''));
   }, [signedIn]);
 
-  const start = () =>
+  // Google-ээр нэвтэрсэн, гэхдээ энэ төхөөрөмжид дугаар санагдаагүй бол бүртгэлтэй утсыг асууна.
+  useEffect(() => {
+    if (!signedIn || savedPhone) return;
+    gate<{ phone: string | null }>({ action: 'my_phone' }).then((r) => setMyPhone(r.phone || '')).catch(() => null);
+  }, [signedIn, savedPhone]);
+
+  /** quick — санагдсан/бүртгэлтэй дугаар руу (бичихгүй); үгүй бол оруулсан дугаар руу. */
+  const start = (quick = false) =>
     run(async () => {
-      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'start', phone, host: location.hostname });
+      const typed = phone.replace(/\D/g, '').slice(-8);
+      const body = quick ? (savedPhone ? { phone: savedPhone } : { self: true }) : { phone: typed };
+      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'start', host: location.hostname, ...body });
+      if (!quick && /^\d{8}$/.test(typed)) rememberPhone(typed);
       setGateId(r.gate);
       setSms({ instruction: r.instruction, smsUri: r.smsUri, code: r.code, expiresAt: r.expiresAt });
       setStep('sms', r.gate);
@@ -301,7 +321,21 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
         </div>
       ) : null}
 
-      {step === 'phone' ? (
+      {step === 'phone' && !manual && (savedPhone || myPhone) ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 rounded-xl border border-line bg-card2 px-4 py-3">
+            <Smartphone size={18} className="shrink-0 text-brand" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] text-subtle">Код илгээх дугаар</span>
+              <span className="block text-[17px] font-semibold tracking-[0.06em] tabular-nums text-ink">{savedPhone ? mask(savedPhone) : myPhone}</span>
+            </span>
+          </div>
+          <Button className="h-11 w-full" disabled={busy} onClick={() => start(true)} autoFocus>{busy ? 'Түр хүлээнэ үү…' : 'Код илгээх'}</Button>
+          <button type="button" className="w-full text-[12px] text-muted underline" onClick={() => setManual(true)}>Өөр дугаар оруулах</button>
+        </div>
+      ) : null}
+
+      {step === 'phone' && (manual || !(savedPhone || myPhone)) ? (
         <form onSubmit={(e) => { e.preventDefault(); start(); }} className="space-y-3">
           <label className="block space-y-1.5 text-[13px] text-ink">
             <span className="flex items-center gap-1.5 font-medium"><Smartphone size={14} /> Утасны дугаар</span>
@@ -346,7 +380,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
           ) : sms.expired ? (
             <>
               <p className="rounded-xl bg-warning-soft p-3 text-[13px] text-warning">Хугацаа дууссан. Өмнөх код ({sms.code}) хүчингүй боллоо — шинэ код аваад дахин илгээнэ үү.</p>
-              <Button className="h-11 w-full" disabled={busy} onClick={start}>Шинэ код авах</Button>
+              <Button className="h-11 w-full" disabled={busy} onClick={() => start(!manual && !!(savedPhone || myPhone))}>Шинэ код авах</Button>
             </>
           ) : (
             <>
