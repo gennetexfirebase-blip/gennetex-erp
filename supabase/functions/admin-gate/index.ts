@@ -8,6 +8,7 @@
  *
  *   start    {phone | self:true}      → verify.mn сесс (self — Google-ээр нэвтэрсэн хүний бүртгэлтэй утас)
  *   my_phone + JWT                    → бүртгэлтэй утасны далдалсан дугаар (дугаар бичихгүйгээр код илгээх)
+ *   register {phone, host} + JWT      → утасгүй админ: өөрийн дугаараа бүртгүүлэх — verify.mn баталгаажмагц профайлд хадгална
  *   phone    {gate}                   → VERIFIED бол Google шат (клиент 3 сек тутам)
  *   google   {gate}           + JWT   → утастай ижил хүн эсэх → байнгын кодын шат
  *   password {gate, password} + JWT   → байнгын код (анх удаа тохируулна) → 12 цагийн сесс
@@ -181,6 +182,37 @@ async function handle(req: Request, body: Record<string, unknown>) {
       }
     }
 
+    case "register": {
+      // Админ эхлээд Google-ээр нэвтэрч, өөрийн дугаараа бүртгүүлнэ — баталгаажсаны дараа л профайлд бичнэ.
+      const uid = await jwtUserId(req);
+      if (!(await allowed(uid))) throw new GateError("Энэ Google данс админ хэсэгт нэвтрэх эрхгүй.", 403);
+      const { data: prof } = await db.from("profiles").select("phone").eq("id", uid).maybeSingle();
+      let current = "";
+      try {
+        current = phone8(prof?.phone);
+      } catch {
+        /* утасгүй эсвэл буруу — бүртгүүлж болно */
+      }
+      const phone = phone8(body.phone);
+      if (current && current !== phone) throw new GateError("Танд дугаар бүртгэлтэй байна. Солих бол системийн админд (adiyasuren) хандана уу.", 409);
+      const { data: others } = await db.from("profiles").select("id, phone").neq("id", uid).not("phone", "is", null);
+      if ((others || []).some((o) => {
+        try {
+          return phone8(o.phone) === phone;
+        } catch {
+          return false;
+        }
+      })) throw new GateError("Энэ дугаар өөр хэрэглэгчид бүртгэлтэй байна.", 409);
+      const v = await createSession(vmPhone(phone));
+      const host = hostOf(body.host);
+      // subject_type «admin_register» — phone шат VERIFIED болоход дугаарыг профайлд бичнэ.
+      await logVerify(v, uid, host ? `admin_register:${host}` : "admin_register");
+      await db.from("data_gate_attempts").delete().eq("user_id", uid).eq("scope", SCOPE);
+      const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: uid, stage: "phone", phone_session: v.sessionId, scope: SCOPE }).select("id").single();
+      await audit(uid, "register_start", { phone: phone.slice(0, 2) + "****" + phone.slice(-2) });
+      return { gate: gate!.id, instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
+    }
+
     case "start": {
       let phone: string;
       if (body.self) {
@@ -205,7 +237,7 @@ async function handle(req: Request, body: Record<string, unknown>) {
         }
       });
       await audit(me?.id || null, "start", { phone: phone.slice(0, 2) + "****" + phone.slice(-2), ok: !!me });
-      if (!me) throw new GateError("Энэ дугаар админ хэсэгт нэвтрэх эрхгүй.", 403);
+      if (!me) throw new GateError("Энэ дугаар системд бүртгэлгүй байна. Google-ээр нэвтэрч, өөрийн дугаараа бүртгүүлнэ үү.", 403);
       // Google-ээр аль хэдийн нэвтэрсэн бол дугаар нь тэр хүнийх байх ёстой.
       const signed = await jwtUserIdOrNull(req);
       if (signed && signed !== me.id) {
@@ -231,6 +263,13 @@ async function handle(req: Request, body: Record<string, unknown>) {
       if (v.sessionStatus !== "VERIFIED") return { verified: false };
       await markVerify(gate.phone_session || "", "VERIFIED").catch(() => null);
       await audit(gate.user_id, "phone_ok");
+      // Дугаар бүртгүүлэх урсгал — баталгаажсан дугаарыг профайлд хадгална.
+      const { data: pvs } = await db.from("phone_verification_sessions").select("phone, subject_type").eq("provider_session_id", gate.phone_session || "").maybeSingle();
+      if (String(pvs?.subject_type || "").startsWith("admin_register")) {
+        const reg = phone8(pvs?.phone);
+        await db.from("profiles").update({ phone: reg }).eq("id", gate.user_id);
+        await audit(gate.user_id, "phone_registered", { phone: reg.slice(0, 2) + "****" + reg.slice(-2) });
+      }
       // Өөр subdomain-д Google-ээр аль хэдийн нэвтэрсэн (ижил хүн) бол Google шатыг алгасна.
       if ((await jwtUserIdOrNull(req)) === gate.user_id) {
         await db.from("data_gate_attempts").update({ stage: "password" }).eq("id", gate.id);

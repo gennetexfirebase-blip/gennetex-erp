@@ -99,6 +99,10 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
   // Өмнө илгээсэн дугаар (cookie) эсвэл Google-ээр нэвтэрсэн бол бүртгэлтэй утас (далдалсан).
   const [savedPhone] = useState(() => (/^\d{8}$/.test(readCookie(PHONE)) ? readCookie(PHONE) : ''));
   const [myPhone, setMyPhone] = useState('');
+  // Google-ээр нэвтэрсэн хүнд дугаар бүртгэлтэй эсэх (undefined — мэдэгдээгүй). false бол эхлээд бүртгүүлнэ.
+  const [registered, setRegistered] = useState<boolean | undefined>(undefined);
+  // Нэвтрээгүй хүн бүртгэлгүй дугаар оруулсан — Google-ээр нэвтэрч бүртгүүлэхийг санал болгоно.
+  const [needRegister, setNeedRegister] = useState(false);
   const [manual, setManual] = useState(false);
   const [sms, setSms] = useState<{ instruction: string; smsUri: string; code: string; expiresAt: string; expired?: boolean } | null>(null);
   const [setup, setSetup] = useState(false);
@@ -175,17 +179,40 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
 
   // Google-ээр нэвтэрсэн, гэхдээ энэ төхөөрөмжид дугаар санагдаагүй бол бүртгэлтэй утсыг асууна.
   useEffect(() => {
-    if (!signedIn || savedPhone) return;
-    gate<{ phone: string | null }>({ action: 'my_phone' }).then((r) => setMyPhone(r.phone || '')).catch(() => null);
-  }, [signedIn, savedPhone]);
+    if (!signedIn) return;
+    gate<{ phone: string | null }>({ action: 'my_phone' })
+      .then((r) => {
+        setMyPhone(r.phone || '');
+        setRegistered(!!r.phone);
+      })
+      .catch(() => null);
+  }, [signedIn]);
+  const registerMode = step === 'phone' && signedIn && registered === false;
 
   /** quick — санагдсан/бүртгэлтэй дугаар руу (бичихгүй); үгүй бол оруулсан дугаар руу. */
   const start = (quick = false) =>
     run(async () => {
       const typed = phone.replace(/\D/g, '').slice(-8);
       const body = quick ? (savedPhone ? { phone: savedPhone } : { self: true }) : { phone: typed };
-      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'start', host: location.hostname, ...body });
+      let r: { gate: string; instruction: string; smsUri: string; code: string; expiresAt: string };
+      try {
+        r = await gate({ action: 'start', host: location.hostname, ...body });
+      } catch (e) {
+        if (/бүртгэлгүй/.test((e as Error).message)) setNeedRegister(true);
+        throw e;
+      }
       if (!quick && /^\d{8}$/.test(typed)) rememberPhone(typed);
+      setGateId(r.gate);
+      setSms({ instruction: r.instruction, smsUri: r.smsUri, code: r.code, expiresAt: r.expiresAt });
+      setStep('sms', r.gate);
+    });
+
+  /** Утасгүй админ — өөрийн дугаараа бүртгүүлж verify.mn-ээр баталгаажуулна (дараа нь профайлд хадгалагдана). */
+  const register = () =>
+    run(async () => {
+      const typed = phone.replace(/\D/g, '').slice(-8);
+      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'register', phone: typed, host: location.hostname });
+      rememberPhone(typed);
       setGateId(r.gate);
       setSms({ instruction: r.instruction, smsUri: r.smsUri, code: r.code, expiresAt: r.expiresAt });
       setStep('sms', r.gate);
@@ -321,7 +348,20 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
         </div>
       ) : null}
 
-      {step === 'phone' && !manual && (savedPhone || myPhone) ? (
+      {registerMode ? (
+        <form onSubmit={(e) => { e.preventDefault(); register(); }} className="space-y-3">
+          <p className="rounded-xl border border-line bg-card2 px-4 py-3 text-[13px] leading-5 text-ink">
+            Таны бүртгэлд утасны дугаар алга. Өөрийн дугаараа оруулаад SMS-ээр баталгаажуулна уу — баталгаажсаны дараа системд бүртгэгдэж, цаашид энэ дугаараар нэвтэрнэ.
+          </p>
+          <label className="block space-y-1.5 text-[13px] text-ink">
+            <span className="flex items-center gap-1.5 font-medium"><Smartphone size={14} /> Өөрийн утасны дугаар</span>
+            <Input inputMode="numeric" autoComplete="tel" placeholder="99112233" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus className="h-11" />
+          </label>
+          <Button type="submit" className="h-11 w-full" disabled={busy || phone.replace(/\D/g, '').length < 8}>{busy ? 'Түр хүлээнэ үү…' : 'Бүртгүүлж баталгаажуулах'}</Button>
+        </form>
+      ) : null}
+
+      {step === 'phone' && !registerMode && !manual && (savedPhone || myPhone) ? (
         <div className="space-y-3">
           <div className="flex items-center gap-3 rounded-xl border border-line bg-card2 px-4 py-3">
             <Smartphone size={18} className="shrink-0 text-brand" />
@@ -335,13 +375,16 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
         </div>
       ) : null}
 
-      {step === 'phone' && (manual || !(savedPhone || myPhone)) ? (
+      {step === 'phone' && !registerMode && (manual || !(savedPhone || myPhone)) ? (
         <form onSubmit={(e) => { e.preventDefault(); start(); }} className="space-y-3">
           <label className="block space-y-1.5 text-[13px] text-ink">
             <span className="flex items-center gap-1.5 font-medium"><Smartphone size={14} /> Утасны дугаар</span>
             <Input inputMode="numeric" autoComplete="tel" placeholder="99112233" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus className="h-11" />
           </label>
           <Button type="submit" className="h-11 w-full" disabled={busy || phone.replace(/\D/g, '').length < 8}>{busy ? 'Түр хүлээнэ үү…' : 'Үргэлжлүүлэх'}</Button>
+          {needRegister && !signedIn ? (
+            <GoogleButton onClick={google} icon={<GoogleIcon />} label="Google-ээр нэвтэрч дугаараа бүртгүүлэх" />
+          ) : null}
         </form>
       ) : null}
 
