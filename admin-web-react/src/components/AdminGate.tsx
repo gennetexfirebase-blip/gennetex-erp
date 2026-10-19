@@ -394,7 +394,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
           <Button type="submit" className="h-11 w-full" disabled={busy || pw.length < (setup ? 6 : 1)}>{busy ? 'Нэвтэрч байна…' : setup ? 'Шинэ код хадгалаад нэвтрэх' : 'Нэвтрэх'}</Button>
           {!setup ? (
             <button type="button" className="w-full text-[12px] text-muted underline" disabled={busy} onClick={resetStart}>
-              Кодоо мартсан уу? Сэргээх (verify.mn)
+              Кодоо мартсан уу? Сэргээх
             </button>
           ) : null}
         </form>

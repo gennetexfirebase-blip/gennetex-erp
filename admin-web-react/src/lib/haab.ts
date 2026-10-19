@@ -76,6 +76,27 @@ export async function fetchShared(token: string): Promise<HaabSheet> {
   return { ...d, total: Number(d.total) || 0, acks: d.acks || [] };
 }
 
+/**
+ * Апп гарын үсгийг 600px өргөн, 2.8px зураасаар хадгалдаг — жижгэрүүлэхэд маш бүдэг.
+ * Зураасыг 3 дахин зузаан (≥7), бараан болгоно.
+ */
+export function boldSvg(svg: string) {
+  return svg
+    .replace(/stroke-width="([\d.]+)"/g, (_, w) => `stroke-width="${Math.max(7, Number(w) * 3)}"`)
+    .replace(/stroke="(?!none)[^"]*"/g, 'stroke="#0b0f0d"');
+}
+
+const boldCache = new Map<string, Promise<string>>();
+/** Гарын үсгийг тодруулсан data URI (татаж чадаагүй бол анхны хаяг). */
+export function boldSigSrc(a: Pick<HaabAck, 'signature_url' | 'signed_at'>) {
+  const src = sigSrc(a);
+  if (!src) return Promise.resolve('');
+  if (!boldCache.has(src)) {
+    boldCache.set(src, svgText(src).then((t) => (t ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(boldSvg(t))}` : src)));
+  }
+  return boldCache.get(src)!;
+}
+
 /* ── PDF (pdfmake — зөвхөн дарахад ачаална) ──────────────────── */
 async function svgText(url: string | null) {
   if (!url) return null;
@@ -96,7 +117,7 @@ async function svgText(url: string | null) {
 export async function downloadPdf(sheet: HaabSheet) {
   const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([import('pdfmake/build/pdfmake'), import('pdfmake/build/vfs_fonts')]);
   (pdfMake as unknown as { addVirtualFileSystem: (f: unknown) => void }).addVirtualFileSystem(pdfFonts);
-  const svgs = await Promise.all(sheet.acks.map((a) => svgText(a.signature_url)));
+  const svgs = (await Promise.all(sheet.acks.map((a) => svgText(a.signature_url)))).map((t) => (t ? boldSvg(t) : null));
   const points = keyPoints(sheet.instruction.body, 12);
   const n = sheet.acks.length;
   const head = ['№', 'Ажилтан', 'Цаг', `Заавар — ${sheet.instruction.title}`, 'Гарын үсэг'].map((t) => ({ text: t, bold: true, fillColor: '#eef3f0', fontSize: 8 }));

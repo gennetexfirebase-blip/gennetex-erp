@@ -4,7 +4,7 @@ import { PageHeader, Card, Button, Input, Avatar, Loading, ErrorState, EmptyStat
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
 import { supabase } from '../lib/supabase';
 import { downloadSheets } from '../lib/attendanceExport';
-import HaabSheet from '../components/HaabSheet';
+import HaabSheet, { SigImg } from '../components/HaabSheet';
 import { downloadPdf, fetchInstruction, revokeShare, shareLink, type HaabAck, type HaabSheet as Sheet } from '../lib/haab';
 
 /**
@@ -44,13 +44,13 @@ function Signature({ ack, onOpen, large = false }: { ack: Ack; onOpen?: () => vo
   const src = sigSrc(ack);
   if (!src) return <span className="text-[12px] text-subtle">Зураг алга</span>;
   const box = large ? 'h-56 w-full' : 'h-14 w-40';
-  const img = <img src={src} alt={`${ack.user_name || 'Ажилтан'} — гарын үсэг`} loading="lazy" className="h-full w-full object-contain" />;
+  const img = <SigImg ack={ack} className="h-full w-full" />;
   return onOpen ? (
-    <button type="button" onClick={onOpen} className={`focus-ring ${box} shrink-0 rounded-[var(--radius-sm)] border border-line bg-white p-1.5 hover:border-brand`} aria-label="Гарын үсгийг томоор харах">
+    <button type="button" onClick={onOpen} className={`focus-ring ${box} shrink-0 rounded-[var(--radius-sm)] border border-line bg-card2 p-1.5 hover:border-brand`} aria-label="Гарын үсгийг томоор харах">
       {img}
     </button>
   ) : (
-    <div className={`${box} rounded-[var(--radius)] border border-line bg-white p-3`}>{img}</div>
+    <div className={`${box} rounded-[var(--radius)] border border-line bg-card2 p-3`}>{img}</div>
   );
 }
 

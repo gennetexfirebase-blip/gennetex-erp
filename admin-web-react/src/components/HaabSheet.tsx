@@ -1,6 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import brandMark from '../assets/report-logo.png';
-import { keyPoints, sigSrc, timeOf, type HaabAck, type HaabSheet as Sheet } from '../lib/haab';
+import { boldSigSrc, keyPoints, sigSrc, timeOf, type HaabAck, type HaabSheet as Sheet } from '../lib/haab';
+
+/** Тодруулсан гарын үсэг (зураас зузаан, бараан). */
+export function SigImg({ ack, className = '' }: { ack: HaabAck | Pick<HaabAck, 'signature_url' | 'signed_at'>; className?: string }) {
+  const [src, setSrc] = useState(() => sigSrc(ack));
+  useEffect(() => {
+    let live = true;
+    void boldSigSrc(ack).then((s) => live && s && setSrc(s));
+    return () => {
+      live = false;
+    };
+  }, [ack.signature_url, ack.signed_at]); // eslint-disable-line react-hooks/exhaustive-deps
+  return src ? <img src={src} alt="" loading="lazy" className={`sig-img object-contain ${className}`} /> : null;
+}
 
 /**
  * ХААБ гарын үсгийн хуудас — дэлгэц, хэвлэх (A4 босоо), нийтийн холбоосонд ижил.
@@ -81,7 +94,7 @@ export default function HaabSheet({ sheet, onZoom }: { sheet: Sheet; onZoom?: (a
                         className="mx-auto block h-10 w-28 rounded p-0.5 enabled:hover:bg-hover"
                         aria-label={`${a.name} — гарын үсэг`}
                       >
-                        <img src={src} alt="" loading="lazy" className="sig-img h-full w-full object-contain" />
+                        <SigImg ack={a} className="h-full w-full" />
                       </button>
                     ) : (
                       <span className="block text-center text-[11px] text-subtle">—</span>
