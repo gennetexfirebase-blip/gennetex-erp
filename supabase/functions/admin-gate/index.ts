@@ -266,9 +266,12 @@ async function handle(req: Request, body: Record<string, unknown>) {
       // Дугаар бүртгүүлэх урсгал — баталгаажсан дугаарыг профайлд хадгална.
       const { data: pvs } = await db.from("phone_verification_sessions").select("phone, subject_type").eq("provider_session_id", gate.phone_session || "").maybeSingle();
       if (String(pvs?.subject_type || "").startsWith("admin_register")) {
+        // Бүртгэл л — нэвтрэлт биш. Дараа нь ердийнхөөрөө (утас → Google → код) нэвтэрнэ.
         const reg = phone8(pvs?.phone);
         await db.from("profiles").update({ phone: reg }).eq("id", gate.user_id);
+        await db.from("data_gate_attempts").delete().eq("id", gate.id);
         await audit(gate.user_id, "phone_registered", { phone: reg.slice(0, 2) + "****" + reg.slice(-2) });
+        return { verified: true, registered: true, phone: `${reg.slice(0, 2)}••••${reg.slice(-2)}` };
       }
       // Өөр subdomain-д Google-ээр аль хэдийн нэвтэрсэн (ижил хүн) бол Google шатыг алгасна.
       if ((await jwtUserIdOrNull(req)) === gate.user_id) {

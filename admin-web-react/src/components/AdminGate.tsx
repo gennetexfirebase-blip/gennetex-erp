@@ -103,6 +103,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
   const [registered, setRegistered] = useState<boolean | undefined>(undefined);
   // Нэвтрээгүй хүн бүртгэлгүй дугаар оруулсан — Google-ээр нэвтэрч бүртгүүлэхийг санал болгоно.
   const [needRegister, setNeedRegister] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
   const [manual, setManual] = useState(false);
   const [sms, setSms] = useState<{ instruction: string; smsUri: string; code: string; expiresAt: string; expired?: boolean } | null>(null);
   const [setup, setSetup] = useState(false);
@@ -225,8 +226,18 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       try {
-        const r = await gate<{ verified: boolean; expired?: boolean; google?: boolean; setup?: boolean }>({ action: step === 'reset' ? 'reset_phone' : 'phone', gate: gateId });
+        const r = await gate<{ verified: boolean; expired?: boolean; google?: boolean; setup?: boolean; registered?: boolean; phone?: string }>({ action: step === 'reset' ? 'reset_phone' : 'phone', gate: gateId });
         if (stop) return;
+        if (r.verified && r.registered) {
+          // Дугаар бүртгэгдлээ — одоо ердийнхөөрөө нэвтэрнэ (утас → Google → код).
+          setRegistered(true);
+          setMyPhone(r.phone || '');
+          setManual(false);
+          setJustRegistered(true);
+          setSms(null);
+          setGateId(null);
+          return setStep('phone', null);
+        }
         if (r.verified && step === 'reset') {
           setSetup(true);
           setPw('');
@@ -363,6 +374,11 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
 
       {step === 'phone' && !registerMode && !manual && (savedPhone || myPhone) ? (
         <div className="space-y-3">
+          {justRegistered ? (
+            <p className="flex items-center gap-1.5 rounded-xl bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success" role="status">
+              <Check size={15} /> Дугаар бүртгэгдлээ. Одоо энэ дугаараараа нэвтэрнэ үү.
+            </p>
+          ) : null}
           <div className="flex items-center gap-3 rounded-xl border border-line bg-card2 px-4 py-3">
             <Smartphone size={18} className="shrink-0 text-brand" />
             <span className="min-w-0 flex-1">
