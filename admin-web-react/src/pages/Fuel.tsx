@@ -1,13 +1,24 @@
 import { useMemo, useState } from 'react';
-import { Fuel, Gauge, RefreshCw, Route } from 'lucide-react';
-import { PageHeader, Card, Button, Input, Select, Modal, Field, Loading, ErrorState, EmptyState } from '../components/ui';
+import { CalendarClock, Fuel, Gauge, Plus, RefreshCw, Route, Zap } from 'lucide-react';
+import { PageHeader, Card, Button, Input, Select, Modal, Field, Loading, ErrorState, EmptyState, StatCard, KpiRow, ToneIcon, type ToneName } from '../components/ui';
 import { useAsync } from '../lib/data';
 import { fetchFleet, fuelStats, litersLast7, refuelByAmount, type FuelRow } from '../lib/fleet';
 
-/** sanhuu.gennetex.com — Бензин зарцуулалт ба нөхөж цэнэглэх (хуучин панелийн модулийн оронд). */
+/**
+ * sanhuu.gennetex.com — Бензин зарцуулалт ба цэнэглэлт.
+ *   Одоо цэнэглэх  — өнөөдөр, яг одоо цэнэглэж буйг бүртгэнэ;
+ *   Нөхөж цэнэглэх — өмнө нь (жолооч өөрөө гэх мэт) цэнэглэснийг өнгөрсөн огноогоор нөхөж бүртгэнэ.
+ * Төрөл нь цэнэглэлтийн тэмдэглэлд (p_note) хадгалагдана.
+ */
 
 const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
 const WD = ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Бя'];
+
+type RefillKind = 'now' | 'catchup';
+const REFILL: Record<RefillKind, { title: string; text: string; tone: ToneName; icon: typeof Zap; note: string }> = {
+  now: { title: 'Одоо цэнэглэх', text: 'Өнөөдөр, яг одоо цэнэглэж буй бензинийг бүртгэнэ.', tone: 'green', icon: Zap, note: 'Одоо цэнэглэсэн' },
+  catchup: { title: 'Нөхөж цэнэглэх', text: 'Өмнө нь цэнэглэснийг өнгөрсөн огноогоор нөхөж бүртгэнэ.', tone: 'amber', icon: CalendarClock, note: 'Нөхөж цэнэглэсэн' },
+};
 
 function Tank({ r }: { r: FuelRow }) {
   return (
@@ -25,8 +36,7 @@ export default function FuelPage({ mode = 'consumption' }: { mode?: 'consumption
   const { data, loading, error, reload } = useAsync(() => fetchFleet(30), [], { vehicles: [], trips: [] });
   const rows = useMemo(() => fuelStats(data.vehicles, data.trips, 30), [data]);
   const week = useMemo(() => litersLast7(data.trips), [data]);
-  const [refill, setRefill] = useState<FuelRow | null>(null);
-  const [pick, setPick] = useState('');
+  const [refill, setRefill] = useState<{ row: FuelRow | null; kind: RefillKind } | null>(null);
   const maxWeek = Math.max(1, ...week);
   const totalKm = rows.reduce((s, r) => s + r.totalKm, 0);
   const withVehicle = rows.filter((r) => r.vehicle?.id);
@@ -45,31 +55,37 @@ export default function FuelPage({ mode = 'consumption' }: { mode?: 'consumption
         <ErrorState text={error} onRetry={reload} />
       ) : (
         <>
-          <Card className="mb-5" title="Нөхөж цэнэглэх" icon={<Fuel size={17} />}>
-            <div className="flex flex-wrap items-end gap-2">
-              <Field label="Машин">
-                <Select className="min-w-[240px]" value={pick} onChange={(e) => setPick(e.target.value)}>
-                  <option value="">Машин сонгох…</option>
-                  {withVehicle.map((r) => <option key={r.vehicle!.id} value={r.vehicle!.id}>{r.plate} — {r.driver}</option>)}
-                </Select>
-              </Field>
-              <Button disabled={!pick} onClick={() => setRefill(withVehicle.find((r) => r.vehicle!.id === pick) || null)}>Бензин нөхөж цэнэглэх</Button>
-              {pick ? (() => {
-                const r = withVehicle.find((x) => x.vehicle!.id === pick);
-                return r ? <span className="pb-2 text-[13px] text-muted">Үлдэгдэл: {r.currentLevel}% · {r.remainingLiters.toFixed(1)} / {r.tank} л</span> : null;
-              })() : null}
+          <KpiRow cols={3}>
+            <StatCard tone="green" icon={<Fuel size={19} />} value={rows.length} label="Машин" />
+            <StatCard tone="blue" icon={<Gauge size={19} />} value={rows.filter((r) => r.active).length} label="Явж байна" />
+            <StatCard tone="violet" icon={<Route size={19} />} value={Math.round(totalKm)} label="Нийт км (30 хоног)" />
+          </KpiRow>
+
+          <section className="mb-5" aria-label="Бензин цэнэглэх">
+            <h2 className="mb-3 text-[15px] font-semibold text-ink">Бензин цэнэглэх</h2>
+            <div className="grid gap-3 md:grid-cols-2">
+              {(Object.keys(REFILL) as RefillKind[]).map((k) => {
+                const g = REFILL[k];
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    disabled={!withVehicle.length}
+                    onClick={() => setRefill({ row: null, kind: k })}
+                    className="surface focus-ring flex items-start gap-3.5 p-5 text-left disabled:opacity-50"
+                  >
+                    <ToneIcon tone={g.tone} size={44}><g.icon size={20} /></ToneIcon>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] font-semibold text-ink">{g.title}</span>
+                      <span className="mt-0.5 block text-[12px] leading-5 text-muted">{g.text}</span>
+                      <span className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold text-brand"><Plus size={13} /> Бүртгэх</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             {!withVehicle.length ? <p className="mt-2 text-[13px] text-muted">Машин бүртгэгдээгүй байна. «Машины мэдээлэл солих» хэсгээс нэмнэ.</p> : null}
-          </Card>
-
-          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {([[Fuel, rows.length, 'Машин'], [Gauge, rows.filter((r) => r.active).length, 'Явж байна'], [Route, Math.round(totalKm), 'Нийт км (30 хоног)']] as const).map(([I, v, l]) => (
-              <div key={l} className="surface flex items-center gap-3 p-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-brand-soft text-brand"><I size={18} /></span>
-                <div><p className="text-[20px] font-semibold text-ink">{v}</p><p className="text-[12px] text-muted">{l}</p></div>
-              </div>
-            ))}
-          </div>
+          </section>
 
           <Card className="mb-5" title="Бензин зарцуулалт (7 хоног, литр)">
             <div className="flex h-40 items-end gap-2">
@@ -104,7 +120,12 @@ export default function FuelPage({ mode = 'consumption' }: { mode?: 'consumption
                         <p className="mt-1 text-ink"><b>{r.totalKm.toFixed(1)} км</b> · {r.periodLiters.toFixed(1)} л</p>
                         <p className="mt-0.5" style={{ color: r.color }}><b>{r.currentLevel}%</b> үлдсэн</p>
                         {r.cost ? <p className="text-[12px] text-muted">Зардал: {money(r.cost)}</p> : null}
-                        {r.vehicle?.id ? <Button variant="outline" className="mt-2 !min-h-8" onClick={() => setRefill(r)}>Нөхөж цэнэглэх</Button> : null}
+                        {r.vehicle?.id ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <Button className="!min-h-8" onClick={() => setRefill({ row: r, kind: 'now' })}>Одоо цэнэглэх</Button>
+                            <Button variant="outline" className="!min-h-8" onClick={() => setRefill({ row: r, kind: 'catchup' })}>Нөхөж цэнэглэх</Button>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full" style={{ width: `${r.currentLevel}%`, background: r.color }} /></div>
@@ -115,32 +136,49 @@ export default function FuelPage({ mode = 'consumption' }: { mode?: 'consumption
           </Card>
         </>
       )}
-      {refill ? <RefillDialog row={refill} onClose={() => setRefill(null)} onDone={() => { setRefill(null); reload(); }} /> : null}
+      {refill ? <RefillDialog row={refill.row} rows={withVehicle} kind={refill.kind} onClose={() => setRefill(null)} onDone={() => { setRefill(null); reload(); }} /> : null}
     </>
   );
 }
 
-export function RefillDialog({ row, onClose, onDone }: { row: { vehicle: { id: string } | null; plate: string }; onClose: () => void; onDone: () => void }) {
+type RefillTarget = { vehicle: { id: string } | null; plate: string };
+
+export function RefillDialog({ row, rows = [], kind = 'catchup', onClose, onDone }: {
+  row: RefillTarget | null;
+  rows?: (RefillTarget & { driver?: string; currentLevel?: number; remainingLiters?: number; tank?: number })[];
+  kind?: RefillKind;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const today = (() => {
     const n = new Date();
     return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   })();
-  const [date, setDate] = useState(today);
+  const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().slice(0, 10);
+  const [k, setK] = useState<RefillKind>(kind);
+  const [vid, setVid] = useState(row?.vehicle?.id || '');
+  const target = row || rows.find((r) => r.vehicle?.id === vid) || null;
+  const info = rows.find((r) => r.vehicle?.id === (target?.vehicle?.id || vid));
+  const [date, setDate] = useState(kind === 'now' ? today : yesterday);
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const save = async () => {
+    if (!target?.vehicle?.id) return setMsg('Машинаа сонгоно уу.');
+    const d = k === 'now' ? today : date;
     const a = Number(amount);
     const p = price.trim() ? Number(price) : null;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) return setMsg('Огноогоо зөв сонгоно уу (ирээдүйн огноо болохгүй).');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today) return setMsg('Огноогоо зөв сонгоно уу (ирээдүйн огноо болохгүй).');
     if (!Number.isFinite(a) || a <= 0) return setMsg('0-ээс их мөнгөн дүн оруулна уу.');
     if (p !== null && (!Number.isFinite(p) || p <= 0)) return setMsg('1 литрийн үнийг зөв оруулна уу.');
     setBusy(true);
     setMsg('');
     try {
-      const liters = await refuelByAmount(row.vehicle!.id, a, date, p);
-      setMsg(`${row.plate} — ${liters.toFixed(2)} л цэнэглэлээ`);
+      const fullNote = [REFILL[k].note, note.trim()].filter(Boolean).join(' — ');
+      const liters = await refuelByAmount(target.vehicle.id, a, d, p, fullNote);
+      setMsg(`${target.plate} — ${liters.toFixed(2)} л цэнэглэлээ`);
       setTimeout(onDone, 700);
     } catch (e) {
       setMsg((e as Error).message || 'Хадгалж чадсангүй.');
@@ -149,16 +187,48 @@ export function RefillDialog({ row, onClose, onDone }: { row: { vehicle: { id: s
     }
   };
   return (
-    <Modal title={`Бензин нөхөж цэнэглэх — ${row.plate}`} onClose={onClose}>
+    <Modal title={`${REFILL[k].title}${target ? ` — ${target.plate}` : ''}`} onClose={onClose}>
       <div className="space-y-3">
-        <Field label="Цэнэглэсэн огноо"><Input type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-        <Field label="Цэнэглэсэн мөнгөн дүн (₮)"><Input type="number" min={1} placeholder="Жишээ: 50000" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></Field>
+        <div className="grid grid-cols-2 gap-1 rounded-[var(--radius)] bg-card2 p-1" role="radiogroup" aria-label="Цэнэглэлтийн төрөл">
+          {(Object.keys(REFILL) as RefillKind[]).map((x) => (
+            <button
+              key={x}
+              type="button"
+              role="radio"
+              aria-checked={k === x}
+              onClick={() => setK(x)}
+              className={`rounded-[var(--radius-sm)] px-2 py-1.5 text-[13px] font-semibold ${k === x ? 'bg-card text-ink shadow-[var(--shadow)]' : 'text-muted hover:text-ink'}`}
+            >
+              {REFILL[x].title}
+            </button>
+          ))}
+        </div>
+        {!row ? (
+          <Field label="Машин">
+            <Select className="w-full" value={vid} onChange={(e) => setVid(e.target.value)} autoFocus>
+              <option value="">Машин сонгох…</option>
+              {rows.map((r) => <option key={r.vehicle!.id} value={r.vehicle!.id}>{r.plate}{r.driver ? ` — ${r.driver}` : ''}</option>)}
+            </Select>
+          </Field>
+        ) : null}
+        {info && info.currentLevel !== undefined ? (
+          <p className="text-[12px] text-muted">Үлдэгдэл: {Math.round(info.currentLevel)}% · {info.remainingLiters?.toFixed(1)} / {info.tank} л</p>
+        ) : null}
+        {k === 'now' ? (
+          <p className="rounded-[var(--radius-sm)] bg-card2 px-3 py-2 text-[12px] text-muted">Огноо: өнөөдөр ({today})</p>
+        ) : (
+          <Field label="Цэнэглэсэн огноо"><Input type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        )}
+        <Field label="Цэнэглэсэн мөнгөн дүн (₮)"><Input type="number" min={1} placeholder="Жишээ: 50000" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus={!!row} /></Field>
         <Field label="Хөнгөлөлттэй 1 литрийн үнэ (₮, заавал биш)" hint="Хоосон бол бүртгэлтэй үнээр. Цэнэглэлт зардлын түүхэнд хадгалагдана.">
           <Input type="number" min={1} step="any" value={price} onChange={(e) => setPrice(e.target.value)} />
         </Field>
+        <Field label="Тэмдэглэл (заавал биш)" hint={k === 'catchup' ? 'Жишээ нь: хэн өөрийн мөнгөөр цэнэглэсэн, баримтын дугаар.' : undefined}>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
         {msg ? <p className="text-[13px] text-ink" role="status">{msg}</p> : null}
         <div className="flex gap-2">
-          <Button disabled={busy} onClick={save}>{busy ? 'Хадгалж байна…' : 'Цэнэглэх'}</Button>
+          <Button disabled={busy || !target} onClick={save}>{busy ? 'Хадгалж байна…' : REFILL[k].title}</Button>
           <Button variant="outline" onClick={onClose}>Болих</Button>
         </div>
       </div>

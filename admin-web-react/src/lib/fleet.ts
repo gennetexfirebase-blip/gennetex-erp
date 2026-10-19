@@ -113,9 +113,9 @@ export function litersLast7(trips: Trip[]) {
   return out.map((v) => Math.round(v * 10) / 10);
 }
 
-export async function refuelByAmount(vehicleId: string, amount: number, refueledOn: string, pricePerLiter: number | null) {
+export async function refuelByAmount(vehicleId: string, amount: number, refueledOn: string, pricePerLiter: number | null, note: string | null = null) {
   const { data, error } = await supabase.rpc('refuel_vehicle_by_amount', {
-    p_vehicle_id: vehicleId, p_amount_mnt: amount, p_note: null, p_price_per_liter: pricePerLiter, p_refueled_on: refueledOn,
+    p_vehicle_id: vehicleId, p_amount_mnt: amount, p_note: note, p_price_per_liter: pricePerLiter, p_refueled_on: refueledOn,
   });
   if (error) throw new Error((error as any).hint || error.message);
   const row = Array.isArray(data) ? data[0] : data;
