@@ -308,6 +308,18 @@ type Row = { phone: string; at: string; source: string | null; name: string | nu
 type Income = { per_verify: number; earlier: number; verified: Row[]; pending: number; expired: number };
 const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
 const SOURCE: Record<string, string> = { admin_gate: 'admin', data_gate: 'data' };
+/** Аль сайтаас — «admin_gate:hr.gennetex.com» → «hr.gennetex.com»; хуучин бичлэгт хост байхгүй. */
+function siteOf(source: string | null) {
+  const s = source || '';
+  const [kind, host] = s.split(':');
+  if (host) return kind === 'admin_reset' ? `${host} (код сэргээх)` : host;
+  if (kind === 'data_gate') return 'data.gennetex.com';
+  if (kind === 'admin_gate') return 'admin (хост тэмдэглээгүй)';
+  return SOURCE[s] || s || 'verify';
+}
+/** Улаанбаатарын цагаар «2026-10-19 15:42». */
+const ubTime = (iso: string) =>
+  iso ? new Date(iso).toLocaleString('sv-SE', { timeZone: 'Asia/Ulaanbaatar', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
 function NotFound() {
   return <Vapor404 />;
@@ -317,6 +329,8 @@ type Me = { email: string; name: string; since: number };
 
 function OwnerAdmin() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  // Өөрийн байнгын код — сесс бүрт (refresh-д дахин) асууна.
+  const [codeOk, setCodeOk] = useState(false);
   useEffect(() => {
     document.title = 'Gennetex';
     // Ердийн (хадгалдаг) клиентийн хуучин сессийг цэвэрлэнэ — энд ашиглахгүй.
@@ -342,7 +356,10 @@ function OwnerAdmin() {
     };
   }, []);
 
-  const logout = () => owner.auth.signOut().finally(() => setMe(null));
+  const logout = () => owner.auth.signOut().finally(() => {
+    setCodeOk(false);
+    setMe(null);
+  });
 
   // 1 цагийн дараа автоматаар гарна.
   useEffect(() => {
@@ -388,7 +405,82 @@ function OwnerAdmin() {
     );
   }
   if (me.email !== OWNER_EMAIL) return <Vapor404 intruder={me.email} />;
+  if (!codeOk) return <OwnerCode me={me} onOk={() => setCodeOk(true)} onLogout={logout} />;
   return <Dashboard me={me} onLogout={logout} />;
+}
+
+/** Google-ийн дараах өөрийн код (admin-gate `owner_code`) — SMS илгээхгүй. */
+function OwnerCode({ me, onOk, onLogout }: { me: Me; onOk: () => void; onLogout: () => void }) {
+  const [setup, setSetup] = useState<boolean | null>(null);
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const call = async (body: Record<string, unknown>) => {
+    const { data, error } = await owner.functions.invoke('admin-gate', { body: { action: 'owner_code', ...body } });
+    if (error) {
+      let msg = error.message;
+      try {
+        const j = await (error as any).context?.json?.();
+        if (j?.error) msg = j.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
+    if (data?.error) throw new Error(data.error);
+    return data;
+  };
+  useEffect(() => {
+    call({ check: true }).then((r) => setSetup(!!r.setup)).catch((e) => setErr((e as Error).message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (setup && pw !== pw2) return setErr('код таарахгүй байна');
+    setBusy(true);
+    setErr('');
+    try {
+      await call({ password: pw });
+      onOk();
+    } catch (x) {
+      setErr((x as Error).message);
+      setPw('');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const user = me.email.split('@')[0];
+  return (
+    <main className="term" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <MatrixRain />
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 640 }}>
+        <section className="t-pane">
+          <div className="t-bar"><span>+--- AUTH ---+</span><span className="t-right">2/2</span></div>
+          <form className="t-body" onSubmit={submit}>
+            <p style={{ margin: '0 0 4px' }}><span className="t-amber">{user}@gennetex:~$</span> sudo system/admin</p>
+            <p className="t-dim" style={{ margin: '0 0 4px' }}>[OK] google: {me.email}</p>
+            <p className="t-dim" style={{ margin: '0 0 14px' }}>{setup === null ? '[..] шалгаж байна' : setup ? '[..] өөрийн байнгын код тохируулна уу (6+ тэмдэгт)' : '[..] өөрийн байнгын кодоо оруулна уу'}</p>
+            <label className="t-prompt">
+              <span className="t-amber">[sudo] code:</span>
+              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus autoComplete={setup ? 'new-password' : 'current-password'} aria-label="Өөрийн код" />
+            </label>
+            {setup ? (
+              <label className="t-prompt" style={{ marginTop: 8 }}>
+                <span className="t-amber">[sudo] repeat:</span>
+                <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" aria-label="Кодоо давтах" />
+              </label>
+            ) : null}
+            {err ? <p className="t-err" style={{ margin: '10px 0 0' }}>[ERR] {err}</p> : null}
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button className="t-btn" type="submit" disabled={busy || setup === null || pw.length < (setup ? 6 : 1)}>{busy ? '[ .... ]' : '[ ENTER ]'}</button>
+              <button className="t-btn" type="button" onClick={onLogout}>[ ГАРАХ ]</button>
+            </div>
+          </form>
+        </section>
+        <p className="t-dim" style={{ fontSize: 11, marginTop: 10 }}>// verify.mn SMS илгээхгүй. 5 буруу оролдлогод 30 минут түгжинэ.</p>
+      </div>
+    </main>
+  );
 }
 
 function Countdown({ until }: { until: number }) {
@@ -435,9 +527,17 @@ function Dashboard({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const unique = new Set(data.verified.map((r) => r.phone)).size;
   const list = data.verified.filter((r) => !q.trim() || `${r.phone} ${r.name || ''}`.includes(q.trim()));
   const maxMonth = Math.max(1, ...months.map(([, n]) => n));
+  const siteMap = new Map<string, { n: number; last: string }>();
+  data.verified.forEach((r) => {
+    const k = siteOf(r.source);
+    const cur = siteMap.get(k) || { n: 0, last: '' };
+    siteMap.set(k, { n: cur.n + 1, last: r.at && r.at > cur.last ? r.at : cur.last });
+  });
+  const sites = [...siteMap.entries()].sort((a, b) => b[1].n - a[1].n);
+  const maxSite = Math.max(1, ...sites.map(([, v]) => v.n));
   const exportExcel = () => {
-    const rows: (string | number)[][] = [['Огноо', 'Утас', 'Хэн', 'Хаанаас', 'Орлого (₮)']];
-    data.verified.forEach((r) => rows.push([r.at ? new Date(r.at).toLocaleString('mn-MN') : '', r.phone, r.name || '', SOURCE[r.source || ''] || r.source || '', per]));
+    const rows: (string | number)[][] = [['Огноо, цаг', 'Утас', 'Хэн', 'Сайт', 'Орлого (₮)']];
+    data.verified.forEach((r) => rows.push([ubTime(r.at), r.phone, r.name || '', siteOf(r.source), per]));
     void downloadSheets('verify_orlogo.xlsx', [{ name: 'Орлого', rows }]);
   };
 
@@ -475,6 +575,22 @@ function Dashboard({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </div>
         </section>
 
+        {sites.length ? (
+          <section className="t-pane" style={{ marginBottom: 16 }}>
+            <div className="t-bar"><span>+--- САЙТААР ---+</span><span className="t-right">хаанаас · хэдэн удаа · сүүлд</span></div>
+            <div className="t-body">
+              {sites.map(([site, v]) => (
+                <div key={site} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span className="t-amber" style={{ minWidth: 220 }}>{site}</span>
+                  <Bar value={v.n} max={maxSite} />
+                  <span>{v.n} · <span className="t-amber">{money(v.n * per)}</span></span>
+                  <span className="t-dim">сүүлд {ubTime(v.last)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {months.length ? (
           <section className="t-pane" style={{ marginBottom: 16 }}>
             <div className="t-bar"><span>+--- САРААР ---+</span></div>
@@ -503,14 +619,14 @@ function Dashboard({ me, onLogout }: { me: Me; onLogout: () => void }) {
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table>
-                  <thead><tr><th>Огноо</th><th>Утас</th><th>Хэн</th><th>Хаанаас</th><th style={{ textAlign: 'right' }}>₮</th></tr></thead>
+                  <thead><tr><th>Огноо, цаг</th><th>Утас</th><th>Хэн</th><th>Сайт</th><th style={{ textAlign: 'right' }}>₮</th></tr></thead>
                   <tbody>
                     {list.map((r, i) => (
                       <tr key={i}>
-                        <td className="t-dim">{r.at ? new Date(r.at).toLocaleString('mn-MN') : '—'}</td>
+                        <td className="t-dim">{ubTime(r.at)}</td>
                         <td>{r.phone}</td>
                         <td>{r.name || '—'}</td>
-                        <td className="t-dim">{SOURCE[r.source || ''] || r.source || 'verify'}</td>
+                        <td className="t-amber">{siteOf(r.source)}</td>
                         <td style={{ textAlign: 'right' }} className="t-amber">{per}</td>
                       </tr>
                     ))}

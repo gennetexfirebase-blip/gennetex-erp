@@ -10,6 +10,9 @@
  *   phone    {gate}                   → VERIFIED бол Google шат (клиент 3 сек тутам)
  *   google   {gate}           + JWT   → утастай ижил хүн эсэх → байнгын кодын шат
  *   password {gate, password} + JWT   → байнгын код (анх удаа тохируулна) → 12 цагийн сесс
+ *   reset_start {gate, host} + JWT    → кодоо мартсан: профайлын утас руу verify.mn сесс
+ *   reset_phone {gate}                → VERIFIED бол хуучин кодыг устгаж, шинэ код тохируулах шат
+ *   owner_code {password?, check?} + JWT → adiyasuren.gennetex.com/system/admin — эзэмшигчийн өөрийн код (SMS-гүй)
  *   resume   {token}           → өөр subdomain дээр: хүчинтэй сесс бол шинэ token_hash
  *   check    {token} + JWT     → сесс хүчинтэй эсэх
  *   logout   {token}
@@ -77,6 +80,34 @@ async function allowed(userId: string) {
 }
 
 /** verify.mn сесс бүрийг бүртгэнэ (орлогын тайлан — adiyasuren.gennetex.com/system/admin/). */
+/** Клиентийн илгээсэн host — зөвхөн *.gennetex.com / localhost хэлбэр. */
+function hostOf(v: unknown) {
+  const h = String(v || "").toLowerCase().slice(0, 64);
+  return /^[a-z0-9.-]+$/.test(h) ? h : "";
+}
+
+const OWNER_EMAIL = "adiyasuren1003@gmail.com";
+
+/** Байнгын код шалгах (байхгүй бол шинээр тохируулна) — 5 буруу оролдлогод 30 мин түгжинэ. */
+async function checkOrSetPassword(uid: string, password: string) {
+  const { data: pw } = await db.from("data_passwords").select("*").eq("user_id", uid).maybeSingle();
+  if (!pw) {
+    if (password.length < 6) throw new GateError("Код дор хаяж 6 тэмдэгт байна.");
+    const salt = randomHex(16);
+    await db.from("data_passwords").insert({ user_id: uid, salt, hash: await pbkdf2(password, salt, PBKDF2_ITER), iterations: PBKDF2_ITER });
+    await audit(uid, "password_set");
+    return;
+  }
+  if (pw.locked_until && new Date(pw.locked_until) > new Date()) throw new GateError("Олон буруу оролдлогын улмаас 30 минут түгжигдсэн.", 429);
+  if (!safeEqual(await pbkdf2(password, pw.salt, pw.iterations), pw.hash)) {
+    const fails = (pw.fails || 0) + 1;
+    await db.from("data_passwords").update({ fails, locked_until: fails >= MAX_TRIES ? new Date(Date.now() + 30 * 60000).toISOString() : null }).eq("user_id", uid);
+    await audit(uid, "password_fail", { fails });
+    throw new GateError("Код буруу.");
+  }
+  await db.from("data_passwords").update({ fails: 0, locked_until: null }).eq("user_id", uid);
+}
+
 async function logVerify(v: { sessionId: string; phone: string; displayInstruction: string; smsUri?: string; expiresAt: string }, userId: string, subject: string) {
   await db.from("phone_verification_sessions").insert({
     provider_session_id: v.sessionId, created_by: userId, phone: v.phone, display_instruction: v.displayInstruction,
@@ -151,7 +182,8 @@ async function handle(req: Request, body: Record<string, unknown>) {
       }
       // Сесс бүрт шинэ 6 оронтой код (хуучин код хүчингүй).
       const v = await createSession(vmPhone(phone));
-      await logVerify(v, me.id, "admin_gate").catch(() => null);
+      const host = hostOf(body.host);
+      await logVerify(v, me.id, host ? `admin_gate:${host}` : "admin_gate").catch(() => null);
       await db.from("data_gate_attempts").delete().eq("user_id", me.id).eq("scope", SCOPE);
       const { data: gate } = await db.from("data_gate_attempts").insert({ user_id: me.id, stage: "phone", phone_session: v.sessionId, scope: SCOPE }).select("id").single();
       return { gate: gate!.id, instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
@@ -194,29 +226,65 @@ async function handle(req: Request, body: Record<string, unknown>) {
       const gate = await loadGate(body.gate, "password");
       const uid = await jwtUserId(req);
       if (uid !== gate.user_id) throw new GateError("Буруу хэрэглэгч.", 403);
-      const password = String(body.password || "");
-      const { data: pw } = await db.from("data_passwords").select("*").eq("user_id", uid).maybeSingle();
-      if (!pw) {
-        if (password.length < 6) throw new GateError("Код дор хаяж 6 тэмдэгт байна.");
-        const salt = randomHex(16);
-        await db.from("data_passwords").insert({ user_id: uid, salt, hash: await pbkdf2(password, salt, PBKDF2_ITER), iterations: PBKDF2_ITER });
-        await audit(uid, "password_set");
-      } else {
-        if (pw.locked_until && new Date(pw.locked_until) > new Date()) throw new GateError("Олон буруу оролдлогын улмаас 30 минут түгжигдсэн.", 429);
-        if (!safeEqual(await pbkdf2(password, pw.salt, pw.iterations), pw.hash)) {
-          const fails = (pw.fails || 0) + 1;
-          await db.from("data_passwords").update({ fails, locked_until: fails >= MAX_TRIES ? new Date(Date.now() + 30 * 60000).toISOString() : null }).eq("user_id", uid);
-          await audit(uid, "password_fail", { fails });
-          throw new GateError("Код буруу.");
-        }
-        await db.from("data_passwords").update({ fails: 0, locked_until: null }).eq("user_id", uid);
-      }
+      await checkOrSetPassword(uid, String(body.password || ""));
       const token = randomHex(32);
       const expiresAt = new Date(Date.now() + SESSION_HOURS * 3600000).toISOString();
       await db.from("data_sessions").insert({ user_id: uid, token_hash: await sha256(token), expires_at: expiresAt, scope: SCOPE });
       await db.from("data_gate_attempts").delete().eq("id", gate.id);
       await audit(uid, "login");
       return { token, expiresAt };
+    }
+
+    case "reset_start": {
+      // Кодоо мартсан — утас (+ Google) энэ оролдлогод баталгаажсан ч дахин SMS-ээр нотолно.
+      const gate = await loadGate(body.gate, "password");
+      const uid = await jwtUserId(req);
+      if (uid !== gate.user_id) throw new GateError("Буруу хэрэглэгч.", 403);
+      const { data: prof } = await db.from("profiles").select("phone").eq("id", uid).maybeSingle();
+      let phone: string;
+      try {
+        phone = phone8(prof?.phone);
+      } catch {
+        throw new GateError("Таны бүртгэлд утасны дугаар алга. Sysadmin-д хандана уу.");
+      }
+      const v = await createSession(vmPhone(phone));
+      const host = hostOf(body.host);
+      await logVerify(v, uid, host ? `admin_reset:${host}` : "admin_reset").catch(() => null);
+      await db.from("data_gate_attempts").update({ stage: "reset", phone_session: v.sessionId }).eq("id", gate.id);
+      await audit(uid, "reset_start");
+      return { instruction: v.displayInstruction, smsUri: v.smsUri, code: v.text, expiresAt: v.expiresAt };
+    }
+
+    case "reset_phone": {
+      const gate = await loadGate(body.gate, "reset");
+      const v = await getSession(gate.phone_session || "");
+      if (v.sessionStatus === "EXPIRED") {
+        await markVerify(gate.phone_session || "", "EXPIRED").catch(() => null);
+        return { verified: false, expired: true };
+      }
+      if (v.sessionStatus !== "VERIFIED") return { verified: false };
+      await markVerify(gate.phone_session || "", "VERIFIED").catch(() => null);
+      // Хуучин кодыг устгана — дараагийн «password» шат шинэ кодыг тохируулна.
+      await db.from("data_passwords").delete().eq("user_id", gate.user_id);
+      await db.from("data_gate_attempts").update({ stage: "password" }).eq("id", gate.id);
+      await audit(gate.user_id, "password_reset");
+      return { verified: true, setup: true };
+    }
+
+    case "owner_code": {
+      // adiyasuren.gennetex.com/system/admin — Google (эзэмшигчийн имэйл) + өөрийн код, SMS-гүй.
+      const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+      const { data: u } = await db.auth.getUser(token);
+      const email = String(u?.user?.email || "").toLowerCase();
+      if (!u?.user || email !== OWNER_EMAIL) throw new GateError("Хандах эрхгүй.", 404);
+      const uid = u.user.id;
+      if (body.check) {
+        const { data: pw } = await db.from("data_passwords").select("user_id").eq("user_id", uid).maybeSingle();
+        return { setup: !pw };
+      }
+      await checkOrSetPassword(uid, String(body.password || ""));
+      await audit(uid, "owner_login");
+      return { ok: true };
     }
 
     case "resume": {

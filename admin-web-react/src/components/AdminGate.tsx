@@ -15,12 +15,13 @@ import { rememberAuthReturn } from '../lib/authReturn';
  *     subdomain дээр `resume`-ээр (magic-link token_hash) автоматаар нэвтрүүлнэ;
  *   • `gx_admin_site` (зөвхөн энэ host) — энэ subdomain-ийн шатыг давсан эсэх.
  * Явц (gate id, шат) sessionStorage-д — Google руу шилжээд буцахад үргэлжилнэ.
+ * Кодоо мартсан бол «Сэргээх» — профайлын утас руу verify.mn SMS → шинэ код.
  */
 
 const GLOBAL = 'gx_admin_gate';
 const SITE = 'gx_admin_site';
 const PROGRESS = 'gx_admin_gate_step';
-type Step = 'phone' | 'sms' | 'google' | 'password';
+type Step = 'phone' | 'sms' | 'google' | 'password' | 'reset';
 
 const progress = {
   get: (): { gate: string; step: Step } | null => {
@@ -164,7 +165,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
 
   const start = () =>
     run(async () => {
-      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'start', phone });
+      const r = await gate<{ gate: string; instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'start', phone, host: location.hostname });
       setGateId(r.gate);
       setSms({ instruction: r.instruction, smsUri: r.smsUri, code: r.code, expiresAt: r.expiresAt });
       setStep('sms', r.gate);
@@ -172,13 +173,20 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
 
   // verify.mn — 3 секунд тутам; VERIFIED бол шууд зогсоно (нэг SMS 150₮).
   useEffect(() => {
-    if (step !== 'sms' || !gateId || !sms || sms.expired) return;
+    if ((step !== 'sms' && step !== 'reset') || !gateId || !sms || sms.expired) return;
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       try {
-        const r = await gate<{ verified: boolean; expired?: boolean; google?: boolean; setup?: boolean }>({ action: 'phone', gate: gateId });
+        const r = await gate<{ verified: boolean; expired?: boolean; google?: boolean; setup?: boolean }>({ action: step === 'reset' ? 'reset_phone' : 'phone', gate: gateId });
         if (stop) return;
+        if (r.verified && step === 'reset') {
+          setSetup(true);
+          setPw('');
+          setPw2('');
+          setSms(null);
+          return setStep('password');
+        }
         if (r.verified) {
           if (r.google === false) {
             setSetup(!!r.setup);
@@ -233,6 +241,14 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
       restart();
     });
 
+  // Кодоо мартсан — бүртгэлтэй утас руу verify.mn SMS илгээж нотолсны дараа шинэ код тохируулна.
+  const resetStart = () =>
+    run(async () => {
+      const r = await gate<{ instruction: string; smsUri: string; code: string; expiresAt: string }>({ action: 'reset_start', gate: gateId, host: location.hostname });
+      setSms({ instruction: r.instruction, smsUri: r.smsUri, code: r.code, expiresAt: r.expiresAt });
+      setStep('reset');
+    });
+
   const sendPw = () =>
     run(async () => {
       if (setup && pw !== pw2) throw new Error('Код таарахгүй байна.');
@@ -252,8 +268,8 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
   }
 
   const steps: [Step[], string][] = googleKnown
-    ? [[['phone', 'sms'], 'Утас'], [['password'], 'Өөрийн код']]
-    : [[['phone', 'sms'], 'Утас'], [['google'], 'Google'], [['password'], 'Өөрийн код']];
+    ? [[['phone', 'sms'], 'Утас'], [['password', 'reset'], 'Өөрийн код']]
+    : [[['phone', 'sms'], 'Утас'], [['google'], 'Google'], [['password', 'reset'], 'Өөрийн код']];
   const at = steps.findIndex(([s]) => s.includes(step));
 
   return (
@@ -293,6 +309,31 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
           </label>
           <Button type="submit" className="h-11 w-full" disabled={busy || phone.replace(/\D/g, '').length < 8}>{busy ? 'Түр хүлээнэ үү…' : 'Үргэлжлүүлэх'}</Button>
         </form>
+      ) : null}
+
+      {step === 'reset' && !sms ? (
+        <Button className="h-11 w-full" onClick={() => setStep('password')}>Өөрийн код руу буцах</Button>
+      ) : null}
+
+      {step === 'reset' && sms ? (
+        <div className="space-y-3">
+          <p className="text-[13px] font-medium text-ink">Кодоо сэргээх — бүртгэлтэй утаснаасаа SMS илгээж баталгаажуулна уу.</p>
+          {sms.expired ? (
+            <>
+              <p className="rounded-xl bg-warning-soft p-3 text-[13px] text-warning">Хугацаа дууссан. Дахин оролдоно уу.</p>
+              <Button className="h-11 w-full" disabled={busy} onClick={() => { setStep('password'); setSms(null); }}>Буцах</Button>
+            </>
+          ) : (
+            <>
+              <p className="whitespace-pre-line rounded-xl border border-line bg-card2 p-3.5 text-[14px] leading-6 text-ink">{sms.instruction}</p>
+              <a href={sms.smsUri} className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius)] bg-brand text-[14px] font-semibold text-white hover:bg-brand-600">
+                <Smartphone size={16} /> SMS илгээх (144773)
+              </a>
+              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна… Нэг SMS 150₮.</p>
+            </>
+          )}
+          <button type="button" className="w-full text-[12px] text-muted underline" onClick={() => { setStep('password'); setSms(null); }}>Буцах — кодоо санаж байна</button>
+        </div>
       ) : null}
 
       {step === 'sms' ? (
@@ -350,7 +391,12 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
               <span className="block text-[12px] text-muted">Хэзээ ч мартахгүй код сонгоно уу.</span>
             </label>
           ) : null}
-          <Button type="submit" className="h-11 w-full" disabled={busy || pw.length < (setup ? 6 : 1)}>{busy ? 'Нэвтэрч байна…' : 'Нэвтрэх'}</Button>
+          <Button type="submit" className="h-11 w-full" disabled={busy || pw.length < (setup ? 6 : 1)}>{busy ? 'Нэвтэрч байна…' : setup ? 'Шинэ код хадгалаад нэвтрэх' : 'Нэвтрэх'}</Button>
+          {!setup ? (
+            <button type="button" className="w-full text-[12px] text-muted underline" disabled={busy} onClick={resetStart}>
+              Кодоо мартсан уу? Сэргээх (verify.mn)
+            </button>
+          ) : null}
         </form>
       ) : null}
 
