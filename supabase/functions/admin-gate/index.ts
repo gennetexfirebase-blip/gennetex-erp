@@ -14,6 +14,8 @@
  *   reset_start {gate, host} + JWT    → кодоо мартсан: профайлын утас руу verify.mn сесс
  *   reset_phone {gate}                → VERIFIED бол хуучин кодыг устгаж, шинэ код тохируулах шат
  *   owner_code {password?, check?} + JWT → adiyasuren.gennetex.com/system/admin — эзэмшигчийн өөрийн код (SMS-гүй)
+ *   owner_users + JWT                 → бүх хэрэглэгч ба эрх (role, data, байршил)
+ *   owner_set {user_id, role?, data?, location?, phone?} + JWT → эрх олгох/хасах
  *   resume   {token}           → өөр subdomain дээр: хүчинтэй сесс бол шинэ token_hash
  *   check    {token} + JWT     → сесс хүчинтэй эсэх
  *   logout   {token}
@@ -88,6 +90,14 @@ function hostOf(v: unknown) {
 }
 
 const OWNER_EMAIL = "adiyasuren1003@gmail.com";
+
+/** Эзэмшигч (adiyasuren1003@gmail.com) мөн эсэх — бусдад 404. */
+async function ownerUid(req: Request) {
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const { data: u } = await db.auth.getUser(token);
+  if (!u?.user || String(u.user.email || "").toLowerCase() !== OWNER_EMAIL) throw new GateError("Хандах эрхгүй.", 404);
+  return u.user.id;
+}
 
 /** Байнгын код шалгах (байхгүй бол шинээр тохируулна) — 5 буруу оролдлогод 30 мин түгжинэ. */
 async function checkOrSetPassword(uid: string, password: string) {
@@ -293,13 +303,64 @@ async function handle(req: Request, body: Record<string, unknown>) {
       return { verified: true, setup: true };
     }
 
+    case "owner_users": {
+      await ownerUid(req);
+      const [{ data: people }, { data: viewers }, { data: grants }, { data: depts }] = await Promise.all([
+        db.from("profiles").select("id, name, last_name, email, phone, role, department_id, avatar_url").order("name"),
+        db.from("data_viewers").select("user_id"),
+        db.from("location_view_grants").select("user_id"),
+        db.from("departments").select("id, name"),
+      ]);
+      const v = new Set((viewers || []).map((x) => x.user_id));
+      const g = new Set((grants || []).map((x) => x.user_id));
+      const dn = new Map((depts || []).map((d) => [d.id, d.name]));
+      return {
+        users: (people || []).map((p) => ({
+          id: p.id, name: `${p.last_name || ""} ${p.name || ""}`.trim() || p.email || "Хэрэглэгч", email: p.email, phone: p.phone,
+          role: p.role || "employee", department: dn.get(p.department_id) || null, avatar_url: p.avatar_url, data: v.has(p.id), location: g.has(p.id),
+        })),
+      };
+    }
+
+    case "owner_set": {
+      const owner = await ownerUid(req);
+      const target = String(body.user_id || "");
+      if (!/^[0-9a-f-]{36}$/.test(target)) throw new GateError("Хэрэглэгч буруу.");
+      const changes: Record<string, unknown> = {};
+      if (body.role !== undefined) {
+        const role = String(body.role);
+        if (!["employee", "ahlah", "menejer", "admin", "superadmin"].includes(role)) throw new GateError("Эрх буруу.");
+        const { error } = await db.from("profiles").update({ role }).eq("id", target);
+        if (error) throw new GateError(error.message, 500);
+        if (!["admin", "superadmin"].includes(role)) await db.from("data_sessions").delete().eq("user_id", target).eq("scope", SCOPE);
+        changes.role = role;
+      }
+      if (body.phone !== undefined) {
+        const phone = String(body.phone || "").trim() ? phone8(body.phone) : null;
+        const { error } = await db.from("profiles").update({ phone }).eq("id", target);
+        if (error) throw new GateError(error.message, 500);
+        changes.phone = phone ? `${phone.slice(0, 2)}****${phone.slice(-2)}` : null;
+      }
+      if (body.data !== undefined) {
+        if (body.data) await db.from("data_viewers").upsert({ user_id: target, granted_by: owner });
+        else {
+          await db.from("data_viewers").delete().eq("user_id", target);
+          await db.from("data_sessions").delete().eq("user_id", target).eq("scope", "data");
+        }
+        changes.data = !!body.data;
+      }
+      if (body.location !== undefined) {
+        if (body.location) await db.from("location_view_grants").upsert({ user_id: target, granted_by: owner });
+        else await db.from("location_view_grants").delete().eq("user_id", target);
+        changes.location = !!body.location;
+      }
+      await audit(owner, "owner_set", { target, ...changes });
+      return { ok: true };
+    }
+
     case "owner_code": {
       // adiyasuren.gennetex.com/system/admin — Google (эзэмшигчийн имэйл) + өөрийн код, SMS-гүй.
-      const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-      const { data: u } = await db.auth.getUser(token);
-      const email = String(u?.user?.email || "").toLowerCase();
-      if (!u?.user || email !== OWNER_EMAIL) throw new GateError("Хандах эрхгүй.", 404);
-      const uid = u.user.id;
+      const uid = await ownerUid(req);
       if (body.check) {
         const { data: pw } = await db.from("data_passwords").select("user_id").eq("user_id", uid).maybeSingle();
         return { setup: !pw };

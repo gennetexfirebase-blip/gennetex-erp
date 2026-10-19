@@ -636,7 +636,136 @@ function Dashboard({ me, onLogout }: { me: Me; onLogout: () => void }) {
             )}
           </div>
         </section>
+
+        <AccessPanel />
       </div>
     </main>
   );
 }
+
+/* ═══════════════════ ЭРХ — бүх домэйны хандах эрх ═══════════════════ */
+type AUser = { id: string; name: string; email: string | null; phone: string | null; role: string; department: string | null; data: boolean; location: boolean };
+const ROLES: [string, string][] = [['employee', 'ажилтан'], ['ahlah', 'ахлах'], ['menejer', 'менежер'], ['admin', 'АДМИН'], ['superadmin', 'SUPERADMIN']];
+/** Эрх тус бүр аль домэйныг нээдэг (Layout, data-gate, admin-gate-ийн дүрэм). */
+const ROLE_SITES: Record<string, string> = {
+  employee: 'akt (өөрийн акт), app',
+  ahlah: 'akt (өөрийн акт), app',
+  menejer: 'akt (акт үүсгэх), app',
+  admin: 'admin · hr · irts · sanhuu · aguulah · bairshil · habea · haab · surgalt · meet · noft · arhiv · link · tailan · guitsetgel · akt',
+  superadmin: 'admin-ийн бүгд + data (бүрэн) + төхөөрөмж зөвшөөрөл',
+};
+
+async function ownerCall<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await owner.functions.invoke('admin-gate', { body });
+  if (error) {
+    let msg = error.message;
+    try {
+      const j = await (error as any).context?.json?.();
+      if (j?.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data as T;
+}
+
+const inputStyle = { background: 'transparent', color: 'inherit', border: '1px solid currentColor', padding: '2px 4px', font: 'inherit' } as const;
+
+function AccessPanel() {
+  const [users, setUsers] = useState<AUser[] | null>(null);
+  const [err, setErr] = useState('');
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState('');
+  const [phoneEdit, setPhoneEdit] = useState<{ id: string; value: string } | null>(null);
+  const load = () => ownerCall<{ users: AUser[] }>({ action: 'owner_users' }).then((r) => setUsers(r.users)).catch((e) => setErr((e as Error).message));
+  useEffect(() => {
+    void load();
+  }, []);
+  const set = async (u: AUser, patch: Record<string, unknown>) => {
+    setBusy(u.id);
+    setErr('');
+    try {
+      await ownerCall({ action: 'owner_set', user_id: u.id, ...patch });
+      await load();
+      return true;
+    } catch (e) {
+      setErr((e as Error).message);
+      return false;
+    } finally {
+      setBusy('');
+    }
+  };
+  const needle = q.trim().toLowerCase();
+  const list = (users || []).filter((u) => !needle || [u.name, u.email || '', u.phone || '', u.department || ''].join(' ').toLowerCase().includes(needle));
+  const admins = (users || []).filter((u) => ['admin', 'superadmin'].includes(u.role)).length;
+
+  return (
+    <section className="t-pane" style={{ marginTop: 16 }}>
+      <div className="t-bar"><span>+--- ЭРХ · БҮХ ДОМЭЙН ---+</span><span className="t-right">{users ? users.length + ' хэрэглэгч · ' + admins + ' админ' : '…'}</span></div>
+      <div className="t-body">
+        <p className="t-dim" style={{ margin: '0 0 10px', fontSize: 12 }}>
+          // АДМИН — бүх ERP домэйн (3 шаттай нэвтрэлтээр) · DATA — data.gennetex.com (харах) · БАЙРШИЛ — bairshil-д бүх ажилтныг харах · УТАС — нэвтрэлтийн SMS очих дугаар (профайлд утасгүй бол нэвтэрч чадахгүй)
+        </p>
+        <label className="t-prompt" style={{ marginBottom: 10 }}>
+          <span className="t-amber">root@access:~$</span>
+          <span className="t-dim">grep</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="нэр, имэйл, утас…" aria-label="Хэрэглэгч хайх" />
+        </label>
+        {err ? <p className="t-err">[ERR] {err}</p> : null}
+        {!users ? <p>&gt; ачаалж байна<span className="t-cursor" aria-hidden="true" /></p> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead><tr><th>Хэрэглэгч</th><th>Утас</th><th>Эрх</th><th>Data</th><th>Байршил</th><th>Нээгдэх домэйн</th></tr></thead>
+              <tbody>
+                {list.map((u) => (
+                  <tr key={u.id} style={{ opacity: busy === u.id ? 0.5 : 1 }}>
+                    <td>
+                      <div>{u.name}</div>
+                      <div className="t-dim" style={{ fontSize: 11 }}>{u.email || '—'}{u.department ? ' · ' + u.department : ''}</div>
+                    </td>
+                    <td>
+                      {phoneEdit?.id === u.id ? (
+                        <form onSubmit={(e) => { e.preventDefault(); void set(u, { phone: phoneEdit.value }).then((ok) => ok && setPhoneEdit(null)); }} style={{ display: 'flex', gap: 4 }}>
+                          <input value={phoneEdit.value} onChange={(e) => setPhoneEdit({ id: u.id, value: e.target.value })} inputMode="numeric" autoFocus style={{ ...inputStyle, width: 96 }} aria-label="Утас" />
+                          <button className="t-btn" type="submit">OK</button>
+                        </form>
+                      ) : (
+                        <button className="t-btn" type="button" onClick={() => setPhoneEdit({ id: u.id, value: u.phone || '' })} title="Утас засах">{u.phone || '— нэмэх'}</button>
+                      )}
+                    </td>
+                    <td>
+                      <select
+                        value={u.role}
+                        disabled={busy === u.id}
+                        onChange={(e) => {
+                          const role = e.target.value;
+                          if (role === 'superadmin' && !window.confirm(u.name + '-д SUPERADMIN эрх өгөх үү? Бүх зүйлд бүрэн эрхтэй болно.')) return;
+                          void set(u, { role });
+                        }}
+                        style={inputStyle}
+                        aria-label={u.name + ' — эрх'}
+                      >
+                        {ROLES.map(([k, l]) => <option key={k} value={k} style={{ color: '#000' }}>{l}</option>)}
+                      </select>
+                    </td>
+                    <td><button className="t-btn" type="button" aria-pressed={u.data} disabled={busy === u.id} onClick={() => set(u, { data: !u.data })}>{u.data ? '[x]' : '[ ]'}</button></td>
+                    <td><button className="t-btn" type="button" aria-pressed={u.location} disabled={busy === u.id} onClick={() => set(u, { location: !u.location })}>{u.location ? '[x]' : '[ ]'}</button></td>
+                    <td className="t-dim" style={{ fontSize: 11, maxWidth: 360 }}>
+                      {ROLE_SITES[u.role] || ROLE_SITES.employee}
+                      {u.data && u.role !== 'superadmin' ? ' · data (харах)' : ''}
+                      {u.location && !['admin', 'superadmin'].includes(u.role) ? ' · bairshil' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="t-dim" style={{ fontSize: 11, marginTop: 10 }}>// Шинэ хүн: эхлээд Gennetex апп эсвэл аль нэг домэйнд Google-ээр нэг удаа нэвтэрнэ — тэгээд энд гарч ирнэ, эрх ба утсыг нь тохируулна.</p>
+      </div>
+    </section>
+  );
+}
+
