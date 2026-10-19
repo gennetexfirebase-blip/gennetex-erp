@@ -43,7 +43,7 @@ export async function computeAnalytics(db: Db, from: string, to: string) {
     all(() => db.from("attendance").select("staff_id, staff_name, type, status, created_at").gte("created_at", startIso).lte("created_at", endIso).order("created_at")),
     all(() => db.from("work_hour_entries").select("user_id, work_date, regular_hours, overtime_hours").gte("work_date", from).lte("work_date", to)),
     all(() => db.from("payroll_rates").select("user_id, daily_rate, overtime_multiplier, standard_hours, meal_allowance, effective_from").order("effective_from")),
-    all(() => db.from("meal_ledger").select("kind, amount, entry_date").gte("entry_date", from).lte("entry_date", to)),
+    all(() => db.from("meal_ledger").select("user_id, kind, amount, entry_date").gte("entry_date", from).lte("entry_date", to)),
     all(() => db.from("vehicle_logs").select("plate_number, liters, cost, created_at, note").eq("event", "refuel").gte("created_at", startIso).lte("created_at", endIso)),
   ]);
 
@@ -136,6 +136,27 @@ export async function computeAnalytics(db: Db, from: string, to: string) {
   }
 
   const mealGiven = meals.reduce((s, m) => s + (m.kind === "adjust" ? 0 : Number(m.amount) || 0), 0);
+  // Хоолны мөнгө — хэн хэдэн удаа, ямар төрлөөр (урьдчилж / одоо / нөхөж) авсан.
+  const mealBy = new Map<string, { advance: number; advanceSum: number; now: number; nowSum: number; catchup: number; catchupSum: number; last: string }>();
+  for (const m of meals) {
+    if (m.kind === "adjust" || !m.user_id) continue;
+    const id = String(m.user_id);
+    const x = mealBy.get(id) || { advance: 0, advanceSum: 0, now: 0, nowSum: 0, catchup: 0, catchupSum: 0, last: "" };
+    const amt = Number(m.amount) || 0;
+    if (m.kind === "advance") {
+      x.advance++;
+      x.advanceSum += amt;
+    } else if (m.kind === "now") {
+      x.now++;
+      x.nowSum += amt;
+    } else if (m.kind === "catchup") {
+      x.catchup++;
+      x.catchupSum += amt;
+    }
+    if (String(m.entry_date) > x.last) x.last = String(m.entry_date);
+    mealBy.set(id, x);
+  }
+  const mealAdvance = [...mealBy.values()].reduce((s, x) => s + x.advanceSum, 0);
 
   // ── Бензин ──
   const byPlate = new Map<string, { cost: number; liters: number; count: number }>();
@@ -177,6 +198,8 @@ export async function computeAnalytics(db: Db, from: string, to: string) {
       payroll: round(payroll),
       mealEarned: round(mealEarned),
       mealGiven: round(mealGiven),
+      mealAdvance: round(mealAdvance),
+      mealAdvanceCount: [...mealBy.values()].reduce((s, x) => s + x.advance, 0),
       fuelCost: round(fuelCost),
       fuelLiters: round(fuelLiters, 1),
       totalCost: round(payroll + mealEarned + fuelCost),
@@ -187,6 +210,9 @@ export async function computeAnalytics(db: Db, from: string, to: string) {
     departments: [...byDept.entries()].map(([name, d]) => ({ name, days: d.days, lateRate: d.days ? round((d.late / d.days) * 100, 1) : 0, hours: round(d.hours, 1), overtime: round(d.overtime, 1) })).sort((a, b) => b.days - a.days),
     lateTop: [...byPerson.entries()].filter(([, p]) => p.late > 0).map(([id, p]) => ({ name: nameOf(id), department: deptOf(id), late: p.late, days: p.days, avgLateMin: round(p.lateMin / p.late) })).sort((a, b) => b.late - a.late || b.avgLateMin - a.avgLateMin).slice(0, 10),
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, m]) => ({ month, payroll: round(m.payroll), meal: round(m.meal), fuel: round(m.fuel), hours: round(m.hours, 1), overtime: round(m.overtime, 1) })),
+    meals: [...mealBy.entries()]
+      .map(([id, x]) => ({ name: nameOf(id), department: deptOf(id), advance: x.advance, advanceSum: round(x.advanceSum), now: x.now, nowSum: round(x.nowSum), catchup: x.catchup, catchupSum: round(x.catchupSum), total: round(x.advanceSum + x.nowSum + x.catchupSum), last: x.last }))
+      .sort((a, b) => b.advance - a.advance || b.total - a.total),
     fuel: [...byPlate.entries()].map(([plate, p]) => ({ plate, cost: round(p.cost), liters: round(p.liters, 1), count: p.count })).sort((a, b) => b.cost - a.cost),
   };
 }

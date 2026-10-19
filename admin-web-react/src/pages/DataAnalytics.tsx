@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { AlertTriangle, Banknote, Clock, Fuel, Lightbulb, RefreshCw, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, Banknote, Clock, Fuel, Lightbulb, RefreshCw, Sparkles, TrendingUp, Users, UtensilsCrossed } from 'lucide-react';
 import { Button, Card, EmptyState, ErrorState, KpiRow, Loading, StatCard } from '../components/ui';
 import { HBarChart } from '../components/charts';
 import { useTheme } from '../lib/theme';
@@ -17,7 +17,7 @@ type Analytics = {
   kpi: {
     staff: number; workDays: number; avgPresent: number; attendanceRate: number; lateRate: number;
     regularHours: number; overtimeHours: number; overtimeShare: number;
-    payroll: number; mealEarned: number; mealGiven: number; fuelCost: number; fuelLiters: number; totalCost: number;
+    payroll: number; mealEarned: number; mealGiven: number; mealAdvance?: number; mealAdvanceCount?: number; fuelCost: number; fuelLiters: number; totalCost: number;
   };
   daily: { date: string; present: number; late: number; onTime: number }[];
   weekday: { day: string; present: number; lateRate: number }[];
@@ -26,10 +26,19 @@ type Analytics = {
   lateTop: { name: string; department: string; late: number; days: number; avgLateMin: number }[];
   monthly: { month: string; payroll: number; meal: number; fuel: number; hours: number; overtime: number }[];
   fuel: { plate: string; cost: number; liters: number; count: number }[];
+  meals?: { name: string; department: string; advance: number; advanceSum: number; now: number; nowSum: number; catchup: number; catchupSum: number; total: number; last: string }[];
 };
 type Call = <T>(body: Record<string, unknown>) => Promise<T>;
 
 const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
+/** «2.4 сая₮», «350 мян₮» — самбарын том тоонд. */
+const compact = (n: number) => {
+  const a = Math.abs(n || 0);
+  if (a >= 1e9) return `${(n / 1e9).toFixed(1).replace(/\.0$/, '')} тэрбум₮`;
+  if (a >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, '')} сая₮`;
+  if (a >= 1e3) return `${Math.round(n / 1e3)} мян₮`;
+  return `${Math.round(n || 0)}₮`;
+};
 const short = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1)}сая` : Math.abs(n) >= 1e3 ? `${Math.round(n / 1e3)}мян` : String(Math.round(n)));
 const ubToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
 
@@ -69,6 +78,8 @@ function insights(a: Analytics) {
   if (k.fuelCost && k.totalCost && k.fuelCost / k.totalCost >= 0.15) out.push({ tone: 'warn', text: `Бензин нийт зардлын ${Math.round((k.fuelCost / k.totalCost) * 100)}% (${money(k.fuelCost)}). Маршрутыг нэгтгэх, «Хамт яваа баг»-ийг ашиглах нь зардлыг бууруулна.` });
   const topCar = a.fuel[0];
   if (topCar && a.fuel.length > 1 && topCar.cost > (k.fuelCost / a.fuel.length) * 2) out.push({ tone: 'warn', text: `${topCar.plate} машин бусдаасаа 2 дахин их бензин зарцуулсан (${money(topCar.cost)}). Ашиглалт, техникийн байдлыг шалга.` });
+  const frequent = (a.meals || []).filter((m) => m.advance >= 3);
+  if (frequent.length) out.push({ tone: 'warn', text: `Хоолны мөнгөө олон удаа урьдчилж авсан: ${frequent.slice(0, 5).map((m) => `${m.name} (${m.advance} удаа)`).join(', ')}. Урьдчилгааны давтамжид хязгаар тогтоох эсэхийг шийд.` });
   if (k.mealEarned && k.mealGiven > k.mealEarned * 1.1) out.push({ tone: 'warn', text: `Хоолны мөнгө хуримтлагдсанаас ${money(k.mealGiven - k.mealEarned)}-өөр илүү олгогдсон — урьдчилгааг хяна.` });
   return out;
 }
@@ -131,7 +142,14 @@ export default function DataAnalytics({ call }: { call: Call }) {
             <StatCard tone="green" icon={<Users size={19} />} value={`${data.kpi.attendanceRate}%`} label="Ирцийн хувь" note={`Өдөрт ~${data.kpi.avgPresent} / ${data.kpi.staff} ажилтан`} />
             <StatCard tone="amber" icon={<Clock size={19} />} value={`${data.kpi.lateRate}%`} label="Хоцролт" note={`${data.settings.work_start} + ${data.settings.grace} мин уучлал`} />
             <StatCard tone="blue" icon={<TrendingUp size={19} />} value={`${data.kpi.overtimeHours} ц`} label="Илүү цаг" note={`Нийт цагийн ${data.kpi.overtimeShare}%`} />
-            <StatCard tone="violet" icon={<Banknote size={19} />} value={money(data.kpi.totalCost)} label="Нийт зардал (тооцоолсон)" note="Цалин + хоол + бензин" />
+            <StatCard tone="violet" icon={<Banknote size={19} />} value={compact(data.kpi.totalCost)} label="Нийт зардал (тооцоолсон)" note="Цалин + хоол + бензин" />
+          </KpiRow>
+
+          {/* Зардал тус тусдаа */}
+          <KpiRow cols={3}>
+            <StatCard tone="blue" icon={<Banknote size={19} />} value={compact(data.kpi.payroll)} label="Цалин" note={`${money(data.kpi.payroll)} · ${data.kpi.regularHours} ц + ${data.kpi.overtimeHours} илүү ц`} />
+            <StatCard tone="amber" icon={<UtensilsCrossed size={19} />} value={compact(data.kpi.mealEarned)} label="Хоолны мөнгө" note={`Олгосон ${compact(data.kpi.mealGiven)} · урьдчилгаа ${compact(data.kpi.mealAdvance || 0)}`} />
+            <StatCard tone="green" icon={<Fuel size={19} />} value={compact(data.kpi.fuelCost)} label="Бензин" note={`${money(data.kpi.fuelCost)} · ${data.kpi.fuelLiters} л`} />
           </KpiRow>
 
           {/* Дүгнэлт ба зөвлөгөө */}
@@ -233,6 +251,39 @@ export default function DataAnalytics({ call }: { call: Call }) {
                     </table>
                   </div>
                 </>
+              )}
+            </Card>
+
+            <Card title="Хоолны мөнгө — хэн хэдэн удаа авсан" icon={<UtensilsCrossed size={17} />} className="xl:col-span-2" bodyClassName="p-0">
+              {!data.meals?.length ? <EmptyState text="Энэ хугацаанд хоолны мөнгө олгоогүй." /> : (
+                <div className="overflow-x-auto">
+                  <table className="app-table w-full min-w-[720px] text-[13px]">
+                    <thead className="text-left">
+                      <tr>
+                        <th className="px-4 py-2">Ажилтан</th>
+                        <th className="px-3 py-2 text-right">Урьдчилж авсан</th>
+                        <th className="px-3 py-2 text-right">Одоо авсан</th>
+                        <th className="px-3 py-2 text-right">Нөхөж авсан</th>
+                        <th className="px-3 py-2 text-right">Нийт</th>
+                        <th className="px-3 py-2 text-right">Сүүлд</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {data.meals.map((m) => (
+                        <tr key={m.name + m.department}>
+                          <td className="px-4 py-2"><span className="block font-medium text-ink">{m.name}</span><span className="block text-[11px] text-subtle">{m.department}</span></td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {m.advance ? <><span className="font-semibold text-warning">{m.advance} удаа</span><span className="block text-[11px] text-subtle">{money(m.advanceSum)}</span></> : <span className="text-subtle">—</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">{m.now ? <><span className="text-ink">{m.now} удаа</span><span className="block text-[11px] text-subtle">{money(m.nowSum)}</span></> : <span className="text-subtle">—</span>}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{m.catchup ? <><span className="text-ink">{m.catchup} удаа</span><span className="block text-[11px] text-subtle">{money(m.catchupSum)}</span></> : <span className="text-subtle">—</span>}</td>
+                          <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink">{money(m.total)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted">{m.last}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </Card>
 
