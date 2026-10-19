@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Database, Download, Eye, File, Folder, KeyRound, LogOut, Mail, RefreshCw, Smartphone, UserCheck } from 'lucide-react';
 import { Button, Input, Loading, EmptyState } from '../components/ui';
 import SiteShell from '../components/SiteShell';
+import DataAnalytics from './DataAnalytics';
 import AuthShell from '../components/AuthShell';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
@@ -217,7 +218,7 @@ export default function DataSite() {
               <a href={sms.smsUri} className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-brand text-[14px] font-semibold text-white">
                 <Smartphone size={16} /> SMS илгээх (144773)
               </a>
-              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна… Нэг SMS 150₮.</p>
+              <p className="flex items-center justify-center gap-2 text-[12px] text-muted"><RefreshCw size={13} className="animate-spin" /> SMS хүлээж байна…</p>
               <button type="button" className="w-full text-[12px] text-muted underline" onClick={restart}>Өөр дугаар оруулах</button>
             </>
           )}
@@ -279,7 +280,7 @@ type FileObj = { name: string; id: string | null; created_at?: string; metadata?
 
 function DataApp({ onLogout, onExpired }: { onLogout: () => void; onExpired: () => void }) {
   const token = store.get(TOKEN_KEY) || '';
-  const [tab, setTab] = useState<'tables' | 'files' | 'viewers'>('tables');
+  const [tab, setTab] = useState<'analytics' | 'tables' | 'files' | 'viewers'>('analytics');
   const [admin, setAdmin] = useState(false);
   const call = useCallback(
     async <T,>(body: Record<string, unknown>) => {
@@ -300,12 +301,12 @@ function DataApp({ onLogout, onExpired }: { onLogout: () => void; onExpired: () 
   return (
     <SiteShell
       title="Gennetex Data"
-      subtitle={admin ? 'Өгөгдлийн сангийн хүснэгт, файлын сав, харах эрх.' : 'Өгөгдлийн сан ба файлын сав — зөвхөн харах.'}
+      subtitle={admin ? 'Ирц, санхүүгийн шинжилгээ ба зөвлөгөө · хүснэгт, файлын сав, харах эрх.' : 'Ирц, санхүүгийн шинжилгээ · өгөгдлийн сан ба файлын сав — зөвхөн харах.'}
       icon={<Database size={24} />}
       width="max-w-[1600px]"
       nav={
         <div className="inline-flex rounded-full bg-card2 p-1" role="tablist">
-          {([['tables', 'Хүснэгт'], ['files', 'Файлын сав'], ...(admin ? [['viewers', 'Харах эрх']] : [])] as ['tables' | 'files' | 'viewers', string][]).map(([k, l]) => (
+          {([['analytics', 'Шинжилгээ'], ['tables', 'Хүснэгт'], ['files', 'Файлын сав'], ...(admin ? [['viewers', 'Харах эрх']] : [])] as ['analytics' | 'tables' | 'files' | 'viewers', string][]).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${tab === k ? 'bg-brand text-white' : 'text-muted hover:text-ink'}`}>{l}</button>
           ))}
         </div>
@@ -317,7 +318,7 @@ function DataApp({ onLogout, onExpired }: { onLogout: () => void; onExpired: () 
         </>
       }
     >
-      {tab === 'tables' ? <Tables call={call} /> : tab === 'files' ? <Files call={call} /> : <Viewers call={call} />}
+      {tab === 'analytics' ? <DataAnalytics call={call} /> : tab === 'tables' ? <Tables call={call} /> : tab === 'files' ? <Files call={call} /> : <Viewers call={call} />}
     </SiteShell>
   );
 }

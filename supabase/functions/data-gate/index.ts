@@ -13,6 +13,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createAdminClient } from "../_shared/push.ts";
 import { createSession, getSession, normalizePhone as vmPhone, VerifyMnError } from "../_shared/verifyMn.ts";
+import { aiAdvice, computeAnalytics } from "./analytics.ts";
 
 const ALLOWED_ORIGINS = new Set(["https://data.gennetex.com", "https://bayasgalan.gennetex.com", "http://localhost:5173"]);
 const corsFor = (req: Request) => {
@@ -196,6 +197,23 @@ async function handle(req: Request, body: Record<string, unknown>) {
       await db.from("data_gate_attempts").delete().eq("id", gate.id);
       await audit(user.id, "login");
       return { token, expiresIn: SESSION_HOURS * 3600 };
+    }
+
+    case "analytics": {
+      // Ирц + санхүүгийн нэгтгэл (график). Харах эрхтэй хүн бүр (data_viewers) — зөвхөн нийлбэр.
+      await requireSession(req, body);
+      const iso = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "");
+      const from = iso(body.from);
+      const to = iso(body.to);
+      if (!from || !to || to < from) throw new GateError("Хугацаа буруу.");
+      return await computeAnalytics(db, from, to);
+    }
+
+    case "advice": {
+      // AI зөвлөгөө — клиентийн илгээсэн нэгтгэлээр (хувийн нэргүй).
+      await requireSession(req, body);
+      const text = await aiAdvice(body.summary).catch(() => null);
+      return { text };
     }
 
     case "tables": {
