@@ -578,3 +578,37 @@ kbd.kbd {
 :root[data-theme='dark'] .kpi-value {
   color: var(--heading);
 }
+
+/* ХААБ гарын үсгийн хуудас — зөвхөн хуудсыг A4 хэвтээгээр хэвлэнэ (HaabSheet). */
+@media print {
+  /* Нэрлэсэн хуудас — act-document.css-ийн глобал «@page A4 portrait»-той мөргөлдөхгүй. */
+  @page haab {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  /* Зөвхөн гарын үсгийн хуудас дэлгэцэнд байгаа үед (HaabSheet <html>-д класс тавина). */
+  html.has-print-sheet,
+  html.has-print-sheet body {
+    background: #fff !important;
+  }
+  html.has-print-sheet body * {
+    visibility: hidden;
+  }
+  /* !important — act-document.css-ийн «body * { visibility:hidden!important }»-ийг давна. */
+  html.has-print-sheet body .print-sheet,
+  html.has-print-sheet body .print-sheet * {
+    visibility: visible !important;
+  }
+  .print-sheet {
+    page: haab;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    border: 0 !important;
+    border-radius: 0 !important;
+    animation: none !important;
+  }
+  .print-sheet tr {
+    break-inside: avoid;
+  }
+}

@@ -11,6 +11,7 @@ import StaffLocationsPage from './pages/StaffLocations';
 import PayrollPage from './pages/Payroll';
 import MealMoneyPage from './pages/MealMoney';
 import HaabPage from './pages/Haab';
+import HaabPublicPage from './pages/HaabPublic';
 import FuelPage from './pages/Fuel';
 import VehiclesPage from './pages/Vehicles';
 import CompanionsPage from './pages/Companions';
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="/tailan/w/:token" element={<AttendanceWarningPage />} />
         <Route path="/share/acts/:token" element={<PublicActPage />} />
         <Route path="/s/:token" element={<PublicActPage />} />
+        <Route path="/haab/s/:token" element={<HaabPublicPage />} />
         <Route element={<Layout />}>
           <Route index element={<Navigate to={landingPath} replace />} />
           <Route path="/home" element={<HomePage />} />
