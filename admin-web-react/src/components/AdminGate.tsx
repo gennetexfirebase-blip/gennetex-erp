@@ -221,6 +221,18 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: returnTo, queryParams: { prompt: 'select_account' } } });
   };
 
+  // Нэвтэрсэн Gmail-ээс гараад 3 шатыг эхнээс нь (өөр дансаар) эхлүүлнэ.
+  const switchAccount = () =>
+    run(async () => {
+      await adminGateLogout();
+      progress.set(null);
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => null);
+      setEmail('');
+      setGoogleKnown(false);
+      tried.current = false;
+      restart();
+    });
+
   const sendPw = () =>
     run(async () => {
       if (setup && pw !== pw2) throw new Error('Код таарахгүй байна.');
@@ -260,11 +272,16 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
         ))}
       </ol>
 
-      {googleKnown && email ? (
-        <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-card2 px-3.5 py-2.5 text-[13px]">
-          <GoogleIcon size={16} />
-          <span className="min-w-0 flex-1 truncate text-ink">{email}</span>
-          <Check size={14} className="shrink-0 text-brand" aria-label="Баталгаажсан" />
+      {signedIn && email ? (
+        <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-line bg-card2 px-3.5 py-2.5">
+          <GoogleIcon size={18} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] text-subtle">Нэвтэрсэн Gmail</span>
+            <span className="block truncate text-[13px] font-semibold text-ink">{email}</span>
+          </span>
+          <button type="button" onClick={switchAccount} disabled={busy} className="focus-ring shrink-0 rounded-[var(--radius-sm)] px-2 py-1 text-[12px] font-semibold text-brand hover:bg-brand-soft">
+            Өөр имэйлээр
+          </button>
         </div>
       ) : null}
 
