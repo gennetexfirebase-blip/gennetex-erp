@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronRight, ExternalLink, LayoutGrid, Search, Users2, X } from 'lucide-react';
-import { NAV, type NavItem } from '../lib/nav';
+import { FileText, ShareNetwork, SquaresFour, SquaresFour as AllSites } from '@phosphor-icons/react';
+import { NAV, type NavIcon, type NavItem } from '../lib/nav';
 import { SITES, currentSite, siteUrl, type SiteKey } from '../lib/sites';
 import { CountDot, Kbd, Meter, toneOf, toneStyle } from './ui';
 import brandMark from '../assets/report-logo.png';
+
+/** Сайт бүрийн icon — тухайн сайтын эхний цэсний icon (байхгүй бол тусгай). */
+const SITE_ICON: Partial<Record<SiteKey, NavIcon>> = { admin: SquaresFour, akt: FileText, share: ShareNetwork };
+const siteIcon = (k: SiteKey): NavIcon => SITE_ICON[k] || NAV.find((n) => n.site === k)?.icon || AllSites;
 
 /** Өөр subdomain руу шилжих жагсаалтад харагдах сайтууд. */
 const SWITCH_SITES: SiteKey[] = ['admin', 'irts', 'hr', 'sanhuu', 'aguulah', 'bairshil', 'habea', 'surgalt', 'meet', 'notif', 'arhiv', 'akt', 'share'];
@@ -50,11 +55,11 @@ export default function Sidebar({
 
   const width = collapsed ? 'lg:w-[76px]' : 'lg:w-[252px]';
   const Ico = ({ icon: I, label }: { icon: NavItem['icon']; label: string }) => (
-    <span className="nav-ico grid h-7 w-7 shrink-0 place-items-center rounded-full" style={toneStyle(toneOf(label))}>
-      <I size={15} />
+    <span className="nav-ico grid h-5 w-5 shrink-0 place-items-center text-subtle">
+      <I size={19} />
     </span>
   );
-  const rowBase = 'group relative flex items-center gap-2.5 rounded-[14px] px-2 py-1.5 text-[13px] transition-colors';
+  const rowBase = 'group relative flex items-center gap-2.5 rounded-[var(--radius)] px-2.5 py-[7px] text-[13px] transition-colors';
   const rowIdle = 'text-muted hover:bg-hover hover:text-ink';
 
   return (
@@ -62,7 +67,7 @@ export default function Sidebar({
       {mobileOpen ? <div className="fixed inset-0 z-30 bg-[rgba(20,28,24,0.4)] lg:hidden" onClick={onCloseMobile} aria-hidden /> : null}
 
       <aside
-        className={`app-sidebar w-[264px] ${width} fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width,transform] duration-200 lg:sticky lg:top-3 lg:m-3 lg:mr-0 lg:h-[calc(100vh-24px)] lg:translate-x-0 ${
+        className={`app-sidebar w-[264px] ${width} fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col overflow-hidden bg-sidebar transition-[width,transform] duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         onMouseLeave={() => setFlyout(null)}
@@ -70,7 +75,7 @@ export default function Sidebar({
       >
         {/* ── Брэнд толгой ─────────────────────────────── */}
         <div className="flex h-16 items-center gap-3 px-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-card p-0.5">
+          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-[var(--radius)] border border-line bg-white p-0.5">
             <img src={brandMark} alt="" aria-hidden="true" width="32" height="32" className="h-full w-full object-contain" />
           </span>
           {!collapsed ? (
@@ -93,7 +98,7 @@ export default function Sidebar({
               type="button"
               onClick={onOpenSearch}
               title={collapsed ? 'Хайх (Ctrl+K)' : undefined}
-              className={`focus-ring flex h-10 w-full items-center gap-2 rounded-full bg-card2 px-3 text-[13px] text-subtle hover:bg-hover hover:text-muted ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}
+              className={`focus-ring flex h-9 w-full items-center gap-2 rounded-[var(--radius)] border border-line bg-card px-2.5 text-[13px] text-subtle hover:bg-hover hover:text-muted ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}
             >
               <Search size={15} className="shrink-0" />
               {!collapsed ? (
@@ -201,13 +206,16 @@ export default function Sidebar({
               ) : null}
               {sitesOpen && !collapsed ? (
                 <div className="space-y-px">
-                  {SWITCH_SITES.filter((k) => k !== site.key).map((k) => (
+                  {SWITCH_SITES.filter((k) => k !== site.key).map((k) => {
+                    const SiteIcon = siteIcon(k);
+                    return (
                     <a key={k} href={siteUrl(k)} className={`${rowBase} ${rowIdle}`}>
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold uppercase" style={toneStyle(toneOf(SITES[k].title))}>{SITES[k].title[0]}</span>
+                      <span className="nav-ico grid h-5 w-5 shrink-0 place-items-center text-subtle" aria-hidden="true"><SiteIcon size={18} /></span>
                       <span className="min-w-0 flex-1 truncate">{SITES[k].title}</span>
                       <ExternalLink size={12} className="shrink-0 opacity-0 transition group-hover:opacity-60" />
                     </a>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
             </div>

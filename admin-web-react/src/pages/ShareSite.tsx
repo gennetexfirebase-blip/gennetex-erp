@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Download, FileText, Link2, Paperclip, Send, Upload } from 'lucide-react';
+import { Check, Copy, Share2, Download, FileText, Link2, Paperclip, Send, Upload } from 'lucide-react';
 import { Button, Input, Textarea, Loading } from '../components/ui';
+import SiteShell from '../components/SiteShell';
 import { supabase } from '../lib/supabase';
-import brandMark from '../assets/report-logo.png';
 
 /**
  * share.gennetex.com — нэвтрэлтгүй, нийтэд нээлттэй хуваалцах.
@@ -57,20 +57,9 @@ async function call<T = any>(body: Record<string, unknown>): Promise<T> {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-app">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-          <a href="/" className="flex items-center gap-3">
-            <img src={brandMark} alt="" width="32" height="32" className="h-8 w-8 rounded object-contain" />
-            <span>
-              <span className="block text-[16px] font-semibold text-ink">Gennetex Share</span>
-              <span className="block text-[12px] text-muted">Текст, файлаа холбоосоор хуваалцана</span>
-            </span>
-          </a>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
-    </div>
+    <SiteShell title="Хуваалцах" subtitle="Текст, файлаа холбоосоор хуваалцана." icon={<Share2 size={24} />} width="max-w-3xl">
+      {children}
+    </SiteShell>
   );
 }
 

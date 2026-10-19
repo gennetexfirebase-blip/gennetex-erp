@@ -106,7 +106,7 @@ export default function CompanionsPage() {
                       <td className="px-3 py-2 font-semibold text-ink">{Number(t.distance_km || 0).toFixed(2)} км</td>
                       <td className="px-3 py-2 text-muted">{dur(t)}{t.status === 'active' && !t.ended_at ? '*' : ''}</td>
                       <td className="px-3 py-2 text-muted">{t.passengers.map((p) => p.passenger_name).join(', ') || 'Ганцаараа'}</td>
-                      <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-[12px] ${t.status === 'active' ? 'bg-success-soft text-success' : 'bg-card2 text-muted'}`}>{t.status === 'active' ? 'Идэвхтэй' : 'Дууссан'}</span></td>
+                      <td className="px-3 py-2"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] ${t.status === 'active' ? 'bg-success-soft text-success' : 'bg-card2 text-muted'}`}>{t.status === 'active' ? 'Идэвхтэй' : 'Дууссан'}</span></td>
                     </tr>
                   ))}
                 </tbody>

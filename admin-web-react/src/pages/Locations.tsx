@@ -27,7 +27,7 @@ export default function LocationsPage() {
 
   return (
     <>
-      <PageHeader title="Байршил" crumb="Байршил" />
+      <PageHeader title="Байршил" description="Ирц бүртгэх цэгүүдийн байршил, радиусыг тохируулна." crumb="Байршил" />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[340px_1fr]">
         {/* Зүүн — жагсаалт */}

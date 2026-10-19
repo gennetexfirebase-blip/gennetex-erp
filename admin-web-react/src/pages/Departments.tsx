@@ -153,7 +153,7 @@ export default function DepartmentsPage() {
   return (
     <>
       <PageHeader
-        title="Алба, хэлтэс"
+        title="Алба, хэлтэс" description="Байгууллагын бүтэц, алба хэлтэс болон ажилтны хуваарилалтыг удирдана."
         crumb="Алба, хэлтэс"
         actions={
           <div className="flex flex-wrap items-center gap-2">

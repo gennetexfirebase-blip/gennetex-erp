@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Building2, Clock, Home, PhoneCall, Plus, RefreshCw } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
-import { PageHeader, Card, Button, Input, Select, Textarea, Modal, Field, Loading, ErrorState, EmptyState } from '../components/ui';
+import { PageHeader, Card, Button, Input, Select, Textarea, Modal, Field, Loading, ErrorState, EmptyState, StatCard, KpiRow } from '../components/ui';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
 import { supabase } from '../lib/supabase';
 
@@ -65,7 +65,7 @@ export default function ServiceCallsPage() {
                   <td className="px-3 py-2 text-ink">{c.engineer_name || '—'}</td>
                   <td className="px-3 py-2 text-[12px] text-muted">{c.created_by_name || '—'}<br />{new Date(c.created_at).toLocaleDateString('mn-MN')}</td>
                   <td className="px-3 py-2 text-ink">{typeLabel(c.call_type)}</td>
-                  <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-[12px] ${statusClass(c.status)}`}>{c.status || '—'}</span></td>
+                  <td className="px-3 py-2"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] ${statusClass(c.status)}`}>{c.status || '—'}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -94,14 +94,12 @@ export default function ServiceCallsPage() {
       />
       {loading ? <Loading /> : error ? <ErrorState text={error} onRetry={reload} /> : (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {([[PhoneCall, data.length, 'Нийт дуудлага'], [Home, data.filter((c) => (c.site_kind || 'ail') === 'ail').length, 'Айл'], [Building2, data.filter((c) => c.site_kind === 'baiguulga').length, 'Байгууллага'], [Clock, data.filter((c) => c.status !== 'Дууссан').length, 'Хүлээгдэж буй']] as const).map(([I, v, l]) => (
-              <div key={l} className="surface flex items-center gap-3 p-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-brand-soft text-brand"><I size={18} /></span>
-                <div><p className="text-[20px] font-semibold text-ink">{v}</p><p className="text-[12px] text-muted">{l}</p></div>
-              </div>
-            ))}
-          </div>
+          <KpiRow>
+            <StatCard tone="green" icon={<PhoneCall size={19} />} value={data.length} label="Нийт дуудлага" />
+            <StatCard tone="blue" icon={<Home size={19} />} value={data.filter((c) => (c.site_kind || 'ail') === 'ail').length} label="Айл" />
+            <StatCard tone="violet" icon={<Building2 size={19} />} value={data.filter((c) => c.site_kind === 'baiguulga').length} label="Байгууллага" />
+            <StatCard tone="amber" icon={<Clock size={19} />} value={data.filter((c) => c.status !== 'Дууссан').length} label="Хүлээгдэж буй" />
+          </KpiRow>
           {table('Айл дээрх дуудлага', ail)}
           {table('Байгууллага дээрх дуудлага', org)}
         </>

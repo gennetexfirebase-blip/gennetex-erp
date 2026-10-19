@@ -1,17 +1,18 @@
 import { useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Clock, Users, Bell, CalendarDays, MapPin } from 'lucide-react';
 import { Card, Avatar, EmptyState, Loading, Badge, ToneIcon } from '../components/ui';
+import { DonutChart, STATUS_COLORS } from '../components/charts';
 import { fetchAttendanceToday, fetchAttendanceRequests, useAsync, type AttendanceRow } from '../lib/data';
 
+// Төлөвийн өнгө — «Хуваарьгүй» нь бүдэг саарал, жинхэнэ төлөвүүдийг дарахгүй.
 const SLICE_COLORS: Record<string, string> = {
-  on_time: '#22A565',
-  late: '#E8A317',
-  absent: '#E5484D',
-  leave: '#0099DB',
-  rest: '#64748B',
-  not_scheduled: '#334155',
+  on_time: STATUS_COLORS.good,
+  late: STATUS_COLORS.warning,
+  absent: STATUS_COLORS.critical,
+  leave: STATUS_COLORS.info,
+  rest: STATUS_COLORS.muted,
+  not_scheduled: STATUS_COLORS.none,
 };
 
 const SLICE_LABEL: Record<string, string> = {
@@ -65,7 +66,7 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="surface mb-6 flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
+      <section className="surface hero mb-6 flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium text-subtle">
             {`${new Date().getMonth() + 1}-р сарын ${new Date().getDate()}, ${['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'][new Date().getDay()]} гараг`}
@@ -79,14 +80,14 @@ export default function HomePage() {
           <div className="flex items-center gap-3 rounded-[var(--radius)] bg-card2 px-4 py-3">
             <ToneIcon tone="green" size={40}><Users size={18} /></ToneIcon>
             <div>
-              <p className="text-[22px] font-bold leading-none tabular-nums text-ink">{loading ? '…' : rows.filter((r) => r.check_in_at).length}</p>
+              <p className="kpi-value text-[22px] font-bold leading-none tabular-nums text-ink">{loading ? '…' : rows.filter((r) => r.check_in_at).length}</p>
               <p className="mt-1 text-[12px] text-muted">ирсэн</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-[var(--radius)] bg-card2 px-4 py-3">
             <ToneIcon tone="amber" size={40}><Bell size={18} /></ToneIcon>
             <div>
-              <p className="text-[22px] font-bold leading-none tabular-nums text-ink">{requestsError ? '—' : requests.length}</p>
+              <p className="kpi-value text-[22px] font-bold leading-none tabular-nums text-ink">{requestsError ? '—' : requests.length}</p>
               <p className="mt-1 text-[12px] text-muted">хүсэлт</p>
             </div>
           </div>
@@ -101,37 +102,11 @@ export default function HomePage() {
           ) : slices.length === 0 ? (
             <EmptyState text="Өнөөдрийн ирцийн мэдээлэл алга." />
           ) : (
-            <>
-              <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={slices} dataKey="value" innerRadius={58} outerRadius={82} paddingAngle={2}>
-                      {slices.map((s) => (
-                        <Cell key={s.key} fill={s.color} stroke="none" />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--bg-card-2)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 8,
-                        fontSize: 12,
-                        color: 'var(--text)',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-3 space-y-1.5">
-                {slices.map((s) => (
-                  <div key={s.key} className="flex items-center gap-2 text-[12px]">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                    <span className="text-muted">{s.name}</span>
-                    <span className="ml-auto font-semibold text-ink">{s.value}</span>
-                  </div>
-                ))}
-              </div>
-            </>
+            <DonutChart
+              slices={slices}
+              center={rows.filter((r) => r.check_in_at).length}
+              sub={`/ ${rows.length} ирсэн`}
+            />
           )}
         </Card>
 

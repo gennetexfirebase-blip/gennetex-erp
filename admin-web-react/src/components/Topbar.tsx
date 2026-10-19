@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Avatar, Kbd } from './ui';
+import { ThemeSegmented, ThemeToggle } from './ThemeToggle';
 import { NAV } from '../lib/nav';
 import { currentSite, siteUrl } from '../lib/sites';
 
@@ -70,13 +71,13 @@ export default function Topbar({
           ? 'Актын дэлгэрэнгүй'
           : 'Актын бүртгэл';
   const title = actOnly ? actPageTitle : pageTitle(location.pathname) || site.title;
-  const iconBtn = 'focus-ring relative grid h-10 w-10 place-items-center rounded-full bg-card text-muted shadow-[var(--shadow)] hover:text-ink';
+  const iconBtn = 'focus-ring relative grid h-9 w-9 place-items-center rounded-[var(--radius)] text-muted hover:bg-hover hover:text-ink';
   // Өөр subdomain бол бүтэн хаяг, энэ сайтынх бол router-ийн Link.
   const To = ({ k, to, className, children }: { k: 'irts' | 'admin'; to: string; className: string; children: React.ReactNode }) =>
     site.key === k ? <Link to={to} className={className}>{children}</Link> : <a href={siteUrl(k, to)} className={className}>{children}</a>;
 
   return (
-    <header className="app-topbar sticky top-0 z-20 flex h-16 items-center gap-2 px-3 sm:px-4 lg:px-8">
+    <header className="app-topbar sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line px-3 sm:px-4 lg:px-6">
       <button className={`${iconBtn} lg:hidden`} onClick={onOpenMobile} aria-label="Цэс нээх">
         <Menu size={18} />
       </button>
@@ -99,7 +100,7 @@ export default function Topbar({
           <>
             <button
               onClick={onOpenSearch}
-              className="focus-ring hidden h-10 w-64 items-center gap-2 rounded-full bg-card px-4 text-[13px] text-subtle shadow-[var(--shadow)] hover:text-muted md:flex"
+              className="focus-ring hidden h-9 w-60 items-center gap-2 rounded-[var(--radius)] border border-line bg-card px-3 text-[13px] text-subtle hover:border-[var(--border-strong)] md:flex"
             >
               <Search size={15} />
               <span className="flex-1 text-left">Хайх…</span>
@@ -112,10 +113,12 @@ export default function Topbar({
         ) : null}
 
         {actOnly && canCreateAct ? (
-          <Link to="/admin/documents/acts/new" className="cta-gradient focus-ring hidden h-10 items-center gap-1.5 rounded-full px-4 text-[13px] sm:inline-flex">
+          <Link to="/admin/documents/acts/new" className="cta-gradient focus-ring hidden h-9 items-center gap-1.5 rounded-[var(--radius)] px-3.5 text-[13px] sm:inline-flex">
             <Plus size={15} /> Акт үүсгэх
           </Link>
         ) : null}
+
+        <ThemeToggle className="hidden sm:grid" />
 
         {!actOnly && isAdmin ? (
           <div className="relative">
@@ -152,7 +155,7 @@ export default function Topbar({
 
         <div className="relative">
           <button
-            className="focus-ring ml-0.5 flex items-center gap-2 rounded-full bg-card p-1 pr-2 shadow-[var(--shadow)]"
+            className="focus-ring ml-0.5 flex items-center gap-2 rounded-[var(--radius)] p-1 pr-1.5 hover:bg-hover"
             onClick={() => setMenu(menu === 'user' ? null : 'user')}
             aria-label="Хэрэглэгчийн цэс"
             aria-expanded={menu === 'user'}
@@ -169,6 +172,10 @@ export default function Topbar({
                   <p className="truncate text-[13px] font-semibold text-ink">{profile?.name || '—'}</p>
                   <p className="truncate text-[12px] text-subtle">{profile?.email || ''}</p>
                 </div>
+              </div>
+              <div className="px-1.5 pb-2 pt-1">
+                <p className="mb-1.5 px-1 text-[11px] font-semibold text-subtle">Дэлгэцийн горим</p>
+                <ThemeSegmented />
               </div>
               <div className="my-1 border-t border-line" />
               {isAdmin && !actOnly ? (

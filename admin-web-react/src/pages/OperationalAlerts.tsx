@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, BellRing, RotateCw } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorState, Loading, PageHeader, StatCard } from '../components/ui';
+import { AlertTriangle, BellRing, Clock, RotateCw } from 'lucide-react';
+import { Badge, Button, Card, EmptyState, ErrorState, Loading, PageHeader, StatCard, KpiRow } from '../components/ui';
 import { fetchOperationalAlerts, useAsync, type OperationalAlert } from '../lib/data';
 
 const TYPE_LABEL: Record<OperationalAlert['alert_type'], string> = {
@@ -25,15 +25,15 @@ export default function OperationalAlertsPage() {
   return (
     <>
       <PageHeader
-        title="Анхааруулгын төв"
+        title="Анхааруулгын төв" description="Хугацаа нь дуусах гэрээ, бичиг баримт болон анхаарах зүйлсийн жагсаалт."
         crumb="Өдөр тутмын хяналт"
         actions={<Button variant="outline" icon={<RotateCw size={15} />} onClick={reload}>Шинэчлэх</Button>}
       />
-      <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <KpiRow cols={3}>
         <StatCard label="Нийт" value={totalValue} note="Анхаарах бүх зүйл" icon={<BellRing size={16} />} tone="blue" />
         <StatCard label="Яаралтай" value={dangerValue} note="Хэтэрсэн эсвэл өнөөдөр дуусах" icon={<AlertTriangle size={16} />} tone="rose" />
-        <StatCard label="Урьдчилан сануулах" value={warningValue} note="Тохируулсан хугацаанд багтсан" icon={<RotateCw size={16} />} tone="amber" />
-      </div>
+        <StatCard label="Урьдчилан сануулах" value={warningValue} note="Тохируулсан хугацаанд багтсан" icon={<Clock size={16} />} tone="amber" />
+      </KpiRow>
       <Card
         title="Нэгдсэн жагсаалт"
         icon={<BellRing size={17} />}

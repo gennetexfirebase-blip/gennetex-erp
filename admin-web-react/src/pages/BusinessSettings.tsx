@@ -67,7 +67,7 @@ export default function BusinessSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Тохиргооны төв"
+        title="Тохиргооны төв" description="Ирцийн дүрэм, ажлын цаг болон байгууллагын үндсэн тохиргоог удирдана."
         crumb="Системийн тохиргоо"
         actions={<Button icon={<Save size={15} />} onClick={save} disabled={saving || loading}>{saving ? 'Хадгалж байна...' : 'Хадгалах'}</Button>}
       />

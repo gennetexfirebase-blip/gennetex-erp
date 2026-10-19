@@ -152,7 +152,7 @@ export default function EmployeesPage() {
   return (
     <>
       <PageHeader
-        title="Ажилтан"
+        title="Ажилтан" description="Ажилтны бүртгэл, холбоо барих мэдээлэл болон апп-д нэвтэрсэн төлөв."
         crumb="Ажилтан"
         actions={
           <>

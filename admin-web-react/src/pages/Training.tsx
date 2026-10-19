@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { CheckCircle2, GraduationCap, Search, Trash2, X, XCircle } from 'lucide-react';
+import { CheckCircle2, GraduationCap, Search, Trash2, Users, X, XCircle } from 'lucide-react';
 import {
   createEmployeeTraining,
   deleteEmployeeTraining,
@@ -10,7 +10,7 @@ import {
   type Employee,
   type EmployeeTraining,
 } from '../lib/data';
-import { Avatar, Badge, Button, Card, EmptyState, ErrorState, Input, Loading, PageHeader, Textarea } from '../components/ui';
+import { Avatar, Badge, Button, Card, EmptyState, ErrorState, Input, Loading, PageHeader, StatCard, KpiRow, Textarea } from '../components/ui';
 
 const EMPTY_FORM = { training_name: '', due_date: '', note: '' };
 
@@ -109,22 +109,17 @@ export default function TrainingPage() {
 
   return (
     <>
-      <PageHeader title="Авсан сургалт" crumb="Ажилтан / Сургалтын хяналт" />
+      <PageHeader
+        title="Авсан сургалт"
+        crumb="Ажилтан / Сургалтын хяналт"
+        description="Ажилтан бүрийн хамрагдсан сургалт, гүйцэтгэлийн төлөвийг хянана."
+      />
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <div className="surface p-5">
-          <p className="text-[12px] text-muted">Нийт ажилтан</p>
-          <p className="mt-2 text-3xl font-semibold text-ink">{data.employees.length}</p>
-        </div>
-        <div className="surface border border-success p-5">
-          <p className="text-[12px] text-success">Бүрэн хамрагдсан</p>
-          <p className="mt-2 text-3xl font-semibold text-success">{completedPeople}</p>
-        </div>
-        <div className="surface border border-danger p-5">
-          <p className="text-[12px] text-danger">Хамрагдаагүй</p>
-          <p className="mt-2 text-3xl font-semibold text-danger">{Math.max(0, data.employees.length - completedPeople)}</p>
-        </div>
-      </div>
+      <KpiRow cols={3}>
+        <StatCard label="Нийт ажилтан" value={data.employees.length} icon={<Users size={16} />} tone="blue" />
+        <StatCard label="Бүрэн хамрагдсан" value={completedPeople} icon={<CheckCircle2 size={16} />} tone="green" />
+        <StatCard label="Хамрагдаагүй" value={Math.max(0, data.employees.length - completedPeople)} icon={<XCircle size={16} />} tone="rose" />
+      </KpiRow>
 
       <Card title="Ажилтнуудын сургалтын төлөв" icon={<GraduationCap size={17} />} bodyClassName="p-0">
         <div className="border-b border-line p-4">

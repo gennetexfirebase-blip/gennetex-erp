@@ -3,7 +3,7 @@ import {
   AlertTriangle, Camera, CheckCircle2, ClipboardCheck, Download, Eye, FileText,
   HardHat, Plus, RefreshCw, ShieldCheck, X, XCircle,
 } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorState, Input, Loading, PageHeader, Select, StatCard, Textarea } from '../components/ui';
+import { Badge, Button, Card, EmptyState, ErrorState, Input, Loading, PageHeader, Select, StatCard, KpiRow, Textarea } from '../components/ui';
 import {
   AUDIT_LABELS, DEFAULT_HAZARDS, DEFAULT_PPE, INCIDENT_STATUS_LABELS, INCIDENT_TYPE_LABELS,
   SEVERITY_LABELS, STATUS_LABELS, STATUS_TONES, approvalBlock, downloadSafetyExcel,
@@ -176,18 +176,18 @@ export default function WorkHeightSafetyPage() {
   return (
     <>
       <PageHeader
-        title="Өндөрт ажиллах ХАБЭА"
+        title="Өндөрт ажиллах ХАБЭА" description="Эрсдэлийн үнэлгээ, ажлын зөвшөөрөл, осол зөрчлийн бүртгэл."
         crumb="Эрсдэлийн үнэлгээ · зөвшөөрөл · осол, зөрчил"
         actions={<><Button variant="outline" icon={<RefreshCw size={15} />} onClick={reload} disabled={loading}>Шинэчлэх</Button><Button icon={<Plus size={15} />} onClick={() => setAssessmentForm(blankAssessment(bundle))}>Шинэ үнэлгээ</Button></>}
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatCard label="Нийт үнэлгээ" value={summary.total} note={`${from} — ${to}`} />
-        <StatCard label="Зөвшөөрсөн" value={summary.approved} note="Удирдлага зөвшөөрсөн" />
-        <StatCard label="Өндөр эрсдэл" value={summary.highRisk} note="15 ба түүнээс дээш" />
-        <StatCard label="Шийдээгүй зөрчил" value={summary.unresolvedIncidents} note="Нээлттэй / шалгаж буй" />
-        <StatCard label="PPE бүрэн" value={`${summary.ppeComplete}/${summary.total}`} note="Хамгаалалтын шалгалт" />
-      </div>
+      <KpiRow cols={5}>
+        <StatCard label="Нийт үнэлгээ" value={summary.total} note={`${from} — ${to}`} icon={<ClipboardCheck size={16} />} tone="blue" />
+        <StatCard label="Зөвшөөрсөн" value={summary.approved} note="Удирдлага зөвшөөрсөн" icon={<CheckCircle2 size={16} />} tone="green" />
+        <StatCard label="Өндөр эрсдэл" value={summary.highRisk} note="15 ба түүнээс дээш" icon={<AlertTriangle size={16} />} tone="rose" />
+        <StatCard label="Шийдээгүй зөрчил" value={summary.unresolvedIncidents} note="Нээлттэй / шалгаж буй" icon={<XCircle size={16} />} tone="amber" />
+        <StatCard label="PPE бүрэн" value={`${summary.ppeComplete}/${summary.total}`} note="Хамгаалалтын шалгалт" icon={<HardHat size={16} />} tone="teal" />
+      </KpiRow>
 
       <Card className="mb-5" bodyClassName="p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">

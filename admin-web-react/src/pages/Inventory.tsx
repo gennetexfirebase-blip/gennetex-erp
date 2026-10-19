@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Boxes, Camera, Download, Minus, PackagePlus, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { PageHeader, Card, Button, Input, Select, Textarea, Modal, Field, Loading, ErrorState, EmptyState } from '../components/ui';
+import { Boxes, Camera, Coins, PackageCheck, Download, Minus, PackagePlus, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { PageHeader, Card, Button, Input, Select, Textarea, Modal, Field, Loading, ErrorState, EmptyState, StatCard, KpiRow } from '../components/ui';
 import { useAsync } from '../lib/data';
 import { supabase } from '../lib/supabase';
 import { downloadSheets } from '../lib/attendanceExport';
@@ -74,7 +74,7 @@ export function InventoryPage() {
   return (
     <>
       <PageHeader
-        title="Агуулах"
+        title="Агуулах" description="Багаж, бараа материалын үлдэгдэл, орлого болон ангиллыг удирдана."
         crumb="Агуулах"
         actions={
           <>
@@ -93,11 +93,11 @@ export function InventoryPage() {
       </div>
       {loading ? <Loading /> : error ? <ErrorState text={error} onRetry={reload} /> : (
         <>
-          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {([['Нэр төрөл', list.length], ['Нийт тоо (агуулахад)', fmtQ(totalQty)], ['Нийт үнэлгээ', money(totalValue)]] as const).map(([k, v]) => (
-              <div key={k} className="surface p-4"><p className="text-[12px] text-muted">{k}</p><p className="mt-1 text-[20px] font-semibold text-ink">{v}</p></div>
-            ))}
-          </div>
+          <KpiRow cols={3}>
+            <StatCard tone="green" icon={<Boxes size={19} />} value={list.length} label="Нэр төрөл" />
+            <StatCard tone="blue" icon={<PackageCheck size={19} />} value={fmtQ(totalQty)} label="Нийт тоо (агуулахад)" />
+            <StatCard tone="amber" icon={<Coins size={19} />} value={money(totalValue)} label="Нийт үнэлгээ" />
+          </KpiRow>
           <Card title={`${catName(cat)} (${list.length})`} icon={<Boxes size={17} />} bodyClassName="p-0" actions={<Input placeholder="Нэр, баркод хайх" value={q} onChange={(e) => setQ(e.target.value)} className="w-48" />}>
             {!list.length ? <EmptyState text="Бараа алга." /> : (
               <div className="overflow-x-auto">

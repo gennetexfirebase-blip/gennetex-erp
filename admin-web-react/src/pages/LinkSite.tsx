@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, Search } from 'lucide-react';
-import brandMark from '../assets/report-logo.png';
+import { ArrowUpRight, Globe, LogOut, Search } from 'lucide-react';
 import LoginPage from './Login';
 import AdminGate, { adminGateLogout } from '../components/AdminGate';
-import { Loading } from '../components/ui';
+import { Button, Loading, ToneIcon, toneOf } from '../components/ui';
+import SiteShell from '../components/SiteShell';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
@@ -114,57 +114,58 @@ function Links({ onSignOut }: { onSignOut: () => void }) {
   const total = GROUPS.reduce((s, g) => s + g.links.length, 0);
 
   return (
-    <div className="min-h-screen bg-app">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-5">
-          <img src={brandMark} alt="" width="40" height="40" className="h-10 w-10 rounded-md object-contain" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[20px] font-semibold text-ink">Gennetex — бүх хаяг</h1>
-            <p className="text-[13px] text-muted">{total} домэйн. Дарахад шууд тийш нь очно.</p>
-          </div>
-          <label className="relative w-full sm:w-72">
+    <SiteShell
+      title="Бүх хаяг"
+      subtitle={`${total} домэйн. Дарахад шууд тийш нь очно.`}
+      icon={<Globe size={24} />}
+      actions={
+        <>
+          <label className="relative hidden w-64 sm:block">
             <span className="sr-only">Хайх</span>
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-subtle" />
             <input
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Хайх: цалин, ирц, агуулах…"
-              className="focus-ring h-10 w-full rounded-[var(--radius-sm)] border border-line bg-card2 pl-9 pr-3 text-[14px] text-ink placeholder:text-subtle"
+              className="focus-ring h-10 w-full rounded-full bg-card2 pl-10 pr-4 text-[14px] text-ink placeholder:text-subtle"
             />
           </label>
-          <button onClick={onSignOut} className="focus-ring rounded-[var(--radius-sm)] px-3 py-2 text-[13px] text-muted hover:text-ink">Гарах</button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {!groups.length ? <p className="py-16 text-center text-[14px] text-muted">«{q}» гэсэн хаяг олдсонгүй.</p> : null}
-        {groups.map((g) => (
-          <section key={g.title} className="mb-8">
-            <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.04em] text-muted">{g.title}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {g.links.map((l) => (
-                <a
-                  key={l.host}
-                  href={`https://${l.host}`}
-                  className="focus-ring group flex flex-col rounded-[var(--radius)] border border-line bg-card p-4 transition hover:border-brand hover:shadow-panel"
-                >
-                  <span className="flex items-start gap-2">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-semibold text-ink">{l.name}</span>
-                      <span className="block truncate text-[13px] font-medium text-brand">{l.host.replace(/\/$/, '')}</span>
-                    </span>
-                    <ArrowUpRight size={18} className="shrink-0 text-subtle transition group-hover:text-brand" aria-hidden="true" />
+          <Button variant="outline" icon={<LogOut size={15} />} onClick={onSignOut}>Гарах</Button>
+        </>
+      }
+    >
+      <label className="relative mb-5 block sm:hidden">
+        <span className="sr-only">Хайх</span>
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-subtle" />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Хайх…" className="focus-ring h-11 w-full rounded-full bg-card pl-10 pr-4 text-[14px] text-ink shadow-[var(--shadow)] placeholder:text-subtle" />
+      </label>
+      {!groups.length ? <p className="py-16 text-center text-[14px] text-muted">«{q}» гэсэн хаяг олдсонгүй.</p> : null}
+      {groups.map((g) => (
+        <section key={g.title} className="mb-8">
+          <h2 className="mb-3 text-[15px] font-semibold text-ink">{g.title} <span className="font-normal text-subtle">({g.links.length})</span></h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {g.links.map((l) => (
+              <a
+                key={l.host}
+                href={`https://${l.host}`}
+                className="surface focus-ring group flex flex-col p-5 transition-transform hover:-translate-y-0.5"
+              >
+                <span className="flex items-start gap-3">
+                  <ToneIcon tone={toneOf(l.name)} size={40}><span className="text-[14px] font-bold">{l.name[0]}</span></ToneIcon>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-ink">{l.name}</span>
+                    <span className="block truncate text-[12px] font-medium text-brand">{l.host.replace(/\/$/, '')}</span>
                   </span>
-                  <span className="mt-2 flex-1 text-[13px] leading-5 text-muted">{l.desc}</span>
-                  <span className={`mt-3 self-start rounded-full px-2 py-0.5 text-[11px] font-semibold ${ACCESS[l.access].cls}`}>{ACCESS[l.access].label}</span>
-                </a>
-              ))}
-            </div>
-          </section>
-        ))}
-      </main>
-      <footer className="pb-8 text-center text-[11px] text-subtle">© {new Date().getFullYear()} GENNETEX ХХК</footer>
-    </div>
+                  <ArrowUpRight size={18} className="shrink-0 text-subtle transition group-hover:text-brand" aria-hidden="true" />
+                </span>
+                <span className="mt-3 flex-1 text-[13px] leading-5 text-muted">{l.desc}</span>
+                <span className={`mt-3 self-start rounded-full px-2 py-0.5 text-[11px] font-semibold ${ACCESS[l.access].cls}`}>{ACCESS[l.access].label}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ))}
+    </SiteShell>
   );
 }

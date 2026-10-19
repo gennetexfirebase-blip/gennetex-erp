@@ -57,7 +57,7 @@ export default function StockIssuesPage() {
   return (
     <>
       <PageHeader
-        title="Багаж, бараа олголт"
+        title="Багаж, бараа олголт" description="Ажилтанд олгосон багаж, барааны бүртгэл болон хөдөлгөөн."
         crumb="Багаж, бараа олголт"
         actions={
           <>

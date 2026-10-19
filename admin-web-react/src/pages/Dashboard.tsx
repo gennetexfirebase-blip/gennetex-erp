@@ -1,26 +1,11 @@
-import { useMemo, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import MoreLink from '../components/MoreLink';
+import { Users, UserCheck, UserPlus, Building2, Briefcase, BarChart3, PieChart as PieIcon } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, PieChart, Pie, Cell,
-} from 'recharts';
-import { Users, UserCheck, UserPlus, Building2, Briefcase, ArrowRight, BarChart3, PieChart as PieIcon } from 'lucide-react';
-import {
-  PageHeader, Card, Avatar, EmptyState, Loading, ErrorState, Badge, ToneIcon, Meter, type ToneName,
+  PageHeader, Card, Avatar, EmptyState, Loading, ErrorState, Badge, StatCard, KpiRow, RankList,
 } from '../components/ui';
+import { DonutChart, HBarChart, STATUS_COLORS } from '../components/charts';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
-
-const C = {
-  green: '#22A565',
-  amber: '#E8A317',
-};
-
-const tooltipStyle = {
-  background: 'var(--bg-card-2)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  fontSize: 12,
-  color: 'var(--text)',
-};
 
 export default function DashboardPage() {
   return (
@@ -35,87 +20,6 @@ export default function DashboardPage() {
 }
 
 /* ───────────────────────── Нийтлэг хэсгүүд ───────────────────────── */
-
-function Kpi({ tone, icon, value, label, note }: { tone: ToneName; icon: ReactNode; value: ReactNode; label: string; note?: string }) {
-  return (
-    <div className="surface flex items-center gap-4 p-5">
-      <ToneIcon tone={tone} size={44}>{icon}</ToneIcon>
-      <div className="min-w-0">
-        <p className="text-[24px] font-bold leading-none tracking-[-0.02em] tabular-nums text-ink">{value}</p>
-        <p className="mt-1.5 truncate text-[12px] font-medium text-muted">{label}</p>
-        {note ? <p className="truncate text-[11px] text-subtle">{note}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-function KpiRow({ children }: { children: ReactNode }) {
-  return <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{children}</div>;
-}
-
-type Slice = { key: string; name: string; value: number; color: string };
-
-function Donut({ slices, center, sub }: { slices: Slice[]; center: ReactNode; sub: string }) {
-  const shown = slices.filter((s) => s.value > 0);
-  if (shown.length === 0) return <EmptyState text="Мэдээлэл алга." />;
-  return (
-    <>
-      <div className="relative h-[200px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={shown} dataKey="value" innerRadius={62} outerRadius={84} paddingAngle={2}>
-              {shown.map((s) => <Cell key={s.key} fill={s.color} stroke="none" />)}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[24px] font-bold leading-none tabular-nums text-ink">{center}</span>
-          <span className="mt-1 text-[11px] text-subtle">{sub}</span>
-        </div>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        {slices.map((s) => (
-          <div key={s.key} className="flex items-center gap-2 text-[12px]">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-            <span className="text-muted">{s.name}</span>
-            <span className="ml-auto font-semibold tabular-nums text-ink">{s.value}</span>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function RankList({ items, format = (n) => String(n), color = 'var(--brand)' }: {
-  items: { name: string; value: number }[];
-  format?: (n: number) => string;
-  color?: string;
-}) {
-  if (items.length === 0) return <EmptyState text="Мэдээлэл алга." />;
-  const max = Math.max(...items.map((i) => i.value), 1);
-  return (
-    <ul className="space-y-3.5">
-      {items.map((i) => (
-        <li key={i.name}>
-          <div className="mb-1.5 flex items-center justify-between gap-3 text-[13px]">
-            <span className="truncate text-ink">{i.name}</span>
-            <span className="shrink-0 font-semibold tabular-nums text-ink">{format(i.value)}</span>
-          </div>
-          <Meter pct={(i.value / max) * 100} color={color} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function MoreLink({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <Link to={to} className="focus-ring inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-semibold text-brand hover:bg-brand-soft">
-      {children} <ArrowRight size={13} aria-hidden="true" />
-    </Link>
-  );
-}
 
 function groupCount<T>(list: T[], key: (x: T) => string) {
   const map: Record<string, number> = {};
@@ -146,10 +50,10 @@ function EmployeesTab() {
   return (
     <>
       <KpiRow>
-        <Kpi tone="green" icon={<Users size={19} />} value={employees.length} label="Нийт ажилтан" note="Бүртгэлтэй бүх ажилтан" />
-        <Kpi tone="blue" icon={<UserCheck size={19} />} value={registered} label="Апп-д нэвтэрсэн" note={`${employees.length ? Math.round((registered / employees.length) * 100) : 0}% идэвхжсэн`} />
-        <Kpi tone="amber" icon={<UserPlus size={19} />} value={pending} label="Урилга хүлээж буй" note="Апп руу хараахан ороогүй" />
-        <Kpi tone="violet" icon={<Building2 size={19} />} value={byDept.filter((d) => d.name !== 'Хэлтэсгүй').length} label="Хэлтэс" note={`${withDept} ажилтан хуваарилагдсан`} />
+        <StatCard tone="green" icon={<Users size={19} />} value={employees.length} label="Нийт ажилтан" note="Бүртгэлтэй бүх ажилтан" />
+        <StatCard tone="blue" icon={<UserCheck size={19} />} value={registered} label="Апп-д нэвтэрсэн" note={`${employees.length ? Math.round((registered / employees.length) * 100) : 0}% идэвхжсэн`} />
+        <StatCard tone="amber" icon={<UserPlus size={19} />} value={pending} label="Урилга хүлээж буй" note="Апп руу хараахан ороогүй" />
+        <StatCard tone="violet" icon={<Building2 size={19} />} value={byDept.filter((d) => d.name !== 'Хэлтэсгүй').length} label="Хэлтэс" note={`${withDept} ажилтан хуваарилагдсан`} />
       </KpiRow>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
@@ -159,30 +63,16 @@ function EmployeesTab() {
           className="xl:col-span-2"
           actions={<MoreLink to="/department">Хэлтэс</MoreLink>}
         >
-          {byDept.length === 0 ? (
-            <EmptyState text="Ажилтны мэдээлэл алга." />
-          ) : (
-            <div style={{ height: Math.max(220, byDept.length * 38) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byDept} layout="vertical" margin={{ left: 8, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                  <XAxis type="number" stroke="var(--text-subtle)" fontSize={12} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" stroke="var(--text-subtle)" fontSize={12} width={130} />
-                  <Tooltip cursor={{ fill: 'var(--bg-hover)' }} contentStyle={tooltipStyle} />
-                  <Bar dataKey="value" name="Ажилтан" fill="var(--brand)" radius={[0, 6, 6, 0]} barSize={18} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          <HBarChart data={byDept} unit="ажилтан" />
         </Card>
 
         <Card title="Бүртгэлийн төлөв" icon={<PieIcon size={17} />}>
-          <Donut
+          <DonutChart
             center={employees.length}
-            sub="ажилтан"
+            sub="нийт ажилтан"
             slices={[
-              { key: 'reg', name: 'Нэвтэрсэн', value: registered, color: C.green },
-              { key: 'pend', name: 'Хүлээгдэж буй', value: pending, color: C.amber },
+              { key: 'reg', name: 'Нэвтэрсэн', value: registered, color: STATUS_COLORS.good },
+              { key: 'pend', name: 'Хүлээгдэж буй', value: pending, color: STATUS_COLORS.warning },
             ]}
           />
         </Card>

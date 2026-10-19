@@ -20,7 +20,7 @@ export default function LegacyPage() {
   return (
     <>
       <PageHeader
-        title="Хуучин панел"
+        title="Хуучин панел" description="Өмнөх хувилбарын удирдлагын панелийг энд нээж ашиглана."
         crumb="Хуучин панел"
         actions={
           <Button

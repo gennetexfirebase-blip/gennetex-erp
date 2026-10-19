@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarClock, Download, HandCoins, Plus, RefreshCw, Search, Trash2, UtensilsCrossed, Wallet } from 'lucide-react';
-import { PageHeader, Card, Button, Input, Select, Modal, Field, Avatar, Loading, ErrorState, EmptyState, ToneIcon, type ToneName } from '../components/ui';
+import { PageHeader, Card, Button, Input, Select, Modal, Field, Avatar, Loading, ErrorState, EmptyState, ToneIcon, type ToneName, StatCard, KpiRow } from '../components/ui';
 import { useAsync } from '../lib/data';
 import { supabase } from '../lib/supabase';
 import { downloadSheets } from '../lib/attendanceExport';
@@ -77,11 +77,12 @@ export default function MealMoneyPage() {
       />
       {loading ? <Loading /> : error ? <ErrorState text={error} onRetry={reload} /> : (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {([['Энэ сарын хуримтлал', money(sum((r) => Number(r.month_earned)))], ['Нийт олгосон', money(sum((r) => Number(r.catchup) + Number(r.advance) + Number(r.now || 0)))], ['Олгох үлдэгдэл', money(sum((r) => Math.max(0, balanceOf(r))))], ['Урьдчилгаа (нөхөгдөөгүй)', money(sum((r) => Math.max(0, -balanceOf(r))))]] as const).map(([k, v]) => (
-              <div key={k} className="surface p-4"><p className="text-[12px] text-muted">{k}</p><p className="mt-1 text-[20px] font-semibold text-ink">{v}</p></div>
-            ))}
-          </div>
+          <KpiRow>
+            <StatCard tone="green" icon={<UtensilsCrossed size={19} />} value={money(sum((r) => Number(r.month_earned)))} label="Энэ сарын хуримтлал" />
+            <StatCard tone="blue" icon={<HandCoins size={19} />} value={money(sum((r) => Number(r.catchup) + Number(r.advance) + Number(r.now || 0)))} label="Нийт олгосон" />
+            <StatCard tone="teal" icon={<Wallet size={19} />} value={money(sum((r) => Math.max(0, balanceOf(r))))} label="Олгох үлдэгдэл" />
+            <StatCard tone="amber" icon={<CalendarClock size={19} />} value={money(sum((r) => Math.max(0, -balanceOf(r))))} label="Урьдчилгаа (нөхөгдөөгүй)" />
+          </KpiRow>
           <section className="mb-5" aria-label="Хоолны мөнгө олгох">
             <h2 className="mb-3 text-[15px] font-semibold text-ink">Хоолны мөнгө олгох</h2>
             <div className="grid gap-3 md:grid-cols-3">
@@ -226,7 +227,7 @@ function EmployeeMeal({ row, onClose, onChanged }: { row: Row; onClose: () => vo
                   {data.ledger.map((l) => (
                     <tr key={l.id}>
                       <td className="py-1.5 text-ink">{l.d}</td>
-                      <td className="py-1.5"><span className={`rounded-full px-2 py-0.5 text-[12px] ${l.kind === 'advance' ? 'bg-warning-soft text-warning' : l.kind === 'catchup' ? 'bg-[var(--tone-blue-bg)] text-[var(--tone-blue-fg)]' : l.kind === 'now' ? 'bg-success-soft text-success' : 'bg-card2 text-muted'}`}>{KIND[l.kind]}</span></td>
+                      <td className="py-1.5"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] ${l.kind === 'advance' ? 'bg-warning-soft text-warning' : l.kind === 'catchup' ? 'bg-[var(--tone-blue-bg)] text-[var(--tone-blue-fg)]' : l.kind === 'now' ? 'bg-success-soft text-success' : 'bg-card2 text-muted'}`}>{KIND[l.kind]}</span></td>
                       <td className="py-1.5 text-right font-medium text-ink">{money(l.amount)}</td>
                       <td className="py-1.5 text-[12px] text-muted">{l.note || ''}{l.by ? ` · ${l.by}` : ''}</td>
                       <td className="py-1.5 text-right"><Button variant="ghost" className="!min-h-7 !px-1.5 hover:!text-danger" aria-label="Устгах" onClick={() => remove(l)}><Trash2 size={14} /></Button></td>

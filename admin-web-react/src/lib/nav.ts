@@ -1,34 +1,38 @@
 import {
-  Home,
-  LayoutDashboard,
-  ClipboardCheck,
+  BellRinging,
+  Buildings,
+  ChatText,
+  ClipboardText,
   Clock,
-  Users,
-  Wallet,
-  UtensilsCrossed,
-  Building2,
-  MapPin,
-  MapPinned,
-  ClipboardList,
-  FileSignature,
-  Smartphone,
-  QrCode,
-  Fuel,
-  UsersRound,
-  PhoneCall,
-  Boxes,
-  PackageOpen,
-  Video,
-  History,
-  Table2,
-  Send,
-  Settings2,
-  BellRing,
-  ShieldCheck,
+  ClockCounterClockwise,
+  Cube,
+  DeviceMobile,
+  FileText,
+  ForkKnife,
+  GasPump,
   GraduationCap,
-  FileCheck2,
-  type LucideIcon,
-} from 'lucide-react';
+  House,
+  ListChecks,
+  MapPin,
+  MapPinArea,
+  Megaphone,
+  Package,
+  PhoneCall,
+  QrCode,
+  ShieldCheck,
+  Signature,
+  Sliders,
+  SquaresFour,
+  Table,
+  Users,
+  UsersThree,
+  VideoCamera,
+  Wallet,
+  type Icon as PhosphorIcon,
+} from '@phosphor-icons/react';
+
+/** Цэсний icon — Phosphor (гар утасны апптай ижил duotone, IconContext — main.tsx). */
+export type NavIcon = PhosphorIcon;
 import type { SiteKey } from './sites';
 
 export type NavChild = { label: string; to: string; adminOnly?: boolean };
@@ -36,7 +40,7 @@ export type NavChild = { label: string; to: string; adminOnly?: boolean };
 export type NavItem = {
   label: string;
   to?: string;
-  icon: LucideIcon;
+  icon: NavIcon;
   /** Улбар шар NEW тэмдэг */
   isNew?: boolean;
   /** Тоон badge-ийн эх сурвалж (амьд өгөгдлөөс дүүргэнэ) */
@@ -62,7 +66,7 @@ export type NavItem = {
  * view нь хуучин панелийн data-view утга; /legacy/<view> route нь
  * /gennetex/admin-v1/?embed=1#<view> рүү хөрвөнө.
  */
-export const LEGACY_MODULES: { view: string; label: string; icon: LucideIcon; site?: SiteKey; superOnly?: boolean }[] = [];
+export const LEGACY_MODULES: { view: string; label: string; icon: NavIcon; site?: SiteKey; superOnly?: boolean }[] = [];
 
 /** Хуучин /legacy/<view> хаяг → шинэ React хуудас (хуучин холбоос эвдрэхгүй). */
 export const LEGACY_REDIRECTS: Record<string, string> = {
@@ -85,38 +89,38 @@ export const LEGACY_REDIRECTS: Record<string, string> = {
  * л шүүж харуулна (`site`).
  */
 export const NAV: NavItem[] = [
-  { label: 'Нүүр', to: '/home', icon: Home },
-  { label: 'Хянах самбар', to: '/dashboard', icon: LayoutDashboard, isNew: true },
-  { label: 'Анхааруулгын төв', to: '/alerts', icon: BellRing, isNew: true },
-  { label: 'Хөдөлмөрийн гэрээ', to: '/admin/documents/contracts', icon: FileSignature, isNew: true },
-  { label: 'SMS илгээх', to: '/outbound-sms', icon: Send, isNew: true },
-  { label: 'Тохиргооны төв', to: '/more/settings', icon: Settings2, isNew: true },
+  { label: 'Нүүр', to: '/home', icon: House },
+  { label: 'Хянах самбар', to: '/dashboard', icon: SquaresFour, isNew: true },
+  { label: 'Анхааруулгын төв', to: '/alerts', icon: BellRinging, isNew: true },
+  { label: 'Хөдөлмөрийн гэрээ', to: '/admin/documents/contracts', icon: Signature, isNew: true },
+  { label: 'SMS илгээх', to: '/outbound-sms', icon: ChatText, isNew: true },
+  { label: 'Тохиргооны төв', to: '/more/settings', icon: Sliders, isNew: true },
 
-  { label: 'Мэдэгдэл илгээх', to: '/internal/notify', icon: Send, site: 'notif' },
+  { label: 'Мэдэгдэл илгээх', to: '/internal/notify', icon: Megaphone, site: 'notif' },
   { label: 'Өндөрт ажиллах ХАБЭА', to: '/internal/safety', icon: ShieldCheck, site: 'habea' },
-  { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardCheck, site: 'irts' },
+  { label: 'Ирц бүртгэл', to: '/attendance', icon: ClipboardText, site: 'irts' },
   { label: 'Цагийн хүсэлт', to: '/request', icon: Clock, badgeKey: 'requests', badgeTone: 'brand', site: 'irts' },
   { label: 'Ажилтан', to: '/employee', icon: Users, badgeKey: 'employees', badgeTone: 'warning', site: 'hr' },
-  { label: 'Алба, хэлтэс', to: '/department', icon: Building2, site: 'hr' },
-  { label: 'Ажлын байрны анкет', to: '/hr/applications', icon: ClipboardList, site: 'hr' },
-  { label: 'Агуулах', to: '/stock', icon: Boxes, site: 'aguulah' },
-  { label: 'Барааны хэрэглээ', to: '/stock/usage', icon: PackageOpen, site: 'aguulah' },
-  { label: 'Хурал', to: '/meetings', icon: Video, site: 'meet' },
-  { label: 'Төхөөрөмж зөвшөөрөл', to: '/devices', icon: Smartphone, superOnly: true },
+  { label: 'Алба, хэлтэс', to: '/department', icon: Buildings, site: 'hr' },
+  { label: 'Ажлын байрны анкет', to: '/hr/applications', icon: ListChecks, site: 'hr' },
+  { label: 'Агуулах', to: '/stock', icon: Package, site: 'aguulah' },
+  { label: 'Барааны хэрэглээ', to: '/stock/usage', icon: Cube, site: 'aguulah' },
+  { label: 'Хурал', to: '/meetings', icon: VideoCamera, site: 'meet' },
+  { label: 'Төхөөрөмж зөвшөөрөл', to: '/devices', icon: DeviceMobile, superOnly: true },
   { label: 'Авсан сургалт', to: '/training', icon: GraduationCap, site: 'surgalt' },
   { label: 'Цалин', to: '/finance/payroll', icon: Wallet, site: 'sanhuu' },
-  { label: 'Хоолны мөнгө', to: '/finance/meal', icon: UtensilsCrossed, site: 'sanhuu' },
-  { label: 'Бензин зарцуулалт', to: '/finance/fuel', icon: Fuel, site: 'sanhuu' },
+  { label: 'Хоолны мөнгө', to: '/finance/meal', icon: ForkKnife, site: 'sanhuu' },
+  { label: 'Бензин зарцуулалт', to: '/finance/fuel', icon: GasPump, site: 'sanhuu' },
   { label: 'Машины мэдээлэл солих', to: '/vehicles', icon: QrCode },
-  { label: 'Хамт яваа багууд', to: '/companions', icon: UsersRound },
+  { label: 'Хамт яваа багууд', to: '/companions', icon: UsersThree },
   { label: 'Дуудлага', to: '/service-calls', icon: PhoneCall },
-  { label: 'Нийт лог', to: '/archive/logs', icon: History, site: 'arhiv' },
-  { label: 'Excel архив', to: '/archive/excel', icon: Table2, site: 'arhiv' },
+  { label: 'Нийт лог', to: '/archive/logs', icon: ClockCounterClockwise, site: 'arhiv' },
+  { label: 'Excel архив', to: '/archive/excel', icon: Table, site: 'arhiv' },
   { label: 'Ажилчдын байршил', to: '/location/staff', icon: MapPin, site: 'bairshil', openToAll: true },
-  { label: 'Ирц бүртгэх цэг', to: '/location', icon: MapPinned, site: 'bairshil' },
+  { label: 'Ирц бүртгэх цэг', to: '/location', icon: MapPinArea, site: 'bairshil' },
   {
     label: 'Баримт бичиг',
-    icon: FileCheck2,
+    icon: FileText,
     actsOnly: true,
     site: 'akt',
     children: [
@@ -136,8 +140,8 @@ export const NAV: NavItem[] = [
 ];
 
 /** Хаягт тохирох цэсний icon — хуудасны толгойд (хамгийн урт таарсан угтвар). */
-export function iconOfPath(path: string): LucideIcon | null {
-  let best: { len: number; icon: LucideIcon } | null = null;
+export function iconOfPath(path: string): NavIcon | null {
+  let best: { len: number; icon: NavIcon } | null = null;
   for (const item of NAV) {
     const tos = [item.to, ...(item.children || []).map((c) => c.to)].filter(Boolean) as string[];
     for (const to of tos) {

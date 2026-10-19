@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Database, Download, Eye, File, Folder, KeyRound, LogOut, Mail, RefreshCw, Smartphone, UserCheck } from 'lucide-react';
 import { Button, Input, Loading, EmptyState } from '../components/ui';
+import SiteShell from '../components/SiteShell';
+import AuthShell from '../components/AuthShell';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
 import { downloadSheets } from '../lib/attendanceExport';
-import brandMark from '../assets/report-logo.png';
 
 /**
  * data.gennetex.com/data/ — компанийн бүх өгөгдөл (хүснэгт + файлын сав).
@@ -265,18 +266,9 @@ export default function DataSite() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app p-4">
-      <div className="w-full max-w-sm rounded-[var(--radius)] border border-line bg-card p-6 shadow-panel">
-        <div className="mb-5 flex items-center gap-3">
-          <img src={brandMark} alt="" width="36" height="36" className="h-9 w-9 rounded-md object-contain" />
-          <div>
-            <h1 className="text-[16px] font-semibold text-ink">Gennetex Data</h1>
-            <p className="text-[12px] text-muted">Зөвхөн эрх бүхий хүн</p>
-          </div>
-        </div>
-        {children}
-      </div>
-    </div>
+    <AuthShell title="Gennetex Data" subtitle="Өгөгдлийн сан, файлын сав — зөвхөн эрх бүхий хүн.">
+      {children}
+    </AuthShell>
   );
 }
 
@@ -306,20 +298,27 @@ function DataApp({ onLogout, onExpired }: { onLogout: () => void; onExpired: () 
   }, [call]);
 
   return (
-    <div className="min-h-screen bg-app">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-card px-4 py-3">
-        <img src={brandMark} alt="" width="28" height="28" className="h-7 w-7 rounded object-contain" />
-        <h1 className="text-[15px] font-semibold text-ink">Gennetex Data</h1>
-        <div className="ml-4 inline-flex rounded-full border border-line bg-card2 p-1" role="tablist">
+    <SiteShell
+      title="Gennetex Data"
+      subtitle={admin ? 'Өгөгдлийн сангийн хүснэгт, файлын сав, харах эрх.' : 'Өгөгдлийн сан ба файлын сав — зөвхөн харах.'}
+      icon={<Database size={24} />}
+      width="max-w-[1600px]"
+      nav={
+        <div className="inline-flex rounded-full bg-card2 p-1" role="tablist">
           {([['tables', 'Хүснэгт'], ['files', 'Файлын сав'], ...(admin ? [['viewers', 'Харах эрх']] : [])] as ['tables' | 'files' | 'viewers', string][]).map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-full px-3 py-1 text-[13px] font-semibold ${tab === k ? 'bg-brand text-white' : 'text-muted'}`}>{l}</button>
+            <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${tab === k ? 'bg-brand text-white' : 'text-muted hover:text-ink'}`}>{l}</button>
           ))}
         </div>
-        {!admin ? <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-card2 px-2.5 py-1 text-[12px] text-muted"><Eye size={13} /> Зөвхөн харах</span> : null}
-        <Button variant="ghost" className={admin ? 'ml-auto' : ''} icon={<LogOut size={15} />} onClick={onLogout}>Гарах</Button>
-      </header>
-      <main className="p-4">{tab === 'tables' ? <Tables call={call} /> : tab === 'files' ? <Files call={call} /> : <Viewers call={call} />}</main>
-    </div>
+      }
+      actions={
+        <>
+          {!admin ? <span className="inline-flex items-center gap-1 rounded-full bg-card2 px-2.5 py-1 text-[12px] text-muted"><Eye size={13} /> Зөвхөн харах</span> : null}
+          <Button variant="outline" icon={<LogOut size={15} />} onClick={onLogout}>Гарах</Button>
+        </>
+      }
+    >
+      {tab === 'tables' ? <Tables call={call} /> : tab === 'files' ? <Files call={call} /> : <Viewers call={call} />}
+    </SiteShell>
   );
 }
 

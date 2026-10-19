@@ -60,7 +60,7 @@ export default function RequestsPage() {
   return (
     <>
       <PageHeader
-        title="Цагийн хүсэлт"
+        title="Цагийн хүсэлт" description="Ажилтнуудын ирц засах хүсэлтийг шалгаж зөвшөөрөх эсвэл татгалзана."
         crumb="Цагийн хүсэлт"
         actions={
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>

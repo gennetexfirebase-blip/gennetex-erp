@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Download, Pencil, Search, Wallet, X } from 'lucide-react';
-import { PageHeader, Card, Input, Select, Button, Avatar, Loading, ErrorState, EmptyState } from '../components/ui';
+import { Banknote, Check, Clock, UtensilsCrossed, ChevronLeft, ChevronRight, Download, Pencil, Search, Wallet, X } from 'lucide-react';
+import { PageHeader, Card, Input, Select, Button, Avatar, Loading, ErrorState, EmptyState, StatCard, KpiRow } from '../components/ui';
 import { useAsync } from '../lib/data';
 import { supabase } from '../lib/supabase';
 import { downloadSheets } from '../lib/attendanceExport';
@@ -117,14 +117,12 @@ export default function PayrollPage() {
         <ErrorState text={error} onRetry={reload} />
       ) : (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {([['Нийт цалин', money(sum('total'))], ['Үндсэн', money(sum('regular'))], ['Хоолны мөнгө', money(sum('meal'))], ['Ажилласан цаг', `${hrs(sum('hours'))} ц`]] as const).map(([k, v]) => (
-              <div key={k} className="surface p-4">
-                <p className="text-[12px] text-muted">{k}</p>
-                <p className="mt-1 text-[20px] font-semibold text-ink">{v}</p>
-              </div>
-            ))}
-          </div>
+          <KpiRow>
+            <StatCard tone="green" icon={<Wallet size={19} />} value={money(sum('total'))} label="Нийт цалин" />
+            <StatCard tone="blue" icon={<Banknote size={19} />} value={money(sum('regular'))} label="Үндсэн" />
+            <StatCard tone="amber" icon={<UtensilsCrossed size={19} />} value={money(sum('meal'))} label="Хоолны мөнгө" />
+            <StatCard tone="violet" icon={<Clock size={19} />} value={`${hrs(sum('hours'))} ц`} label="Ажилласан цаг" />
+          </KpiRow>
 
           {data?.pending.length ? <PendingPanel list={data.pending} onDone={reload} /> : null}
 

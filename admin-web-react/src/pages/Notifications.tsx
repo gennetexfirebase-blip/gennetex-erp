@@ -76,7 +76,7 @@ export default function NotificationsPage() {
   return (
     <>
       <PageHeader
-        title="Мэдэгдэл илгээх"
+        title="Мэдэгдэл илгээх" description="Бүх ажилтны апп руу push мэдэгдэл илгээж, илгээлтийн түүхийг харна."
         crumb="Дотоод харилцаа"
         actions={
           <Button variant="outline" icon={<RotateCw size={15} />} onClick={reload}>

@@ -79,7 +79,7 @@ export default function OutboundSmsPage() {
 
   return (
     <>
-      <PageHeader title="SMS илгээх" crumb="Дотоод · sendsms.mn" />
+      <PageHeader title="SMS илгээх" description="Ажилтан болон харилцагч руу шууд SMS илгээж, түүхийг хянана." crumb="Дотоод · sendsms.mn" />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(380px,.9fr)]">
         <Card title="Шууд мессеж" icon={<MessageSquareText size={17} />}>
           <div className="space-y-4">

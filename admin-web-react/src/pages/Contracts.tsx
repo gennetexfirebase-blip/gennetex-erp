@@ -183,7 +183,7 @@ export default function ContractsPage({ profile: given }: { profile?: Profile } 
   return (
     <>
       <PageHeader
-        title="Хөдөлмөрийн гэрээ"
+        title="Хөдөлмөрийн гэрээ" description="Ажилтнуудын хөдөлмөрийн гэрээг үүсгэж, илгээж, гарын үсгийн төлөвийг хянана."
         crumb="Баримт бичиг / Хөдөлмөрийн гэрээ"
         actions={
           canEdit ? (

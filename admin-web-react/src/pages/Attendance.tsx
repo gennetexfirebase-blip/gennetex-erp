@@ -91,7 +91,7 @@ export default function AttendancePage() {
   return (
     <>
       <PageHeader
-        title="Ирц бүртгэл"
+        title="Ирц бүртгэл" description="Өнөөдрийн ирц, хоцролт, зайнаас бүртгэл болон ажилласан цагийн мэдээлэл."
         crumb="Ирц бүртгэл"
         actions={
           <>

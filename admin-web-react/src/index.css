@@ -3,71 +3,75 @@
 @tailwind utilities;
 
 /* --------------------------------------------------------------------------
- * GENNETEX ERP — «Soft Color» (2026-10)
+ * GENNETEX ERP — «Calm Pro» (2026-10)
  *
- * Өнгөлөг, зөөлөн, найрсаг:
- *  • цайвар ногоон-цэнхэр туяатай суурь, цагаан бөөрөнхий карт;
- *  • хүрээ бараг үгүй — зөөлөн, тархсан сүүдрээр давхарга ялгана;
- *  • хэсэг бүр өөрийн пастел өнгөтэй дугуй icon-той (--tone-*);
- *  • үндсэн өнгө — Gennetex ногоон, товч нь капсул хэлбэртэй.
+ * Ажлын программ шиг даруу, мэргэжлийн хэв маяг (Linear / Stripe-ийн админ):
+ *  • саарал-цагаан суурь, цагаан карт, 1px нимгэн хүрээ, бараг сүүдэргүй;
+ *  • градиент, гэрэлтэлт, хөвөх хөдөлгөөн, солонгорсон icon байхгүй;
+ *  • ганц акцент — Gennetex ногоон, зөвхөн үйлдэл ба идэвхтэй төлөвт;
+ *  • статус өнгө — зөвхөн утга илэрхийлэхэд (амжилт, анхааруулга, алдаа).
  * Бүх өнгө энд — компонентууд зөвхөн token ашиглана (tailwind.config.js).
+ * Шөнийн горим — доор `:root[data-theme='dark']` (src/lib/theme.ts).
  * ------------------------------------------------------------------------ */
 :root {
   color-scheme: light;
 
-  --brand: #0b7a57;
-  --brand-600: #096a4b;
-  --brand-700: #075a40;
-  --brand-soft: #dff3e9;
-  --brand-ring: rgba(11, 122, 87, 0.22);
-  /* Нэвтрэх дэлгэцийн бараан брэнд самбар */
+  --brand: #0d7a55;
+  --brand-600: #0a6847;
+  --brand-700: #08573b;
+  --brand-2: #0d7a55;
+  --brand-soft: #e8f3ee;
+  --brand-ring: rgba(13, 122, 85, 0.22);
+  --brand-glow: transparent;
+  /* Нэвтрэх дэлгэцийн бараан брэнд самбар (хоёр горимд ижил) */
   --auth-panel: #062a1e;
   --auth-panel-2: #0a3d2c;
   --auth-glow: #1fbf86;
 
-  --bg-app: #eef3f1;
-  --bg-sidebar: #ffffff;
-  --bg-topbar: rgba(238, 243, 241, 0.82);
+  --bg-app: #f7f7f6;
+  --bg-sidebar: #fbfbfa;
+  --bg-topbar: rgba(247, 247, 246, 0.9);
   --bg-card: #ffffff;
-  --bg-card-2: #f4f7f6;
-  --bg-field: #f4f7f6;
-  --bg-hover: #edf2f0;
-  --border: #e3e9e6;
-  --border-strong: #cfd8d4;
+  --bg-card-2: #f7f7f6;
+  --bg-field: #ffffff;
+  --bg-hover: #f1f1ef;
+  --border: #e7e6e3;
+  --border-strong: #d6d5d0;
 
-  --text: #16201c;
-  --text-muted: #4e5a55;
-  --text-subtle: #66726d;
+  --text: #191b1a;
+  --text-muted: #55595a;
+  --text-subtle: #6e7271;
 
-  --success: #13804f;
-  --success-soft: #dff3e9;
-  --warning: #9a5b00;
-  --warning-soft: #fdf0d5;
-  --danger: #c0352b;
-  --danger-soft: #fde6e3;
-  --info: #1e6fb8;
-  --purple: #6b4fcf;
-  --purple-soft: #ece7fb;
+  --success: #127349;
+  --success-soft: #e9f5ee;
+  --warning: #8f5400;
+  --warning-soft: #fdf3e1;
+  --danger: #b4261f;
+  --danger-soft: #fdecea;
+  --info: #1f5fbf;
+  --purple: #5b45b8;
+  --purple-soft: #f0edfa;
 
-  /* Пастел өнгөнүүд — icon, шошго, карт (bg / fg) */
-  --tone-green-bg: #dff3e9;
-  --tone-green-fg: #0b7a57;
-  --tone-blue-bg: #e1eefc;
-  --tone-blue-fg: #1e6fb8;
-  --tone-amber-bg: #fdf0d5;
-  --tone-amber-fg: #9a5b00;
-  --tone-violet-bg: #ece7fb;
-  --tone-violet-fg: #6b4fcf;
-  --tone-rose-bg: #fde6ea;
-  --tone-rose-fg: #b8325a;
-  --tone-teal-bg: #ddf3f4;
-  --tone-teal-fg: #0f7479;
+  /* «Tone» — icon-ы суурь. Даруу байлгах үүднээс бүгд саарал; утга нь icon-оос. */
+  --tone-green-bg: var(--bg-card-2);
+  --tone-green-fg: var(--text-muted);
+  --tone-blue-bg: var(--bg-card-2);
+  --tone-blue-fg: var(--text-muted);
+  --tone-amber-bg: var(--bg-card-2);
+  --tone-amber-fg: var(--text-muted);
+  --tone-violet-bg: var(--bg-card-2);
+  --tone-violet-fg: var(--text-muted);
+  --tone-rose-bg: var(--bg-card-2);
+  --tone-rose-fg: var(--text-muted);
+  --tone-teal-bg: var(--bg-card-2);
+  --tone-teal-fg: var(--text-muted);
 
-  --radius-sm: 10px;
-  --radius: 14px;
-  --radius-lg: 20px;
-  --shadow: 0 1px 2px rgba(22, 32, 28, 0.04), 0 8px 24px -12px rgba(22, 32, 28, 0.12);
-  --shadow-pop: 0 24px 48px -16px rgba(22, 32, 28, 0.24), 0 4px 12px rgba(22, 32, 28, 0.06);
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 10px;
+  --shadow: 0 1px 2px rgba(25, 27, 26, 0.04);
+  --shadow-pop: 0 12px 32px -8px rgba(25, 27, 26, 0.18), 0 2px 6px rgba(25, 27, 26, 0.06);
+  --shadow-brand: none;
 }
 
 html,
@@ -82,11 +86,7 @@ html {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(900px 520px at 0% 0%, rgba(11, 122, 87, 0.07), transparent 60%),
-    radial-gradient(800px 520px at 100% 0%, rgba(30, 111, 184, 0.06), transparent 60%),
-    var(--bg-app);
-  background-attachment: fixed;
+  background: var(--bg-app);
   color: var(--text);
   font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
   font-size: 14px;
@@ -119,11 +119,10 @@ a[href] {
 }
 
 ::selection {
-  background: #c4ead7;
+  background: #cfe6da;
   color: var(--text);
 }
 
-/* Скролл — нимгэн, саарал */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -134,15 +133,14 @@ a[href] {
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: #cfcdc6;
+  background: #d3d2cd;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #aeaca4;
+  background: #b3b2ac;
   background-clip: padding-box;
 }
 
-/* Фокус — гарын товчлуураар явахад тод цагираг */
 :focus-visible {
   outline-color: var(--brand);
 }
@@ -153,15 +151,22 @@ a[href] {
 }
 
 .font-display {
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 
 /* Карт */
 .surface {
-  border: 1px solid rgba(227, 233, 230, 0.7);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-card);
   box-shadow: var(--shadow);
+}
+
+/* Хуудасны толгой — энгийн, картгүй */
+.hero {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Үндсэн үйлдлийн товч (хуучин нэрээр үлдсэн) */
@@ -170,47 +175,46 @@ a[href] {
   background: var(--brand);
   color: #fff;
   font-weight: 600;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 .cta-gradient:hover {
   border-color: var(--brand-600);
   background: var(--brand-600);
 }
 
-/* Хажуугийн цэс — хөвөгч бөөрөнхий карт (lg) */
+/* Хажуугийн цэс — ирмэгт наалттай, нимгэн зураасаар тусгаарлана */
 .app-sidebar {
+  border-right: 1px solid var(--border);
   color: var(--text-muted);
-  box-shadow: var(--shadow);
-}
-@media (min-width: 1024px) {
-  .app-sidebar {
-    border-radius: 24px;
-  }
 }
 .app-sidebar nav {
   scrollbar-width: thin;
 }
 .nav-active {
-  background: var(--brand);
-  color: #fff !important;
+  background: var(--bg-hover);
+  color: var(--text) !important;
   font-weight: 600;
-  box-shadow: 0 6px 16px -8px rgba(11, 122, 87, 0.7);
+}
+.app-sidebar .nav-active::before {
+  content: '';
+  position: absolute;
+  inset: 8px auto 8px -12px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--brand);
 }
 .nav-active .nav-ico {
-  background: rgba(255, 255, 255, 0.18) !important;
-  color: #fff !important;
+  color: var(--brand) !important;
 }
 
-/* Дээд мөр */
 .app-topbar {
   background: var(--bg-topbar);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
-  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.2) blur(8px);
+  backdrop-filter: saturate(1.2) blur(8px);
 }
 
-/* Хувь хэмжээний нарийн зураас */
 .meter {
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: var(--bg-hover);
   overflow: hidden;
@@ -228,23 +232,25 @@ a[href] {
 }
 .app-table thead th {
   border-bottom: 1px solid var(--border);
-  background: transparent;
+  background: var(--bg-card-2);
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 500;
 }
 .app-table tbody tr {
-  transition: background-color 120ms ease;
+  transition: background-color 100ms ease;
 }
 .app-table tbody tr:hover {
-  background: #f3f8f5;
+  background: var(--bg-hover);
 }
 .app-table tbody tr:last-child {
   border-bottom: 0;
 }
 
+/* Урт үгийг зөвхөн багтахгүй үед л таслана (anywhere нь хүснэгтийн баганыг
+   нэг үсгийн өргөн хүртэл шахаж «Зөвшөөрсө/н» гэж таслаад байсан). */
 .app-shell :where(p, h1, h2, h3, dd, td, th, a, button, label) {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .app-shell label > span:first-child {
   color: var(--text-muted);
@@ -260,23 +266,18 @@ input[type='radio'] {
   accent-color: var(--brand);
 }
 
-button:not(:disabled):active {
-  transform: translateY(0.5px);
-}
-
-/* Toast — бараан, богино */
 .app-toast {
   border: 0 !important;
-  border-radius: 999px !important;
-  background: #16201c !important;
-  color: #f6f6f3 !important;
+  border-radius: 8px !important;
+  background: #191b1a !important;
+  color: #f7f7f6 !important;
   box-shadow: var(--shadow-pop) !important;
-  animation: toast-in 180ms ease-out;
+  animation: toast-in 160ms ease-out;
 }
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -284,29 +285,16 @@ button:not(:disabled):active {
   }
 }
 
-/* Хуудас, цонх нээгдэхэд зөөлөн гарч ирнэ */
+/* Цонх нээгдэх — богино, бараг мэдэгдэхгүй */
 @media (prefers-reduced-motion: no-preference) {
-  #main-content > div > * {
-    animation: page-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
   .pop-in {
-    animation: pop-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-}
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+    animation: pop-in 120ms ease-out both;
   }
 }
 @keyframes pop-in {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.985);
+    transform: translateY(-2px);
   }
   to {
     opacity: 1;
@@ -351,7 +339,118 @@ button:not(:disabled):active {
   }
 }
 
-/* Товчлуурын тэмдэг */
+
+/* Нэвтрэх дэлгэцийн зураг ба хөдөлгөөн */
+.auth-photo {
+  transform-origin: 60% 40%;
+}
+.auth-shade {
+  background:
+    linear-gradient(180deg, rgba(3, 18, 12, 0.55) 0%, rgba(3, 18, 12, 0.35) 35%, rgba(3, 18, 12, 0.88) 100%),
+    linear-gradient(90deg, rgba(3, 18, 12, 0.75) 0%, rgba(3, 18, 12, 0.2) 70%);
+}
+.auth-scan {
+  background: linear-gradient(180deg, transparent 0%, rgba(31, 191, 134, 0.1) 50%, transparent 100%);
+  background-size: 100% 220px;
+  background-repeat: no-repeat;
+  background-position: 0 -220px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .auth-photo {
+    animation: auth-kenburns 28s ease-in-out infinite alternate;
+  }
+  .auth-scan {
+    animation: auth-scan 7s linear infinite;
+  }
+  /* Ажлын урсгалын алхмууд ээлжлэн гэрэлтэнэ */
+  .auth-step-dot {
+    animation: auth-step calc(var(--n) * 1.8s) ease-in-out infinite;
+    animation-delay: calc(var(--i) * 1.8s + 0.8s);
+  }
+}
+@keyframes auth-kenburns {
+  from {
+    transform: scale(1.04) translate(0, 0);
+  }
+  to {
+    transform: scale(1.14) translate(-2%, -1.5%);
+  }
+}
+@keyframes auth-scan {
+  from {
+    background-position: 0 -220px;
+  }
+  to {
+    background-position: 0 calc(100% + 220px);
+  }
+}
+@keyframes auth-step {
+  0%,
+  40%,
+  100% {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--auth-glow);
+    box-shadow: none;
+  }
+  12%,
+  28% {
+    background: var(--auth-glow);
+    color: #04140e;
+    box-shadow: 0 0 0 6px rgba(31, 191, 134, 0.18);
+  }
+}
+
+/* Хянах самбар — хуудас, карт, зураас зөөлөн гарч ирнэ */
+@media (prefers-reduced-motion: no-preference) {
+  #main-content > div > * {
+    animation: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  #main-content > div > *:nth-child(2) { animation-delay: 50ms; }
+  #main-content > div > *:nth-child(3) { animation-delay: 100ms; }
+  #main-content > div > *:nth-child(4) { animation-delay: 150ms; }
+  #main-content > div > *:nth-child(n + 5) { animation-delay: 200ms; }
+
+  #main-content .grid > .surface {
+    animation: rise-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  #main-content .grid > .surface:nth-child(2) { animation-delay: 60ms; }
+  #main-content .grid > .surface:nth-child(3) { animation-delay: 120ms; }
+  #main-content .grid > .surface:nth-child(4) { animation-delay: 180ms; }
+  #main-content .grid > .surface:nth-child(5) { animation-delay: 240ms; }
+  #main-content .grid > .surface:nth-child(n + 6) { animation-delay: 300ms; }
+
+  .meter > span {
+    transform-origin: left center;
+    animation: meter-grow 800ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: 150ms;
+  }
+
+  #main-content .surface {
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+  #main-content .surface:hover {
+    border-color: var(--border-strong);
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes meter-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 kbd.kbd {
   display: inline-flex;
   min-width: 20px;
@@ -359,20 +458,16 @@ kbd.kbd {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--bg-card-2);
   padding: 0 5px;
   color: var(--text-subtle);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
   font-size: 11px;
   line-height: 1;
 }
 
 @media (max-width: 640px) {
-  :root {
-    --radius-lg: 10px;
-  }
   body {
     font-size: 16px;
   }
@@ -405,4 +500,81 @@ kbd.kbd {
   body {
     background: #fff !important;
   }
+}
+
+/* --------------------------------------------------------------------------
+ * Шөнийн горим — <html data-theme="dark"> (src/lib/theme.ts)
+ * Акт, гэрээ, гарын үсгийн талбар зэрэг «цаас» цагаан хэвээр.
+ * ------------------------------------------------------------------------ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand: #2a9d72;
+  --brand-600: #33ad80;
+  --brand-700: #7ed3ad;
+  --brand-2: #2a9d72;
+  --brand-soft: rgba(42, 157, 114, 0.14);
+  --brand-ring: rgba(42, 157, 114, 0.35);
+
+  --bg-app: #111312;
+  --bg-sidebar: #141615;
+  --bg-topbar: rgba(17, 19, 18, 0.9);
+  --bg-card: #181a19;
+  --bg-card-2: #1d201e;
+  --bg-field: #1d201e;
+  --bg-hover: #232624;
+  --border: #2a2d2b;
+  --border-strong: #383c3a;
+
+  --text: #e8eae9;
+  --text-muted: #a9aeac;
+  --text-subtle: #8a8f8d;
+
+  --success: #4fc08a;
+  --success-soft: rgba(79, 192, 138, 0.13);
+  --warning: #e5ad4f;
+  --warning-soft: rgba(229, 173, 79, 0.13);
+  --danger: #f2786d;
+  --danger-soft: rgba(242, 120, 109, 0.13);
+  --info: #79a8f2;
+  --purple: #a993f5;
+  --purple-soft: rgba(169, 147, 245, 0.14);
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 16px 40px -8px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+:root[data-theme='dark'] ::selection {
+  background: rgba(42, 157, 114, 0.4);
+}
+:root[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #333735;
+  background-clip: padding-box;
+}
+:root[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: #4a4f4c;
+  background-clip: padding-box;
+}
+:root[data-theme='dark'] .app-toast {
+  background: #e8eae9 !important;
+  color: #111312 !important;
+}
+:root[data-theme='dark'] .recharts-cartesian-grid line {
+  stroke: var(--border);
+}
+:root[data-theme='dark'] .recharts-text {
+  fill: var(--text-subtle);
+}
+:root[data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator,
+:root[data-theme='dark'] input[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+}
+
+/* Шөнийн горим — гарчиг ба KPI тоо хар дэвсгэрт тохирох гаа ногоон.
+   Энгийн бичвэр цагаан хэвээр (уншихад хялбар); нэвтрэх зургийн самбар хамаарахгүй. */
+:root[data-theme='dark'] {
+  --heading: #6dd3a5;
+}
+:root[data-theme='dark'] :is(h1, h2, h3):not(.auth-panel *),
+:root[data-theme='dark'] .kpi-value {
+  color: var(--heading);
 }

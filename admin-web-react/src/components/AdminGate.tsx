@@ -137,7 +137,7 @@ export default function AdminGate({ signedIn, onPass, title }: { signedIn: boole
       ) : null}
       {signedIn ? (
         <div className="space-y-2">
-          <Button className="h-12 w-full" icon={<LogIn size={16} />} disabled={busy} onClick={login}>
+          <Button className="h-11 w-full" icon={<LogIn size={16} />} disabled={busy} onClick={login}>
             {busy ? 'Шалгаж байна…' : 'Үргэлжлүүлэх'}
           </Button>
           <GoogleButton onClick={() => void supabase.auth.signOut().then(google)} icon={<GoogleIcon />} label="Өөр Google дансаар" />
