@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Award, Cable, ChevronLeft, ChevronRight, Clock, Lightbulb, RefreshCw, Users, Wrench } from 'lucide-react';
-import { Button, Card, EmptyState, ErrorState, KpiRow, Loading, PageHeader, StatCard } from '../components/ui';
+import { Button, Card, EmptyState, ErrorState, KpiRow, Loading, Modal, PageHeader, StatCard } from '../components/ui';
 import { DonutChart, HBarChart } from '../components/charts';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
 import { fetchAliases, fetchPerfJobs, kindLabel, syncSheet, type PerfAlias, type PerfJob } from '../lib/perf';
@@ -29,6 +29,7 @@ export default function GuitsetgelPage() {
   const emps = useAsync<Employee[]>(fetchEmployees, [], []);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState('');
+  const [person, setPerson] = useState<string | null>(null);
   const { theme } = useTheme();
   const pal = PAL[theme];
 
@@ -198,6 +199,30 @@ export default function GuitsetgelPage() {
               <HBarChart data={a.people.map((p) => ({ name: p.name, value: p.jobs }))} unit="ажил" color={pal[0]} labelWidth={150} />
             </Card>
 
+            <Card title="Инженерүүд — нэр дээр дарж дэлгэрэнгүй" icon={<Users size={17} />} className="xl:col-span-3" bodyClassName="p-0">
+              <div className="overflow-x-auto">
+                <table className="app-table w-full min-w-[640px] text-[13px]">
+                  <thead className="text-left">
+                    <tr><th className="px-4 py-2">Инженер</th><th className="px-3 py-2 text-right">Ажил</th><th className="px-3 py-2 text-right">Өдөр</th><th className="px-3 py-2 text-right">Өдөрт</th><th className="px-3 py-2 text-right">Ганцаараа</th><th className="px-3 py-2 text-right">Кабель</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {a.people.map((p) => (
+                      <tr key={p.name}>
+                        <td className="px-4 py-2">
+                          <button type="button" onClick={() => setPerson(p.name)} className="focus-ring rounded font-medium text-brand underline-offset-2 hover:underline">{p.name}</button>
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink">{p.jobs}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted">{p.days}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-ink">{p.perDay.toFixed(1)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-ink">{p.solo ? `${p.solo} удаа` : '—'}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted">{p.cable}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
             <Card title="Ажлын цаг (өдрийн аль цагт)" icon={<Clock size={17} />}>
               <div className="h-[260px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -233,9 +258,89 @@ export default function GuitsetgelPage() {
               </div>
             </Card>
           </div>
+          {person ? <PersonDetail name={person} jobs={jobs.data} nameOf={nameOf} onClose={() => setPerson(null)} /> : null}
           <p className="mt-4 text-[11px] text-subtle">Нэрс «Санхүү → Гүйцэтгэл → Нэр холбох»-оор ажилтантай холбогдсон бол ажилтны нэрээр, үгүй бол Sheet дээрх нэрээр харагдана.</p>
         </>
       )}
     </>
+  );
+}
+
+/** Инженерийн дэлгэрэнгүй — хэзээ, хэнтэй, хэдэн айл, ганцаараа хэдэн удаа. */
+function PersonDetail({ name, jobs, nameOf, onClose }: { name: string; jobs: PerfJob[]; nameOf: (raw: string) => string | null; onClose: () => void }) {
+  const d = useMemo(() => {
+    const mine = jobs
+      .map((j) => ({ j, crew: [...new Set(j.engineers.map(nameOf).filter((n): n is string => !!n))] }))
+      .filter((x) => x.crew.includes(name));
+    const partners = new Map<string, number>();
+    let solo = 0;
+    let cable = 0;
+    const days = new Map<string, { partners: string; kinds: Record<string, number>; total: number; cable: number; times: string[] }>();
+    for (const { j, crew } of mine) {
+      const others = crew.filter((n) => n !== name);
+      if (!others.length) solo++;
+      for (const o of others) partners.set(o, (partners.get(o) || 0) + 1);
+      if (j.cable) cable++;
+      const key = `${j.work_date}|${others.sort((x, y) => x.localeCompare(y, 'mn')).join(', ') || 'Ганцаараа'}`;
+      const day = days.get(key) || { partners: others.join(', ') || 'Ганцаараа', kinds: {}, total: 0, cable: 0, times: [] };
+      day.kinds[j.kind] = (day.kinds[j.kind] || 0) + 1;
+      day.total++;
+      if (j.cable) day.cable++;
+      if (j.job_time) day.times.push(j.job_time);
+      days.set(key, day);
+    }
+    return {
+      total: mine.length,
+      solo,
+      cable,
+      partners: [...partners.entries()].sort((x, y) => y[1] - x[1]),
+      days: [...days.entries()].map(([k, v]) => ({ date: k.split('|')[0], ...v })).sort((x, y) => y.date.localeCompare(x.date)),
+      workDays: new Set(mine.map((x) => x.j.work_date)).size,
+    };
+  }, [name, jobs, nameOf]);
+
+  return (
+    <Modal title={name} onClose={onClose} wide>
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {([['Нийт айл (ажил)', d.total], ['Ажилласан өдөр', d.workDays], ['Ганцаараа', `${d.solo} удаа`], ['Кабель татсан', d.cable]] as const).map(([k, v]) => (
+          <div key={k} className="rounded-[var(--radius)] border border-line bg-card2 p-3">
+            <p className="text-[11px] text-muted">{k}</p>
+            <p className="text-[18px] font-semibold tabular-nums text-ink">{v}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mb-2 text-[12px] font-semibold text-muted">Хэнтэй хэдэн айл хийсэн</p>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {d.solo ? <span className="rounded-full bg-warning-soft px-2.5 py-1 text-[12px] font-semibold text-warning">Ганцаараа · {d.solo}</span> : null}
+        {d.partners.map(([p, n]) => (
+          <span key={p} className="rounded-full bg-card2 px-2.5 py-1 text-[12px] text-ink">{p} · <b className="tabular-nums">{n}</b></span>
+        ))}
+        {!d.solo && !d.partners.length ? <span className="text-[12px] text-subtle">—</span> : null}
+      </div>
+
+      <p className="mb-2 text-[12px] font-semibold text-muted">Өдөр бүрээр — хэзээ, хэнтэй, хэдэн айл</p>
+      <div className="max-h-[420px] overflow-y-auto rounded-[var(--radius)] border border-line">
+        <table className="w-full text-[13px]">
+          <thead className="sticky top-0 bg-card2 text-left text-[11px] text-muted">
+            <tr><th className="px-3 py-2">Огноо</th><th className="px-3 py-2">Хэнтэй</th><th className="px-3 py-2">Ажил (төрлөөр)</th><th className="px-3 py-2 text-right">Айл</th><th className="px-3 py-2 text-right">Цаг</th></tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {d.days.map((r) => (
+              <tr key={r.date + r.partners}>
+                <td className="px-3 py-2 tabular-nums text-ink">{r.date}</td>
+                <td className={`px-3 py-2 ${r.partners === 'Ганцаараа' ? 'font-semibold text-warning' : 'text-ink'}`}>{r.partners}</td>
+                <td className="px-3 py-2 text-[12px] text-muted">
+                  {Object.entries(r.kinds).map(([k, n]) => `${kindLabel(k)} ${n}`).join(' · ')}
+                  {r.cable ? ` · кабель ${r.cable}` : ''}
+                </td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink">{r.total}</td>
+                <td className="px-3 py-2 text-right text-[11px] tabular-nums text-subtle">{r.times.length ? `${[...r.times].sort()[0]}–${[...r.times].sort().slice(-1)[0]}` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Modal>
   );
 }
