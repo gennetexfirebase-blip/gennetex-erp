@@ -12,7 +12,7 @@ const SITE_ICON: Partial<Record<SiteKey, NavIcon>> = { admin: SquaresFour, akt: 
 const siteIcon = (k: SiteKey): NavIcon => SITE_ICON[k] || NAV.find((n) => n.site === k)?.icon || AllSites;
 
 /** Өөр subdomain руу шилжих жагсаалтад харагдах сайтууд. */
-const SWITCH_SITES: SiteKey[] = ['admin', 'irts', 'hr', 'sanhuu', 'aguulah', 'bairshil', 'habea', 'haab', 'surgalt', 'meet', 'notif', 'arhiv', 'akt', 'share'];
+const SWITCH_SITES: SiteKey[] = ['admin', 'irts', 'hr', 'sanhuu', 'aguulah', 'bairshil', 'habea', 'haab', 'guitsetgel', 'surgalt', 'meet', 'notif', 'arhiv', 'akt', 'share'];
 
 /** Зүүн sidebar — брэнд толгой, хайлт, навигаци, сайт солих. */
 export default function Sidebar({

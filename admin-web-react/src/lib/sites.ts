@@ -22,7 +22,8 @@ export type SiteKey =
   | 'notif'
   | 'sanhuu'
   | 'share'
-  | 'haab';
+  | 'haab'
+  | 'guitsetgel';
 
 export type Site = { key: SiteKey; host: string; title: string; landing: string };
 
@@ -41,6 +42,7 @@ export const SITES: Record<SiteKey, Site> = {
   sanhuu: { key: 'sanhuu', host: 'sanhuu.gennetex.com', title: 'Санхүү', landing: '/finance/payroll' },
   share: { key: 'share', host: 'share.gennetex.com', title: 'Хуваалцах', landing: '/' },
   haab: { key: 'haab', host: 'haab.gennetex.com', title: 'ХААБ гарын үсэг', landing: '/haab' },
+  guitsetgel: { key: 'guitsetgel', host: 'guitsetgel.gennetex.com', title: 'Гүйцэтгэл', landing: '/guitsetgel' },
 };
 
 const BY_HOST = new Map(Object.values(SITES).map((s) => [s.host, s.key]));
@@ -91,6 +93,7 @@ export const SITE_COPY: Record<SiteKey, { headline: string; blurb: string; flow:
   arhiv: { headline: 'Системийн бүх лог, Excel файлыг хадгална.', blurb: 'Апп-аас ирсэн үйлдэл бүрийн бүртгэл ба татсан бүх Excel.', flow: ['Лог', 'Excel', 'Архив'] },
   notif: { headline: 'Ажилтнууддаа мэдэгдэл илгээнэ.', blurb: 'Бүх ажилтан, хэлтэс эсвэл хүн бүрт апп-аар push мэдэгдэл.', flow: ['Бичих', 'Сонгох', 'Илгээх'] },
   share: { headline: 'Текст, файлаа хамт олонтойгоо хуваалцана.', blurb: 'Бүх ажилтанд эсвэл сонгосон хүмүүст текст бичиж, файл байршуулж илгээнэ. Хүлээн авагчид апп-аар мэдэгдэл очно.', flow: ['Бичих', 'Хавсаргах', 'Хуваалцах'] },
+  guitsetgel: { headline: 'Инженер, баг бүрийн гүйцэтгэлийг өдөр бүр хэмжинэ.', blurb: 'Google Sheet-ийн ажлаар баг, инженерийн бүтээмж, ажлын төрөл, цалингийн нэмэгдэл.', flow: ['Sheet', 'Шинжилгээ', 'Цалин'] },
   haab: { headline: 'Ажилтан бүр өдөр бүр аюулгүй ажиллагааны зааврыг баталгаажуулна.', blurb: 'Апп-аас ХААБ зааврыг уншаад утсан дээрээ зурсан гарын үсгийг өдрөөр нь харна.', flow: ['Унших', 'Гарын үсэг', 'Хяналт'] },
   sanhuu: { headline: 'Цалин, хоолны мөнгө, бензиний зардлыг ирцээс тооцно.', blurb: 'Ирцийн цэг дээр «Ирлээ» дармагц цалин тоологдож эхэлнэ.', flow: ['Ирц', 'Цалин', 'Хоол', 'Бензин'] },
 };

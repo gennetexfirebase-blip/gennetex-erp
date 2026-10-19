@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Banknote, Check, Clock, UtensilsCrossed, ChevronLeft, ChevronRight, Download, Pencil, Search, Wallet, X } from 'lucide-react';
+import { Award, Banknote, Check, Clock, UtensilsCrossed, ChevronLeft, ChevronRight, Download, Pencil, Search, Wallet, X } from 'lucide-react';
 import { PageHeader, Card, Input, Select, Button, Avatar, Loading, ErrorState, EmptyState, StatCard, KpiRow } from '../components/ui';
 import { useAsync } from '../lib/data';
 import { supabase } from '../lib/supabase';
 import { downloadSheets } from '../lib/attendanceExport';
+import { fetchPerfSummary, type PerfSummary } from '../lib/perf';
 
 /**
  * sanhuu.gennetex.com — ирцээс цалин.
@@ -23,7 +24,7 @@ type Entry = {
 type Pending = { id: string; e: string; name: string; at: string; distance: number | null; note: string | null };
 type Payload = { employees: Emp[]; entries: Entry[]; pending: Pending[] };
 
-type Row = Emp & { days: number; hours: number; ot: number; regular: number; overtime: number; meal: number; total: number; open: boolean };
+type Row = Emp & { days: number; hours: number; ot: number; regular: number; overtime: number; meal: number; perf: number; jobs: number; total: number; open: boolean };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
@@ -45,6 +46,8 @@ export default function PayrollPage() {
   const from = `${ym.y}-${pad(ym.m + 1)}-01`;
   const to = `${ym.y}-${pad(ym.m + 1)}-${pad(new Date(ym.y, ym.m + 1, 0).getDate())}`;
   const { data, loading, error, reload } = useAsync<Payload | null>(() => fetchPayroll(from, to), [from, to], null);
+  // Гүйцэтгэл (Google Sheet) — байхгүй/migration ороогүй бол 0 гэж тооцно.
+  const perfQ = useAsync<PerfSummary | null>(() => fetchPerfSummary(from, to).catch(() => null), [from, to], null);
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
   const [edit, setEdit] = useState<Emp | null>(null);
@@ -52,6 +55,7 @@ export default function PayrollPage() {
 
   const rows = useMemo<Row[]>(() => {
     if (!data) return [];
+    const perfBy = new Map((perfQ.data?.people || []).map((p) => [p.user_id, p]));
     const by = new Map<string, Entry[]>();
     data.entries.forEach((x) => (by.get(x.e) || by.set(x.e, []).get(x.e)!).push(x));
     return data.employees.map((emp) => {
@@ -70,14 +74,16 @@ export default function PayrollPage() {
         }
         if (x.open) open = true;
       });
-      return { ...emp, days, hours, ot, regular, overtime, meal, total: regular + overtime + meal, open };
+      const pf = perfBy.get(emp.id);
+      const perf = pf?.amount || 0;
+      return { ...emp, days, hours, ot, regular, overtime, meal, perf, jobs: pf?.jobs || 0, total: regular + overtime + meal + perf, open };
     });
-  }, [data]);
+  }, [data, perfQ.data]);
 
   const depts = useMemo(() => [...new Set(rows.map((r) => r.department || 'Хэлтэсгүй'))].sort((a, b) => a.localeCompare(b, 'mn')), [rows]);
   const needle = q.trim().toLowerCase();
   const visible = rows.filter((r) => (!dept || (r.department || 'Хэлтэсгүй') === dept) && r.name.toLowerCase().includes(needle));
-  const sum = (k: 'regular' | 'overtime' | 'meal' | 'total' | 'hours') => visible.reduce((a, r) => a + r[k], 0);
+  const sum = (k: 'regular' | 'overtime' | 'meal' | 'perf' | 'total' | 'hours') => visible.reduce((a, r) => a + r[k], 0);
 
   const step = (d: number) => setYm(({ y, m }) => {
     const x = new Date(y, m + d, 1);
@@ -85,8 +91,8 @@ export default function PayrollPage() {
   });
 
   const exportExcel = () => {
-    const sheet: (string | number)[][] = [['Ажилтан', 'Хэлтэс', 'Өдрийн цалин', 'Өдрийн цаг', 'Хоолны мөнгө/өдөр', 'Ажилласан өдөр', 'Ажилласан цаг', 'Илүү цаг', 'Үндсэн цалин', 'Илүү цагийн цалин', 'Хоолны мөнгө', 'Нийт']];
-    visible.forEach((r) => sheet.push([r.name, r.department || '', r.rate?.daily_rate ?? 0, r.rate?.standard_hours ?? 8, r.rate?.meal_allowance ?? 0, r.days, Math.round(r.hours * 100) / 100, Math.round(r.ot * 100) / 100, Math.round(r.regular), Math.round(r.overtime), Math.round(r.meal), Math.round(r.total)]));
+    const sheet: (string | number)[][] = [['Ажилтан', 'Хэлтэс', 'Өдрийн цалин', 'Өдрийн цаг', 'Хоолны мөнгө/өдөр', 'Ажилласан өдөр', 'Ажилласан цаг', 'Илүү цаг', 'Үндсэн цалин', 'Илүү цагийн цалин', 'Хоолны мөнгө', 'Гүйцэтгэлийн ажил', 'Гүйцэтгэлийн нэмэгдэл', 'Нийт']];
+    visible.forEach((r) => sheet.push([r.name, r.department || '', r.rate?.daily_rate ?? 0, r.rate?.standard_hours ?? 8, r.rate?.meal_allowance ?? 0, r.days, Math.round(r.hours * 100) / 100, Math.round(r.ot * 100) / 100, Math.round(r.regular), Math.round(r.overtime), Math.round(r.meal), r.jobs, Math.round(r.perf), Math.round(r.total)]));
     const daysSheet: (string | number)[][] = [['Ажилтан', 'Огноо', 'Ирсэн', 'Явсан', 'Цаг', 'Илүү цаг', 'Эх сурвалж', 'Тэмдэглэл']];
     const names = new Map(rows.map((r) => [r.id, r.name]));
     (data?.entries || []).forEach((x) => daysSheet.push([names.get(x.e) || '', x.d, x.in ? fmt(x.in) : '', x.out ? fmt(x.out) : '', Number(x.h), Number(x.ot), x.src === 'attendance' ? 'Ирц' : 'Гараар', x.note || '']));
@@ -117,10 +123,11 @@ export default function PayrollPage() {
         <ErrorState text={error} onRetry={reload} />
       ) : (
         <>
-          <KpiRow>
+          <KpiRow cols={5}>
             <StatCard tone="green" icon={<Wallet size={19} />} value={money(sum('total'))} label="Нийт цалин" />
             <StatCard tone="blue" icon={<Banknote size={19} />} value={money(sum('regular'))} label="Үндсэн" />
             <StatCard tone="amber" icon={<UtensilsCrossed size={19} />} value={money(sum('meal'))} label="Хоолны мөнгө" />
+            <StatCard tone="teal" icon={<Award size={19} />} value={money(sum('perf'))} label="Гүйцэтгэлийн нэмэгдэл" note="Google Sheet-ийн ажлаар" />
             <StatCard tone="violet" icon={<Clock size={19} />} value={`${hrs(sum('hours'))} ц`} label="Ажилласан цаг" />
           </KpiRow>
 
@@ -149,7 +156,7 @@ export default function PayrollPage() {
               <EmptyState text="Ажилтан олдсонгүй." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-[13px]">
+                <table className="w-full min-w-[1100px] text-[13px]">
                   <thead className="bg-card2 text-left text-[12px] text-muted">
                     <tr>
                       <th className="px-4 py-2 font-medium">Ажилтан</th>
@@ -161,6 +168,7 @@ export default function PayrollPage() {
                       <th className="px-3 py-2 text-right font-medium">Үндсэн</th>
                       <th className="px-3 py-2 text-right font-medium">Илүү цаг</th>
                       <th className="px-3 py-2 text-right font-medium">Хоол</th>
+                      <th className="px-3 py-2 text-right font-medium">Гүйцэтгэл</th>
                       <th className="px-3 py-2 text-right font-medium">Нийт</th>
                       <th className="px-3 py-2" />
                     </tr>
@@ -194,6 +202,7 @@ export default function PayrollPage() {
                         <td className="px-3 py-2 text-right text-ink">{money(r.regular)}</td>
                         <td className="px-3 py-2 text-right text-ink">{r.overtime ? money(r.overtime) : '—'}</td>
                         <td className="px-3 py-2 text-right text-ink">{r.meal ? money(r.meal) : '—'}</td>
+                        <td className="px-3 py-2 text-right text-ink" title={r.jobs ? `${r.jobs} ажил` : undefined}>{r.perf ? money(r.perf) : r.jobs ? `${r.jobs} ажил` : '—'}</td>
                         <td className="px-3 py-2 text-right font-semibold text-ink">{money(r.total)}</td>
                         <td className="px-3 py-2 text-right">
                           <Button variant="ghost" className="!min-h-8 !px-2" aria-label="Цалин засах" title="Цалин засах" onClick={() => setEdit(r)}>

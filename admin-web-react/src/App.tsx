@@ -11,6 +11,8 @@ import StaffLocationsPage from './pages/StaffLocations';
 import PayrollPage from './pages/Payroll';
 import MealMoneyPage from './pages/MealMoney';
 import HaabPage from './pages/Haab';
+import PerformancePage from './pages/Performance';
+import GuitsetgelPage from './pages/Guitsetgel';
 import HaabPublicPage from './pages/HaabPublic';
 import FuelPage from './pages/Fuel';
 import VehiclesPage from './pages/Vehicles';
@@ -130,6 +132,8 @@ export default function App() {
           <Route path="/finance/payroll" element={<PayrollPage />} />
           <Route path="/finance/meal" element={<MealMoneyPage />} />
           <Route path="/haab" element={<HaabPage />} />
+          <Route path="/finance/performance" element={<PerformancePage />} />
+          <Route path="/guitsetgel" element={<GuitsetgelPage />} />
           <Route path="/finance/fuel" element={<FuelPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/companions" element={<CompanionsPage />} />
