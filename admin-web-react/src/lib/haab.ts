@@ -9,6 +9,7 @@ import { supabase } from './supabase';
 export type HaabInstruction = { title: string; body: string; updated_at: string | null };
 export type HaabAck = {
   id: string;
+  ack_date?: string;
   user_id: string;
   name: string;
   department: string | null;
@@ -17,7 +18,10 @@ export type HaabAck = {
   signature_url: string | null;
   instruction_updated_at: string | null;
 };
-export type HaabSheet = { date: string; instruction: HaabInstruction; total: number; acks: HaabAck[] };
+/** date — эхлэх өдөр; date_to — дуусах өдөр (нэг өдөр бол ижил эсвэл байхгүй). */
+export type HaabSheet = { date: string; date_to?: string; instruction: HaabInstruction; total: number; acks: HaabAck[] };
+export const isRange = (s: Pick<HaabSheet, 'date' | 'date_to'>) => !!s.date_to && s.date_to !== s.date;
+export const periodLabel = (s: Pick<HaabSheet, 'date' | 'date_to'>) => (isRange(s) ? `${s.date} — ${s.date_to}` : s.date);
 
 export const ubToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
 export const timeOf = (iso: string | null) =>
@@ -58,14 +62,14 @@ export function versionLabel(ack: HaabAck, current: HaabInstruction) {
 /* ── Нийтийн холбоос ─────────────────────────────────────────── */
 export const publicUrl = (token: string) => `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/haab/s/${token}`;
 
-export async function shareLink(date: string) {
-  const { data, error } = await supabase.rpc('ohaab_share_link', { p_date: date });
+export async function shareLink(from: string, to: string) {
+  const { data, error } = await supabase.rpc('ohaab_share_link', { p_from: from, p_to: to });
   if (error) throw new Error(/forbidden/.test(error.message) ? 'Зөвхөн админ.' : /function .* does not exist|Could not find/.test(error.message) ? 'Хуваалцах функц серверт хараахан идэвхжээгүй (migration).' : error.message);
   return publicUrl(String(data));
 }
 
-export async function revokeShare(date: string) {
-  const { error } = await supabase.rpc('ohaab_share_revoke', { p_date: date });
+export async function revokeShare(from: string, to: string) {
+  const { error } = await supabase.rpc('ohaab_share_revoke', { p_from: from, p_to: to });
   if (error) throw new Error(error.message);
 }
 
@@ -120,15 +124,16 @@ export async function downloadPdf(sheet: HaabSheet) {
   const svgs = (await Promise.all(sheet.acks.map((a) => svgText(a.signature_url)))).map((t) => (t ? boldSvg(t) : null));
   const points = keyPoints(sheet.instruction.body, 12);
   const n = sheet.acks.length;
-  const head = ['№', 'Ажилтан', 'Цаг', `Заавар — ${sheet.instruction.title}`, 'Гарын үсэг'].map((t) => ({ text: t, bold: true, fillColor: '#eef3f0', fontSize: 8 }));
-  const pointsCell = { rowSpan: Math.max(1, n), ol: points.length ? points : ['Зааврын текст хоосон.'], fontSize: 8, lineHeight: 1.2 };
+  const multi = isRange(sheet);
+  const head = ['№', 'Ажилтан', multi ? 'Огноо' : 'Цаг', `Заавар — ${sheet.instruction.title}`, 'Гарын үсэг'].map((t) => ({ text: t, bold: true, fillColor: '#eef3f0', fontSize: 8 }));
+  const pointsCell = () => (points.length ? { ol: points, fontSize: 7, lineHeight: 1.15, color: '#45534d' } : { text: '—', color: '#888888' });
   const body = n
     ? sheet.acks.map((a, i) => [
         { text: String(i + 1), alignment: 'center', color: '#5f6d67' },
         { stack: [{ text: a.name, bold: true }, ...(a.department ? [{ text: a.department, fontSize: 7, color: '#5f6d67' }] : [])] },
-        timeOf(a.signed_at),
-        i === 0 ? pointsCell : {},
-        svgs[i] ? { svg: svgs[i], fit: [100, 28], alignment: 'center' } : { text: '—', alignment: 'center', color: '#888888' },
+        multi ? { stack: [a.ack_date || dayOf(a.signed_at), { text: timeOf(a.signed_at), color: '#5f6d67', fontSize: 7 }] } : timeOf(a.signed_at),
+        pointsCell(),
+        svgs[i] ? { svg: svgs[i], fit: [100, 30], alignment: 'center' } : { text: '—', alignment: 'center', color: '#888888' },
       ])
     : [[{ text: 'Энэ өдөр гарын үсэг зурсан ажилтан алга.', colSpan: 5, alignment: 'center', color: '#888888' }, {}, {}, {}, {}]];
   const doc = {
@@ -141,15 +146,15 @@ export async function downloadPdf(sheet: HaabSheet) {
       {
         columns: [
           { text: 'ХААБ зааврын танилцуулгын гарын үсэг', fontSize: 13, bold: true },
-          { text: `Огноо: ${sheet.date}   Зурсан: ${n} / ${sheet.total}`, alignment: 'right', fontSize: 9, color: '#45534d', margin: [0, 3, 0, 0] },
+          { text: `${multi ? 'Хугацаа' : 'Огноо'}: ${periodLabel(sheet)}   ${multi ? `Гарын үсэг: ${n}` : `Зурсан: ${n} / ${sheet.total}`}`, alignment: 'right', fontSize: 9, color: '#45534d', margin: [0, 3, 0, 0] },
         ],
         margin: [0, 0, 0, 10],
       },
       {
-        table: { headerRows: 1, dontBreakRows: true, widths: [16, '*', 30, '38%', 108], body: [head, ...body] },
+        table: { headerRows: 1, dontBreakRows: true, widths: [16, 110, multi ? 52 : 30, '*', 104], body: [head, ...body] },
         layout: { hLineColor: () => '#d9e1dd', vLineColor: () => '#d9e1dd', paddingTop: () => 3, paddingBottom: () => 3 },
       },
     ],
   };
-  (pdfMake as unknown as { createPdf: (d: unknown) => { download: (n: string) => void } }).createPdf(doc).download(`haab_garyn_useg_${sheet.date}.pdf`);
+  (pdfMake as unknown as { createPdf: (d: unknown) => { download: (n: string) => void } }).createPdf(doc).download(`haab_garyn_useg_${multi ? `${sheet.date}_${sheet.date_to}` : sheet.date}.pdf`);
 }

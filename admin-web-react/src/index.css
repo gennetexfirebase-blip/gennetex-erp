@@ -579,12 +579,32 @@ kbd.kbd {
   color: var(--heading);
 }
 
-/* ХААБ гарын үсгийн хуудас — зөвхөн хуудсыг A4 хэвтээгээр хэвлэнэ (HaabSheet). */
+/* ХААБ гарын үсгийн хуудас (HaabSheet) — хэвлэхэд зөвхөн body-д байрлах хуулбар
+   (.print-portal) гарна; #root-ийг display:none болгож хоосон хуудас үүсэхгүй. */
+/* Дэлгэц дээр харагдахгүй ч хэмжигдэнэ (хуудасны тоо) — хэвлэхтэй ижил 190мм, захгүй. */
+.print-portal {
+  position: absolute;
+  top: 0;
+  left: -100000px;
+  width: 190mm;
+  visibility: hidden;
+  pointer-events: none;
+}
+.print-portal .print-sheet {
+  max-width: none;
+  padding: 0;
+  border: 0;
+}
 @media print {
   /* Нэрлэсэн хуудас — act-document.css-ийн глобал «@page A4 portrait»-той мөргөлдөхгүй. */
   @page haab {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 8mm 10mm 12mm;
+    @bottom-center {
+      content: counter(page) ' / ' counter(pages);
+      font: 9px 'IBM Plex Sans', Arial, sans-serif;
+      color: #5f6d67;
+    }
   }
   /* Хэвлэхэд үргэлж цагаан цаас — шөнийн горимын token-уудыг дарна. */
   html.has-print-sheet[data-theme] {
@@ -599,34 +619,43 @@ kbd.kbd {
     --heading: #16201c;
     --brand: #0c8a62;
   }
-  html.has-print-sheet .sig-img {
-    filter: none !important;
-  }
-  /* Зөвхөн гарын үсгийн хуудас дэлгэцэнд байгаа үед (HaabSheet <html>-д класс тавина). */
   html.has-print-sheet,
   html.has-print-sheet body {
     background: #fff !important;
   }
-  html.has-print-sheet body * {
-    visibility: hidden;
+  html.has-print-sheet #root {
+    display: none !important;
+  }
+  html.has-print-sheet .print-portal {
+    position: static !important;
+    width: auto !important;
   }
   /* !important — act-document.css-ийн «body * { visibility:hidden!important }»-ийг давна. */
-  html.has-print-sheet body .print-sheet,
-  html.has-print-sheet body .print-sheet * {
+  html.has-print-sheet .print-portal,
+  html.has-print-sheet .print-portal * {
     visibility: visible !important;
   }
-  .print-sheet {
+  .print-portal .print-sheet {
     page: haab;
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
     max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
     animation: none !important;
   }
-  .print-sheet tr {
+  html.has-print-sheet body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .print-portal .sig-img {
+    filter: none !important;
+  }
+  .print-portal tr {
     break-inside: avoid;
+  }
+  .print-portal thead {
+    display: table-header-group;
   }
 }
 

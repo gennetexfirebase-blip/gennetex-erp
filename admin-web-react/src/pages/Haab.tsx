@@ -33,8 +33,38 @@ const fullName = (e?: Employee | null) => [e?.last_name, e?.name].filter(Boolean
 /** Нийтийн URL ижил хэвээр дарагддаг тул кэшээс хуучин зураг гарахгүйн тулд цагийг нэмнэ. */
 const sigSrc = (a: Ack) => (a.signature_url && /^https?:/.test(a.signature_url) ? `${a.signature_url}?v=${encodeURIComponent(a.signed_at || a.ack_date)}` : a.signature_url || '');
 
-async function fetchAcks(date: string) {
-  const { data, error } = await supabase.from('ohaab_daily_ack').select('id, user_id, user_name, ack_date, signature_url, signed_at, instruction_updated_at').eq('ack_date', date).order('signed_at', { ascending: true });
+type Mode = 'day' | 'month' | 'year' | 'all';
+const MODES: [Mode, string][] = [['day', 'Өдөр'], ['month', 'Сар'], ['year', 'Он'], ['all', 'Бүгд']];
+const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+/** Сонгосон горимоос хугацааны хүрээ. */
+function rangeOf(mode: Mode, d: string): [string, string] {
+  const [y, m] = d.split('-').map(Number);
+  if (mode === 'month') return [`${y}-${String(m).padStart(2, '0')}-01`, `${y}-${String(m).padStart(2, '0')}-${lastDay(y, m)}`];
+  if (mode === 'year') return [`${y}-01-01`, `${y}-12-31`];
+  if (mode === 'all') return ['2020-01-01', ubToday()];
+  return [d, d];
+}
+/** Горимын нэгжээр урагш/хойш. */
+function step(mode: Mode, d: string, dir: 1 | -1) {
+  if (mode === 'day') return shift(d, dir);
+  const [y, m] = d.split('-').map(Number);
+  if (mode === 'month') {
+    const x = new Date(Date.UTC(y, m - 1 + dir, 1));
+    return x.toISOString().slice(0, 10);
+  }
+  if (mode === 'year') return `${y + dir}-01-01`;
+  return d;
+}
+
+async function fetchAcks(from: string, to: string) {
+  const { data, error } = await supabase
+    .from('ohaab_daily_ack')
+    .select('id, user_id, user_name, ack_date, signature_url, signed_at, instruction_updated_at')
+    .gte('ack_date', from)
+    .lte('ack_date', to)
+    .order('ack_date', { ascending: true })
+    .order('signed_at', { ascending: true })
+    .limit(10000);
   if (error) throw new Error(error.message);
   return (data || []) as Ack[];
 }
@@ -56,21 +86,29 @@ function Signature({ ack, onOpen, large = false }: { ack: Ack; onOpen?: () => vo
 
 export default function HaabPage() {
   const [date, setDate] = useState(ubToday());
+  const [mode, setMode] = useState<Mode>('day');
+  const [from, to] = rangeOf(mode, date);
+  const multi = from !== to;
   const [tab, setTab] = useState<'sheet' | 'signed' | 'missing'>('sheet');
   const [share, setShare] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [pages, setPages] = useState(1);
   const [q, setQ] = useState('');
   const [zoom, setZoom] = useState<Ack | null>(null);
   const emps = useAsync<Employee[]>(fetchEmployees, [], []);
-  const acks = useAsync<Ack[]>(() => fetchAcks(date), [date], []);
+  const acks = useAsync<Ack[]>(() => fetchAcks(from, to), [from, to], []);
   const instr = useAsync(fetchInstruction, [], { title: 'ХААБ заавар', body: '', updated_at: null as string | null });
 
   // Өнөөдрийг харж байхад 30 секунд тутам шинэчилнэ — апп-аас шинэ гарын үсэг орж ирнэ.
   useEffect(() => {
-    if (date !== ubToday()) return;
+    if (to < ubToday() || mode === 'all') return;
     const id = window.setInterval(acks.reload, 30_000);
     return () => window.clearInterval(id);
-  }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  // «Зураагүй» — зөвхөн нэг өдрийн хувьд утгатай.
+  useEffect(() => {
+    if (multi && tab === 'missing') setTab('sheet');
+  }, [multi, tab]);
 
   const byUser = useMemo(() => new Map(emps.data.filter((e) => e.user_id).map((e) => [e.user_id!, e])), [emps.data]);
   const signedIds = useMemo(() => new Set(acks.data.map((a) => a.user_id)), [acks.data]);
@@ -85,15 +123,19 @@ export default function HaabPage() {
   const signedList = acks.data.filter((a) => !needle || `${a.user_name || ''} ${fullName(byUser.get(a.user_id))} ${byUser.get(a.user_id)?.department_name || ''}`.toLowerCase().includes(needle));
   const missingList = missing.filter((e) => !needle || `${fullName(e)} ${e.department_name || ''}`.toLowerCase().includes(needle));
 
-  const isToday = date === ubToday();
+  const isToday = !multi && date === ubToday();
+  const people = new Set(acks.data.map((a) => a.user_id)).size;
+  const days = new Set(acks.data.map((a) => a.ack_date)).size;
+  const label = multi ? (mode === 'all' ? 'Бүх хугацаа' : `${from} — ${to}`) : date;
   // Хэвлэх / PDF / хуваалцах хуудасны өгөгдөл.
   const sheet: Sheet = {
-    date,
+    date: from,
+    date_to: to,
     instruction: instr.data,
     total,
     acks: acks.data.map((a) => {
       const e = byUser.get(a.user_id);
-      return { id: a.id, user_id: a.user_id, name: fullName(e) || a.user_name || 'Ажилтан', department: e?.department_name || e?.position || null, avatar_url: e?.avatar_url, signed_at: a.signed_at, signature_url: a.signature_url, instruction_updated_at: a.instruction_updated_at };
+      return { id: a.id, ack_date: a.ack_date, user_id: a.user_id, name: fullName(e) || a.user_name || 'Ажилтан', department: e?.department_name || e?.position || null, avatar_url: e?.avatar_url, signed_at: a.signed_at, signature_url: a.signature_url, instruction_updated_at: a.instruction_updated_at };
     }),
   };
   const zoomSheet = (h: HaabAck) => setZoom(acks.data.find((a) => a.id === h.id) || null);
@@ -111,10 +153,10 @@ export default function HaabPage() {
     const rows: (string | number)[][] = [['Огноо', 'Ажилтан', 'Хэлтэс', 'Төлөв', 'Цаг', 'Гарын үсэг (холбоос)']];
     acks.data.forEach((a) => {
       const e = byUser.get(a.user_id);
-      rows.push([date, fullName(e) || a.user_name || '', e?.department_name || '', 'Зурсан', timeOf(a.signed_at), a.signature_url && /^https?:/.test(a.signature_url) ? a.signature_url : '']);
+      rows.push([a.ack_date, fullName(e) || a.user_name || '', e?.department_name || '', 'Зурсан', timeOf(a.signed_at), a.signature_url && /^https?:/.test(a.signature_url) ? a.signature_url : '']);
     });
-    missing.forEach((e) => rows.push([date, fullName(e), e.department_name || '', 'Зураагүй', '', '']));
-    void downloadSheets(`haab_garyn_useg_${date}.xlsx`, [{ name: 'ХААБ', rows }]);
+    if (!multi) missing.forEach((e) => rows.push([date, fullName(e), e.department_name || '', 'Зураагүй', '', '']));
+    void downloadSheets(`haab_garyn_useg_${multi ? `${from}_${to}` : date}.xlsx`, [{ name: 'ХААБ', rows }]);
   };
 
   const loading = emps.loading || acks.loading;
@@ -125,17 +167,30 @@ export default function HaabPage() {
       <PageHeader
         title="ХААБ гарын үсэг"
         crumb="Хөдөлмөрийн аюулгүй байдал"
-        description="Ажилтнууд өдөр бүр апп-аас ХААБ зааврыг уншаад утсан дээрээ гарын үсэг зурна. Энд тухайн өдөр хэн зурсан, хэн зураагүйг гарын үсгийн хамт харна."
+        description="Ажилтнууд өдөр бүр апп-аас ХААБ зааврыг уншаад утсан дээрээ гарын үсэг зурна. Өдөр, сар, он эсвэл бүх хугацаагаар шүүж харна."
         actions={
           <>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" className="!px-2.5" aria-label="Өмнөх өдөр" onClick={() => setDate((d) => shift(d, -1))}><ChevronLeft size={16} /></Button>
-              <Input type="date" value={date} max={ubToday()} onChange={(e) => e.target.value && setDate(e.target.value)} className="w-[150px]" aria-label="Огноо" />
-              <Button variant="outline" className="!px-2.5" aria-label="Дараагийн өдөр" disabled={isToday} onClick={() => setDate((d) => shift(d, 1))}><ChevronRight size={16} /></Button>
+            <div className="inline-flex rounded-[var(--radius)] bg-card2 p-1" role="tablist" aria-label="Хугацаа">
+              {MODES.map(([k, l]) => (
+                <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={`rounded-[var(--radius-sm)] px-3 py-1 text-[12px] font-semibold ${mode === k ? 'bg-card text-ink shadow-[var(--shadow)]' : 'text-muted hover:text-ink'}`}>{l}</button>
+              ))}
             </div>
-            {!isToday ? <Button variant="ghost" onClick={() => setDate(ubToday())}>Өнөөдөр</Button> : null}
+            {mode !== 'all' ? (
+              <div className="flex items-center gap-1">
+                <Button variant="outline" className="!px-2.5" aria-label="Өмнөх" onClick={() => setDate((d) => step(mode, d, -1))}><ChevronLeft size={16} /></Button>
+                {mode === 'day' ? (
+                  <Input type="date" value={date} max={ubToday()} onChange={(e) => e.target.value && setDate(e.target.value)} className="w-[150px]" aria-label="Огноо" />
+                ) : mode === 'month' ? (
+                  <Input type="month" value={date.slice(0, 7)} max={ubToday().slice(0, 7)} onChange={(e) => e.target.value && setDate(`${e.target.value}-01`)} className="w-[150px]" aria-label="Сар" />
+                ) : (
+                  <Input type="number" value={date.slice(0, 4)} min={2020} max={Number(ubToday().slice(0, 4))} onChange={(e) => /^\d{4}$/.test(e.target.value) && setDate(`${e.target.value}-01-01`)} className="w-[96px]" aria-label="Он" />
+                )}
+                <Button variant="outline" className="!px-2.5" aria-label="Дараагийн" disabled={to >= ubToday()} onClick={() => setDate((d) => step(mode, d, 1))}><ChevronRight size={16} /></Button>
+              </div>
+            ) : null}
+            {mode === 'day' && !isToday ? <Button variant="ghost" onClick={() => setDate(ubToday())}>Өнөөдөр</Button> : null}
             <Button variant="outline" icon={<RefreshCw size={15} />} onClick={() => { emps.reload(); acks.reload(); instr.reload(); }}>Шинэчлэх</Button>
-            <Button variant="outline" icon={<Printer size={15} />} disabled={loading || !!error} onClick={() => { setTab('sheet'); setTimeout(() => window.print(), 50); }}>Хэвлэх</Button>
+            <Button variant="outline" icon={<Printer size={15} />} disabled={loading || !!error} onClick={() => { setTab('sheet'); setTimeout(() => window.print(), 300); }}>Хэвлэх{tab === 'sheet' ? ` · ${pages} хуудас` : ''}</Button>
             <Button variant="outline" icon={<FileDown size={15} />} disabled={loading || !!error || pdfBusy} onClick={pdf}>{pdfBusy ? 'PDF…' : 'PDF'}</Button>
             <Button variant="outline" icon={<Download size={15} />} disabled={loading || !!error} onClick={exportExcel}>Excel</Button>
             <Button icon={<Share2 size={15} />} disabled={loading || !!error} onClick={() => setShare(true)}>Хуваалцах</Button>
@@ -149,12 +204,21 @@ export default function HaabPage() {
         <ErrorState text={error} onRetry={() => { emps.reload(); acks.reload(); }} />
       ) : (
         <>
+          {multi ? (
+          <KpiRow>
+            <StatCard tone="green" icon={<PenLine size={19} />} value={signed} label="Нийт гарын үсэг" note={label} />
+            <StatCard tone="blue" icon={<Users size={19} />} value={people} label="Зурсан ажилтан" note={`${total} ажилтнаас`} />
+            <StatCard tone="violet" icon={<Clock size={19} />} value={days} label="Өдөр" note="Гарын үсэгтэй өдөр" />
+            <StatCard tone="teal" icon={<CheckCircle2 size={19} />} value={days ? (signed / days).toFixed(1) : '0'} label="Өдөрт дунджаар" />
+          </KpiRow>
+          ) : (
           <KpiRow>
             <StatCard tone="blue" icon={<Users size={19} />} value={total} label="Нийт ажилтан" note="Апп-д бүртгэлтэй" />
             <StatCard tone="green" icon={<CheckCircle2 size={19} />} value={signed} label="Гарын үсэг зурсан" note={isToday ? 'Өнөөдөр' : date} />
             <StatCard tone="rose" icon={<XCircle size={19} />} value={missing.length} label="Зураагүй" />
             <StatCard tone="teal" icon={<PenLine size={19} />} value={`${pct}%`} label="Хамрагдалт" />
           </KpiRow>
+          )}
 
           <Card
             title={tab === 'sheet' ? 'Гарын үсгийн хуудас' : tab === 'signed' ? `Гарын үсэг зурсан (${signed})` : `Зураагүй (${missing.length})`}
@@ -163,7 +227,7 @@ export default function HaabPage() {
             actions={
               <>
                 <div className="inline-flex rounded-[var(--radius)] bg-card2 p-1" role="tablist">
-                  {([['sheet', 'Хуудас'], ['signed', `Зурсан ${signed}`], ['missing', `Зураагүй ${missing.length}`]] as const).map(([k, l]) => (
+                  {([['sheet', 'Хуудас'], ['signed', `Зурсан ${signed}`], ...(multi ? [] : [['missing', `Зураагүй ${missing.length}`]])] as ['sheet' | 'signed' | 'missing', string][]).map(([k, l]) => (
                     <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`rounded-[var(--radius-sm)] px-3 py-1 text-[12px] font-semibold ${tab === k ? 'bg-card text-ink shadow-[var(--shadow)]' : 'text-muted hover:text-ink'}`}>{l}</button>
                   ))}
                 </div>
@@ -175,10 +239,10 @@ export default function HaabPage() {
             }
           >
             {tab === 'sheet' ? (
-              <HaabSheet sheet={sheet} onZoom={zoomSheet} />
+              <HaabSheet sheet={sheet} onZoom={zoomSheet} onPages={setPages} />
             ) : tab === 'signed' ? (
               !signedList.length ? (
-                <EmptyState text={q ? `«${q}» олдсонгүй.` : isToday ? 'Өнөөдөр хараахан хэн ч гарын үсэг зураагүй байна.' : 'Энэ өдөр гарын үсэг зурсан ажилтан алга.'} />
+                <EmptyState text={q ? `«${q}» олдсонгүй.` : isToday ? 'Өнөөдөр хараахан хэн ч гарын үсэг зураагүй байна.' : multi ? 'Энэ хугацаанд гарын үсэг зурсан ажилтан алга.' : 'Энэ өдөр гарын үсэг зурсан ажилтан алга.'} />
               ) : (
                 <ul className="divide-y divide-line">
                   {signedList.map((a, i) => {
@@ -192,7 +256,7 @@ export default function HaabPage() {
                           <p className="flex items-center gap-1.5 truncate text-[12px] text-muted">
                             {e?.department_name || e?.position || 'Хэлтэсгүй'}
                             <span aria-hidden="true">·</span>
-                            <Clock size={12} /> {timeOf(a.signed_at)}
+                            <Clock size={12} /> {multi ? `${a.ack_date} ` : ''}{timeOf(a.signed_at)}
                           </p>
                         </div>
                         <Signature ack={a} onOpen={() => setZoom(a)} />
@@ -221,7 +285,7 @@ export default function HaabPage() {
         </>
       )}
 
-      {share ? <ShareDialog date={date} onClose={() => setShare(false)} /> : null}
+      {share ? <ShareDialog from={from} to={to} label={label} onClose={() => setShare(false)} /> : null}
 
       {zoom ? (
         <Modal title={`${fullName(byUser.get(zoom.user_id)) || zoom.user_name || 'Ажилтан'} — гарын үсэг`} onClose={() => setZoom(null)}>
@@ -234,14 +298,14 @@ export default function HaabPage() {
 }
 
 /** Нийтийн холбоос — нэвтрэлтгүйгээр тухайн өдрийн хуудсыг харна. */
-function ShareDialog({ date, onClose }: { date: string; onClose: () => void }) {
+function ShareDialog({ from, to, label, onClose }: { from: string; to: string; label: string; onClose: () => void }) {
   const [url, setUrl] = useState('');
   const [err, setErr] = useState('');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(true);
   useEffect(() => {
-    shareLink(date).then(setUrl).catch((e) => setErr((e as Error).message)).finally(() => setBusy(false));
-  }, [date]);
+    shareLink(from, to).then(setUrl).catch((e) => setErr((e as Error).message)).finally(() => setBusy(false));
+  }, [from, to]);
   const copy = async () => {
     await navigator.clipboard.writeText(url);
     setCopied(true);
@@ -251,7 +315,7 @@ function ShareDialog({ date, onClose }: { date: string; onClose: () => void }) {
     if (!window.confirm('Холбоосыг хүчингүй болгох уу? Өмнө илгээсэн холбоос ажиллахаа больно.')) return;
     setBusy(true);
     try {
-      await revokeShare(date);
+      await revokeShare(from, to);
       onClose();
     } catch (e) {
       setErr((e as Error).message);
@@ -259,8 +323,8 @@ function ShareDialog({ date, onClose }: { date: string; onClose: () => void }) {
     }
   };
   return (
-    <Modal title={`Нийтэд хуваалцах — ${date}`} onClose={onClose}>
-      <p className="text-[13px] leading-5 text-muted">Энэ холбоостой хэн ч нэвтрэлгүйгээр тухайн өдрийн зааврын гол заалт, гарын үсэг зурсан ажилтнууд болон гарын үсгийг харж, хэвлэж, PDF татаж чадна.</p>
+    <Modal title={`Нийтэд хуваалцах — ${label}`} onClose={onClose}>
+      <p className="text-[13px] leading-5 text-muted">Энэ холбоостой хэн ч нэвтрэлгүйгээр сонгосон хугацааны зааврын гол заалт, гарын үсэг зурсан ажилтнууд болон гарын үсгийг харж, хэвлэж, PDF татаж чадна.</p>
       {busy && !url ? <Loading text="Холбоос үүсгэж байна…" /> : null}
       {url ? (
         <div className="mt-4 space-y-3">
