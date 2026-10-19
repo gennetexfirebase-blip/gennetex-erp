@@ -31,14 +31,6 @@ type Analytics = {
 type Call = <T>(body: Record<string, unknown>) => Promise<T>;
 
 const money = (n: number) => `${new Intl.NumberFormat('mn-MN').format(Math.round(n || 0))}₮`;
-/** «2.4 сая₮», «350 мян₮» — самбарын том тоонд. */
-const compact = (n: number) => {
-  const a = Math.abs(n || 0);
-  if (a >= 1e9) return `${(n / 1e9).toFixed(1).replace(/\.0$/, '')} тэрбум₮`;
-  if (a >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, '')} сая₮`;
-  if (a >= 1e3) return `${Math.round(n / 1e3)} мян₮`;
-  return `${Math.round(n || 0)}₮`;
-};
 const short = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1)}сая` : Math.abs(n) >= 1e3 ? `${Math.round(n / 1e3)}мян` : String(Math.round(n)));
 const ubToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
 
@@ -142,14 +134,14 @@ export default function DataAnalytics({ call }: { call: Call }) {
             <StatCard tone="green" icon={<Users size={19} />} value={`${data.kpi.attendanceRate}%`} label="Ирцийн хувь" note={`Өдөрт ~${data.kpi.avgPresent} / ${data.kpi.staff} ажилтан`} />
             <StatCard tone="amber" icon={<Clock size={19} />} value={`${data.kpi.lateRate}%`} label="Хоцролт" note={`${data.settings.work_start} + ${data.settings.grace} мин уучлал`} />
             <StatCard tone="blue" icon={<TrendingUp size={19} />} value={`${data.kpi.overtimeHours} ц`} label="Илүү цаг" note={`Нийт цагийн ${data.kpi.overtimeShare}%`} />
-            <StatCard tone="violet" icon={<Banknote size={19} />} value={compact(data.kpi.totalCost)} label="Нийт зардал (тооцоолсон)" note="Цалин + хоол + бензин" />
+            <StatCard tone="violet" icon={<Banknote size={19} />} value={money(data.kpi.totalCost)} label="Нийт зардал (тооцоолсон)" note="Цалин + хоол + бензин" />
           </KpiRow>
 
           {/* Зардал тус тусдаа */}
           <KpiRow cols={3}>
-            <StatCard tone="blue" icon={<Banknote size={19} />} value={compact(data.kpi.payroll)} label="Цалин" note={`${money(data.kpi.payroll)} · ${data.kpi.regularHours} ц + ${data.kpi.overtimeHours} илүү ц`} />
-            <StatCard tone="amber" icon={<UtensilsCrossed size={19} />} value={compact(data.kpi.mealEarned)} label="Хоолны мөнгө" note={`Олгосон ${compact(data.kpi.mealGiven)} · урьдчилгаа ${compact(data.kpi.mealAdvance || 0)}`} />
-            <StatCard tone="green" icon={<Fuel size={19} />} value={compact(data.kpi.fuelCost)} label="Бензин" note={`${money(data.kpi.fuelCost)} · ${data.kpi.fuelLiters} л`} />
+            <StatCard tone="blue" icon={<Banknote size={19} />} value={money(data.kpi.payroll)} label="Цалин" note={`${data.kpi.regularHours} ц + ${data.kpi.overtimeHours} илүү цаг`} />
+            <StatCard tone="amber" icon={<UtensilsCrossed size={19} />} value={money(data.kpi.mealEarned)} label="Хоолны мөнгө" note={`Олгосон ${money(data.kpi.mealGiven)} · урьдчилгаа ${money(data.kpi.mealAdvance || 0)}`} />
+            <StatCard tone="green" icon={<Fuel size={19} />} value={money(data.kpi.fuelCost)} label="Бензин" note={`${data.kpi.fuelLiters} литр`} />
           </KpiRow>
 
           {/* Дүгнэлт ба зөвлөгөө */}
