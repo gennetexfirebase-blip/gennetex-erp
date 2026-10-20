@@ -30,6 +30,7 @@ export const KIND_LABEL: Record<string, string> = {
   'new customer': 'Шинэ хэрэглэгч',
   reinstallation: 'Дахин суурилуулалт',
   'add additional box': 'Нэмэлт бокс',
+  damage: 'Гэмтэл',
   cable: 'Кабель татсан (нэмэгдэл)',
 };
 export const kindLabel = (k: string) => KIND_LABEL[k] || k;
@@ -87,7 +88,12 @@ export async function syncSheet(): Promise<{ rows: number; from: string | null; 
 }
 
 /* ── Гараар бүртгэх (guitsetgel форм) ─────────────────────────────── */
-export type FormJob = PerfJob & { source?: 'sheet' | 'form'; note?: string | null; contract?: string | null; created_by_name?: string | null; tasks?: string[] | null; lead?: string | null; sheet_key?: string | null };
+export type FormJob = PerfJob & { source?: 'sheet' | 'form'; note?: string | null; contract?: string | null; created_by_name?: string | null; tasks?: string[] | null; lead?: string | null; sheet_key?: string | null; customer_type?: 'household' | 'org' | null; org_kind?: string | null; damage_kind?: string | null };
+
+/** Байгууллагад «Нэмэлт бокс» байхгүй. */
+export const ORG_HIDDEN_KINDS = ['add additional box'];
+export const DAMAGE_KINDS = ['Шилэн кабель шилжүүлэг', 'Шилэн кабель сольсон'];
+export const ORG_DEFAULT = ['Сургууль', 'Зочид буудал'];
 
 /** Sheet-ийн мөрийн түлхүүр (perf-sync-тэй ижил): огноо|төрөл|инженерүүд|цаг. */
 export const sheetKey = (j: { work_date: string; kind: string; engineers: string[]; job_time: string | null }) => [j.work_date, j.kind, j.engineers.map((e) => e.toLowerCase()).join(','), j.job_time || ''].join('|');
@@ -175,7 +181,7 @@ export function parseSheetCsv(text: string): FormJob[] {
 /** Ажлууд — local горимд Sheet (proxy) + localStorage, эс бөгөөс серверээс. */
 export async function fetchJobsAny(from: string, to: string): Promise<FormJob[]> {
   if (!isLocalDemo()) {
-    const { data, error } = await supabase.from('perf_jobs').select('id, work_date, kind, engineers, job_time, cable, source, note, contract, created_by_name, tasks, lead, sheet_key').gte('work_date', from).lte('work_date', to).order('work_date').limit(20000);
+    const { data, error } = await supabase.from('perf_jobs').select('id, work_date, kind, engineers, job_time, cable, source, note, contract, created_by_name, tasks, lead, sheet_key, customer_type, org_kind, damage_kind').gte('work_date', from).lte('work_date', to).order('work_date').limit(20000);
     err(error);
     return dropOverridden((data || []) as FormJob[]);
   }
@@ -192,11 +198,14 @@ export const TASKS = ['Коннектор сольсон', 'Кабель сол�
  * @param fromSheet Sheet-ийн мөрийг засаж буй бол тэр мөр — засвар form мөр болж, эх мөр устна
  *                  (дараагийн «Sheet-ээс татах» түүнийг дахин оруулахгүй).
  */
-export async function saveFormJob(job: NewJob & { tasks: string[]; lead: string }, id?: number, fromSheet?: FormJob) {
+export type JobExtra = { tasks: string[]; lead: string; customer_type: 'household' | 'org'; org_kind: string; damage_kind: string };
+export async function saveFormJob(job: NewJob & JobExtra, id?: number, fromSheet?: FormJob) {
   const engineers = job.engineers.map((e) => e.name.trim()).filter(Boolean);
   if (!engineers.length) throw new Error('Ажилтан сонгоно уу.');
-  if (!job.kind.trim()) throw new Error('Ажлын төрлийг сонгоно уу.');
-  const row = { work_date: job.work_date, kind: job.kind.trim().toLowerCase(), engineers, job_time: job.job_time || null, cable: job.cable, contract: job.contract.trim() || null, note: job.note.trim() || null, tasks: job.tasks, lead: job.lead.trim() || null };
+  if (!job.kind.trim()) throw new Error('Дуудлагын төрлийг сонгоно уу.');
+  if (job.customer_type === 'org' && !job.org_kind.trim()) throw new Error('Байгууллагын төрлийг сонгоно уу.');
+  if (job.kind === 'damage' && !job.damage_kind) throw new Error('Гэмтлийн төрлийг сонгоно уу.');
+  const row = { work_date: job.work_date, kind: job.kind.trim().toLowerCase(), engineers, job_time: job.job_time || null, cable: job.cable, contract: job.contract.trim() || null, note: job.note.trim() || null, tasks: job.tasks, lead: job.lead.trim() || null, customer_type: job.customer_type, org_kind: job.customer_type === 'org' ? job.org_kind.trim() || null : null, damage_kind: job.kind === 'damage' ? job.damage_kind || null : null };
   const sk = fromSheet ? fromSheet.sheet_key || sheetKey(fromSheet) : undefined;
   if (isLocalDemo()) {
     const rest = readLocal().filter((j) => j.id !== id);
@@ -338,6 +347,37 @@ export async function saveTaskOptions(list: string[]) {
     return clean;
   }
   const { error } = await supabase.from('perf_settings').update({ task_options: clean }).eq('id', 1);
+  err(error);
+  return clean;
+}
+
+/* ── Байгууллагын төрөл (Сургууль, Зочид буудал …) — админ нэмнэ ── */
+const ORG_KEY = 'gx_perf_org_options';
+export async function fetchOrgOptions(): Promise<string[]> {
+  if (isLocalDemo()) {
+    try {
+      const v = JSON.parse(localStorage.getItem(ORG_KEY) || 'null');
+      return Array.isArray(v) && v.length ? v : ORG_DEFAULT;
+    } catch {
+      return ORG_DEFAULT;
+    }
+  }
+  const { data, error } = await supabase.from('perf_settings').select('org_options').eq('id', 1).maybeSingle();
+  if (error) return ORG_DEFAULT;
+  const v = (data as { org_options?: string[] } | null)?.org_options;
+  return v && v.length ? v : ORG_DEFAULT;
+}
+export async function saveOrgOptions(list: string[]) {
+  const clean = [...new Set(list.map((t) => t.trim()).filter(Boolean))];
+  if (isLocalDemo()) {
+    try {
+      localStorage.setItem(ORG_KEY, JSON.stringify(clean));
+    } catch {
+      /* хувийн цонх */
+    }
+    return clean;
+  }
+  const { error } = await supabase.from('perf_settings').update({ org_options: clean }).eq('id', 1);
   err(error);
   return clean;
 }

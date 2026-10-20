@@ -4,7 +4,7 @@ import { Button, Card, EmptyState, ErrorState, Field, Input, Loading, Modal, Pag
 import { MultiPick } from '../components/MultiPick';
 import { hasLatin, toCyrillic } from '../lib/translit';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
-import { aggregate, compareInsights, deleteFormJob, fetchJobsAny, fetchTaskOptions, isLocalDemo, KIND_LABEL, kindLabel, saveFormJob, saveTaskOptions, TASKS, type FormJob, type Insight } from '../lib/perf';
+import { aggregate, compareInsights, DAMAGE_KINDS, deleteFormJob, fetchJobsAny, fetchOrgOptions, fetchTaskOptions, isLocalDemo, KIND_LABEL, kindLabel, ORG_DEFAULT, ORG_HIDDEN_KINDS, saveFormJob, saveOrgOptions, saveTaskOptions, TASKS, type FormJob, type Insight } from '../lib/perf';
 
 /**
  * guitsetgel.gennetex.com → Ажил бүртгэх.
@@ -28,6 +28,7 @@ export default function GuitsetgelEntryPage() {
   const prev = useAsync<FormJob[]>(() => fetchJobsAny(pFrom, pTo), [pFrom, pTo], []);
   const emps = useAsync<Employee[]>(() => (local ? Promise.resolve([]) : fetchEmployees()), [], []);
   const taskOpts = useAsync<string[]>(fetchTaskOptions, [], TASKS);
+  const orgOpts = useAsync<string[]>(fetchOrgOptions, [], ORG_DEFAULT);
   const [editing, setEditing] = useState<FormJob | 'new' | null>(null);
   const [q, setQ] = useState('');
   const [kindF, setKindF] = useState('');
@@ -35,10 +36,14 @@ export default function GuitsetgelEntryPage() {
   const [msg, setMsg] = useState('');
 
   const people = useMemo(() => {
-    const list = emps.data.filter((e) => e.user_id).map((e) => ({ name: [e.last_name, e.name].filter(Boolean).join(' ').trim() || e.email || 'Ажилтан', id: e.user_id as string }));
+    // HR-ийн бүх ажилтан (апп-д бүртгүүлээгүй ч) — хэлтсийн нэртэй.
+    const seen = new Set<string>();
+    const list = emps.data
+      .map((e) => ({ name: [e.last_name, e.name].filter(Boolean).join(' ').trim() || e.email || '', id: e.user_id || '', dept: e.department_name || e.position || '' }))
+      .filter((p) => p.name && !seen.has(p.name) && seen.add(p.name));
     if (list.length) return list.sort((a, b) => a.name.localeCompare(b.name, 'mn'));
     // Local горим — Sheet дээрх нэрс.
-    return [...new Set(jobs.data.flatMap((j) => j.engineers))].sort((a, b) => a.localeCompare(b)).map((n) => ({ name: n, id: '' }));
+    return [...new Set(jobs.data.flatMap((j) => j.engineers))].sort((a, b) => a.localeCompare(b)).map((n) => ({ name: n, id: '', dept: '' }));
   }, [emps.data, jobs.data]);
 
   const insights = useMemo<Insight[]>(() => compareInsights(aggregate(jobs.data), aggregate(prev.data), ym.m), [jobs.data, prev.data, ym.m]);
@@ -47,7 +52,7 @@ export default function GuitsetgelEntryPage() {
     const s = q.trim().toLowerCase();
     return jobs.data
       .filter((j) => (!kindF || j.kind === kindF) && (!srcF || (j.source || 'sheet') === srcF))
-      .filter((j) => !s || [j.engineers.join(' '), j.contract, j.note, j.lead, (j.tasks || []).join(' ')].join(' ').toLowerCase().includes(s))
+      .filter((j) => !s || [j.engineers.join(' '), j.contract, j.note, j.lead, j.org_kind, j.damage_kind, (j.tasks || []).join(' ')].join(' ').toLowerCase().includes(s))
       .sort((a, b) => b.work_date.localeCompare(a.work_date) || (b.job_time || '').localeCompare(a.job_time || ''));
   }, [jobs.data, q, kindF, srcF]);
 
@@ -115,8 +120,8 @@ export default function GuitsetgelEntryPage() {
             <table className="w-full min-w-[1180px] border-collapse text-[12.5px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-card2 text-left text-[11.5px] font-semibold text-muted">
-                  {['№', 'Огноо', 'Цаг', 'Төрөл', 'Инженер / баг', 'Хэний эрхээр', 'Кабель таталттай', 'Гэрээний дугаар', 'Хийсэн ажил', 'Тайлбар', ''].map((h, i) => (
-                    <th key={i} className={`whitespace-nowrap border-b border-r border-line px-2.5 py-2 last:border-r-0 ${i === 0 || i === 6 ? 'text-center' : ''}`}>{h}</th>
+                  {['№', 'Огноо', 'Цаг', 'Харилцагч', 'Төрөл', 'Инженер / баг', 'Хэний эрхээр', 'Кабель таталттай', 'Гэрээний дугаар', 'Хийсэн ажил', 'Тайлбар', ''].map((h, i) => (
+                    <th key={i} className={`whitespace-nowrap border-b border-r border-line px-2.5 py-2 last:border-r-0 ${i === 0 || i === 7 ? 'text-center' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -126,7 +131,8 @@ export default function GuitsetgelEntryPage() {
                     <td className="border-r border-line px-2 py-1.5 text-center text-[11px] tabular-nums text-subtle">{i + 1}</td>
                     <td className="whitespace-nowrap border-r border-line px-2.5 py-1.5 tabular-nums text-ink">{j.work_date}</td>
                     <td className="border-r border-line px-2.5 py-1.5 tabular-nums text-ink">{j.job_time || '—'}</td>
-                    <td className="whitespace-nowrap border-r border-line px-2.5 py-1.5 text-ink">{kindLabel(j.kind)}</td>
+                    <td className="whitespace-nowrap border-r border-line px-2.5 py-1.5 text-ink">{j.customer_type === 'org' ? <>Байгууллага{j.org_kind ? <span className="block text-[11px] text-subtle">{j.org_kind}</span> : null}</> : j.kind === 'damage' ? 'Өрх · Гэмтэл' : 'Өрх'}</td>
+                    <td className="whitespace-nowrap border-r border-line px-2.5 py-1.5 text-ink">{kindLabel(j.kind)}{j.damage_kind ? <span className="block text-[11px] text-subtle">{j.damage_kind}</span> : null}</td>
                     <td className="border-r border-line px-2.5 py-1.5 text-ink">{j.engineers.join(', ')}</td>
                     <td className="border-r border-line px-2.5 py-1.5 text-ink">{j.lead || '—'}</td>
                     <td className="border-r border-line px-2.5 py-1.5 text-center">{j.cable ? <span className="font-semibold text-success">Тийм</span> : <span className="text-muted">Үгүй</span>}</td>
@@ -156,6 +162,11 @@ export default function GuitsetgelEntryPage() {
           people={people}
           kinds={kinds}
           taskOptions={taskOpts.data}
+          orgOptions={orgOpts.data}
+          onOrgOptions={async (list) => {
+            await saveOrgOptions(list);
+            orgOpts.reload();
+          }}
           onTaskOptions={async (list) => {
             await saveTaskOptions(list);
             taskOpts.reload();
@@ -174,12 +185,20 @@ export default function GuitsetgelEntryPage() {
 }
 
 /** Нэг ажил бүртгэх / засах форм — Sheet-ийн нэг мөртэй ижил талбарууд + хийсэн ажил, хэний эхээр. */
-function JobForm({ job, people, kinds, taskOptions, onTaskOptions, defaultDate, onClose, onSaved }: { job: FormJob | null; people: { name: string; id: string }[]; kinds: string[]; taskOptions: string[]; onTaskOptions: (list: string[]) => Promise<void>; defaultDate: string; onClose: () => void; onSaved: (again: boolean) => void }) {
+function JobForm({ job, people, kinds, taskOptions, onTaskOptions, orgOptions, onOrgOptions, defaultDate, onClose, onSaved }: { job: FormJob | null; people: { name: string; id: string; dept: string }[]; kinds: string[]; taskOptions: string[]; onTaskOptions: (list: string[]) => Promise<void>; orgOptions: string[]; onOrgOptions: (list: string[]) => Promise<void>; defaultDate: string; onClose: () => void; onSaved: (again: boolean) => void }) {
   const names = people.map((p) => p.name);
   const nowTime = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Ulaanbaatar', hour: '2-digit', minute: '2-digit' });
   const [date, setDate] = useState(job?.work_date || defaultDate);
   const [time, setTime] = useState(job?.job_time || nowTime);
   const [kind, setKind] = useState(job?.kind || 'complain');
+  const [customer, setCustomer] = useState<'household' | 'org'>(job?.customer_type === 'org' ? 'org' : 'household');
+  // Өрх дотор: ердийн ажил эсвэл Гэмтэл (Байгууллагад Гэмтэл байхгүй).
+  const isDamage = customer === 'household' && kind === 'damage';
+  const [orgKind, setOrgKind] = useState(job?.org_kind || '');
+  const [damage, setDamage] = useState(job?.damage_kind || '');
+  // Гэмтэл нь тусдаа хэсэг — Өрх, Байгууллагын ажлын төрөлд байхгүй.
+  const kindList = kinds.filter((k) => k !== 'damage' && (customer !== 'org' || !ORG_HIDDEN_KINDS.includes(k)));
+  const deptOf = Object.fromEntries(people.filter((p) => p.dept).map((p) => [p.name, p.dept]));
   const [main, setMain] = useState(job?.engineers[0] || '');
   const [partners, setPartners] = useState<string[]>(job?.engineers.slice(1) || []);
   const [lead, setLead] = useState(job?.lead || '');
@@ -197,7 +216,7 @@ function JobForm({ job, people, kinds, taskOptions, onTaskOptions, defaultDate, 
     if (kind === 'complain' && !note.trim()) return setErr('Гомдлын агуулгыг бичнэ үү.');
     setBusy(true);
     try {
-      await saveFormJob({ work_date: date, job_time: time, kind, engineers: crew.map((n) => ({ name: n, user_id: people.find((p) => p.name === n)?.id || null })), cable, contract, note, tasks, lead: toCyrillic(lead) }, job?.source === 'form' ? job.id : undefined, job && job.source !== 'form' ? job : undefined);
+      await saveFormJob({ work_date: date, job_time: time, kind, engineers: crew.map((n) => ({ name: n, user_id: people.find((p) => p.name === n)?.id || null })), cable, contract, note, tasks, lead: toCyrillic(lead), customer_type: customer, org_kind: orgKind, damage_kind: damage }, job?.source === 'form' ? job.id : undefined, job && job.source !== 'form' ? job : undefined);
       onSaved(again);
       if (again) {
         // Дараагийн дуудлага — баг, огноо хэвээр, бусдыг цэвэрлэнэ.
@@ -230,24 +249,51 @@ function JobForm({ job, people, kinds, taskOptions, onTaskOptions, defaultDate, 
           <Field label="Огноо"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label="Цаг"><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
         </div>
-        <Field label="Ажлын төрөл *">
-          <Select className="w-full" value={kind} onChange={(e) => setKind(e.target.value)}>
-            {kinds.map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
-          </Select>
+        <Field label="Харилцагч">
+          <div className="grid grid-cols-2 gap-1 rounded-[var(--radius)] bg-card2 p-1" role="radiogroup" aria-label="Харилцагч">
+            {([['household', 'Өрх'], ['org', 'Байгууллага']] as const).map(([v, l]) => (
+              <button key={v} type="button" role="radio" aria-checked={customer === v} onClick={() => {
+                setCustomer(v);
+                if (v === 'org' && (kind === 'damage' || ORG_HIDDEN_KINDS.includes(kind))) { setKind('complain'); setDamage(''); }
+              }} className={`rounded-[var(--radius-sm)] px-2 py-1.5 text-[13px] font-semibold ${customer === v ? 'bg-card text-ink shadow-[var(--shadow)]' : 'text-muted hover:text-ink'}`}>{l}</button>
+            ))}
+          </div>
         </Field>
-        <Field label="Ажилтан *">
-          <Select className="w-full" value={main} onChange={(e) => { setMain(e.target.value); setPartners((ps) => ps.filter((p) => p !== e.target.value)); }}>
-            <option value="">— Ажилтан сонгох —</option>
-            {[...new Set([...names, main].filter(Boolean))].map((n) => <option key={n} value={n}>{n}</option>)}
-          </Select>
+        {customer === 'household' ? (
+          <div className="grid grid-cols-2 gap-1 rounded-[var(--radius)] bg-card2 p-1" role="radiogroup" aria-label="Өрхийн дуудлага">
+            {([[false, 'Дуудлага'], [true, 'Гэмтэл']] as const).map(([v, l]) => (
+              <button key={l} type="button" role="radio" aria-checked={isDamage === v} onClick={() => { if (v) setKind('damage'); else { setKind('complain'); setDamage(''); } }} className={`rounded-[var(--radius-sm)] px-2 py-1.5 text-[13px] font-semibold ${isDamage === v ? 'bg-card text-ink shadow-[var(--shadow)]' : 'text-muted hover:text-ink'}`}>{l}</button>
+            ))}
+          </div>
+        ) : null}
+        {customer === 'org' ? <OrgPicker options={orgOptions} value={orgKind} onChange={setOrgKind} onOptions={onOrgOptions} /> : null}
+        {!isDamage ? (
+          <Field label="Дуудлагын төрөл *">
+            <Select className="w-full" value={kind} onChange={(e) => setKind(e.target.value)}>
+              {kindList.map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
+            </Select>
+          </Field>
+        ) : (
+          <Field label="Гэмтлийн төрөл *">
+            <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Гэмтлийн төрөл">
+              {DAMAGE_KINDS.map((d) => (
+                <button key={d} type="button" role="radio" aria-checked={damage === d} onClick={() => setDamage(d)} className={`rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-[12.5px] ${damage === d ? 'border-brand bg-brand-soft font-semibold text-ink' : 'border-line text-muted hover:text-ink'}`}>{d}</button>
+              ))}
+            </div>
+          </Field>
+        )}
+        <Field label="Ажилтан *" hint={names.length ? (isLocalDemo() ? `Local: Sheet дээрх ${names.length} нэр (домэйн дээр HR-ийн бүх ажилтан гарна).` : `HR-ийн ${names.length} ажилтан — нэрээр хайна.`) : undefined}>
+          <div className="rounded-[var(--radius)] border border-line bg-card">
+            <MultiPick single value={main ? [main] : []} options={names} sub={deptOf} placeholder="— Ажилтан сонгох —" onChange={(v) => { const n = v[0] || ''; setMain(n); setPartners((ps) => ps.filter((p) => p !== n)); }} className="!min-h-10 rounded-[var(--radius)] !px-3" />
+          </div>
         </Field>
         <Field label="Хамт явсан хүн" hint="Олон хүн сонгож болно; жагсаалтад байхгүй бол нэрийг бичээд Enter.">
           <div className="rounded-[var(--radius)] border border-line bg-card">
-            <MultiPick value={partners} options={names} exclude={[main]} allowCustom placeholder="Ганцаараа" onChange={setPartners} className="!min-h-10 rounded-[var(--radius)] !px-3" />
+            <MultiPick value={partners} options={names} sub={deptOf} exclude={[main]} allowCustom placeholder="Ганцаараа" onChange={setPartners} className="!min-h-10 rounded-[var(--radius)] !px-3" />
           </div>
         </Field>
         <Field label="Хэний эрхээр явсан" hint={hasLatin(lead) ? <>Кирилл болно: <b className="text-ink">{toCyrillic(lead)}</b></> : 'Латинаар бичсэн ч автоматаар кирилл болно.'}>
-          <Input value={lead} onChange={(e) => setLead(e.target.value)} onBlur={() => setLead((v) => toCyrillic(v))} placeholder="ж: Adiyasuren → Адъяасүрэн" />
+          <Input value={lead} onChange={(e) => setLead(e.target.value)} onBlur={() => setLead((v) => toCyrillic(v))} placeholder={`ж: Adiyasuren → ${toCyrillic('Adiyasuren')}`} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Кабель таталттай эсэх"><Seg v={cable} set={setCable} opts={[[true, 'Тийм'], [false, 'Үгүй']]} /></Field>
@@ -342,6 +388,45 @@ function TaskPicker({ options, value, onChange, onOptions }: { options: string[]
       <div className="mt-2 flex gap-2">
         <Input className="!h-9" placeholder="Шинэ ажил нэмэх — ж: Сплиттер сольсон" value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void add(); } }} />
         <Button variant="outline" className="!h-9 shrink-0" icon={<Plus size={14} />} disabled={!adding.trim() || busy} onClick={add}>Нэмэх</Button>
+      </div>
+    </fieldset>
+  );
+}
+
+/** Байгууллагын төрөл — Сургууль, Зочид буудал …; админ шинээр нэмж, хасаж болно (бүх админд нэг жагсаалт). */
+function OrgPicker({ options, value, onChange, onOptions }: { options: string[]; value: string; onChange: (v: string) => void; onOptions: (list: string[]) => Promise<void> }) {
+  const [list, setList] = useState(options);
+  const [adding, setAdding] = useState('');
+  const [manage, setManage] = useState(false);
+  const shown = value && !list.includes(value) ? [...list, value] : list;
+  const persist = async (next: string[]) => {
+    setList(next);
+    await onOptions(next);
+  };
+  const add = async () => {
+    const t = toCyrillic(adding.trim());
+    if (!t) return;
+    setAdding('');
+    onChange(t);
+    if (!list.some((x) => x.toLowerCase() === t.toLowerCase())) await persist([...list, t]);
+  };
+  return (
+    <fieldset>
+      <div className="mb-1.5 flex items-center justify-between">
+        <legend className="text-[12.5px] font-semibold text-ink">Байгууллагын төрөл *</legend>
+        <button type="button" className="text-[12px] font-semibold text-brand hover:underline" onClick={() => setManage((m) => !m)}>{manage ? 'Болсон' : 'Засах'}</button>
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Байгууллагын төрөл">
+        {shown.map((o) => (
+          <span key={o} className={`inline-flex items-center rounded-full border text-[12.5px] ${value === o ? 'border-brand bg-brand-soft font-semibold text-ink' : 'border-line text-muted'}`}>
+            <button type="button" role="radio" aria-checked={value === o} onClick={() => onChange(o)} className="px-3 py-1.5 hover:text-ink">{o}</button>
+            {manage ? <button type="button" aria-label={`${o} хасах`} onClick={() => { if (window.confirm(`«${o}»-г жагсаалтаас хасах уу?`)) { void persist(list.filter((x) => x !== o)); if (value === o) onChange(''); } }} className="-ml-1.5 pr-2.5 text-subtle hover:text-danger"><Trash2 size={13} /></button> : null}
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <Input className="!h-9" placeholder="Шинэ төрөл нэмэх — ж: Эмнэлэг" value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void add(); } }} />
+        <Button variant="outline" className="!h-9 shrink-0" icon={<Plus size={14} />} disabled={!adding.trim()} onClick={add}>Нэмэх</Button>
       </div>
     </fieldset>
   );

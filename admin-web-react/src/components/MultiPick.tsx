@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 
 /** Checkbox-той сонголтын жагсаалт (хүснэгтийн нүдэнд, popover нь fixed байрлалтай). */
-export function MultiPick({ value, options, onChange, placeholder, allowCustom, exclude = [], className = '' }: { value: string[]; options: string[]; onChange: (v: string[]) => void; placeholder: string; allowCustom?: boolean; exclude?: string[]; className?: string }) {
+export function MultiPick({ value, options, onChange, placeholder, allowCustom, exclude = [], className = '', single = false, sub = {} }: { value: string[]; options: string[]; onChange: (v: string[]) => void; placeholder: string; allowCustom?: boolean; exclude?: string[]; className?: string; single?: boolean; sub?: Record<string, string> }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const btn = useRef<HTMLButtonElement>(null);
@@ -34,15 +34,23 @@ export function MultiPick({ value, options, onChange, placeholder, allowCustom, 
     };
   }, [open]);
   const all = [...new Set([...options, ...value])].filter((o) => !exclude.includes(o));
-  const shown = all.filter((o) => o.toLowerCase().includes(q.trim().toLowerCase()));
-  const toggle = (o: string) => onChange(value.includes(o) ? value.filter((x) => x !== o) : [...value, o]);
+  const shown = all.filter((o) => `${o} ${sub[o] || ''}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const toggle = (o: string) => {
+    if (single) {
+      onChange([o]);
+      setOpen(false);
+      setQ('');
+      return;
+    }
+    onChange(value.includes(o) ? value.filter((x) => x !== o) : [...value, o]);
+  };
   const custom = allowCustom && q.trim() && !all.some((o) => o.toLowerCase() === q.trim().toLowerCase()) ? q.trim() : '';
 
   return (
     <>
       <button ref={btn} type="button" onClick={() => setOpen((o) => !o)} className={`flex min-h-9 w-full items-center gap-1 px-2 py-1 text-left text-[12.5px] hover:bg-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${className}`} aria-haspopup="listbox" aria-expanded={open}>
         <span className="flex min-w-0 flex-1 flex-wrap gap-1">
-          {value.length ? value.map((v) => <span key={v} className="rounded bg-brand-soft px-1.5 py-0.5 text-[11.5px] font-medium text-brand">{v}</span>) : <span className="text-subtle">{placeholder}</span>}
+          {value.length ? value.map((v) => (single ? <span key={v} className="text-[13px] text-ink">{v}</span> : <span key={v} className="rounded bg-brand-soft px-1.5 py-0.5 text-[11.5px] font-medium text-brand">{v}</span>)) : <span className="text-subtle">{placeholder}</span>}
         </span>
         <ChevronDown size={13} className="shrink-0 text-subtle" />
       </button>
@@ -54,7 +62,7 @@ export function MultiPick({ value, options, onChange, placeholder, allowCustom, 
                 <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Хайх…" className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-subtle"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && custom) {
-                      onChange([...value, custom]);
+                      onChange(single ? [custom] : [...value, custom]);
                       setQ('');
                     }
                   }} />
@@ -64,13 +72,14 @@ export function MultiPick({ value, options, onChange, placeholder, allowCustom, 
                   const on = value.includes(o);
                   return (
                     <button key={o} type="button" role="option" aria-selected={on} onClick={() => toggle(o)} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-ink hover:bg-hover">
-                      <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? 'border-brand bg-brand text-white' : 'border-[var(--border-strong)]'}`}>{on ? <Check size={12} strokeWidth={3} /> : null}</span>
-                      {o}
+                      <span className={`grid h-4 w-4 shrink-0 place-items-center border ${single ? 'rounded-full' : 'rounded'} ${on ? 'border-brand bg-brand text-white' : 'border-[var(--border-strong)]'}`}>{on ? <Check size={12} strokeWidth={3} /> : null}</span>
+                      <span className="min-w-0 flex-1">{o}</span>
+                      {sub[o] ? <span className="shrink-0 text-[11px] text-subtle">{sub[o]}</span> : null}
                     </button>
                   );
                 })}
                 {custom ? (
-                  <button type="button" onClick={() => { onChange([...value, custom]); setQ(''); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] font-semibold text-brand hover:bg-hover"><Plus size={14} /> «{custom}» нэмэх</button>
+                  <button type="button" onClick={() => { onChange(single ? [custom] : [...value, custom]); setQ(''); if (single) setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] font-semibold text-brand hover:bg-hover"><Plus size={14} /> «{custom}» нэмэх</button>
                 ) : null}
                 {!shown.length && !custom ? <p className="px-3 py-2 text-[12px] text-subtle">Олдсонгүй</p> : null}
               </div>
