@@ -292,7 +292,7 @@ export default function GuidePage() {
         </Step>
 
         <Step n="8" title="Актаа хянах, засах" shot={
-          <Phone title="Акт" right={<Mark n={2} note="Засах" side="bottom"><span className="flex items-center gap-1 rounded-full bg-[#e6ece9] px-3 py-1 text-[11px] font-semibold"><PenLine size={12} />Засах</span></Mark>}>
+          <Phone title="Акт" right={<Mark n={2} note="Засах" side="left"><span className="flex items-center gap-1 rounded-full bg-[#e6ece9] px-3 py-1 text-[11px] font-semibold"><PenLine size={12} />Засах</span></Mark>}>
             <div className="rounded-2xl bg-white p-3 shadow-sm">
               <div className="flex items-center justify-between"><b className="text-[14px]">Сүлжээний угсралт</b>
                 <Mark n={1} note="Төлөв" side="bottom"><span className="rounded-full bg-[#e1ecff] px-2 py-0.5 text-[10px] font-semibold text-[#2160c4]">Илгээсэн</span></Mark>
