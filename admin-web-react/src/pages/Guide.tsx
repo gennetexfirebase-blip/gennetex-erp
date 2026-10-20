@@ -104,15 +104,15 @@ const WCard = ({ title, children, actions }: { title: string; children: ReactNod
 );
 
 /* ── Алхам ───────────────────────────────────────────────────────── */
-function Step({ n, title, children, shot }: { n: string; title: string; children: ReactNode; shot: ReactNode }) {
+function Step({ n, title, children, shot, wide = false }: { n: string; title: string; children: ReactNode; shot: ReactNode; wide?: boolean }) {
   return (
-    <section className="guide-step grid gap-8 border-t border-line py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-center">
+    <section className={`guide-step grid gap-8 border-t border-line py-10 ${wide ? '' : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-center'}`}>
       <div>
         <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-[12px] font-bold text-brand">Алхам {n}</p>
         <h3 className="text-[20px] font-bold leading-tight text-ink">{title}</h3>
         <div className="mt-3 space-y-2 text-[14px] leading-6 text-muted">{children}</div>
       </div>
-      <div className="flex justify-center overflow-x-auto px-2 py-6 md:px-16">{shot}</div>
+      <div className={`flex justify-center px-2 py-8 md:px-40 ${wide ? 'mx-auto w-full max-w-5xl' : ''}`}>{shot}</div>
     </section>
   );
 }
@@ -223,7 +223,7 @@ export default function GuidePage() {
 
         <Step n="4" title="Ашигласан бараа материалаа нэмнэ" shot={
           <Phone title="Шинэ акт">
-            <PCard title="Бараа материал" action={<Mark n={1} note="Мөр нэмэх" side="left"><span className="text-[12px] font-semibold text-[#0c8a62]">+ Мөр нэмэх</span></Mark>}>
+            <PCard title="Бараа материал" action={<Mark n={1} note="Мөр нэмэх" side="top"><span className="text-[12px] font-semibold text-[#0c8a62]">+ Мөр нэмэх</span></Mark>}>
               <div className="rounded-xl border border-[#e3e9e6] p-2.5">
                 <div className="mb-1.5 flex justify-between text-[11px]"><b>Материал 1</b><span className="text-[#e5484d]">Устгах</span></div>
                 <Mark n={2} note="Нэр, тоо, нэгж" side="right">
@@ -295,7 +295,7 @@ export default function GuidePage() {
           <Phone title="Акт" right={<Mark n={2} note="Засах" side="bottom"><span className="flex items-center gap-1 rounded-full bg-[#e6ece9] px-3 py-1 text-[11px] font-semibold"><PenLine size={12} />Засах</span></Mark>}>
             <div className="rounded-2xl bg-white p-3 shadow-sm">
               <div className="flex items-center justify-between"><b className="text-[14px]">Сүлжээний угсралт</b>
-                <Mark n={1} note="Төлөв" side="left"><span className="rounded-full bg-[#e1ecff] px-2 py-0.5 text-[10px] font-semibold text-[#2160c4]">Илгээсэн</span></Mark>
+                <Mark n={1} note="Төлөв" side="bottom"><span className="rounded-full bg-[#e1ecff] px-2 py-0.5 text-[10px] font-semibold text-[#2160c4]">Илгээсэн</span></Mark>
               </div>
               <p className="mt-1 text-[11px] text-[#5f6d67]">АКТ-2026-0142 · Юнивишн</p>
             </div>
@@ -309,7 +309,7 @@ export default function GuidePage() {
         {/* ═══════════════ ВЕБ ═══════════════ */}
         <h2 id="web" className="scroll-mt-20 border-t border-line pt-12 text-[26px] font-bold text-ink"><Globe className="mr-2 inline text-brand" size={26} />Компьютерээс — akt.gennetex.com</h2>
 
-        <Step n="1" title="akt.gennetex.com-д Google-ээр нэвтэрнэ" shot={
+        <Step wide n="1" title="akt.gennetex.com-д Google-ээр нэвтэрнэ" shot={
           <Browser url="https://akt.gennetex.com">
             <div className="mx-auto mt-6 max-w-xs rounded-xl border border-[#e3e9e6] bg-white p-5 text-center">
               <p className="text-[15px] font-bold">Тавтай морил</p>
@@ -321,7 +321,7 @@ export default function GuidePage() {
           <Li n={1}>Хөтчөөр <b className="text-ink">akt.gennetex.com</b>-г нээж, <b className="text-ink">«Google-ээр нэвтрэх»</b> дарна. Апп-д нэвтэрдэг Gmail-ээ сонгоно.</Li>
         </Step>
 
-        <Step n="2" title="«Акт үүсгэх» товчийг дарна" shot={
+        <Step wide n="2" title="«Акт үүсгэх» товчийг дарна" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts">
             <div className="flex items-center justify-between"><b className="text-[15px]">Актын бүртгэл</b><Mark n={1} note="Шинэ акт" side="bottom"><WBtn icon={<FilePlus2 size={13} />}>Акт үүсгэх</WBtn></Mark></div>
             <div className="flex gap-2"><span className="flex h-8 flex-1 items-center gap-1.5 rounded-md border border-[#d9e1dd] bg-white px-2 text-[11px] text-[#5f6d67]"><Search size={12} />Хайх…</span></div>
@@ -331,13 +331,13 @@ export default function GuidePage() {
           <Li n={1}>Баруун дээрх <b className="text-ink">«Акт үүсгэх»</b> дарна.</Li>
         </Step>
 
-        <Step n="3" title="Төсөл сонгох эсвэл гараар үүсгэх" shot={
+        <Step wide n="3" title="Төсөл сонгох эсвэл гараар үүсгэх" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts/new">
             <WCard title="Акт үүсгэх">
               <div className="rounded-md border border-[#bfe3d3] bg-[#e8f6ef] p-3">
                 <p className="text-[12px] font-semibold">Эхлээд төсөл / объект / ажлын захиалга сонгоно уу</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Mark n={1} note="Төсөл сонгох" side="bottom" className="min-w-[160px] flex-1"><WField label="" value="Төсөл / Объект сонгох" select /></Mark>
+                  <Mark n={1} note="Төсөл сонгох" side="top" className="min-w-[160px] flex-1"><WField label="" value="Төсөл / Объект сонгох" select /></Mark>
                   <Mark n={2} note="Гараар" side="right"><WBtn outline>Гараар үүсгэх</WBtn></Mark>
                 </div>
               </div>
@@ -348,12 +348,12 @@ export default function GuidePage() {
           <Li n={2}>Жагсаалтад байхгүй бол <b className="text-ink">«Гараар үүсгэх»</b> дарна.</Li>
         </Step>
 
-        <Step n="4" title="1.1 Үндсэн мэдээлэл" shot={
+        <Step wide n="4" title="1.1 Үндсэн мэдээлэл" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
             <div className="flex gap-4 border-b border-[#e3e9e6] text-[11px] font-semibold">{['Үндсэн мэдээлэл', 'Хүлээлцэх хүмүүс', 'Урьдчилан харах', 'PDF / Word'].map((t, i) => <span key={t} className={`pb-2 ${i === 0 ? 'border-b-2 border-[#0c8a62] text-[#0c8a62]' : 'text-[#5f6d67]'}`}>{i + 1}. {t}</span>)}</div>
             <WCard title="1.1 Үндсэн мэдээлэл">
               <div className="grid grid-cols-2 gap-2.5">
-                <Mark n={1} note="Загвар, төрөл" side="top"><WField label="Актын загвар" req select value="Ажил гүйцэтгэлийн акт" /></Mark>
+                <Mark n={1} note="Загвар, төрөл" side="left"><WField label="Актын загвар" req select value="Ажил гүйцэтгэлийн акт" /></Mark>
                 <WField label="Актын төрөл" req select value="Ажил гүйцэтгэлийн акт" />
                 <WField label="Төсөл / Объект" req value="Сүлжээний угсралт" />
                 <WField label="Хаяг / Байршил" req value="БЗД, 26-р хороо" />
@@ -369,11 +369,11 @@ export default function GuidePage() {
           <Li n={3}><b className="text-ink">Гүйцэтгэсэн ажил</b>-аа бичнэ. Улаан <b className="text-[#e5484d]">*</b> тэмдэгтэй талбар заавал.</Li>
         </Step>
 
-        <Step n="5" title="1.2 Материал ба 1.3 Шаардлага" shot={
+        <Step wide n="5" title="1.2 Материал ба 1.3 Шаардлага" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
             <WCard title="1.2 Материал" actions={<>
-              <Mark n={1} note="ERP-с" side="top"><WBtn outline icon={<CloudDownload size={12} />}>ERP-с материал татах</WBtn></Mark>
-              <Mark n={2} note="Гараар" side="top"><WBtn icon={<Plus size={12} />}>Материал нэмэх</WBtn></Mark>
+              <Mark n={1} note="ERP-с татах" side="left"><WBtn outline icon={<CloudDownload size={12} />}>ERP-с материал татах</WBtn></Mark>
+              <Mark n={2} note="Гараар нэмэх" side="top"><WBtn icon={<Plus size={12} />}>Материал нэмэх</WBtn></Mark>
             </>}>
               <div className="grid grid-cols-3 gap-2"><WField label="Бараа материал" value="Шилэн кабель" /><WField label="Хэмжих нэгж" value="м" /><WField label="Тоо хэмжээ" value="120" /></div>
             </WCard>
@@ -387,10 +387,10 @@ export default function GuidePage() {
           <Li n={3}>Шаардлага бүрт <b className="text-ink">Тийм / Үгүй / N/A</b>; «Үгүй» бол шалтгаан заавал.</Li>
         </Step>
 
-        <Step n="6" title="1.4 Ажлын зураг" shot={
+        <Step wide n="6" title="1.4 Ажлын зураг" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
             <WCard title="1.4 Ажлын зураг" actions={<>
-              <Mark n={1} note="ERP зураг" side="top"><WBtn outline icon={<ImagePlus size={12} />}>ERP-с зураг сонгох</WBtn></Mark>
+              <Mark n={1} note="ERP зураг" side="left"><WBtn outline icon={<ImagePlus size={12} />}>ERP-с зураг сонгох</WBtn></Mark>
               <Mark n={2} note="Компьютерээс" side="top"><WBtn icon={<Upload size={12} />}>Зураг upload</WBtn></Mark>
             </>}>
               <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <div key={i}><span className="grid h-16 place-items-center rounded bg-[#dfe7e3] text-[#5f6d67]"><ImageIcon size={18} /></span>{i === 1 ? <Mark n={3} note="Тайлбар" side="bottom" className="mt-1.5"><WField label="" value="Зургийн тайлбар" /></Mark> : <div className="mt-1.5"><WField label="" value="Тайлбар" /></div>}</div>)}</div>
@@ -402,7 +402,7 @@ export default function GuidePage() {
           <Li n={3}>Зураг бүрт <b className="text-ink">тайлбар</b> бичнэ. Чирж дарааллыг өөрчилнө.</Li>
         </Step>
 
-        <Step n="7" title="2. Хүлээлцэх хүмүүс ба гарын үсэг" shot={
+        <Step wide n="7" title="2. Хүлээлцэх хүмүүс ба гарын үсэг" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
             <WCard title="2. Хүлээлцэх хүмүүс" actions={<Mark n={1} note="Хүн нэмэх" side="left"><WBtn icon={<Plus size={12} />}>Хүн нэмэх</WBtn></Mark>}>
               <div className="grid grid-cols-2 gap-2"><WField label="Хүлээлцэх хэсэг" req select value="Захиалагч" /><WField label="Нэр" req value="Д.Болд" /></div>
@@ -417,7 +417,7 @@ export default function GuidePage() {
           <Li n={2}>Гарын үсгийг <b className="text-ink">«Зурах»</b>-аар дэлгэц дээр зурна эсвэл зураг upload хийнэ.</Li>
         </Step>
 
-        <Step n="8" title="Урьдчилан харж, хадгалж, илгээнэ" shot={
+        <Step wide n="8" title="Урьдчилан харж, хадгалж, илгээнэ" shot={
           <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
             <div className="mx-auto h-40 w-32 rounded border border-[#d9e1dd] bg-white p-2 shadow"><div className="mb-1 h-2 w-16 rounded bg-[#d9e1dd]" /><div className="space-y-1">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-1.5 rounded bg-[#eef2f0]" />)}</div></div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e3e9e6] pt-3">
