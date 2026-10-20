@@ -39,15 +39,15 @@ function Mark({ n, children, note, side = 'right', className = '' }: { n: number
 function Phone({ title, right, children, bottom }: { title: string; right?: ReactNode; children: ReactNode; bottom?: ReactNode }) {
   return (
     <div className="mx-auto w-[300px] shrink-0 rounded-[38px] border-[10px] border-[#1b1d1c] bg-[#1b1d1c] shadow-xl">
-      <div className="relative flex h-[560px] flex-col overflow-hidden rounded-[28px] bg-[#f4f7f5] text-[#16201c]">
+      <div className="relative flex h-[560px] flex-col rounded-[28px] bg-[#f4f7f5] text-[#16201c]">
         <div className="flex items-center justify-between px-5 pb-1 pt-2 text-[10px] font-semibold"><span>9:41</span><span className="h-4 w-16 rounded-full bg-[#1b1d1c]" /><span>100%</span></div>
         <div className="flex items-center gap-2 border-b border-[#e3e9e6] bg-white px-4 py-2.5">
           <ArrowLeft size={18} className="text-[#45534d]" />
           <span className="flex-1 truncate text-[15px] font-bold">{title}</span>
           {right}
         </div>
-        <div className="flex-1 space-y-3 overflow-hidden p-3">{children}</div>
-        {bottom ? <div className="flex gap-2 border-t border-[#e3e9e6] bg-white p-3">{bottom}</div> : null}
+        <div className="flex-1 space-y-3 p-3">{children}</div>
+        {bottom ? <div className="flex gap-2 rounded-b-[28px] border-t border-[#e3e9e6] bg-white p-3">{bottom}</div> : null}
       </div>
     </div>
   );
