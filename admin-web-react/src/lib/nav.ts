@@ -117,6 +117,7 @@ export const NAV: NavItem[] = [
   { label: 'Бензин зарцуулалт', to: '/finance/fuel', icon: GasPump, site: 'sanhuu' },
   { label: 'Гүйцэтгэл', to: '/finance/performance', icon: Trophy, site: 'sanhuu' },
   { label: 'Гүйцэтгэлийн шинжилгээ', to: '/guitsetgel', icon: ChartBar, site: 'guitsetgel' },
+  { label: 'Ажил бүртгэх', to: '/ajil-burtgel', icon: Table, site: 'guitsetgel' },
   { label: 'Машины мэдээлэл солих', to: '/vehicles', icon: QrCode },
   { label: 'Хамт яваа багууд', to: '/companions', icon: UsersThree },
   { label: 'Дуудлага', to: '/service-calls', icon: PhoneCall },

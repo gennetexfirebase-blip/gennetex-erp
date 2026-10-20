@@ -13,6 +13,7 @@ import MealMoneyPage from './pages/MealMoney';
 import HaabPage from './pages/Haab';
 import PerformancePage from './pages/Performance';
 import GuitsetgelPage from './pages/Guitsetgel';
+import GuitsetgelEntryPage from './pages/GuitsetgelEntry';
 import HaabPublicPage from './pages/HaabPublic';
 import GuidePage from './pages/Guide';
 import FuelPage from './pages/Fuel';
@@ -137,6 +138,7 @@ export default function App() {
           <Route path="/haab" element={<HaabPage />} />
           <Route path="/finance/performance" element={<PerformancePage />} />
           <Route path="/guitsetgel" element={<GuitsetgelPage />} />
+          <Route path="/ajil-burtgel" element={<GuitsetgelEntryPage />} />
           <Route path="/finance/fuel" element={<FuelPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/companions" element={<CompanionsPage />} />

@@ -4,7 +4,7 @@ import { Award, Cable, ChevronLeft, ChevronRight, Clock, Lightbulb, RefreshCw, U
 import { Button, Card, EmptyState, ErrorState, KpiRow, Loading, Modal, PageHeader, StatCard } from '../components/ui';
 import { DonutChart, HBarChart } from '../components/charts';
 import { fetchEmployees, useAsync, type Employee } from '../lib/data';
-import { fetchAliases, fetchPerfJobs, kindLabel, syncSheet, type PerfAlias, type PerfJob } from '../lib/perf';
+import { aggregate, compareInsights, fetchAliases, fetchJobsAny, isLocalDemo, kindLabel, syncSheet, type FormJob, type PerfAlias, type PerfJob } from '../lib/perf';
 import { useTheme } from '../lib/theme';
 
 /**
@@ -24,9 +24,15 @@ export default function GuitsetgelPage() {
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const from = `${ym.y}-${pad(ym.m + 1)}-01`;
   const to = `${ym.y}-${pad(ym.m + 1)}-${pad(new Date(ym.y, ym.m + 1, 0).getDate())}`;
-  const jobs = useAsync<PerfJob[]>(() => fetchPerfJobs(from, to), [from, to], []);
-  const aliases = useAsync<PerfAlias[]>(fetchAliases, [], []);
-  const emps = useAsync<Employee[]>(fetchEmployees, [], []);
+  const local = isLocalDemo();
+  const jobs = useAsync<FormJob[]>(() => fetchJobsAny(from, to), [from, to], []);
+  const pY = ym.m ? ym.y : ym.y - 1;
+  const pM = ym.m ? ym.m - 1 : 11;
+  const pFrom = `${pY}-${pad(pM + 1)}-01`;
+  const pTo = `${pY}-${pad(pM + 1)}-${pad(new Date(pY, pM + 1, 0).getDate())}`;
+  const prevJobs = useAsync<FormJob[]>(() => fetchJobsAny(pFrom, pTo), [pFrom, pTo], []);
+  const aliases = useAsync<PerfAlias[]>(() => (local ? Promise.resolve([]) : fetchAliases()), [], []);
+  const emps = useAsync<Employee[]>(() => (local ? Promise.resolve([]) : fetchEmployees()), [], []);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState('');
   const [person, setPerson] = useState<string | null>(null);
@@ -102,6 +108,8 @@ export default function GuitsetgelPage() {
   const insights = useMemo(() => {
     const out: string[] = [];
     if (!a.total) return out;
+    // Хамгийн их ажилласан баг/хүн + өмнөх сартай харьцуулалт (өвлийн улирлын засвартай).
+    out.push(...compareInsights(aggregate(jobs.data, nameOf), aggregate(prevJobs.data, nameOf), ym.m).map((x) => x.text));
     const best = a.teams.filter((t) => t.days >= 3)[0];
     const worst = [...a.teams].filter((t) => t.days >= 3).sort((x, y) => x.perDay - y.perDay)[0];
     if (best) out.push(`Хамгийн бүтээмжтэй баг: ${best.name} — өдөрт дунджаар ${best.perDay.toFixed(1)} ажил (${best.days} өдөр).`);
@@ -113,7 +121,7 @@ export default function GuitsetgelPage() {
     const lowPeople = a.people.filter((p) => p.days >= 3 && p.perDay < a.perTeamDay * 0.7);
     if (lowPeople.length) out.push(`Дунджаас 30%-иар бага: ${lowPeople.slice(0, 4).map((p) => p.name).join(', ')}. Сургалт, хамтрагчийг өөрчлөх эсэхийг шийд.`);
     return out;
-  }, [a]);
+  }, [a, jobs.data, prevJobs.data, nameOf, ym.m]);
 
   const sync = async () => {
     setSyncing(true);
@@ -148,10 +156,19 @@ export default function GuitsetgelPage() {
               <span className="min-w-[96px] text-center text-[13px] font-semibold tabular-nums text-ink">{ym.y}-{pad(ym.m + 1)}</span>
               <Button variant="outline" className="!px-2.5" aria-label="Дараагийн сар" onClick={() => setYm(({ y, m }) => (m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }))}><ChevronRight size={16} /></Button>
             </div>
-            <Button icon={<RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />} disabled={syncing} onClick={sync}>{syncing ? 'Татаж байна…' : 'Sheet-ээс татах'}</Button>
+            {local ? (
+              <Button variant="outline" icon={<RefreshCw size={15} />} onClick={jobs.reload}>Sheet дахин унших</Button>
+            ) : (
+              <Button variant="outline" icon={<RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />} disabled={syncing} onClick={sync}>{syncing ? 'Татаж байна…' : 'Sheet-ээс татах'}</Button>
+            )}
           </>
         }
       />
+      {local ? (
+        <p className="mb-4 rounded-[var(--radius)] border border-warning/30 bg-warning-soft px-4 py-2.5 text-[13px] text-warning">
+          Local горим (нэвтрэлтгүй): Google Sheet-ийг шууд уншиж байна. «Ажил бүртгэх»-ээр оруулсан ажил зөвхөн энэ компьютерт хадгалагдана.
+        </p>
+      ) : null}
       {msg ? <p className="mb-4 rounded-[var(--radius)] bg-card2 px-4 py-2.5 text-[13px] text-ink" role="status">{msg}</p> : null}
 
       {jobs.loading && !jobs.data.length ? <Loading /> : jobs.error ? <ErrorState text={jobs.error} onRetry={jobs.reload} /> : !a.total ? (

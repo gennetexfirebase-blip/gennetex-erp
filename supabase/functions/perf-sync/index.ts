@@ -87,26 +87,39 @@ async function handle(req: Request) {
   const iContract = col(/гэрээ|contract/);
   if (iDate < 0 || iKind < 0 || iEng < 0) return { status: 422, body: { error: "Sheet-ийн толгой мөр таарахгүй (огноо, төрөл, инженер)." } };
 
+  // guitsetgel-ээс засварласан Sheet-ийн мөрүүд — дахин оруулахгүй (засвар нь form мөр болж хадгалагдсан).
+  const { data: ov } = await db.from("perf_jobs").select("sheet_key").eq("source", "form").not("sheet_key", "is", null);
+  const overridden = new Set((ov || []).map((r: { sheet_key: string }) => r.sheet_key));
+  const keyOf = (d: string, kind: string, engineers: string[], time: string | null) => [d, kind, engineers.map((e) => e.toLowerCase()).join(","), time || ""].join("|");
+
   const jobs = [];
+  let skipped = 0;
   for (let n = 0; n < data.length; n++) {
     const row = data[n];
     const d = isoDate(row[iDate] || "");
     const kind = norm(row[iKind] || "").toLowerCase();
     const engineers = (row[iEng] || "").split(/[,;+/]/).map(norm).filter(Boolean);
     if (!d || !kind || !engineers.length) continue;
+    const jobTime = iTime >= 0 ? norm(row[iTime] || "") || null : null;
+    if (overridden.has(keyOf(d, kind, engineers, jobTime))) {
+      skipped++;
+      continue;
+    }
     jobs.push({
       sheet_row: n + 2,
       work_date: d,
       kind,
       engineers,
-      job_time: iTime >= 0 ? norm(row[iTime] || "") || null : null,
+      job_time: jobTime,
       cable: iCable >= 0 ? yes(row[iCable] || "") : false,
       contract: iContract >= 0 ? norm(row[iContract] || "") || null : null,
+      source: "sheet",
     });
   }
 
   // Бүтнээр нь солино — Sheet дээр засагдсан/устгагдсан мөр ч тусна.
-  const del = await db.from("perf_jobs").delete().gte("id", 0);
+  // Зөвхөн Sheet-ийн мөрийг солино — guitsetgel-ийн формоор гараар бүртгэсэн (source=form) хэвээр.
+  const del = await db.from("perf_jobs").delete().eq("source", "sheet");
   if (del.error) return { status: 500, body: { error: del.error.message } };
   for (let i = 0; i < jobs.length; i += 500) {
     const ins = await db.from("perf_jobs").insert(jobs.slice(i, i + 500));
@@ -119,7 +132,7 @@ async function handle(req: Request) {
   await db.from("perf_settings").update({ last_sync_at: new Date().toISOString(), last_sync_rows: jobs.length }).eq("id", 1);
 
   const dates = jobs.map((j) => j.work_date).sort();
-  return { status: 200, body: { rows: jobs.length, from: dates[0] || null, to: dates[dates.length - 1] || null, kinds, aliases: aliases.length } };
+  return { status: 200, body: { rows: jobs.length, skipped, from: dates[0] || null, to: dates[dates.length - 1] || null, kinds, aliases: aliases.length } };
 }
 
 Deno.serve(async (req) => {

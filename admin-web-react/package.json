@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b --noCheck && vite build",
     "preview": "vite preview",
-    "copy:legacy": "node scripts/copy-legacy.cjs"
+    "copy:legacy": "node scripts/copy-legacy.cjs",
+    "dev:guitsetgel": "vite --host 127.0.0.1 --port 5180 --strictPort --open \"/gennetex/admin/guitsetgel?design=1&site=guitsetgel\""
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0",

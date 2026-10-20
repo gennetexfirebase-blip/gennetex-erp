@@ -46,6 +46,17 @@ export default defineConfig({
   // Төслийн үндсэн `src/` болон `admin-web/` доторх ХУВААЛЦСАН модулиудыг
   // (ирцийн тайлан угсрагч, xlsx бичигч) шууд импортлохыг зөвшөөрнө —
   // ингэснээр код давхардахгүй, апп ба вэбээс татсан Excel ижил гарна.
-  server: { fs: { allow: ['..'] } },
+  server: {
+    fs: { allow: ['..'] },
+    // Local (нэвтрэлтгүй) guitsetgel — гүйцэтгэлийн Google Sheet-ийг шууд уншина (CORS-гүй).
+    proxy: {
+      '/__perf-sheet': {
+        target: 'https://docs.google.com',
+        changeOrigin: true,
+        followRedirects: true,
+        rewrite: () => '/spreadsheets/d/1JAaJXbB8F1IAmiV5NOnGjs22mrOZ5fGRYKMNLT_6PRM/export?format=csv&gid=1683111914',
+      },
+    },
+  },
   build: { outDir: 'dist', sourcemap: false },
 });
