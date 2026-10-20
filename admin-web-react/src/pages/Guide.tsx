@@ -263,9 +263,9 @@ export default function GuidePage() {
           <Phone title="Шинэ акт">
             <PCard title="Зураг">
               <div className="grid grid-cols-3 gap-1.5">{[0, 1].map((i) => <span key={i} className="grid aspect-square place-items-center rounded-lg bg-[#dfe7e3] text-[#5f6d67]"><ImageIcon size={18} /></span>)}
-                <Mark n={1} note="Камераар" side="bottom"><span className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#9fb3aa] text-[10px] font-semibold"><Camera size={16} />Камер</span></Mark>
+                <Mark n={1} note="Камераар" side="right"><span className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#9fb3aa] text-[10px] font-semibold"><Camera size={16} />Камер</span></Mark>
               </div>
-              <Mark n={2} note="Галерейгаас" side="right" className="mt-6 w-1/3"><span className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#9fb3aa] text-[10px] font-semibold"><Images size={16} />Сангаас</span></Mark>
+              <Mark n={2} note="Галерейгаас" side="left" className="mt-6 w-1/3"><span className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#9fb3aa] text-[10px] font-semibold"><Images size={16} />Сангаас</span></Mark>
             </PCard>
           </Phone>
         }>
