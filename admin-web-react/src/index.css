@@ -669,3 +669,19 @@ kbd.kbd {
 :root[data-theme='dark'] .sig-img {
   filter: invert(1) brightness(1.1);
 }
+
+/* Гарын авлага (guide.gennetex.com) — энгийнээр бүтэн хуудсаар хэвлэнэ. */
+@media print {
+  html.print-plain body * {
+    visibility: visible !important;
+  }
+  html.print-plain header.sticky {
+    position: static !important;
+  }
+  html.print-plain .guide-step {
+    break-inside: avoid;
+  }
+  html.print-plain .guide-mark span {
+    display: flex !important;
+  }
+}

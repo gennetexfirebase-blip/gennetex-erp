@@ -14,6 +14,7 @@ import HaabPage from './pages/Haab';
 import PerformancePage from './pages/Performance';
 import GuitsetgelPage from './pages/Guitsetgel';
 import HaabPublicPage from './pages/HaabPublic';
+import GuidePage from './pages/Guide';
 import FuelPage from './pages/Fuel';
 import VehiclesPage from './pages/Vehicles';
 import CompanionsPage from './pages/Companions';
@@ -63,6 +64,8 @@ export default function App() {
 
   // Хувийн хаяг — хаана ч холбоосгүй, зөвхөн эзэмшигч (OwnerSite дотор шалгана).
   if (host === OWNER_HOST) return <OwnerSite />;
+  // guide.gennetex.com — ажилтанд зориулсан гарын авлага (нэвтрэлтгүй).
+  if (host === 'guide.gennetex.com' || (isTestHost() && window.location.pathname.startsWith('/guide'))) return <GuidePage />;
 
   // link.gennetex.com — бүх домэйны жагсаалт (зөвхөн админ).
   if (linkHost) return <LinkSite />;
