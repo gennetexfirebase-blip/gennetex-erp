@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Users, Search, UserPlus, X, GraduationCap, CheckCircle2, Trash2 } from 'lucide-react';
+import { Users, Search, UserPlus, X, GraduationCap, CheckCircle2, Trash2, Pencil } from 'lucide-react';
 import {
   PageHeader,
   Card,
@@ -21,7 +21,9 @@ import {
   fetchEmployeeTrainings,
   fetchEmployees,
   fetchDepartments,
+  setEmployeeRole,
   setEmployeeTrainingCompleted,
+  updateEmployee,
   useAsync,
   type Employee,
   type EmployeeTraining,
@@ -53,6 +55,9 @@ export default function EmployeesPage() {
   const [form, setForm] = useState({ last_name: '', name: '', email: '', position: '', phone: '', address: '', department_id: '', role: 'employee' });
   const { data: departments } = useAsync(fetchDepartments, [], [] as any[]);
   const { data: rows, loading, error, reload } = useAsync<Employee[]>(fetchEmployees, [], []);
+  const [editing, setEditing] = useState<Employee | null>(null);
+  // Хөгжүүлэгчийн бүртгэлийг зөвхөн хөгжүүлэгч засна.
+  const canEdit = (e: Employee) => canAdd && (isSuperAdmin || e.role !== 'superadmin');
 
   const filtered = useMemo(
     () =>
@@ -330,7 +335,14 @@ export default function EmployeesPage() {
                       <div className="flex items-center gap-2.5">
                         <Avatar name={e.name} src={e.avatar_url} size={30} />
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-ink">{e.name}</p>
+                          {canEdit(e) ? (
+                            <button type="button" onClick={() => setEditing(e)} className="group flex max-w-full items-center gap-1.5 truncate text-left font-medium text-ink hover:text-brand" title="Мэдээлэл засах">
+                              <span className="truncate">{[e.last_name, e.name].filter(Boolean).join(' ') || e.name}</span>
+                              <Pencil size={12} className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                            </button>
+                          ) : (
+                            <p className="truncate font-medium text-ink">{[e.last_name, e.name].filter(Boolean).join(' ') || e.name}</p>
+                          )}
                           <p className="truncate text-[11px] text-subtle">{e.email}</p>
                         </div>
                       </div>
@@ -356,6 +368,114 @@ export default function EmployeesPage() {
           </div>
         )}
       </Card>
+      {editing ? (
+        <EditEmployee
+          employee={editing}
+          departments={departments}
+          isSuperAdmin={isSuperAdmin}
+          onClose={() => setEditing(null)}
+          onSaved={async (msg) => {
+            setEditing(null);
+            setSuccess(msg);
+            await reload();
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+const EDIT_ERR: Record<string, string> = {
+  forbidden: 'Энэ үйлдлийг зөвхөн админ хийнэ.',
+  permission_denied: 'Танд ажилтны мэдээлэл засах эрх олгогдоогүй байна.',
+  role_forbidden: 'Хөгжүүлэгчийн бүртгэлийг зөвхөн хөгжүүлэгч засна.',
+  name_required: 'Нэр заавал.',
+  email_locked: 'Апп-д бүртгүүлсэн ажилтны имэйлийг солих боломжгүй (Google нэвтрэлт).',
+  invalid_email: 'Имэйл буруу байна.',
+  email_taken: 'Энэ имэйл өөр ажилтанд бүртгэлтэй байна.',
+  phone_taken: 'Энэ утасны дугаар өөр ажилтанд бүртгэлтэй байна.',
+  department_not_found: 'Хэлтэс олдсонгүй.',
+  not_found: 'Ажилтан олдсонгүй.',
+};
+
+/** Ажилтны мэдээлэл засах — нэр, овог, утас, албан тушаал, хэлтэс, хаяг; бүртгүүлээгүй бол имэйл; хөгжүүлэгч эрхийг. */
+function EditEmployee({ employee, departments, isSuperAdmin, onClose, onSaved }: { employee: Employee; departments: any[]; isSuperAdmin: boolean; onClose: () => void; onSaved: (msg: string) => void }) {
+  const [f, setF] = useState({
+    last_name: employee.last_name || '',
+    name: employee.name || '',
+    email: employee.email || '',
+    phone: employee.phone || '',
+    position: employee.position || '',
+    address: (employee as Employee & { address?: string | null }).address || '',
+    department_id: employee.department_id || '',
+    role: employee.role || 'employee',
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k: keyof typeof f) => (ev: { target: { value: string } }) => setF((c) => ({ ...c, [k]: ev.target.value }));
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (busy) return;
+    setErr('');
+    setBusy(true);
+    try {
+      await updateEmployee({ email: employee.email || '', name: f.name, last_name: f.last_name, phone: f.phone, position: f.position, address: f.address, department_id: f.department_id || null, new_email: !employee.registered && f.email !== employee.email ? f.email : undefined });
+      if (isSuperAdmin && employee.registered && employee.user_id && f.role !== employee.role) await setEmployeeRole(employee.user_id, f.role);
+      onSaved(`${[f.last_name, f.name].filter(Boolean).join(' ')} — мэдээлэл шинэчлэгдлээ.`);
+    } catch (e) {
+      const code = String((e as Error).message || '');
+      setErr(Object.entries(EDIT_ERR).find(([k]) => code.includes(k))?.[1] || code);
+      setBusy(false);
+    }
+  };
+
+  const field = 'space-y-1 text-[13px] text-ink';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Ажилтны мэдээлэл засах" onClick={onClose}>
+      <form className="w-full max-w-xl rounded-[var(--radius-lg)] border border-line bg-card p-5 shadow-[var(--shadow-lg)]" onSubmit={save} onClick={(ev) => ev.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Avatar name={employee.name} src={employee.avatar_url} size={34} />
+            <div>
+              <p className="text-[15px] font-semibold text-ink">Ажилтны мэдээлэл засах</p>
+              <p className="text-[12px] text-subtle">{employee.registered ? 'Апп-д бүртгүүлсэн — апп дээрх нэр, утас мөн солигдоно.' : 'Апп-д хараахан бүртгүүлээгүй.'}</p>
+            </div>
+          </div>
+          <Button type="button" variant="ghost" aria-label="Хаах" onClick={onClose} disabled={busy} icon={<X size={18} />} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className={field}><span>Овог</span><Input value={f.last_name} onChange={set('last_name')} /></label>
+          <label className={field}><span>Нэр *</span><Input value={f.name} onChange={set('name')} required autoFocus /></label>
+          <label className={field}><span>Утас</span><Input value={f.phone} onChange={set('phone')} inputMode="tel" /></label>
+          <label className={field}><span>Албан тушаал</span><Input value={f.position} onChange={set('position')} /></label>
+          <label className={field}>
+            <span>Алба хэлтэс</span>
+            <Select className="w-full" value={f.department_id} onChange={set('department_id')}>
+              <option value="">— Хэлтэсгүй —</option>
+              {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </Select>
+          </label>
+          <label className={field}>
+            <span>Имэйл (Google)</span>
+            <Input type="email" value={f.email} onChange={set('email')} disabled={employee.registered} title={employee.registered ? 'Апп-д бүртгүүлсэн тул солигдохгүй' : undefined} />
+          </label>
+          {isSuperAdmin ? (
+            <label className={field}>
+              <span>Эрх</span>
+              <Select className="w-full" value={f.role} onChange={set('role')} disabled={!employee.registered} title={!employee.registered ? 'Бүртгүүлсний дараа солино' : undefined}>
+                {Object.entries(ROLE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </Select>
+            </label>
+          ) : null}
+          <label className={`${field} sm:col-span-2`}><span>Хаяг</span><Textarea rows={2} value={f.address} onChange={set('address')} /></label>
+        </div>
+        {err ? <p className="mt-3 text-[13px] text-danger" role="alert">{err}</p> : null}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Болих</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Хадгалж байна…' : 'Хадгалах'}</Button>
+        </div>
+      </form>
+    </div>
   );
 }

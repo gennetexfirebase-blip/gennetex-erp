@@ -312,6 +312,37 @@ export async function createEmployee(input: {
   return data;
 }
 
+/** Ажилтны мэдээллийг засах — эрхийг серверт шалгана (админ: хөгжүүлэгчээс бусад; имэйл зөвхөн бүртгүүлээгүйд). */
+export async function updateEmployee(input: {
+  email: string;
+  name: string;
+  last_name?: string;
+  phone?: string;
+  position?: string;
+  address?: string;
+  department_id?: string | null;
+  new_email?: string;
+}) {
+  const { data, error } = await supabase.rpc('admin_update_employee', {
+    p_email: input.email.trim().toLowerCase(),
+    p_name: input.name.trim(),
+    p_last_name: input.last_name?.trim() || null,
+    p_phone: input.phone?.trim() || null,
+    p_position: input.position?.trim() || null,
+    p_address: input.address?.trim() || null,
+    p_department_id: input.department_id || null,
+    p_new_email: input.new_email?.trim().toLowerCase() || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/** Эрх солих — зөвхөн хөгжүүлэгч, апп-д бүртгүүлсэн ажилтанд. */
+export async function setEmployeeRole(userId: string, role: string) {
+  const { error } = await supabase.rpc('admin_set_user_role', { target_id: userId, new_role: role });
+  if (error) throw error;
+}
+
 export async function fetchEmployeeTrainings(email: string): Promise<EmployeeTraining[]> {
   const { data, error } = await supabase
     .from('employee_training_assignments')
