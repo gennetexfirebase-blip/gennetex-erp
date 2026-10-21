@@ -35,38 +35,44 @@ function Mark({ n, children, note, side = 'right', className = '' }: { n: number
   );
 }
 
-/* ── Утасны хүрээ ─────────────────────────────────────────────────── */
-function Phone({ title, right, children, bottom }: { title: string; right?: ReactNode; children: ReactNode; bottom?: ReactNode }) {
+/* ── Апп-ын бодит дэлгэц + тэмдэглэгээ ─────────────────────────────
+ * Зураг нь 390×844 (CSS px) утасны дэлгэц; хайрцгийн координат тэр хэмжээгээр.
+ */
+type ShotMark = { n: number; r: [number, number, number, number]; note?: string; side?: 'right' | 'left' | 'top' | 'bottom' };
+const SW = 390;
+const SH = 844;
+function Shot({ src, marks }: { src: string; marks: ShotMark[] }) {
+  const pct = (v: number, of: number) => `${(v / of) * 100}%`;
   return (
-    <div className="mx-auto w-[300px] shrink-0 rounded-[38px] border-[10px] border-[#1b1d1c] bg-[#1b1d1c] shadow-xl">
-      <div className="relative flex h-[560px] flex-col rounded-[28px] bg-[#f4f7f5] text-[#16201c]">
-        <div className="flex items-center justify-between px-5 pb-1 pt-2 text-[10px] font-semibold"><span>9:41</span><span className="h-4 w-16 rounded-full bg-[#1b1d1c]" /><span>100%</span></div>
-        <div className="flex items-center gap-2 border-b border-[#e3e9e6] bg-white px-4 py-2.5">
-          <ArrowLeft size={18} className="text-[#45534d]" />
-          <span className="flex-1 truncate text-[15px] font-bold">{title}</span>
-          {right}
-        </div>
-        <div className="flex-1 space-y-3 p-3">{children}</div>
-        {bottom ? <div className="flex gap-2 rounded-b-[28px] border-t border-[#e3e9e6] bg-white p-3">{bottom}</div> : null}
+    <div className="mx-auto w-[280px] shrink-0 rounded-[36px] border-[9px] border-[#1b1d1c] bg-[#1b1d1c] shadow-xl sm:w-[300px]">
+      <div className="relative overflow-visible rounded-[27px]" style={{ aspectRatio: `${SW} / ${SH}` }}>
+        <img src={`${import.meta.env.BASE_URL}guide/${src}.webp`} alt="" loading="lazy" className="absolute inset-0 h-full w-full rounded-[27px] object-cover" />
+        {marks.map((m) => {
+          const [x, y, w, h] = m.r;
+          const side = m.side || 'right';
+          const pos =
+            side === 'right' ? 'left-full top-1/2 -translate-y-1/2 ml-2 flex-row' :
+            side === 'left' ? 'right-full top-1/2 -translate-y-1/2 mr-2 flex-row-reverse' :
+            side === 'top' ? 'bottom-full left-1/2 -translate-x-1/2 mb-2 flex-col-reverse' :
+            'top-full left-1/2 -translate-x-1/2 mt-2 flex-col';
+          const arrow = side === 'right' ? '←' : side === 'left' ? '→' : side === 'top' ? '↓' : '↑';
+          return (
+            <div key={m.n} className="guide-mark absolute" style={{ left: pct(x - 3, SW), top: pct(y - 3, SH), width: pct(w + 6, SW), height: pct(h + 6, SH) }}>
+              <div className="h-full w-full rounded-[10px] outline outline-[3px] outline-[#e5484d] shadow-[0_0_0_4px_rgba(229,72,77,0.25)]" />
+              <span className="absolute -left-2.5 -top-2.5 z-10 grid h-6 w-6 place-items-center rounded-full bg-[#e5484d] text-[12px] font-bold text-white shadow">{m.n}</span>
+              {m.note ? (
+                <span className={`pointer-events-none absolute z-10 flex items-center gap-1 whitespace-nowrap ${pos}`}>
+                  <span className="text-[22px] font-black leading-none text-[#e5484d]">{arrow}</span>
+                  <span className="rounded-md bg-[#e5484d] px-2 py-1 text-[11px] font-semibold text-white shadow">{m.note}</span>
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
-const PField = ({ label, value, req, tall }: { label: string; value?: string; req?: boolean; tall?: boolean }) => (
-  <div>
-    <p className="mb-1 text-[11px] font-semibold text-[#45534d]">{label}{req ? <b className="text-[#e5484d]"> *</b> : null}</p>
-    <div className={`rounded-xl border border-[#d9e1dd] bg-white px-3 text-[12px] text-[#5f6d67] ${tall ? 'h-14 py-2' : 'flex h-9 items-center'}`}>{value || ''}</div>
-  </div>
-);
-const PCard = ({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) => (
-  <div className="rounded-2xl bg-white p-3 shadow-sm">
-    <div className="mb-2 flex items-center justify-between"><p className="text-[13px] font-bold">{title}</p>{action}</div>
-    <div className="space-y-2">{children}</div>
-  </div>
-);
-const PBtn = ({ children, ghost }: { children: ReactNode; ghost?: boolean }) => (
-  <span className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold ${ghost ? 'border border-[#d9e1dd] bg-white text-[#16201c]' : 'bg-[#0c8a62] text-white'}`}>{children}</span>
-);
 
 /* ── Хөтчийн хүрээ ───────────────────────────────────────────────── */
 function Browser({ url, children }: { url: string; children: ReactNode }) {
@@ -171,139 +177,66 @@ export default function GuidePage() {
 
         {/* ═══════════════ УТАСНЫ АПП ═══════════════ */}
         <h2 id="app" className="scroll-mt-20 pt-4 text-[26px] font-bold text-ink"><Smartphone className="mr-2 inline text-brand" size={26} />Утасны апп-аас акт үүсгэх</h2>
+        <p className="mt-2 text-[13px] text-subtle">Зургууд нь Gennetex апп-ын бодит дэлгэц (жишээ өгөгдөлтэй demo данс).</p>
 
         <Step n="1" title="Нүүрээс «Акт бичих»-ийг дарна" shot={
-          <Phone title="Нүүр">
-            <div className="rounded-2xl bg-[#0c8a62] p-4 text-white"><p className="text-[11px] opacity-80">Өнөөдөр</p><p className="text-[16px] font-bold">Сайн байна уу!</p></div>
-            <div className="grid grid-cols-3 gap-2">
-              {['Ирц', 'Хүсэлт', 'Тайлан', 'Агуулах', 'Хурал'].map((t) => (
-                <div key={t} className="flex flex-col items-center gap-1 rounded-2xl bg-white p-2.5 shadow-sm"><span className="h-8 w-8 rounded-full bg-[#e6ece9]" /><span className="text-[10px] font-semibold">{t}</span></div>
-              ))}
-              <Mark n={1} note="Энд дарна" side="bottom">
-                <div className="flex flex-col items-center gap-1 rounded-2xl bg-white p-2.5 shadow-sm"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#dcf5e9] text-[#0b7a57]"><FileText size={16} /></span><span className="text-[10px] font-semibold">Акт бичих</span></div>
-              </Mark>
-            </div>
-          </Phone>
+          <Shot src="app-1-home" marks={[{ n: 1, r: [196, 340, 82, 106], note: 'Энд дарна', side: 'left' }]} />
         }>
-          <Li n={1}>Gennetex апп-ыг нээгээд нүүр хуудасны <b className="text-ink">«Акт бичих»</b> цэс дээр дарна.</Li>
+          <Li n={1}>Апп-ын нүүрийг доош гүйлгээд <b className="text-ink">«Ажил ба дуудлага»</b> хэсгийн <b className="text-ink">«Акт бичих»</b> дээр дарна.</Li>
         </Step>
 
         <Step n="2" title="«+ Шинэ» товчоор шинэ акт эхлүүлнэ" shot={
-          <Phone title="Акт" right={<Mark n={1} note="Шинэ акт" side="bottom"><span className="flex items-center gap-1 rounded-full bg-[#0c8a62] px-3 py-1 text-[11px] font-semibold text-white"><Plus size={13} /> Шинэ</span></Mark>}>
-            <div className="flex gap-1.5">
-              {['Ноорог 2', 'Илгээсэн 1', 'Баталгаажсан 5'].map((t, i) => <span key={t} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${i === 0 ? 'bg-[#16201c] text-white' : 'bg-white text-[#45534d]'}`}>{t}</span>)}
-            </div>
-            {['Сүлжээний угсралт', 'Шилэн кабель татах'].map((t) => (
-              <div key={t} className="rounded-2xl bg-white p-3 shadow-sm"><p className="text-[13px] font-semibold">{t}</p><p className="text-[10px] text-[#5f6d67]">Ноорог · 2026-10-18</p></div>
-            ))}
-          </Phone>
+          <Shot src="app-2-acts" marks={[{ n: 1, r: [286, 24, 88, 36], note: 'Шинэ акт', side: 'bottom' }, { n: 2, r: [16, 148, 374, 34], note: 'Төлөвөөр шүүх', side: 'bottom' }]} />
         }>
-          <Li n={1}>Баруун дээд буланд байрлах <b className="text-ink">«+ Шинэ»</b> товчийг дарна.</Li>
-          <p>Дээрх табуудаас өмнө үүсгэсэн актаа (Ноорог, Илгээсэн, Баталгаажсан) харж болно.</p>
+          <Li n={1}>Баруун дээд буланд байрлах <b className="text-ink">«+ Шинэ»</b> товчийг дарна (акт байхгүй үед голд «Акт үүсгэх» гарна).</Li>
+          <Li n={2}>Эндээс өмнөх актаа <b className="text-ink">Ноорог / Илгээсэн / Баталгаажсан</b>-аар шүүж харна.</Li>
         </Step>
 
         <Step n="3" title="Толгой мэдээллээ бөглөнө" shot={
-          <Phone title="Шинэ акт">
-            <PCard title="Толгой мэдээлэл">
-              <Mark n={1} note="Ажлын нэр" side="right"><PField label="Ажлын нэр" req value="Ж: Сүлжээний угсралт" /></Mark>
-              <Mark n={2} note="Захиалагч сонгох" side="right">
-                <div><p className="mb-1 text-[11px] font-semibold text-[#45534d]">Захиалагч байгууллага</p><div className="flex gap-1.5">{['Юнивишн', 'Скаймедиа', 'Айл'].map((c, i) => <span key={c} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${i === 0 ? 'bg-[#0c8a62] text-white' : 'border border-[#d9e1dd] bg-white'}`}>{c}</span>)}</div></div>
-              </Mark>
-              <PField label="Байршил" value="Дүүрэг, хороо, хаяг" />
-              <div className="flex gap-2"><div className="flex-1"><PField label="Эхэлсэн" value="2026-10-19" /></div><div className="flex-1"><PField label="Дууссан" value="2026-10-19" /></div></div>
-              <Mark n={3} note="Хийсэн ажил" side="right"><PField label="Хийсэн ажил" req tall value="Ямар ажил гүйцэтгэснээ дэлгэрэнгүй бичнэ үү" /></Mark>
-            </PCard>
-          </Phone>
+          <Shot src="app-3-header" marks={[{ n: 1, r: [32, 136, 326, 54], note: 'Ажлын нэр', side: 'right' }, { n: 2, r: [32, 224, 326, 54], note: 'Захиалагч', side: 'right' }, { n: 3, r: [32, 488, 326, 110], note: 'Хийсэн ажил', side: 'right' }]} />
         }>
           <Li n={1}><b className="text-ink">Ажлын нэр</b> — заавал (ж: «Сүлжээний угсралт»).</Li>
-          <Li n={2}><b className="text-ink">Захиалагч</b> — жагсаалтаас дарж сонгоно, байхгүй бол доор нь нэрийг бичнэ.</Li>
+          <Li n={2}><b className="text-ink">Захиалагч</b> — байгууллага эсвэл хүний нэр. Доор нь байршил, эхэлсэн / дууссан огноо.</Li>
           <Li n={3}><b className="text-ink">Хийсэн ажил</b> — юу хийснээ дэлгэрэнгүй бичнэ (заавал).</Li>
-          <p>Байршил, эхэлсэн / дууссан огноог мөн бөглөнө.</p>
         </Step>
 
         <Step n="4" title="Ашигласан бараа материалаа нэмнэ" shot={
-          <Phone title="Шинэ акт">
-            <PCard title="Бараа материал" action={<Mark n={1} note="Мөр нэмэх" side="top"><span className="text-[12px] font-semibold text-[#0c8a62]">+ Мөр нэмэх</span></Mark>}>
-              <div className="rounded-xl border border-[#e3e9e6] p-2.5">
-                <div className="mb-1.5 flex justify-between text-[11px]"><b>Материал 1</b><span className="text-[#e5484d]">Устгах</span></div>
-                <Mark n={2} note="Нэр, тоо, нэгж" side="right">
-                  <div className="space-y-1.5"><PField label="Нэр" value="Шилэн кабель" /><div className="flex gap-2"><div className="flex-1"><PField label="Тоо" value="120" /></div><div className="flex-1"><PField label="Нэгж" value="м" /></div></div></div>
-                </Mark>
-              </div>
-            </PCard>
-          </Phone>
+          <Shot src="app-4-materials" marks={[{ n: 1, r: [272, 219, 86, 33], note: 'Мөр нэмэх', side: 'top' }, { n: 2, r: [47, 300, 296, 166], note: 'Нэр, тоо, нэгж', side: 'right' }]} />
         }>
           <Li n={1}><b className="text-ink">«+ Мөр нэмэх»</b> дарж материал бүрийг нэмнэ.</Li>
           <Li n={2}>Материалын <b className="text-ink">нэр, тоо, нэгж</b>-ийг бичнэ. Буруу мөрийг «Устгах»-аар арилгана.</Li>
           <Tip>Материал ашиглаагүй бол энэ хэсгийг хоосон үлдээнэ.</Tip>
         </Step>
 
-        <Step n="5" title="Шалгах хуудсыг бөглөнө" shot={
-          <Phone title="Шинэ акт">
-            <PCard title="Шалгах хуудас">
-              <div className="rounded-xl border border-[#e3e9e6] p-2.5">
-                <p className="mb-2 text-[12px]">Ажлын байрыг цэвэрлэж хүлээлгэн өгсөн</p>
-                <Mark n={1} note="Тийм / Үгүй" side="right">
-                  <div className="flex rounded-full bg-[#eef2f0] p-1 text-[11px] font-semibold"><span className="flex-1 rounded-full bg-[#0c8a62] py-1 text-center text-white">Тийм</span><span className="flex-1 py-1 text-center">Үгүй</span></div>
-                </Mark>
-              </div>
-              <div className="rounded-xl border border-[#e3e9e6] p-2.5">
-                <p className="mb-2 text-[12px]">Холболтыг шалгаж хэмжилт хийсэн</p>
-                <div className="flex rounded-full bg-[#eef2f0] p-1 text-[11px] font-semibold"><span className="flex-1 py-1 text-center">Тийм</span><span className="flex-1 rounded-full bg-[#e5484d] py-1 text-center text-white">Үгүй</span></div>
-                <Mark n={2} note="Шалтгаан" side="right" className="mt-2"><PField label="" value="Шалтгаан" /></Mark>
-              </div>
-            </PCard>
-          </Phone>
-        }>
-          <Li n={1}>Шаардлага бүрт <b className="text-ink">«Тийм»</b> эсвэл <b className="text-ink">«Үгүй»</b>-г сонгоно.</Li>
-          <Li n={2}>«Үгүй» сонгосон бол <b className="text-ink">шалтгааныг заавал</b> бичнэ.</Li>
-        </Step>
-
-        <Step n="6" title="Ажлын зураг оруулна" shot={
-          <Phone title="Шинэ акт">
-            <PCard title="Зураг">
-              <div className="grid grid-cols-3 gap-1.5">{[0, 1].map((i) => <span key={i} className="grid aspect-square place-items-center rounded-lg bg-[#dfe7e3] text-[#5f6d67]"><ImageIcon size={18} /></span>)}
-                <Mark n={1} note="Камераар" side="right"><span className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#9fb3aa] text-[10px] font-semibold"><Camera size={16} />Камер</span></Mark>
-              </div>
-              <Mark n={2} note="Галерейгаас" side="left" className="mt-6 w-1/3"><span className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#9fb3aa] text-[10px] font-semibold"><Images size={16} />Сангаас</span></Mark>
-            </PCard>
-          </Phone>
+        <Step n="5" title="Ажлын зураг оруулна" shot={
+          <Shot src="app-4-materials" marks={[{ n: 1, r: [32, 579, 90, 90], note: 'Камераар', side: 'left' }, { n: 2, r: [132, 579, 90, 90], note: 'Галерейгаас', side: 'right' }]} />
         }>
           <Li n={1}><b className="text-ink">«Камер»</b> — шууд зураг авна.</Li>
           <Li n={2}><b className="text-ink">«Сангаас»</b> — утсандаа байгаа зургаас сонгоно.</Li>
           <Tip>Ажлын өмнөх, дараах байдал, холболт, хэмжилтийн зургийг оруулбал акт хурдан баталгаажна.</Tip>
         </Step>
 
-        <Step n="7" title="Хүлээлцэх хүмүүсийг шалгаад илгээнэ" shot={
-          <Phone title="Шинэ акт" bottom={<>
-            <Mark n={1} note="Ноорог" side="top" className="flex-1"><PBtn ghost><Save size={14} />Хадгалах</PBtn></Mark>
-            <Mark n={2} note="Захиралд илгээх" side="top" className="flex-[1.4]"><PBtn><Send size={14} />Илгээх</PBtn></Mark>
-          </>}>
-            <PCard title="Хүлээлцэх хүмүүс">
-              {[['Б.Баясгалан', 'Захирал · Женнетекс', true], ['Мөнхбат', 'Хүлээлцэгч', false], ['Захиалагчийн төлөөлөл', 'Юнивишн', false]].map(([n, p, tag]) => (
-                <div key={n as string} className="flex items-center gap-2 rounded-xl border border-[#e3e9e6] p-2"><Users size={16} className="text-[#5f6d67]" /><span className="min-w-0 flex-1"><b className="block text-[12px]">{n as string}</b><span className="text-[10px] text-[#5f6d67]">{p as string}</span></span>{tag ? <span className="rounded-full bg-[#fff0d3] px-2 py-0.5 text-[9px] font-semibold text-[#9a5800]">Тамга</span> : null}</div>
-              ))}
-            </PCard>
-          </Phone>
+        <Step n="6" title="Хадгалах эсвэл Захиралд илгээх" shot={
+          <Shot src="app-4-materials" marks={[{ n: 1, r: [16, 792, 154, 52], note: 'Ноорог', side: 'top' }, { n: 2, r: [180, 792, 194, 52], note: 'Захиралд илгээх', side: 'top' }]} />
         }>
-          <p>Хүлээлцэх хүмүүс (Захирал, хүлээлцэгч, захиалагч) автоматаар нэмэгдэнэ — зөв эсэхийг шалгана.</p>
           <Li n={1}><b className="text-ink">«Хадгалах»</b> — дуусаагүй бол ноорог болгон хадгална, дараа үргэлжлүүлнэ.</Li>
           <Li n={2}><b className="text-ink">«Илгээх»</b> — бүрэн бол дарна. Акт <b className="text-ink">Захиралд</b> баталгаажуулахаар очно.</Li>
+          <Tip>Захирал баталгаажуулахад Женнетексийн тамга автоматаар дарагдана. PDF / Word-ийг akt.gennetex.com-оос гаргана.</Tip>
         </Step>
 
-        <Step n="8" title="Актаа хянах, засах" shot={
-          <Phone title="Акт" right={<Mark n={2} note="Засах" side="left"><span className="flex items-center gap-1 rounded-full bg-[#e6ece9] px-3 py-1 text-[11px] font-semibold"><PenLine size={12} />Засах</span></Mark>}>
-            <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <div className="flex items-center justify-between"><b className="text-[14px]">Сүлжээний угсралт</b>
-                <Mark n={1} note="Төлөв" side="bottom"><span className="rounded-full bg-[#e1ecff] px-2 py-0.5 text-[10px] font-semibold text-[#2160c4]">Илгээсэн</span></Mark>
-              </div>
-              <p className="mt-1 text-[11px] text-[#5f6d67]">АКТ-2026-0142 · Юнивишн</p>
-            </div>
-            <div className="rounded-2xl bg-white p-3 text-[12px] text-[#45534d] shadow-sm">Хийсэн ажил, материал, зураг, хүлээлцэх хүмүүс энд харагдана.</div>
-          </Phone>
+        <Step n="7" title="Актын төлвийг хянана" shot={
+          <Shot src="app-5-status" marks={[{ n: 1, r: [16, 148, 374, 34], note: 'Шүүлтүүр', side: 'bottom' }, { n: 2, r: [288, 206, 76, 36], note: 'Төлөв', side: 'left' }]} />
         }>
-          <Li n={1}>Актын <b className="text-ink">төлөв</b>: Ноорог → Илгээсэн → Баталгаажсан.</Li>
-          <Li n={2}>Ноорог үед <b className="text-ink">«Засах»</b>-аар өөрчилнө.</Li>
+          <Li n={1}>Дээрх табаар <b className="text-ink">Ноорог / Илгээсэн / Баталгаажсан</b> актаа шүүнэ.</Li>
+          <Li n={2}>Карт бүрийн баруун дээд буланд <b className="text-ink">төлөв</b> нь харагдана.</Li>
+        </Step>
+
+        <Step n="8" title="Ноорог актаа засах, илгээх" shot={
+          <Shot src="app-6-detail" marks={[{ n: 1, r: [287, 12, 87, 36], note: 'Засах', side: 'bottom' }, { n: 2, r: [16, 792, 358, 52], note: 'Захиралд илгээх', side: 'top' }]} />
+        }>
+          <p>Жагсаалтаас актаа дарж дэлгэрэнгүйг нээнэ.</p>
+          <Li n={1}>Ноорог үед <b className="text-ink">«Засах»</b>-аар өөрчилнө.</Li>
+          <Li n={2}>Бэлэн болмогц <b className="text-ink">«Захиралд илгээх»</b> дарна.</Li>
         </Step>
 
         {/* ═══════════════ ВЕБ ═══════════════ */}
