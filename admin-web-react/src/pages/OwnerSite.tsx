@@ -697,6 +697,7 @@ function AccessPanel() {
   const [busy, setBusy] = useState('');
   const [phoneEdit, setPhoneEdit] = useState<{ id: string; value: string } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [group, setGroup] = useState('all');
   const load = () => ownerCall<{ users: AUser[] }>({ action: 'owner_users' }).then((r) => setUsers(r.users)).catch((e) => setErr((e as Error).message));
   useEffect(() => {
     void load();
@@ -717,7 +718,10 @@ function AccessPanel() {
   };
   const effective = (u: AUser, k: string) => (u.role === 'superadmin' ? true : typeof u.permissions?.[k] === 'boolean' ? !!u.permissions?.[k] : (ROLE_DEFAULT[u.role] || []).includes(k));
   const needle = q.trim().toLowerCase();
-  const list = (users || []).filter((u) => !needle || [u.name, u.email || '', u.phone || '', u.department || ''].join(' ').toLowerCase().includes(needle));
+  const inGroup = (u: AUser) =>
+    group === 'all' ? true : group === 'admins' ? ['admin', 'superadmin'].includes(u.role) : group === 'staff' ? !['admin', 'superadmin'].includes(u.role) : u.role === group;
+  const list = (users || []).filter((u) => inGroup(u) && (!needle || [u.name, u.email || '', u.phone || '', u.department || ''].join(' ').toLowerCase().includes(needle)));
+  const countOf = (g: string) => (users || []).filter((u) => (g === 'admins' ? ['admin', 'superadmin'].includes(u.role) : g === 'staff' ? !['admin', 'superadmin'].includes(u.role) : u.role === g)).length;
   const admins = (users || []).filter((u) => ['admin', 'superadmin'].includes(u.role)).length;
 
   return (
@@ -731,6 +735,16 @@ function AccessPanel() {
           <span className="t-amber">root@access:~$</span>
           <span className="t-dim">grep</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="нэр, имэйл, утас…" aria-label="Хэрэглэгч хайх" />
+        </label>
+        <label className="t-prompt" style={{ marginBottom: 10 }}>
+          <span className="t-amber">root@access:~$</span>
+          <span className="t-dim">group</span>
+          <select value={group} onChange={(e) => setGroup(e.target.value)} style={inputStyle} aria-label="Бүлгээр шүүх">
+            <option value="all" style={{ color: '#000' }}>Бүгд ({users?.length ?? 0})</option>
+            <option value="admins" style={{ color: '#000' }}>Админууд ({countOf('admins')})</option>
+            <option value="staff" style={{ color: '#000' }}>Ажилчид ({countOf('staff')})</option>
+            {ROLES.map(([k, l]) => <option key={k} value={k} style={{ color: '#000' }}>— {l} ({countOf(k)})</option>)}
+          </select>
         </label>
         {err ? <p className="t-err">[ERR] {err}</p> : null}
         {!users ? <p>&gt; ачаалж байна<span className="t-cursor" aria-hidden="true" /></p> : (
