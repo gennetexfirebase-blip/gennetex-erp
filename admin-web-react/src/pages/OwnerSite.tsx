@@ -698,6 +698,33 @@ function AccessPanel() {
   const [phoneEdit, setPhoneEdit] = useState<{ id: string; value: string } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [group, setGroup] = useState('all');
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkKey, setBulkKey] = useState('all');
+  const [bulkVal, setBulkVal] = useState('on');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  // Сонгосон хүмүүст модулийн эрхийг нэг дор олгох / хаах / анхдагч болгох.
+  const applyBulk = async () => {
+    const targets = (users || []).filter((u) => picked.has(u.id) && u.role !== 'superadmin');
+    if (!targets.length) return;
+    const keys = bulkKey === 'all' ? PERMS.map(([k]) => k) : [bulkKey];
+    const value = bulkVal === 'default' ? null : bulkVal === 'on';
+    const what = bulkKey === 'all' ? 'Бүх 6 модуль' : PERMS.find(([k]) => k === bulkKey)?.[1];
+    const how = bulkVal === 'on' ? 'ОЛГОХ' : bulkVal === 'off' ? 'ХААХ' : 'анхдагч болгох';
+    const names = targets.map((u) => '• ' + u.name).join(String.fromCharCode(10));
+    if (!window.confirm(`${targets.length} хүнд «${what}» эрхийг ${how} уу?` + String.fromCharCode(10, 10) + names)) return;
+    setBulkBusy(true);
+    setErr('');
+    try {
+      for (const u of targets) await ownerCall({ action: 'owner_set', user_id: u.id, permissions: Object.fromEntries(keys.map((k) => [k, value])) });
+      setPicked(new Set());
+      await load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
   const load = () => ownerCall<{ users: AUser[] }>({ action: 'owner_users' }).then((r) => setUsers(r.users)).catch((e) => setErr((e as Error).message));
   useEffect(() => {
     void load();
@@ -746,15 +773,32 @@ function AccessPanel() {
             {ROLES.map(([k, l]) => <option key={k} value={k} style={{ color: '#000' }}>— {l} ({countOf(k)})</option>)}
           </select>
         </label>
+        <div className="t-prompt" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8, opacity: picked.size ? 1 : 0.55 }}>
+          <span className="t-amber">root@access:~$</span>
+          <span className="t-dim">grant</span>
+          <span>{picked.size} сонгосон</span>
+          <select value={bulkKey} onChange={(e) => setBulkKey(e.target.value)} style={inputStyle} aria-label="Модуль">
+            <option value="all" style={{ color: '#000' }}>Бүх 6 модуль</option>
+            {PERMS.map(([k, l]) => <option key={k} value={k} style={{ color: '#000' }}>{l}</option>)}
+          </select>
+          <select value={bulkVal} onChange={(e) => setBulkVal(e.target.value)} style={inputStyle} aria-label="Утга">
+            <option value="on" style={{ color: '#000' }}>Тийм — олгох</option>
+            <option value="off" style={{ color: '#000' }}>Үгүй — хаах</option>
+            <option value="default" style={{ color: '#000' }}>Анхдагч</option>
+          </select>
+          <button className="t-btn" type="button" disabled={!picked.size || bulkBusy} onClick={() => void applyBulk()}>{bulkBusy ? '…' : 'Хэрэглэх'}</button>
+          {picked.size ? <button className="t-btn" type="button" onClick={() => setPicked(new Set())}>Цэвэрлэх</button> : null}
+        </div>
         {err ? <p className="t-err">[ERR] {err}</p> : null}
         {!users ? <p>&gt; ачаалж байна<span className="t-cursor" aria-hidden="true" /></p> : (
           <div style={{ overflowX: 'auto' }}>
             <table>
-              <thead><tr><th>Хэрэглэгч</th><th>Утас</th><th>Эрх</th><th>Модуль</th><th>Data</th><th>Байршил</th><th>Нээгдэх домэйн</th></tr></thead>
+              <thead><tr><th style={{ width: 28 }}><input type="checkbox" aria-label="Харагдаж буй бүгдийг сонгох" checked={list.length > 0 && list.every((u) => picked.has(u.id))} onChange={(e) => setPicked(e.target.checked ? new Set([...picked, ...list.filter((u) => u.role !== 'superadmin').map((u) => u.id)]) : new Set([...picked].filter((id) => !list.some((u) => u.id === id))))} /></th><th>Хэрэглэгч</th><th>Утас</th><th>Эрх</th><th>Модуль</th><th>Data</th><th>Байршил</th><th>Нээгдэх домэйн</th></tr></thead>
               <tbody>
                 {list.map((u) => (
                   <Fragment key={u.id}>
-                  <tr style={{ opacity: busy === u.id ? 0.5 : 1 }}>
+                  <tr style={{ opacity: busy === u.id ? 0.5 : 1, background: picked.has(u.id) ? 'rgba(109,211,165,0.08)' : undefined }}>
+                    <td><input type="checkbox" checked={picked.has(u.id)} disabled={u.role === 'superadmin'} onChange={() => toggle(u.id)} aria-label={u.name + ' — сонгох'} title={u.role === 'superadmin' ? 'SUPERADMIN үргэлж бүх эрхтэй' : undefined} /></td>
                     <td>
                       <div>{u.name}</div>
                       <div className="t-dim" style={{ fontSize: 11 }}>{u.email || '—'}{u.department ? ' · ' + u.department : ''}</div>
@@ -799,7 +843,7 @@ function AccessPanel() {
                   </tr>
                   {open === u.id ? (
                     <tr>
-                      <td colSpan={7} style={{ paddingTop: 0 }}>
+                      <td colSpan={8} style={{ paddingTop: 0 }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8, padding: '6px 0 12px' }}>
                           {PERMS.map(([k, label, hint]) => {
                             const ov = u.permissions?.[k];
