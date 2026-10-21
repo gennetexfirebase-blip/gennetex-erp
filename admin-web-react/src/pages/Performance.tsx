@@ -193,6 +193,7 @@ function AliasCard({ aliases, unmapped, emps, onSaved }: { aliases: PerfAlias[];
               <span className="flex min-w-0 flex-1 items-center gap-2">
                 {a.user_id ? <Avatar name={fullName(staff.find((e) => e.user_id === a.user_id) || ({} as Employee))} size={22} /> : <span className={`h-2 w-2 shrink-0 rounded-full ${a.ignored ? 'bg-card2' : 'bg-warning'}`} aria-hidden="true" />}
                 <span className="truncate font-mono text-ink">{a.alias}</span>
+                {!a.user_id && a.display_name ? <span className="shrink-0 truncate text-[12px] text-muted" title="HR-д бүртгэлтэй, апп-д бүртгүүлмэгц автоматаар холбогдоно">→ {a.display_name} (апп-д бүртгүүлээгүй)</span> : null}
                 {jobsOf.get(a.alias) ? <span className="shrink-0 text-[11px] text-subtle">{jobsOf.get(a.alias)} ажил</span> : null}
               </span>
               <Select className="w-52" value={a.ignored ? '__ignore' : a.user_id || ''} disabled={busy === a.alias} onChange={(e) => save(a.alias, e.target.value)} aria-label={`${a.alias} — ажилтан`}>

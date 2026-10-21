@@ -20,9 +20,9 @@ export type PerfPerson = {
   amount: number;
 };
 export type PerfRate = { kind: string; label: string | null; amount: number };
-export type PerfSummary = { people: PerfPerson[]; unmapped: { alias: string; jobs: number }[]; jobs: number; rates: PerfRate[]; last_sync_at: string | null };
+export type PerfSummary = { people: PerfPerson[]; unmapped: { alias: string; name?: string | null; jobs: number }[]; jobs: number; rates: PerfRate[]; last_sync_at: string | null };
 export type PerfJob = { id: number; work_date: string; kind: string; engineers: string[]; job_time: string | null; cable: boolean };
-export type PerfAlias = { alias: string; user_id: string | null; ignored: boolean };
+export type PerfAlias = { alias: string; user_id: string | null; ignored: boolean; display_name?: string | null };
 
 /** Төрлийн монгол нэр. */
 export const KIND_LABEL: Record<string, string> = {
@@ -56,7 +56,7 @@ export async function fetchPerfJobs(from: string, to: string): Promise<PerfJob[]
 }
 
 export async function fetchAliases(): Promise<PerfAlias[]> {
-  const { data, error } = await supabase.from('perf_aliases').select('alias, user_id, ignored').order('alias');
+  const { data, error } = await supabase.from('perf_aliases').select('alias, user_id, ignored, display_name').order('alias');
   err(error);
   return (data || []) as PerfAlias[];
 }

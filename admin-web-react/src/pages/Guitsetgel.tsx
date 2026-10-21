@@ -42,7 +42,8 @@ export default function GuitsetgelPage() {
   // Латин нэр → ажилтны нэр (холбогдоогүй бол Sheet дээрх нэр).
   const nameOf = useMemo(() => {
     const byUser = new Map(emps.data.filter((e) => e.user_id).map((e) => [e.user_id!, [e.last_name, e.name].filter(Boolean).join(' ').trim()]));
-    const map = new Map(aliases.data.map((a) => [a.alias, a.ignored ? null : (a.user_id && byUser.get(a.user_id)) || null]));
+    // Апп-д бүртгүүлээгүй ч HR-ийн нэр (display_name) байвал түүгээр харуулна.
+    const map = new Map(aliases.data.map((a) => [a.alias, a.ignored ? null : (a.user_id && byUser.get(a.user_id)) || a.display_name || null]));
     const ignored = new Set(aliases.data.filter((a) => a.ignored).map((a) => a.alias));
     return (raw: string) => {
       const k = raw.replace(/\s+/g, ' ').trim().toLowerCase();
