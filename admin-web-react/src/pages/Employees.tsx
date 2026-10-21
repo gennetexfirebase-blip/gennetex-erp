@@ -458,7 +458,7 @@ function EditEmployee({ employee, departments, isSuperAdmin, onClose, onSaved }:
     setErr('');
     setBusy(true);
     try {
-      await updateEmployee({ email: employee.email || '', name: f.name, last_name: f.last_name, phone: f.phone, position: f.position, address: f.address, department_id: f.department_id || null, new_email: !employee.registered && f.email !== employee.email ? f.email : undefined });
+      await updateEmployee({ email: employee.email || '', name: f.name, last_name: f.last_name, phone: f.phone, position: f.position, address: f.address, department_id: f.department_id || null, new_email: isSuperAdmin && !employee.registered && f.email !== employee.email ? f.email : undefined });
       if (isSuperAdmin && employee.registered && employee.user_id && f.role !== employee.role) await setEmployeeRole(employee.user_id, f.role);
       onSaved(`${[f.last_name, f.name].filter(Boolean).join(' ')} — мэдээлэл шинэчлэгдлээ.`);
     } catch (e) {
@@ -486,17 +486,17 @@ function EditEmployee({ employee, departments, isSuperAdmin, onClose, onSaved }:
           <label className={field}><span>Овог</span><Input value={f.last_name} onChange={set('last_name')} /></label>
           <label className={field}><span>Нэр *</span><Input value={f.name} onChange={set('name')} required autoFocus /></label>
           <label className={field}><span>Утас</span><Input value={f.phone} onChange={set('phone')} inputMode="tel" /></label>
-          <label className={field}><span>Албан тушаал</span><Input value={f.position} onChange={set('position')} /></label>
+          <label className={field}><span>Албан тушаал</span><Input value={f.position} onChange={set('position')} disabled={!isSuperAdmin} /></label>
           <label className={field}>
             <span>Алба хэлтэс</span>
-            <Select className="w-full" value={f.department_id} onChange={set('department_id')}>
+            <Select className="w-full" value={f.department_id} onChange={set('department_id')} disabled={!isSuperAdmin}>
               <option value="">— Хэлтэсгүй —</option>
               {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </Select>
           </label>
           <label className={field}>
             <span>Имэйл (Google)</span>
-            <Input type="email" value={f.email} onChange={set('email')} disabled={employee.registered} title={employee.registered ? 'Апп-д бүртгүүлсэн тул солигдохгүй' : undefined} />
+            <Input type="email" value={f.email} onChange={set('email')} disabled={employee.registered || !isSuperAdmin} title={employee.registered ? 'Апп-д бүртгүүлсэн тул солигдохгүй' : undefined} />
           </label>
           {isSuperAdmin ? (
             <label className={field}>
@@ -506,8 +506,9 @@ function EditEmployee({ employee, departments, isSuperAdmin, onClose, onSaved }:
               </Select>
             </label>
           ) : null}
-          <label className={`${field} sm:col-span-2`}><span>Хаяг</span><Textarea rows={2} value={f.address} onChange={set('address')} /></label>
+          <label className={`${field} sm:col-span-2`}><span>Хаяг</span><Textarea rows={2} value={f.address} onChange={set('address')} disabled={!isSuperAdmin} /></label>
         </div>
+        {!isSuperAdmin ? <p className="mt-3 text-[12px] text-subtle">Админ зөвхөн овог, нэр, утасны дугаар солино. Бусад талбарыг системийн админ солино.</p> : null}
         {err ? <p className="mt-3 text-[13px] text-danger" role="alert">{err}</p> : null}
         <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <Button type="button" variant="outline" className={employee.active === false ? '' : '!text-warning'} onClick={toggleActive} disabled={busy}>{employee.active === false ? 'Ажилд эргүүлж авах' : 'Ажлаас гаргах'}</Button>
