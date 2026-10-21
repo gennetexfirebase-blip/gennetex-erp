@@ -1,39 +1,13 @@
 import { useEffect, type ReactNode } from 'react';
-import {
-  ArrowLeft, ArrowRight, BookOpen, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CloudDownload, Download, FilePlus2, FileText,
-  Globe, Image as ImageIcon, ImagePlus, Images, Lightbulb, LogIn, PenLine, Plus, Printer, Save, Search, Send, Signature, Smartphone, Upload, Users,
-} from 'lucide-react';
+import { BookOpen, ChevronRight, FilePlus2, Globe, Lightbulb, LogIn, Printer, Smartphone } from 'lucide-react';
 import brandMark from '../assets/report-logo.png';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { GoogleIcon } from '../components/ui';
 
 /**
  * guide.gennetex.com — ажилтанд зориулсан гарын авлага (нэвтрэлтгүй).
  * Дэлгэцийн зураг нь апп / akt.gennetex.com-ийн жинхэнэ бичиг, товчны нэрээр
  * хуулбарласан зураглал; дарах газрыг дугаартай хайрцаг + сумаар заана.
  */
-
-/* ── Тэмдэглэгээ: дугаартай хайрцаг + сум ─────────────────────────── */
-function Mark({ n, children, note, side = 'right', className = '' }: { n: number; children: ReactNode; note?: string; side?: 'right' | 'left' | 'top' | 'bottom'; className?: string }) {
-  const pos =
-    side === 'right' ? 'left-full top-1/2 -translate-y-1/2 ml-2 flex-row' :
-    side === 'left' ? 'right-full top-1/2 -translate-y-1/2 mr-2 flex-row-reverse' :
-    side === 'top' ? 'bottom-full left-1/2 -translate-x-1/2 mb-2 flex-col-reverse' :
-    'top-full left-1/2 -translate-x-1/2 mt-2 flex-col';
-  const arrow = side === 'right' ? '←' : side === 'left' ? '→' : side === 'top' ? '↓' : '↑';
-  return (
-    <div className={`guide-mark relative ${className}`}>
-      <div className="rounded-[10px] outline outline-[3px] outline-offset-[3px] outline-[#e5484d]">{children}</div>
-      <span className="absolute -left-3 -top-3 z-10 grid h-6 w-6 place-items-center rounded-full bg-[#e5484d] text-[12px] font-bold text-white shadow">{n}</span>
-      {note ? (
-        <span className={`pointer-events-none absolute z-10 hidden items-center gap-1 whitespace-nowrap md:flex ${pos}`}>
-          <span className="text-[22px] font-black leading-none text-[#e5484d]">{arrow}</span>
-          <span className="rounded-md bg-[#e5484d] px-2 py-1 text-[11px] font-semibold text-white shadow">{note}</span>
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 /* ── Апп-ын бодит дэлгэц + тэмдэглэгээ ─────────────────────────────
  * Зураг нь 390×844 (CSS px) утасны дэлгэц; хайрцгийн координат тэр хэмжээгээр.
@@ -74,40 +48,45 @@ function Shot({ src, marks }: { src: string; marks: ShotMark[] }) {
   );
 }
 
-/* ── Хөтчийн хүрээ ───────────────────────────────────────────────── */
-function Browser({ url, children }: { url: string; children: ReactNode }) {
+/* ── akt.gennetex.com-ийн бодит дэлгэц (1280×800 CSS px) + тэмдэглэгээ ── */
+const WW = 1280;
+const WH = 800;
+function WebShot({ src, marks }: { src: string; marks: ShotMark[] }) {
+  const pct = (v: number, of: number) => `${(v / of) * 100}%`;
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-[#cfd8d4] bg-white text-[#16201c] shadow-xl">
-      <div className="flex items-center gap-2 border-b border-[#e3e9e6] bg-[#eef2f0] px-3 py-2">
+    <div className="w-full overflow-visible rounded-xl border border-[#cfd8d4] bg-[#eef2f0] shadow-xl dark:border-[#2a2d2b] dark:bg-[#1b1d1c]">
+      <div className="flex items-center gap-2 border-b border-black/10 px-3 py-2">
         <span className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" /><i className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" /><i className="h-2.5 w-2.5 rounded-full bg-[#28c840]" /></span>
-        <span className="ml-2 flex-1 truncate rounded-md bg-white px-3 py-1 text-[11px] text-[#5f6d67]">{url}</span>
+        <span className="ml-2 flex-1 truncate rounded-md bg-white px-3 py-1 text-[11px] text-[#5f6d67] dark:bg-[#111312] dark:text-[#a9aeac]">https://akt.gennetex.com</span>
       </div>
-      <div className="flex min-h-[340px]">
-        <aside className="hidden w-44 shrink-0 border-r border-[#e3e9e6] bg-[#f8faf9] p-3 sm:block">
-          <div className="mb-3 flex items-center gap-2"><img src={brandMark} alt="" className="h-6 w-6 rounded bg-white object-contain" /><b className="text-[11px]">GENNETEX</b></div>
-          <p className="mb-1 text-[9px] font-semibold uppercase text-[#5f6d67]">Баримт бичиг</p>
-          <p className="rounded-md bg-[#e6ece9] px-2 py-1.5 text-[11px] font-semibold">Ажил гүйцэтгэлийн акт</p>
-        </aside>
-        <div className="min-w-0 flex-1 space-y-3 bg-[#f7f9f8] p-4">{children}</div>
+      <div className="relative" style={{ aspectRatio: `${WW} / ${WH}` }}>
+        <img src={`${import.meta.env.BASE_URL}guide/${src}.webp`} alt="" loading="lazy" className="absolute inset-0 h-full w-full rounded-b-xl object-cover" />
+        {marks.map((m) => {
+          const [x, y, w, h] = m.r;
+          const side = m.side || 'right';
+          const pos =
+            side === 'right' ? 'left-full top-1/2 -translate-y-1/2 ml-2 flex-row' :
+            side === 'left' ? 'right-full top-1/2 -translate-y-1/2 mr-2 flex-row-reverse' :
+            side === 'top' ? 'bottom-full left-1/2 -translate-x-1/2 mb-2 flex-col-reverse' :
+            'top-full left-1/2 -translate-x-1/2 mt-2 flex-col';
+          const arrow = side === 'right' ? '←' : side === 'left' ? '→' : side === 'top' ? '↓' : '↑';
+          return (
+            <div key={m.n} className="guide-mark absolute" style={{ left: pct(x - 4, WW), top: pct(y - 4, WH), width: pct(w + 8, WW), height: pct(h + 8, WH) }}>
+              <div className="h-full w-full rounded-[8px] outline outline-[3px] outline-[#e5484d] shadow-[0_0_0_4px_rgba(229,72,77,0.25)]" />
+              <span className="absolute -left-2.5 -top-2.5 z-10 grid h-6 w-6 place-items-center rounded-full bg-[#e5484d] text-[12px] font-bold text-white shadow">{m.n}</span>
+              {m.note ? (
+                <span className={`pointer-events-none absolute z-10 hidden items-center gap-1 whitespace-nowrap sm:flex ${pos}`}>
+                  <span className="text-[20px] font-black leading-none text-[#e5484d]">{arrow}</span>
+                  <span className="rounded-md bg-[#e5484d] px-2 py-1 text-[11px] font-semibold text-white shadow">{m.note}</span>
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
-const WField = ({ label, value, req, select, tall }: { label: string; value?: string; req?: boolean; select?: boolean; tall?: boolean }) => (
-  <div>
-    <p className="mb-1 text-[10px] font-semibold text-[#5f6d67]">{label}{req ? <b className="text-[#e5484d]"> *</b> : null}</p>
-    <div className={`flex items-center justify-between rounded-md border border-[#d9e1dd] bg-white px-2.5 text-[11px] text-[#5f6d67] ${tall ? 'h-14 items-start py-1.5' : 'h-8'}`}>{value || ''}{select ? <ChevronDown size={13} /> : null}</div>
-  </div>
-);
-const WBtn = ({ children, outline, icon }: { children: ReactNode; outline?: boolean; icon?: ReactNode }) => (
-  <span className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[11px] font-semibold ${outline ? 'border border-[#d9e1dd] bg-white text-[#16201c]' : 'bg-[#0c8a62] text-white'}`}>{icon}{children}</span>
-);
-const WCard = ({ title, children, actions }: { title: string; children: ReactNode; actions?: ReactNode }) => (
-  <div className="rounded-lg border border-[#e3e9e6] bg-white">
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e3e9e6] px-3 py-2"><b className="text-[12px]">{title}</b><div className="flex flex-wrap gap-1.5">{actions}</div></div>
-    <div className="space-y-2.5 p-3">{children}</div>
-  </div>
-);
 
 /* ── Алхам ───────────────────────────────────────────────────────── */
 function Step({ n, title, children, shot, wide = false }: { n: string; title: string; children: ReactNode; shot: ReactNode; wide?: boolean }) {
@@ -147,7 +126,6 @@ export default function GuidePage() {
           <nav className="hidden gap-1 text-[13px] font-semibold sm:flex">
             <a href="#app" className="rounded-md px-3 py-1.5 text-muted hover:bg-hover hover:text-ink">Утасны апп</a>
             <a href="#web" className="rounded-md px-3 py-1.5 text-muted hover:bg-hover hover:text-ink">akt.gennetex.com</a>
-            <a href="#status" className="rounded-md px-3 py-1.5 text-muted hover:bg-hover hover:text-ink">Төлөв</a>
           </nav>
           <button type="button" onClick={() => window.print()} className="hidden items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] font-semibold text-ink hover:bg-hover sm:inline-flex"><Printer size={14} /> Хэвлэх</button>
           <ThemeToggle />
@@ -158,11 +136,8 @@ export default function GuidePage() {
         <section className="py-12">
           <p className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-[12px] font-bold text-brand"><BookOpen size={14} /> Ажилтанд зориулсан</p>
           <h1 className="mt-4 text-[34px] font-bold leading-tight tracking-[-0.02em] text-ink sm:text-[42px]">Ажил гүйцэтгэлийн акт хэрхэн үүсгэх вэ?</h1>
-          <p className="mt-3 max-w-3xl text-[15px] leading-7 text-muted">
-            Ажлаа дуусгаад актаа <b className="text-ink">Gennetex утасны апп</b>-аас эсвэл компьютерээс <b className="text-ink">akt.gennetex.com</b>-оос үүсгэнэ. Зураг дээрх <span className="font-bold text-[#e5484d]">улаан хайрцаг, дугаар, сум</span> нь хаана дарахыг заана.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {[[Smartphone, 'Утасны апп', 'Талбай дээрээ шууд — зураг авч, илгээнэ', '#app'], [Globe, 'akt.gennetex.com', 'Компьютерээс — PDF / Word, гарын үсэг', '#web'], [Check, 'Актын төлөв', 'Ноорог → Илгээсэн → Баталгаажсан', '#status']].map(([I, t, d, h]) => {
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {[[Smartphone, 'Утасны апп', 'Талбай дээрээ шууд — зураг авч, илгээнэ', '#app'], [Globe, 'akt.gennetex.com', 'Компьютерээс — PDF / Word, гарын үсэг', '#web']].map(([I, t, d, h]) => {
               const Icon = I as typeof Smartphone;
               return (
                 <a key={t as string} href={h as string} className="surface flex items-start gap-3 p-4 hover:border-[var(--border-strong)]">
@@ -172,7 +147,6 @@ export default function GuidePage() {
               );
             })}
           </div>
-          <Tip>Акт бичих эрхгүй бол «Акт бичих» цэс харагдахгүй — ахлагч эсвэл системийн админд хандаж эрх авна уу. Актыг зөвхөн <b>Захирал</b> баталгаажуулна.</Tip>
         </section>
 
         {/* ═══════════════ УТАСНЫ АПП ═══════════════ */}
@@ -241,153 +215,64 @@ export default function GuidePage() {
 
         {/* ═══════════════ ВЕБ ═══════════════ */}
         <h2 id="web" className="scroll-mt-20 border-t border-line pt-12 text-[26px] font-bold text-ink"><Globe className="mr-2 inline text-brand" size={26} />Компьютерээс — akt.gennetex.com</h2>
+        <p className="mt-2 text-[13px] text-subtle">Зургууд нь akt.gennetex.com-ийн бодит дэлгэц (жишээ өгөгдөлтэй). Хөтчөөр akt.gennetex.com-г нээж, апп-д нэвтэрдэг Google хаягаараа нэвтэрнэ.</p>
 
-        <Step wide n="1" title="akt.gennetex.com-д Google-ээр нэвтэрнэ" shot={
-          <Browser url="https://akt.gennetex.com">
-            <div className="mx-auto mt-6 max-w-xs rounded-xl border border-[#e3e9e6] bg-white p-5 text-center">
-              <p className="text-[15px] font-bold">Тавтай морил</p>
-              <p className="mb-4 text-[11px] text-[#5f6d67]">Байгууллагын Google хаягаараа нэвтэрнэ үү.</p>
-              <Mark n={1} note="Google данс" side="right"><span className="flex h-10 items-center justify-center gap-2 rounded-lg border border-[#dadce0] bg-white text-[12px] font-semibold"><GoogleIcon size={16} />Google-ээр нэвтрэх</span></Mark>
-            </div>
-          </Browser>
+        <Step wide n="1" title="«Акт үүсгэх» товчийг дарна" shot={
+          <WebShot src="web-1" marks={[{ n: 1, r: [1132, 118, 116, 36], note: 'Шинэ акт', side: 'bottom' }, { n: 2, r: [292, 198, 560, 48], note: 'Төлөвөөр шүүх', side: 'bottom' }]} />
         }>
-          <Li n={1}>Хөтчөөр <b className="text-ink">akt.gennetex.com</b>-г нээж, <b className="text-ink">«Google-ээр нэвтрэх»</b> дарна. Апп-д нэвтэрдэг Gmail-ээ сонгоно.</Li>
+          <Li n={1}><b className="text-ink">Актын бүртгэл</b> хуудасны баруун дээрх <b className="text-ink">«Акт үүсгэх»</b> дарна.</Li>
+          <Li n={2}>Өмнөх актаа <b className="text-ink">Ноорог / Бэлэн / Баталгаажсан</b>-аар шүүж, хайж олно.</Li>
         </Step>
 
-        <Step wide n="2" title="«Акт үүсгэх» товчийг дарна" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts">
-            <div className="flex items-center justify-between"><b className="text-[15px]">Актын бүртгэл</b><Mark n={1} note="Шинэ акт" side="bottom"><WBtn icon={<FilePlus2 size={13} />}>Акт үүсгэх</WBtn></Mark></div>
-            <div className="flex gap-2"><span className="flex h-8 flex-1 items-center gap-1.5 rounded-md border border-[#d9e1dd] bg-white px-2 text-[11px] text-[#5f6d67]"><Search size={12} />Хайх…</span></div>
-            {['АКТ-2026-0142 · Сүлжээний угсралт', 'АКТ-2026-0141 · Шилэн кабель'].map((t) => <div key={t} className="rounded-md border border-[#e3e9e6] bg-white px-3 py-2 text-[11px]">{t}</div>)}
-          </Browser>
+        <Step wide n="2" title="Төсөл сонгох эсвэл гараар үүсгэх" shot={
+          <WebShot src="web-2" marks={[{ n: 1, r: [585, 410, 494, 40], note: 'Төсөл сонгох', side: 'bottom' }, { n: 2, r: [1092, 410, 115, 40], note: 'Гараар', side: 'bottom' }]} />
         }>
-          <Li n={1}>Баруун дээрх <b className="text-ink">«Акт үүсгэх»</b> дарна.</Li>
-        </Step>
-
-        <Step wide n="3" title="Төсөл сонгох эсвэл гараар үүсгэх" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts/new">
-            <WCard title="Акт үүсгэх">
-              <div className="rounded-md border border-[#bfe3d3] bg-[#e8f6ef] p-3">
-                <p className="text-[12px] font-semibold">Эхлээд төсөл / объект / ажлын захиалга сонгоно уу</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Mark n={1} note="Төсөл сонгох" side="top" className="min-w-[160px] flex-1"><WField label="" value="Төсөл / Объект сонгох" select /></Mark>
-                  <Mark n={2} note="Гараар" side="right"><WBtn outline>Гараар үүсгэх</WBtn></Mark>
-                </div>
-              </div>
-            </WCard>
-          </Browser>
-        }>
-          <Li n={1}><b className="text-ink">Төсөл / Объект</b>-оо сонговол захиалагч, хаяг, огноо, ажил <b className="text-ink">автоматаар бөглөгдөнө</b>.</Li>
+          <Li n={1}><b className="text-ink">Төсөл / Объект</b>-оо сонговол захиалагч, хаяг, огноо, гүйцэтгэсэн ажил <b className="text-ink">автоматаар бөглөгдөнө</b>.</Li>
           <Li n={2}>Жагсаалтад байхгүй бол <b className="text-ink">«Гараар үүсгэх»</b> дарна.</Li>
         </Step>
 
-        <Step wide n="4" title="1.1 Үндсэн мэдээлэл" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
-            <div className="flex gap-4 border-b border-[#e3e9e6] text-[11px] font-semibold">{['Үндсэн мэдээлэл', 'Хүлээлцэх хүмүүс', 'Урьдчилан харах', 'PDF / Word'].map((t, i) => <span key={t} className={`pb-2 ${i === 0 ? 'border-b-2 border-[#0c8a62] text-[#0c8a62]' : 'text-[#5f6d67]'}`}>{i + 1}. {t}</span>)}</div>
-            <WCard title="1.1 Үндсэн мэдээлэл">
-              <div className="grid grid-cols-2 gap-2.5">
-                <Mark n={1} note="Загвар, төрөл" side="left"><WField label="Актын загвар" req select value="Ажил гүйцэтгэлийн акт" /></Mark>
-                <WField label="Актын төрөл" req select value="Ажил гүйцэтгэлийн акт" />
-                <WField label="Төсөл / Объект" req value="Сүлжээний угсралт" />
-                <WField label="Хаяг / Байршил" req value="БЗД, 26-р хороо" />
-                <Mark n={2} note="Захиалагч" side="left"><WField label="Захиалагч байгууллага" req select value="Юнивишн" /></Mark>
-                <WField label="Ажил дууссан хугацаа" value="2026-10-19" />
-              </div>
-              <Mark n={3} note="Гүйцэтгэсэн ажил" side="bottom"><WField label="Гүйцэтгэсэн ажил" req tall value="…" /></Mark>
-            </WCard>
-          </Browser>
+        <Step wide n="3" title="1.1 Үндсэн мэдээлэл" shot={
+          <WebShot src="web-3" marks={[{ n: 1, r: [309, 420, 904, 40], note: 'Загвар, төрөл', side: 'top' }, { n: 2, r: [309, 500, 444, 40], note: 'Төсөл', side: 'right' }, { n: 3, r: [309, 660, 444, 40], note: 'Захиалагч', side: 'right' }, { n: 4, r: [1022, 752, 216, 36], note: 'Хадгалах / Дараах', side: 'top' }]} />
         }>
           <Li n={1}><b className="text-ink">Актын загвар, төрөл</b>-ийг сонгоно.</Li>
-          <Li n={2}>Төсөл, хаяг, <b className="text-ink">захиалагч</b>, огноог шалгаж бөглөнө.</Li>
-          <Li n={3}><b className="text-ink">Гүйцэтгэсэн ажил</b>-аа бичнэ. Улаан <b className="text-[#e5484d]">*</b> тэмдэгтэй талбар заавал.</Li>
+          <Li n={2}>Төсөл / объект, хаяг, гүйцэтгэгчийг шалгана.</Li>
+          <Li n={3}><b className="text-ink">Захиалагч байгууллага</b>, огноо, <b className="text-ink">гүйцэтгэсэн ажил</b>-аа бичнэ. Улаан <b className="text-[#e5484d]">*</b> тэмдэгтэй талбар заавал.</Li>
+          <Li n={4}>Доод талын <b className="text-ink">«Хадгалах»</b>, <b className="text-ink">«Дараах»</b> товч алхам бүрт байна (мөн автоматаар хадгалагдана).</Li>
         </Step>
 
-        <Step wide n="5" title="1.2 Материал ба 1.3 Шаардлага" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
-            <WCard title="1.2 Материал" actions={<>
-              <Mark n={1} note="ERP-с татах" side="left"><WBtn outline icon={<CloudDownload size={12} />}>ERP-с материал татах</WBtn></Mark>
-              <Mark n={2} note="Гараар нэмэх" side="top"><WBtn icon={<Plus size={12} />}>Материал нэмэх</WBtn></Mark>
-            </>}>
-              <div className="grid grid-cols-3 gap-2"><WField label="Бараа материал" value="Шилэн кабель" /><WField label="Хэмжих нэгж" value="м" /><WField label="Тоо хэмжээ" value="120" /></div>
-            </WCard>
-            <WCard title="1.3 Ажил гүйцэтгэхэд баримтлах шаардлага">
-              <div className="grid grid-cols-2 gap-2"><WField label="Шаардлага" value="Холболтыг хэмжсэн" /><Mark n={3} note="Тийм/Үгүй/N/A" side="left"><WField label="Төлөв" select value="✓ Тийм" /></Mark></div>
-            </WCard>
-          </Browser>
+        <Step wide n="4" title="1.2 Материал, 1.3 Шаардлага, 1.4 Зураг" shot={
+          <WebShot src="web-4" marks={[{ n: 1, r: [686, 103, 187, 36], note: 'ERP-с татах', side: 'bottom' }, { n: 2, r: [1060, 103, 153, 36], note: 'Гараар нэмэх', side: 'bottom' }, { n: 3, r: [740, 518, 128, 40], note: 'Тийм / Үгүй / N/A', side: 'left' }, { n: 4, r: [902, 633, 311, 38], note: 'Зураг оруулах', side: 'left' }]} />
         }>
           <Li n={1}><b className="text-ink">«ERP-с материал татах»</b> — агуулахаас олгосон материалыг автоматаар авна.</Li>
-          <Li n={2}>Эсвэл <b className="text-ink">«Материал нэмэх»</b>-ээр гараар нэмнэ.</Li>
-          <Li n={3}>Шаардлага бүрт <b className="text-ink">Тийм / Үгүй / N/A</b>; «Үгүй» бол шалтгаан заавал.</Li>
+          <Li n={2}>Эсвэл <b className="text-ink">«Материал нэмэх»</b>-ээр нэр, нэгж, тоо хэмжээг гараар бичнэ.</Li>
+          <Li n={3}>Шаардлага бүрт <b className="text-ink">Тийм / Үгүй / N/A</b>; «Үгүй» бол шалтгаанаа бичнэ.</Li>
+          <Li n={4}><b className="text-ink">«ERP-с зураг сонгох»</b> (апп-аар авсан) эсвэл <b className="text-ink">«Зураг upload»</b>.</Li>
         </Step>
 
-        <Step wide n="6" title="1.4 Ажлын зураг" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
-            <WCard title="1.4 Ажлын зураг" actions={<>
-              <Mark n={1} note="ERP зураг" side="left"><WBtn outline icon={<ImagePlus size={12} />}>ERP-с зураг сонгох</WBtn></Mark>
-              <Mark n={2} note="Компьютерээс" side="top"><WBtn icon={<Upload size={12} />}>Зураг upload</WBtn></Mark>
-            </>}>
-              <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((i) => <div key={i}><span className="grid h-16 place-items-center rounded bg-[#dfe7e3] text-[#5f6d67]"><ImageIcon size={18} /></span>{i === 1 ? <Mark n={3} note="Тайлбар" side="bottom" className="mt-1.5"><WField label="" value="Зургийн тайлбар" /></Mark> : <div className="mt-1.5"><WField label="" value="Тайлбар" /></div>}</div>)}</div>
-            </WCard>
-          </Browser>
+        <Step wide n="5" title="2. Хүлээлцэх хүмүүс ба гарын үсэг" shot={
+          <WebShot src="web-5" marks={[{ n: 1, r: [302, 186, 160, 28], note: 'Актад оруулах', side: 'right' }, { n: 2, r: [309, 282, 444, 40], note: 'Хэсэг', side: 'right' }, { n: 3, r: [309, 442, 904, 40], note: 'Нэр, албан тушаал', side: 'top' }, { n: 4, r: [326, 597, 182, 36], note: 'Гарын үсэг', side: 'right' }]} />
         }>
-          <Li n={1}><b className="text-ink">«ERP-с зураг сонгох»</b> — апп-аар авсан ажлын зургаас сонгоно.</Li>
-          <Li n={2}><b className="text-ink">«Зураг upload»</b> — компьютерээс оруулна.</Li>
-          <Li n={3}>Зураг бүрт <b className="text-ink">тайлбар</b> бичнэ. Чирж дарааллыг өөрчилнө.</Li>
+          <Li n={1}>Хүлээлцэх хүнийг <b className="text-ink">чагтлах</b> — чагтласан хүн л PDF, Word дээр гарна.</Li>
+          <Li n={2}><b className="text-ink">Хүлээлцэх хэсэг</b> (Захиалагч, Өрх, Женнетекс …)-ийг сонгоно.</Li>
+          <Li n={3}>Нэр, албан тушаалыг бичнэ эсвэл хадгалсан хүн / ERP ажилтнаас сонгоно.</Li>
+          <Li n={4}>Гарын үсгийг <b className="text-ink">«Зурах»</b>-аар дэлгэц дээр зурна эсвэл <b className="text-ink">«Upload»</b> хийнэ.</Li>
         </Step>
 
-        <Step wide n="7" title="2. Хүлээлцэх хүмүүс ба гарын үсэг" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
-            <WCard title="2. Хүлээлцэх хүмүүс" actions={<Mark n={1} note="Хүн нэмэх" side="left"><WBtn icon={<Plus size={12} />}>Хүн нэмэх</WBtn></Mark>}>
-              <div className="grid grid-cols-2 gap-2"><WField label="Хүлээлцэх хэсэг" req select value="Захиалагч" /><WField label="Нэр" req value="Д.Болд" /></div>
-              <div className="rounded-md border border-[#e3e9e6] bg-[#f8faf9] p-2.5">
-                <p className="mb-1.5 text-[10px] font-semibold text-[#5f6d67]">Гарын үсэг</p>
-                <div className="flex flex-wrap gap-1.5"><WBtn outline icon={<Upload size={12} />}>Upload</WBtn><Mark n={2} note="Зурах" side="right"><WBtn outline icon={<Signature size={12} />}>Зурах</WBtn></Mark></div>
-              </div>
-            </WCard>
-          </Browser>
+        <Step wide n="6" title="3. Урьдчилан харах" shot={
+          <WebShot src="web-6" marks={[{ n: 1, r: [444, 357, 636, 380], note: 'Актын хэвлэх хувилбар', side: 'left' }, { n: 2, r: [807, 272, 113, 36], note: 'PDF засах', side: 'bottom' }]} />
         }>
-          <Li n={1}><b className="text-ink">«Хүн нэмэх»</b> — захиалагч, хүлээлцэгчийг нэмнэ (хадгалсан хүн эсвэл ERP ажилтнаас сонгож болно).</Li>
-          <Li n={2}>Гарын үсгийг <b className="text-ink">«Зурах»</b>-аар дэлгэц дээр зурна эсвэл зураг upload хийнэ.</Li>
+          <Li n={1}>Акт A4 хуудсан дээр яг хэвлэгдэх байдлаар харагдана — алдаагаа шалгана.</Li>
+          <Li n={2}>Шаардлагатай бол <b className="text-ink">«PDF засах»</b>-аар байрлалыг тохируулна.</Li>
         </Step>
 
-        <Step wide n="8" title="Урьдчилан харж, хадгалж, илгээнэ" shot={
-          <Browser url="https://akt.gennetex.com/admin/documents/acts/…/edit">
-            <div className="mx-auto h-40 w-32 rounded border border-[#d9e1dd] bg-white p-2 shadow"><div className="mb-1 h-2 w-16 rounded bg-[#d9e1dd]" /><div className="space-y-1">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-1.5 rounded bg-[#eef2f0]" />)}</div></div>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e3e9e6] pt-3">
-              <WBtn outline icon={<ChevronLeft size={12} />}>Өмнөх</WBtn>
-              <div className="flex gap-2">
-                <Mark n={1} note="Хадгалах" side="top"><WBtn outline icon={<Save size={12} />}>Хадгалах</WBtn></Mark>
-                <Mark n={2} note="Дараагийн алхам" side="top"><WBtn icon={<ArrowRight size={12} />}>Дараах</WBtn></Mark>
-              </div>
-            </div>
-            <WCard title="4. PDF / Word үүсгэх">
-              <div className="flex flex-wrap gap-1.5"><WBtn icon={<Download size={12} />}>PDF татах</WBtn><WBtn outline icon={<FileText size={12} />}>Word татах</WBtn><WBtn outline icon={<Printer size={12} />}>Хэвлэх</WBtn>
-                <Mark n={3} note="Захиралд илгээх" side="bottom"><WBtn outline icon={<Check size={12} />}>Бэлэн болгох</WBtn></Mark>
-              </div>
-            </WCard>
-          </Browser>
+        <Step wide n="7" title="4. PDF / Word ба Бэлэн болгох" shot={
+          <WebShot src="web-7" marks={[{ n: 1, r: [330, 504, 91, 36], note: 'PDF', side: 'bottom' }, { n: 2, r: [637, 504, 98, 36], note: 'Word', side: 'bottom' }, { n: 3, r: [943, 504, 74, 36], note: 'Хэвлэх', side: 'bottom' }, { n: 4, r: [383, 606, 111, 36], note: 'Захиралд илгээх', side: 'bottom' }]} />
         }>
-          <Li n={1}><b className="text-ink">«Хадгалах»</b> — алхам бүрт хадгална.</Li>
-          <Li n={2}><b className="text-ink">«Дараах»</b> — дараагийн алхам руу (Урьдчилан харах → PDF / Word).</Li>
-          <Li n={3}>Бүх зүйл зөв бол <b className="text-ink">«Бэлэн болгох»</b> дарж Захиралд илгээнэ. PDF / Word-оор татаж, хэвлэж болно.</Li>
+          <Li n={1}><b className="text-ink">«PDF татах»</b> — A4 PDF.</Li>
+          <Li n={2}><b className="text-ink">«Word татах»</b> — засварлах боломжтой DOCX.</Li>
+          <Li n={3}><b className="text-ink">«Хэвлэх»</b> — шууд хэвлэнэ.</Li>
+          <Li n={4}>Бүх зүйл зөв бол <b className="text-ink">«Бэлэн болгох»</b> дарж Захиралд баталгаажуулахаар илгээнэ.</Li>
         </Step>
-
-        {/* ═══════════════ ТӨЛӨВ ═══════════════ */}
-        <section id="status" className="scroll-mt-20 border-t border-line pt-12">
-          <h2 className="text-[26px] font-bold text-ink"><Check className="mr-2 inline text-brand" size={26} />Актын төлөв</h2>
-          <div className="mt-6 grid gap-3 md:grid-cols-4">
-            {[['Ноорог', 'Хадгалсан, дуусаагүй. Та засаж болно.', '#eef2f0', '#45534d'], ['Илгээсэн / Бэлэн', 'Захиралд баталгаажуулахаар очсон.', '#e1ecff', '#2160c4'], ['Баталгаажсан', 'Захирал баталсан — тамга, гарын үсэгтэй PDF гарна.', '#e0f5ea', '#0f8150'], ['Хүлээлгэн өгсөн', 'Захиалагчид хүлээлгэн өгсөн, архивт.', '#fff1d6', '#9a5800']].map(([t, d, bg, fg], i) => (
-              <div key={t} className="surface p-4">
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>{i + 1}. {t}</span>
-                <p className="mt-3 text-[13px] leading-5 text-muted">{d}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 space-y-2">
-            <Tip>Актыг зөвхөн <b>Захирал</b> баталгаажуулна. Баталгаажсан актыг өөрчлөх шаардлагатай бол админд хандана.</Tip>
-            <Tip>Асуудал гарвал апп дахь «Хөгжүүлэгчтэй холбогдох» эсвэл ахлагчдаа хандана уу.</Tip>
-          </div>
-        </section>
 
         <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[12px] text-subtle">
           <span>© {new Date().getFullYear()} GENNETEX ХХК · Гарын авлага</span>

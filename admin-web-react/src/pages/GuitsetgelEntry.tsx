@@ -14,6 +14,12 @@ import { aggregate, compareInsights, DAMAGE_KINDS, deleteFormJob, fetchJobsAny, 
  */
 
 const pad = (n: number) => String(n).padStart(2, '0');
+/** «1430», «14:3», «9:05» → 24 цагийн «HH:MM» руу бичих явцад хэлбэржүүлнэ. */
+const fmtTime = (v: string) => {
+  const d = v.replace(/\D/g, '').slice(0, 4);
+  if (d.length <= 2) return d.length === 2 && Number(d) > 23 ? `0${d[0]}:${d[1]}` : d;
+  return `${d.slice(0, 2)}:${d.slice(2)}`;
+};
 const todayUb = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
 const monthRange = (y: number, m: number) => [`${y}-${pad(m + 1)}-01`, `${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`] as const;
 
@@ -213,7 +219,7 @@ function JobForm({ job, people, kinds, taskOptions, onTaskOptions, orgOptions, o
   const save = async (again: boolean) => {
     setErr('');
     if (!main) return setErr('Ажилтнаа сонгоно уу.');
-    if (kind === 'complain' && !note.trim()) return setErr('Гомдлын агуулгыг бичнэ үү.');
+    if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return setErr('Цагийг 24 цагийн форматаар бичнэ үү (ж: 14:30).');
     setBusy(true);
     try {
       await saveFormJob({ work_date: date, job_time: time, kind, engineers: crew.map((n) => ({ name: n, user_id: people.find((p) => p.name === n)?.id || null })), cable, contract, note, tasks, lead: toCyrillic(lead), customer_type: customer, org_kind: orgKind, damage_kind: damage }, job?.source === 'form' ? job.id : undefined, job && job.source !== 'form' ? job : undefined);
@@ -247,7 +253,7 @@ function JobForm({ job, people, kinds, taskOptions, onTaskOptions, orgOptions, o
         {job && job.source !== 'form' ? <p className="rounded-[var(--radius)] bg-warning-soft px-3 py-2 text-[12.5px] text-warning">Google Sheet-ээс орсон мөр. Засвар энд хадгалагдаж гүйцэтгэл, цалинд тоологдоно; «Sheet-ээс татах» дарахад дарагдахгүй. Google Sheet өөрөө өөрчлөгдөхгүй.</p> : null}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Огноо"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="Цаг"><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+          <Field label="Цаг (24 цаг)"><Input value={time} onChange={(e) => setTime(fmtTime(e.target.value))} inputMode="numeric" placeholder="14:30" maxLength={5} className="tabular-nums" /></Field>
         </div>
         <Field label="Харилцагч">
           <div className="grid grid-cols-2 gap-1 rounded-[var(--radius)] bg-card2 p-1" role="radiogroup" aria-label="Харилцагч">
@@ -300,7 +306,7 @@ function JobForm({ job, people, kinds, taskOptions, onTaskOptions, orgOptions, o
           <Field label="Гэрээний дугаар"><Input value={contract} onChange={(e) => setContract(e.target.value)} inputMode="numeric" /></Field>
         </div>
         <TaskPicker options={taskOptions} value={tasks} onChange={setTasks} onOptions={onTaskOptions} />
-        <Field label={kind === 'complain' ? 'Гомдлын агуулга *' : 'Тайлбар'}>
+        <Field label={kind === 'complain' ? 'Гомдлын агуулга' : 'Тайлбар'}>
           <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={kind === 'complain' ? 'ж: Интернэт тасарсан — коннектор сольсон' : ''} />
         </Field>
         {err ? <p className="text-[13px] text-danger" role="alert">{err}</p> : null}
