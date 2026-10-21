@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createEphemeralClient, supabase } from '../lib/supabase';
 import { rememberAuthReturn } from '../lib/authReturn';
 import { downloadSheets } from '../lib/attendanceExport';
@@ -644,7 +644,24 @@ function Dashboard({ me, onLogout }: { me: Me; onLogout: () => void }) {
 }
 
 /* ═══════════════════ ЭРХ — бүх домэйны хандах эрх ═══════════════════ */
-type AUser = { id: string; name: string; email: string | null; phone: string | null; role: string; department: string | null; data: boolean; location: boolean };
+type AUser = { id: string; name: string; email: string | null; phone: string | null; role: string; department: string | null; data: boolean; location: boolean; permissions?: Record<string, boolean> };
+// Модулийн эрх — апп (src/lib/permissions.js) ба ERP домэйнуудтай ижил түлхүүр.
+const PERMS: [string, string, string][] = [
+  ['approve', 'Ирц, хүсэлт батлах', 'irts · ирц, чөлөө, ажлын байр, дуудлага'],
+  ['employees', 'Ажилтан удирдах', 'hr · нэмэх, засах, ажлаас гаргах, устгах'],
+  ['payroll', 'Цалин', 'sanhuu · цалин, хоолны мөнгө, бензин, гүйцэтгэл'],
+  ['inventory', 'Бараа, багаж', 'aguulah · агуулах, олголт'],
+  ['departments', 'Хэлтэс удирдах', 'хэлтэс үүсгэх, засах'],
+  ['acts.create', 'Акт бичих', 'akt · акт бичиж Захиралд илгээх'],
+];
+// Түвшний анхдагч (апп-ын roleDefaultPermission-тэй ижил).
+const ROLE_DEFAULT: Record<string, string[]> = {
+  superadmin: ['approve', 'employees', 'payroll', 'inventory', 'departments', 'acts.create'],
+  admin: ['approve', 'employees', 'payroll', 'inventory'],
+  menejer: ['approve', 'employees', 'inventory'],
+  ahlah: ['approve', 'employees', 'inventory'],
+  employee: [],
+};
 const ROLES: [string, string][] = [['employee', 'ажилтан'], ['ahlah', 'ахлах'], ['menejer', 'менежер'], ['admin', 'АДМИН'], ['superadmin', 'SUPERADMIN']];
 /** Эрх тус бүр аль домэйныг нээдэг (Layout, data-gate, admin-gate-ийн дүрэм). */
 const ROLE_SITES: Record<string, string> = {
@@ -679,6 +696,7 @@ function AccessPanel() {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState('');
   const [phoneEdit, setPhoneEdit] = useState<{ id: string; value: string } | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const load = () => ownerCall<{ users: AUser[] }>({ action: 'owner_users' }).then((r) => setUsers(r.users)).catch((e) => setErr((e as Error).message));
   useEffect(() => {
     void load();
@@ -697,6 +715,7 @@ function AccessPanel() {
       setBusy('');
     }
   };
+  const effective = (u: AUser, k: string) => (u.role === 'superadmin' ? true : typeof u.permissions?.[k] === 'boolean' ? !!u.permissions?.[k] : (ROLE_DEFAULT[u.role] || []).includes(k));
   const needle = q.trim().toLowerCase();
   const list = (users || []).filter((u) => !needle || [u.name, u.email || '', u.phone || '', u.department || ''].join(' ').toLowerCase().includes(needle));
   const admins = (users || []).filter((u) => ['admin', 'superadmin'].includes(u.role)).length;
@@ -706,7 +725,7 @@ function AccessPanel() {
       <div className="t-bar"><span>+--- ЭРХ · БҮХ ДОМЭЙН ---+</span><span className="t-right">{users ? users.length + ' хэрэглэгч · ' + admins + ' админ' : '…'}</span></div>
       <div className="t-body">
         <p className="t-dim" style={{ margin: '0 0 10px', fontSize: 12 }}>
-          // АДМИН — бүх ERP домэйн (3 шаттай нэвтрэлтээр) · DATA — data.gennetex.com (харах) · БАЙРШИЛ — bairshil-д бүх ажилтныг харах · УТАС — нэвтрэлтийн SMS очих дугаар (профайлд утасгүй бол нэвтэрч чадахгүй)
+          // АДМИН — бүх ERP домэйн (3 шаттай нэвтрэлтээр) · МОДУЛЬ — ирц, ажилтан, цалин, агуулах, хэлтэс, акт тус бүрийг олгох / хаах · DATA — data.gennetex.com (харах) · БАЙРШИЛ — bairshil-д бүх ажилтныг харах · УТАС — нэвтрэлтийн SMS очих дугаар (профайлд утасгүй бол нэвтэрч чадахгүй)
         </p>
         <label className="t-prompt" style={{ marginBottom: 10 }}>
           <span className="t-amber">root@access:~$</span>
@@ -717,10 +736,11 @@ function AccessPanel() {
         {!users ? <p>&gt; ачаалж байна<span className="t-cursor" aria-hidden="true" /></p> : (
           <div style={{ overflowX: 'auto' }}>
             <table>
-              <thead><tr><th>Хэрэглэгч</th><th>Утас</th><th>Эрх</th><th>Data</th><th>Байршил</th><th>Нээгдэх домэйн</th></tr></thead>
+              <thead><tr><th>Хэрэглэгч</th><th>Утас</th><th>Эрх</th><th>Модуль</th><th>Data</th><th>Байршил</th><th>Нээгдэх домэйн</th></tr></thead>
               <tbody>
                 {list.map((u) => (
-                  <tr key={u.id} style={{ opacity: busy === u.id ? 0.5 : 1 }}>
+                  <Fragment key={u.id}>
+                  <tr style={{ opacity: busy === u.id ? 0.5 : 1 }}>
                     <td>
                       <div>{u.name}</div>
                       <div className="t-dim" style={{ fontSize: 11 }}>{u.email || '—'}{u.department ? ' · ' + u.department : ''}</div>
@@ -750,6 +770,11 @@ function AccessPanel() {
                         {ROLES.map(([k, l]) => <option key={k} value={k} style={{ color: '#000' }}>{l}</option>)}
                       </select>
                     </td>
+                    <td>
+                      <button className="t-btn" type="button" aria-expanded={open === u.id} onClick={() => setOpen(open === u.id ? null : u.id)} title="Модулийн эрх (ирц, ажилтан, цалин …)">
+                        {PERMS.filter(([k]) => effective(u, k)).length}/{PERMS.length} {open === u.id ? '▴' : '▾'}
+                      </button>
+                    </td>
                     <td><button className="t-btn" type="button" aria-pressed={u.data} disabled={busy === u.id} onClick={() => set(u, { data: !u.data })}>{u.data ? '[x]' : '[ ]'}</button></td>
                     <td><button className="t-btn" type="button" aria-pressed={u.location} disabled={busy === u.id} onClick={() => set(u, { location: !u.location })}>{u.location ? '[x]' : '[ ]'}</button></td>
                     <td className="t-dim" style={{ fontSize: 11, maxWidth: 360 }}>
@@ -758,6 +783,37 @@ function AccessPanel() {
                       {u.location && !['admin', 'superadmin'].includes(u.role) ? ' · bairshil' : ''}
                     </td>
                   </tr>
+                  {open === u.id ? (
+                    <tr>
+                      <td colSpan={7} style={{ paddingTop: 0 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8, padding: '6px 0 12px' }}>
+                          {PERMS.map(([k, label, hint]) => {
+                            const ov = u.permissions?.[k];
+                            const value = typeof ov === 'boolean' ? (ov ? 'on' : 'off') : 'default';
+                            const def = (ROLE_DEFAULT[u.role] || []).includes(k);
+                            return (
+                              <label key={k} style={{ display: 'grid', gap: 3, fontSize: 12 }}>
+                                <span>{label} <span className="t-dim">— {hint}</span></span>
+                                <select
+                                  value={value}
+                                  disabled={busy === u.id || u.role === 'superadmin'}
+                                  onChange={(e) => void set(u, { permissions: { [k]: e.target.value === 'default' ? null : e.target.value === 'on' } })}
+                                  style={inputStyle}
+                                  aria-label={u.name + ' — ' + label}
+                                >
+                                  <option value="default" style={{ color: '#000' }}>Анхдагч ({def ? 'тийм' : 'үгүй'})</option>
+                                  <option value="on" style={{ color: '#000' }}>Тийм — олгох</option>
+                                  <option value="off" style={{ color: '#000' }}>Үгүй — хаах</option>
+                                </select>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {u.role === 'superadmin' ? <p className="t-dim" style={{ fontSize: 11, margin: 0 }}>// SUPERADMIN бүх модульд үргэлж эрхтэй.</p> : null}
+                      </td>
+                    </tr>
+                  ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

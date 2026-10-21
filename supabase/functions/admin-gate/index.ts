@@ -348,7 +348,7 @@ async function handle(req: Request, body: Record<string, unknown>) {
     case "owner_users": {
       await ownerUid(req);
       const [{ data: people }, { data: viewers }, { data: grants }, { data: depts }] = await Promise.all([
-        db.from("profiles").select("id, name, last_name, email, phone, role, department_id, avatar_url").order("name"),
+        db.from("profiles").select("id, name, last_name, email, phone, role, department_id, avatar_url, permissions").order("name"),
         db.from("data_viewers").select("user_id"),
         db.from("location_view_grants").select("user_id"),
         db.from("departments").select("id, name"),
@@ -360,6 +360,7 @@ async function handle(req: Request, body: Record<string, unknown>) {
         users: (people || []).map((p) => ({
           id: p.id, name: `${p.last_name || ""} ${p.name || ""}`.trim() || p.email || "Хэрэглэгч", email: p.email, phone: p.phone,
           role: p.role || "employee", department: dn.get(p.department_id) || null, avatar_url: p.avatar_url, data: v.has(p.id), location: g.has(p.id),
+          permissions: p.permissions || {},
         })),
       };
     }
@@ -395,6 +396,20 @@ async function handle(req: Request, body: Record<string, unknown>) {
         if (body.location) await db.from("location_view_grants").upsert({ user_id: target, granted_by: owner });
         else await db.from("location_view_grants").delete().eq("user_id", target);
         changes.location = !!body.location;
+      }
+      // Модулийн эрх: { key: true | false | null } — null бол түвшний анхдагч руу буцна.
+      if (body.permissions !== undefined && body.permissions && typeof body.permissions === "object") {
+        const KEYS = ["employees", "departments", "inventory", "approve", "payroll", "acts.create"];
+        const { data: cur } = await db.from("profiles").select("permissions").eq("id", target).maybeSingle();
+        const next: Record<string, boolean> = { ...((cur?.permissions as Record<string, boolean>) || {}) };
+        for (const [k, val] of Object.entries(body.permissions as Record<string, unknown>)) {
+          if (!KEYS.includes(k)) throw new GateError("Эрхийн түлхүүр буруу.");
+          if (val === null) delete next[k];
+          else next[k] = !!val;
+        }
+        const { error } = await db.from("profiles").update({ permissions: next }).eq("id", target);
+        if (error) throw new GateError(error.message);
+        changes.permissions = body.permissions;
       }
       await audit(owner, "owner_set", { target, ...changes });
       return { ok: true };
