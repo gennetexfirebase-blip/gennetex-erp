@@ -97,7 +97,7 @@ function Step({ n, title, children, shot, wide = false }: { n: string; title: st
         <h3 className="text-[20px] font-bold leading-tight text-ink">{title}</h3>
         <div className="mt-3 space-y-2 text-[14px] leading-6 text-muted">{children}</div>
       </div>
-      <div className={`flex justify-center px-2 py-8 md:px-40 ${wide ? 'mx-auto w-full max-w-5xl' : ''}`}>{shot}</div>
+      <div className={`flex justify-center px-2 py-8 ${wide ? 'mx-auto w-full max-w-5xl md:px-12' : 'md:px-40'}`}>{shot}</div>
     </section>
   );
 }
