@@ -21,6 +21,8 @@ import {
   fetchEmployeeTrainings,
   fetchEmployees,
   fetchDepartments,
+  deleteEmployee,
+  setEmployeeActive,
   setEmployeeRole,
   setEmployeeTrainingCompleted,
   updateEmployee,
@@ -352,7 +354,9 @@ export default function EmployeesPage() {
                     <td className="px-4 py-3 text-muted">{ROLE_LABEL[e.role || ''] || e.role}</td>
                     <td className="px-4 py-3 text-muted">{e.phone || '—'}</td>
                     <td className="px-4 py-3">
-                      {e.registered ? (
+                      {e.active === false ? (
+                        <Badge tone="danger">Ажлаас гарсан</Badge>
+                      ) : e.registered ? (
                         <Badge tone="brand">Үндсэн ажилтан</Badge>
                       ) : (
                         <Badge tone="warning">Бүртгүүлээгүй</Badge>
@@ -396,6 +400,9 @@ const EDIT_ERR: Record<string, string> = {
   phone_taken: 'Энэ утасны дугаар өөр ажилтанд бүртгэлтэй байна.',
   department_not_found: 'Хэлтэс олдсонгүй.',
   not_found: 'Ажилтан олдсонгүй.',
+  cannot_change_self: 'Өөрийгөө ажлаас гаргах боломжгүй.',
+  cannot_delete_self: 'Өөрийгөө устгах боломжгүй.',
+  last_superadmin: 'Сүүлийн хөгжүүлэгчийг устгах боломжгүй.',
 };
 
 /** Ажилтны мэдээлэл засах — нэр, овог, утас, албан тушаал, хэлтэс, хаяг; бүртгүүлээгүй бол имэйл; хөгжүүлэгч эрхийг. */
@@ -413,6 +420,37 @@ function EditEmployee({ employee, departments, isSuperAdmin, onClose, onSaved }:
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const set = (k: keyof typeof f) => (ev: { target: { value: string } }) => setF((c) => ({ ...c, [k]: ev.target.value }));
+
+  const fullName = [f.last_name, f.name].filter(Boolean).join(' ') || employee.email || '';
+  const fail = (e: unknown) => {
+    const code = String((e as Error).message || '');
+    setErr(Object.entries(EDIT_ERR).find(([k]) => code.includes(k))?.[1] || code);
+    setBusy(false);
+  };
+  const toggleActive = async () => {
+    const leaving = employee.active !== false;
+    if (!window.confirm(leaving ? `${fullName}-г ажлаас гаргах уу?\n\nАпп-д нэвтэрч, ирц бүртгэх боломжгүй болно. Түүх (ирц, цалин, акт) хадгалагдана. Дараа нь эргүүлж авч болно.` : `${fullName}-г ажилд эргүүлж авах уу?`)) return;
+    setErr('');
+    setBusy(true);
+    try {
+      await setEmployeeActive(employee.email || '', !leaving);
+      onSaved(leaving ? `${fullName} — ажлаас гарлаа.` : `${fullName} — ажилд эргэж орлоо.`);
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const remove = async () => {
+    const typed = window.prompt(`${fullName}-г БҮРМӨСӨН устгах уу?\n\nАпп-ын данс болон HR бүртгэл устаж, буцаах боломжгүй. Түүхийг хадгалах бол «Ажлаас гаргах»-ыг ашиглана уу.\n\nБаталгаажуулахын тулд «устгах» гэж бичнэ үү:`);
+    if (typed?.trim().toLowerCase() !== 'устгах') return;
+    setErr('');
+    setBusy(true);
+    try {
+      await deleteEmployee(employee.email || '');
+      onSaved(`${fullName} — устгагдлаа.`);
+    } catch (e) {
+      fail(e);
+    }
+  };
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -471,7 +509,10 @@ function EditEmployee({ employee, departments, isSuperAdmin, onClose, onSaved }:
           <label className={`${field} sm:col-span-2`}><span>Хаяг</span><Textarea rows={2} value={f.address} onChange={set('address')} /></label>
         </div>
         {err ? <p className="mt-3 text-[13px] text-danger" role="alert">{err}</p> : null}
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" className={employee.active === false ? '' : '!text-warning'} onClick={toggleActive} disabled={busy}>{employee.active === false ? 'Ажилд эргүүлж авах' : 'Ажлаас гаргах'}</Button>
+          <Button type="button" variant="ghost" className="!text-danger" icon={<Trash2 size={15} />} onClick={remove} disabled={busy}>Устгах</Button>
+          <span className="flex-1" />
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Болих</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Хадгалж байна…' : 'Хадгалах'}</Button>
         </div>

@@ -22,6 +22,7 @@ export type Employee = {
   avatar_url: string | null;
   department_id: string | null;
   department_name: string | null;
+  active?: boolean | null;
 };
 
 export type EmployeeTraining = {
@@ -335,6 +336,18 @@ export async function updateEmployee(input: {
   });
   if (error) throw error;
   return data;
+}
+
+/** Ажлаас гаргах (false) / эргүүлж авах (true). */
+export async function setEmployeeActive(email: string, active: boolean) {
+  const { error } = await supabase.rpc('admin_hr_set_active', { p_email: email.trim().toLowerCase(), p_active: active });
+  if (error) throw error;
+}
+
+/** Бүрмөсөн устгах — апп-ын данс ба HR бүртгэл. */
+export async function deleteEmployee(email: string) {
+  const { error } = await supabase.rpc('admin_hr_delete', { p_email: email.trim().toLowerCase() });
+  if (error) throw error;
 }
 
 /** Эрх солих — зөвхөн хөгжүүлэгч, апп-д бүртгүүлсэн ажилтанд. */
